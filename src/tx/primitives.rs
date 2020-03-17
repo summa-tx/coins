@@ -8,6 +8,12 @@ use serde::ser::{Serialize, Serializer};
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
 pub struct LEU32(u32);
 
+impl LEU32 {
+    pub fn new(number: u32) -> Self{
+        LEU32(number)
+    }
+}
+
 impl Serialize for LEU32 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
         where S: Serializer,
@@ -33,6 +39,12 @@ impl<'de> Deserialize<'de> for LEU32 {
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
 pub struct LEU64(u64);
+
+impl LEU64 {
+    pub fn new(number: u64) -> Self{
+        LEU64(number)
+    }
+}
 
 impl Serialize for LEU64 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
