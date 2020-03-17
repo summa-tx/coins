@@ -1,8 +1,8 @@
-use bitcoin_spv::{types};
-use serde::de::{Deserialize, Deserializer};
-use serde::ser::{self, Serialize, Serializer};
+extern crate hex;
 
-use crate::tx::format::{VarIntVisitor};
+use std::io::{Read, Write, Result, Cursor};
+
+use bitcoin_spv::types::Hash256Digest;
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
 pub struct VarInt(pub u64, pub u8);   // number and byte-length
@@ -22,7 +22,16 @@ impl VarInt {
         }
     }
 
-    pub fn len_from_prefix(number: u8) -> usize {
+    pub fn prefix_from_len(number: u8) -> Option<u8> {
+        match number {
+             3 =>  Some(0xfd),
+             5 =>  Some(0xfe),
+             9 =>  Some(0xff),
+             _ => None
+        }
+    }
+
+    pub fn len_from_prefix(number: u8) -> u8 {
         match number {
             0..=0xfc => 1,
             0xfd => 3,
@@ -32,53 +41,212 @@ impl VarInt {
     }
 }
 
-impl Serialize for VarInt {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer,
-    {
-        let mut buf = [0u8; 9];
-        buf[0] = match self.1 {
-            1 => self.0 as u8,
-            3 => 0xfd,
-            5 => 0xfe,
-            9 => 0xff,
-            _ => return Err(ser::Error::custom("Bad VarInt in ser"))
-        };
-        buf[1..].copy_from_slice(&self.0.to_le_bytes());
-        serializer.serialize_bytes(&buf[..self.1 as usize])
-    }
-}
+pub trait Ser {
+    fn serialized_length(&self) -> Result<usize>;
 
-impl<'de> Deserialize<'de> for VarInt {
-    fn deserialize<D>(deserializer: D) -> Result<VarInt, D::Error>
+    fn deserialize<T>(reader: &mut T, _limit: usize) -> Result<Self>
     where
-        D: Deserializer<'de>
+        T: Read,
+        Self: std::marker::Sized;
+
+    fn serialize<T>(&self, writer: &mut T) -> Result<usize>
+    where
+        T: Write;
+
+    fn serialize_hex(&self) -> Result<String> {
+        let mut v: Vec<u8> = vec![];
+        self.serialize(&mut v)?;
+        Ok(hex::encode(v))
+    }
+
+    fn deserialize_hex(s: String) -> Result<Self>
+    where
+        Self: std::marker::Sized
     {
-        Ok(deserializer.deserialize_bytes(VarIntVisitor)?)
+        let v: Vec<u8> = hex::decode(s).unwrap();
+        let mut cursor = Cursor::new(v);
+        Ok(Self::deserialize(&mut cursor, 0)?)
     }
 }
 
-pub mod hash256_ser {
+impl Ser for VarInt {
+
+    fn serialized_length(&self) -> Result<usize> {
+        Ok(self.1 as usize)
+    }
+
+    fn deserialize<T>(reader: &mut T, _limit: usize) -> Result<VarInt>
+    where
+        T: Read
+    {
+        let mut prefix = [0u8; 1];
+        reader.read(&mut prefix)?;  // read at most one byte
+
+        let len = VarInt::len_from_prefix(prefix[0]);
+        if len == 1 {
+            return Ok(VarInt(prefix[0] as u64, 1u8));
+        }
+
+        let mut buf = [0u8; 8];
+        let mut body = reader.take(len as u64 - 1); // minus 1 to account for prefix
+        body.read(&mut buf)?;
+        Ok(VarInt(u64::from_le_bytes(buf), len))
+    }
+
+    fn serialize<T>(&self, writer: &mut T) -> Result<usize>
+    where
+        T: Write
+    {
+        match VarInt::prefix_from_len(self.1) {
+            Some(prefix) => {
+                let body = self.0.to_le_bytes();
+                let mut len = writer.write(&[prefix])?;
+                len += writer.write(&body[..self.1 as usize - 1])?; // adjust by one for prefix
+                Ok(len)
+            },
+            None => writer.write(&[self.0 as u8])
+        }
+    }
+}
+
+impl Ser for Hash256Digest {
+    fn serialized_length(&self) -> Result<usize> {
+        Ok(32)
+    }
+
+    fn deserialize<T>(reader: &mut T, _limit: usize) -> Result<Self>
+    where
+        T: Read,
+        Self: std::marker::Sized
+    {
+        let mut buf = Hash256Digest::default();
+        reader.read(&mut buf)?;
+        Ok(buf)
+    }
+
+    fn serialize<T>(&self, writer: &mut T) -> Result<usize>
+    where
+        T: Write
+    {
+        writer.write(self)
+    }
+}
+
+impl Ser for u8 {
+    fn serialized_length(&self) -> Result<usize> {
+        Ok(1)
+    }
+
+    fn deserialize<T>(reader: &mut T, _limit: usize) -> Result<Self>
+    where
+        T: Read,
+        Self: std::marker::Sized
+    {
+        let mut buf = [0u8; 1];
+        reader.read(&mut buf)?;
+        Ok(u8::from_le_bytes(buf))
+    }
+
+    fn serialize<T>(&self, writer: &mut T) -> Result<usize>
+    where
+        T: Write
+    {
+        writer.write(&self.to_le_bytes())
+    }
+}
+
+impl Ser for u32 {
+    fn serialized_length(&self) -> Result<usize> {
+        Ok(4)
+    }
+
+    fn deserialize<T>(reader: &mut T, _limit: usize) -> Result<Self>
+    where
+        T: Read,
+        Self: std::marker::Sized
+    {
+        let mut buf = [0u8; 4];
+        reader.read(&mut buf)?;
+        Ok(u32::from_le_bytes(buf))
+    }
+
+    fn serialize<T>(&self, writer: &mut T) -> Result<usize>
+    where
+        T: Write
+    {
+        writer.write(&self.to_le_bytes())
+    }
+}
+
+impl Ser for u64 {
+    fn serialized_length(&self) -> Result<usize> {
+        Ok(8)
+    }
+
+    fn deserialize<T>(reader: &mut T, _limit: usize) -> Result<Self>
+    where
+        T: Read,
+        Self: std::marker::Sized
+    {
+        let mut buf = [0u8; 8];
+        reader.read(&mut buf)?;
+        Ok(u64::from_le_bytes(buf))
+    }
+
+    fn serialize<T>(&self, writer: &mut T) -> Result<usize>
+    where
+        T: Write
+    {
+        writer.write(&self.to_le_bytes())
+    }
+}
+
+impl<A> Ser for Vec<A>
+where
+    A: Ser
+{
+    fn serialized_length(&self) -> Result<usize> {
+        // panics. TODO: fix later
+        Ok(self.iter().map(|v| v.serialized_length().unwrap()).sum())
+    }
+
+    fn deserialize<T>(reader: &mut T, limit: usize) -> Result<Self>
+    where
+        T: Read,
+        Self: std::marker::Sized
+    {
+        let mut v = vec![];
+        for _ in 0..limit {
+            v.push(A::deserialize(reader, 0)?);
+        }
+        Ok(v)
+    }
+
+    fn serialize<T>(&self, writer: &mut T) -> Result<usize>
+    where
+        T: Write
+    {
+        Ok(self.iter().map(|v| v.serialize(writer).unwrap()).sum())
+    }
+}
+
+#[cfg(test)]
+mod test {
     use super::*;
 
-    pub fn serialize<S>(d: &types::Hash256Digest, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        serializer.serialize_bytes(d)
+    #[test]
+    fn it_serializes_and_derializes_var_ints() {
+        let cases = [
+            (VarInt(1, 1), "01"),
+            (VarInt(1, 3), "fd0100"),
+            (VarInt(1, 5), "fe01000000"),
+            (VarInt(1, 9), "ff0100000000000000"),
+            (VarInt(0xaabbccdd, 9), "ffddccbbaa00000000")
+        ];
+        for case in cases.iter() {
+            assert_eq!(case.0.serialize_hex().unwrap(), case.1.to_owned());
+            assert_eq!(VarInt::deserialize_hex(case.1.to_owned()).unwrap(), case.0);
+        }
     }
-
-    pub fn deserialize<'de, D>(deserializer: D) -> Result<types::Hash256Digest, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let deser: [u8; 32] = Deserialize::deserialize(deserializer)?;
-        let mut digest: types::Hash256Digest = Default::default();
-        digest.copy_from_slice(&deser);
-        Ok(digest)
-    }
-}
-
-pub mod prefixed_vec_ser {
 
 }
