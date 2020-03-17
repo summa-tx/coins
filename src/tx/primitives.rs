@@ -1,8 +1,8 @@
 use bitcoin_spv::{types};
-
-use serde::de::{self, Deserialize, Deserializer};
+use serde::de::{Deserialize, Deserializer};
 use serde::ser::{self, Serialize, Serializer};
 
+use crate::tx::format::{VarIntVisitor};
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
 pub struct VarInt(pub u64, pub u8);   // number and byte-length
@@ -54,24 +54,7 @@ impl<'de> Deserialize<'de> for VarInt {
     where
         D: Deserializer<'de>
     {
-        // Is this right?
-        let bytes: Vec<u8> = Deserialize::deserialize(deserializer)?;
-
-        let expected_len = VarInt::len_from_prefix(bytes[0]);
-        if bytes.is_empty() || expected_len > bytes.len() {
-            return Err(de::Error::custom("Null bytestring in VarInt deser"));
-        }
-
-        match bytes[0] {
-            0..=0xfc => Ok(VarInt(bytes[0] as u64, 1)),
-            _ => {
-                let mut total = 0u64;
-                for (i, b) in bytes[1..expected_len].iter().enumerate() {
-                    total += (*b as u64) << i;
-                };
-                Ok(VarInt(total, expected_len as u8))
-            }
-        }
+        Ok(deserializer.deserialize_bytes(VarIntVisitor)?)
     }
 }
 
@@ -89,14 +72,13 @@ pub mod hash256_ser {
     where
         D: Deserializer<'de>,
     {
-        let deser: Vec<u8> = Deserialize::deserialize(deserializer)?;
-        if deser.len() != 32 {
-            let err_string: String = format!("Expected 32 bytes, got {:?} bytes", deser.len());
-            return Err(serde::de::Error::custom(err_string));
-        }
-
+        let deser: [u8; 32] = Deserialize::deserialize(deserializer)?;
         let mut digest: types::Hash256Digest = Default::default();
         digest.copy_from_slice(&deser);
         Ok(digest)
     }
+}
+
+pub mod prefixed_vec_ser {
+
 }

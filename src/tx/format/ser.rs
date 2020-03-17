@@ -30,8 +30,12 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     type SerializeStruct = Self;
     type SerializeStructVariant = Self;
 
-    fn serialize_bool(self, _v: bool) -> Result<()> {
-        unimplemented!("Type not needed in bitcoin txns")
+    fn serialize_bool(self, v: bool) -> Result<()> {
+        if v {  // only used for flag
+            self.output.push(0);
+            self.output.push(1);
+        }
+        Ok(())
     }
 
     fn serialize_i8(self, _v: i8) -> Result<()> {
@@ -86,11 +90,13 @@ impl<'a> ser::Serializer for &'a mut Serializer {
     }
 
     fn serialize_bytes(self, v: &[u8]) -> Result<()> {
+        // unimplemented!("Type not needed in bitcoin txns")
         self.output.extend_from_slice(&v);
         Ok(())
     }
 
     fn serialize_none(self) -> Result<()> {
+        self.output.push(0);
         Ok(())
     }
 

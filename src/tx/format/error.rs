@@ -28,8 +28,8 @@ impl Display for Error {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Error::Message(msg) => formatter.write_str(msg),
-            TrailingBytes => formatter.write_str("TrailinBytes"),
-            EndOfInput => formatter.write_str("EndOfInput")
+            Error::TrailingBytes => formatter.write_str("TrailinBytes"),
+            Error::EndOfInput => formatter.write_str("EndOfInput")
             /* and so forth */
         }
     }

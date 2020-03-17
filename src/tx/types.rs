@@ -32,7 +32,7 @@ impl Script {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TxIn{
     pub outpoint: Outpoint,
-    pub script_sig: Script,
+    pub script_sig: Option<Script>,
     pub sequence: u32
 }
 
@@ -60,7 +60,7 @@ impl Vin {
     pub fn new(inputs: Vec<TxIn>) -> Self {
         Vin{
             length: VarInt::new(inputs.len() as u64),
-            inputs: inputs
+            inputs
         }
     }
 }
@@ -75,7 +75,7 @@ impl Vout {
     pub fn new(outputs: Vec<TxOut>) -> Self {
         Vout{
             length: VarInt::new(outputs.len() as u64),
-            outputs: outputs
+            outputs
         }
     }
 }
@@ -83,7 +83,7 @@ impl Vout {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TX{
     pub version: u32,
-    pub flag: Option<[u8; 2]>,
+    pub segwit: bool,
     pub vin: Vin,
     pub vout: Vout,
     pub witnesses: Vec<Witness>,
@@ -114,10 +114,9 @@ mod tests {
             txid: prevout_txid,
             idx: 0xaabbccddu32
         };
-        let ss = Script::new(vec![0, 1, 2, 3, 4]);
         let txin = TxIn{
-            outpoint: outpoint,
-            script_sig: ss,
+            outpoint,
+            script_sig: None,
             sequence: 0x33883388u32
         };
         let vin = Vin::new(vec![txin]);
@@ -133,9 +132,9 @@ mod tests {
 
         let tx = TX{
             version: 0x2u32,
-            flag: Some([0x00, 0x01]),
-            vin: vin,
-            vout: vout,
+            segwit: true,
+            vin,
+            vout,
             witnesses: vec![],
             locktime: 0x44332211u32
         };

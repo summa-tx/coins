@@ -22,8 +22,8 @@ where
 {
     let mut deserializer = Deserializer::from_bytes(s);
 
-    let t = T::deserialize(&mut deserializer)?;
-    if deserializer.input.is_empty() {
+    let t = T::deserialize::<&mut Deserializer>(&mut deserializer)?;
+    if deserializer.location == deserializer.input.len() {
         Ok(t)
     } else {
         Err(Error::TrailingBytes)
@@ -50,7 +50,9 @@ impl<'de> Deserializer<'de> {
 
 
 impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
-    fn deserialize_any<V>(self, visitor: V) -> Result<V::Value>
+    // type Error = Error;
+
+    fn deserialize_any<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -61,10 +63,16 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
     where
         V: Visitor<'de>,
     {
-        unimplemented!("Type not needed in bitcoin txns")
+        match self.peek()? {
+            0 => {
+                self.location += 2;
+                visitor.visit_bool(true)
+            }
+            _ => visitor.visit_bool(false)
+        }
     }
 
-    fn deserialize_i8<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_i8<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
@@ -78,17 +86,145 @@ impl<'de, 'a> de::Deserializer<'de> for &'a mut Deserializer<'de> {
         unimplemented!("Type not needed in bitcoin txns")
     }
 
-    fn deserialize_i32<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_i32<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
         unimplemented!("Type not needed in bitcoin txns")
     }
 
-    fn deserialize_i64<V>(self, visitor: V) -> Result<V::Value>
+    fn deserialize_i64<V>(self, _visitor: V) -> Result<V::Value>
     where
         V: Visitor<'de>,
     {
         unimplemented!("Type not needed in bitcoin txns")
+    }
+
+    fn deserialize_u8<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        visitor.visit_u8(self.next()?)
+    }
+
+    fn deserialize_u16<V>(self, _visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        unimplemented!("Type not needed in bitcoin txns")
+    }
+
+    fn deserialize_u32<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        let mut buf = [0u8; 4];
+        buf.copy_from_slice(&self.next_chunk(4)?);
+        visitor.visit_u32(u32::from_le_bytes(buf))
+    }
+
+    fn deserialize_u64<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        let mut buf = [0u8; 8];
+        buf.copy_from_slice(&self.next_chunk(8)?);
+        visitor.visit_u64(u64::from_le_bytes(buf))
+    }
+
+    fn deserialize_f32<V>(self, _visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        unimplemented!("Type not needed in bitcoin txns")
+    }
+
+    fn deserialize_f64<V>(self, _visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        unimplemented!("Type not needed in bitcoin txns")
+    }
+
+    fn deserialize_char<V>(self, _visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        unimplemented!("Type not needed in bitcoin txns")
+    }
+
+    fn deserialize_str<V>(self, _visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        unimplemented!("Type not needed in bitcoin txns")
+    }
+
+    fn deserialize_string<V>(self, _visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        unimplemented!("Type not needed in bitcoin txns")
+    }
+
+    fn deserialize_bytes<V>(self, _visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        unimplemented!("Type not needed in bitcoin txns")
+    }
+
+    fn deserialize_byte_buf<V>(self, _visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        unimplemented!("Type not needed in bitcoin txns")
+    }
+
+    fn deserialize_option<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        // Invoked by flag and scriptsig
+        match self.peek()? {
+            0 => visitor.visit_none(),
+            _ => visitor.visit_some(self)
+        }
+    }
+    fn deserialize_unit<V>(self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        unimplemented!("Type not needed in bitcoin txns")
+    }
+
+    fn deserialize_unit_struct<V>(
+          self,
+          _name: &'static str,
+          visitor: V,
+    ) -> Result<V::Value>
+    where
+      V: Visitor<'de>,
+    {
+      unimplemented!("Type not needed in bitcoin txns")
+    }
+
+    fn deserialize_newtype_struct<V>(
+        self,
+        _name: &'static str,
+        visitor: V,
+    ) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        unimplemented!("Type not needed in bitcoin txns")
+    }
+
+    fn deserialize_seq<V>(mut self, visitor: V) -> Result<V::Value>
+    where
+        V: Visitor<'de>,
+    {
+        let value = visitor.visit_seq()?;
+        Ok(value)
     }
 }

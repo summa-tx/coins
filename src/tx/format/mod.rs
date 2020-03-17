@@ -1,12 +1,14 @@
 extern crate hex;
 
-mod de;
+// mod de;
 mod error;
 mod ser;
+mod visitors;
 
 // pub use de::{from_str, Deserializer};
 pub use error::{Error, Result};
 pub use ser::{to_bytes, Serializer};
+pub use visitors::{VarIntVisitor};
 
 use serde::Serialize;
 
@@ -19,3 +21,10 @@ pub trait Serializable: Serialize {
         hex::encode(&self.to_bytes())
     }
 }
+
+//
+// pub trait Deserializable: Deserialize {
+//     fn from_bytes
+//
+//     fn from_hex
+// }
