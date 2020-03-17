@@ -27,13 +27,8 @@ impl<'de> Deserialize<'de> for LEU32 {
     where
         D: Deserializer<'de>
     {
-        let bytes: Vec<u8> = Deserialize::deserialize(deserializer)?;
-        if bytes.is_empty() || bytes.len() != 4 {
-            return Err(de::Error::custom("Bad bytestring in LEU32 deser"));
-        }
-        let mut buf = [0u8; 4];
-        buf.copy_from_slice(&bytes);
-        Ok(LEU32(u32::from_le_bytes(buf)))
+        let bytes: [u8; 4] = Deserialize::deserialize(deserializer)?;
+        Ok(LEU32(u32::from_le_bytes(bytes)))
     }
 }
 
@@ -59,13 +54,8 @@ impl<'de> Deserialize<'de> for LEU64 {
     where
         D: Deserializer<'de>
     {
-        let bytes: Vec<u8> = Deserialize::deserialize(deserializer)?;
-        if bytes.is_empty() || bytes.len() != 8 {
-            return Err(de::Error::custom("Bad bytestring in LEU64 deser"));
-        }
-        let mut buf = [0u8; 8];
-        buf.copy_from_slice(&bytes);
-        Ok(LEU64(u64::from_le_bytes(buf)))
+        let bytes: [u8; 8] = Deserialize::deserialize(deserializer)?;
+        Ok(LEU64(u64::from_le_bytes(bytes)))
     }
 }
 
@@ -119,10 +109,10 @@ impl<'de> Deserialize<'de> for VarInt {
     where
         D: Deserializer<'de>
     {
+        // Is this right?
         let bytes: Vec<u8> = Deserialize::deserialize(deserializer)?;
 
         let expected_len = VarInt::len_from_prefix(bytes[0]);
-
         if bytes.is_empty() || expected_len > bytes.len() {
             return Err(de::Error::custom("Null bytestring in VarInt deser"));
         }
