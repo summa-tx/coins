@@ -1,8 +1,9 @@
 use serde::{Serialize, Deserialize};
 use bitcoin_spv::{types};
 
+use crate::tx::format::{Serializable};
 use crate::tx::primitives::{
-    LEU32, LEU64, VarInt, hash256_ser
+    VarInt, hash256_ser
 };
 
 
@@ -10,7 +11,7 @@ use crate::tx::primitives::{
 pub struct Outpoint{
     #[serde(with = "hash256_ser")]
     pub txid: types::Hash256Digest,
-    pub idx: LEU32
+    pub idx: u32
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -19,16 +20,25 @@ pub struct Script {
     pub body: Vec<u8>
 }
 
+impl Script {
+    pub fn new(script: Vec<u8>) -> Self {
+        Script{
+            length: VarInt::new(script.len() as u64),
+            body: script
+        }
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TxIn{
     pub outpoint: Outpoint,
     pub script_sig: Script,
-    pub sequence: LEU32
+    pub sequence: u32
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TxOut{
-    pub value: LEU64,
+    pub value: u64,
     pub script_pubkey: Script
 }
 
@@ -72,13 +82,23 @@ impl Vout {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct TX{
-    pub version: LEU32,
+    pub version: u32,
     pub flag: Option<[u8; 2]>,
     pub vin: Vin,
     pub vout: Vout,
     pub witnesses: Vec<Witness>,
-    pub locktime: LEU32
+    pub locktime: u32
 }
+
+// TODO: Derive these
+impl Serializable for Outpoint {}
+impl Serializable for Script {}
+impl Serializable for TxIn {}
+impl Serializable for TxOut {}
+impl Serializable for Witness {}
+impl Serializable for Vin {}
+impl Serializable for Vout {}
+impl Serializable for TX {}
 
 
 #[cfg(test)]
@@ -87,39 +107,38 @@ mod tests {
 
     #[test]
     fn it_assembles() {
-        let prevout_txid = [0u8; 32];
+        let numbers: Vec<u8> = (0u8..32u8).collect();
+        let mut prevout_txid = [0u8; 32];
+        prevout_txid.copy_from_slice(&numbers);
         let outpoint = Outpoint{
             txid: prevout_txid,
-            idx: LEU32::new(32u32)
+            idx: 0xaabbccddu32
         };
-        let ss = Script{
-            length: VarInt::new(0u64),
-            body: vec![]
-        };
+        let ss = Script::new(vec![0, 1, 2, 3, 4]);
         let txin = TxIn{
             outpoint: outpoint,
             script_sig: ss,
-            sequence: LEU32::new(33u32)
+            sequence: 0x33883388u32
         };
         let vin = Vin::new(vec![txin]);
         let spk = Script{
-            length: VarInt::new(16),
-            body: vec![0x00, 0x14, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+            length: VarInt::new(0x16),
+            body: vec![0x00, 0x14, 0x11, 0x00, 0x33, 0x00, 0x55, 0x00, 0x77, 0x00, 0x99, 0x00, 0xbb, 0x00, 0xdd, 0x00, 0xff, 0x11, 0x00, 0x33, 0x00, 0x55]
         };
         let txout = TxOut{
-            value: LEU64::new(888u64),
+            value: 888u64,
             script_pubkey: spk
         };
         let vout = Vout::new(vec![txout]);
 
         let tx = TX{
-            version: LEU32::new(2),
+            version: 0x2u32,
             flag: Some([0x00, 0x01]),
             vin: vin,
             vout: vout,
             witnesses: vec![],
-            locktime: LEU32::new(100)
+            locktime: 0x44332211u32
         };
-        print!("{:?}", &tx);
+        print!("{:?}", tx.to_hex());
     }
 }

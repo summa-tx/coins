@@ -1,63 +1,8 @@
 use bitcoin_spv::{types};
 
-use serde::{de, ser};
-use serde::de::{Deserialize, Deserializer};
-use serde::ser::{Serialize, Serializer};
+use serde::de::{self, Deserialize, Deserializer};
+use serde::ser::{self, Serialize, Serializer};
 
-
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
-pub struct LEU32(u32);
-
-impl LEU32 {
-    pub fn new(number: u32) -> Self{
-        LEU32(number)
-    }
-}
-
-impl Serialize for LEU32 {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer,
-    {
-        serializer.serialize_bytes(&self.0.to_le_bytes())
-    }
-}
-
-impl<'de> Deserialize<'de> for LEU32 {
-    fn deserialize<D>(deserializer: D) -> Result<LEU32, D::Error>
-    where
-        D: Deserializer<'de>
-    {
-        let bytes: [u8; 4] = Deserialize::deserialize(deserializer)?;
-        Ok(LEU32(u32::from_le_bytes(bytes)))
-    }
-}
-
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
-pub struct LEU64(u64);
-
-impl LEU64 {
-    pub fn new(number: u64) -> Self{
-        LEU64(number)
-    }
-}
-
-impl Serialize for LEU64 {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-        where S: Serializer,
-    {
-        serializer.serialize_bytes(&self.0.to_le_bytes())
-    }
-}
-
-impl<'de> Deserialize<'de> for LEU64 {
-    fn deserialize<D>(deserializer: D) -> Result<LEU64, D::Error>
-    where
-        D: Deserializer<'de>
-    {
-        let bytes: [u8; 8] = Deserialize::deserialize(deserializer)?;
-        Ok(LEU64(u64::from_le_bytes(bytes)))
-    }
-}
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
 pub struct VarInt(pub u64, pub u8);   // number and byte-length
