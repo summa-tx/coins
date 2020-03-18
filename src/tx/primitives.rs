@@ -1,6 +1,6 @@
 extern crate hex;
 
-use std::io::{Read, Write, Result, Cursor};
+use std::io::{Read, Write, Result as IOResult, Cursor};
 
 use bitcoin_spv::types::Hash256Digest;
 
@@ -42,24 +42,24 @@ impl VarInt {
 }
 
 pub trait Ser {
-    fn serialized_length(&self) -> Result<usize>;
+    fn serialized_length(&self) -> IOResult<usize>;
 
-    fn deserialize<T>(reader: &mut T, _limit: usize) -> Result<Self>
+    fn deserialize<T>(reader: &mut T, _limit: usize) -> IOResult<Self>
     where
         T: Read,
         Self: std::marker::Sized;
 
-    fn serialize<T>(&self, writer: &mut T) -> Result<usize>
+    fn serialize<T>(&self, writer: &mut T) -> IOResult<usize>
     where
         T: Write;
 
-    fn serialize_hex(&self) -> Result<String> {
+    fn serialize_hex(&self) -> IOResult<String> {
         let mut v: Vec<u8> = vec![];
         self.serialize(&mut v)?;
         Ok(hex::encode(v))
     }
 
-    fn deserialize_hex(s: String) -> Result<Self>
+    fn deserialize_hex(s: String) -> IOResult<Self>
     where
         Self: std::marker::Sized
     {
@@ -71,11 +71,11 @@ pub trait Ser {
 
 impl Ser for VarInt {
 
-    fn serialized_length(&self) -> Result<usize> {
+    fn serialized_length(&self) -> IOResult<usize> {
         Ok(self.1 as usize)
     }
 
-    fn deserialize<T>(reader: &mut T, _limit: usize) -> Result<VarInt>
+    fn deserialize<T>(reader: &mut T, _limit: usize) -> IOResult<VarInt>
     where
         T: Read
     {
@@ -93,7 +93,7 @@ impl Ser for VarInt {
         Ok(VarInt(u64::from_le_bytes(buf), len))
     }
 
-    fn serialize<T>(&self, writer: &mut T) -> Result<usize>
+    fn serialize<T>(&self, writer: &mut T) -> IOResult<usize>
     where
         T: Write
     {
@@ -109,12 +109,67 @@ impl Ser for VarInt {
     }
 }
 
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Script {
+    pub length: VarInt,
+    pub body: Vec<u8>
+}
+
+impl Script {
+    pub fn len(&self) -> usize {
+        self.length.0 as usize
+    }
+
+    pub fn null() -> Self {
+        Script::new(vec![])
+    }
+
+    pub fn new(script: Vec<u8>) -> Self {
+        Script{
+            length: VarInt::new(script.len() as u64),
+            body: script
+        }
+    }
+}
+
+impl Ser for Script {
+    fn serialized_length(&self) -> IOResult<usize> {
+        let mut len = self.length.serialized_length()?;
+        len += self.body.serialized_length()?;
+        Ok(len)
+    }
+
+    fn deserialize<T>(reader: &mut T, _limit: usize) -> IOResult<Self>
+    where
+        T: Read,
+        Self: std::marker::Sized
+    {
+        let length = VarInt::deserialize(reader, 0)?;
+        let limit = length.0;
+        Ok(Script{
+            length: length,
+            body: Vec::<u8>::deserialize(reader, limit as usize)?
+        })
+    }
+
+    fn serialize<T>(&self, writer: &mut T) -> IOResult<usize>
+    where
+        T: Write
+    {
+        let mut len = self.length.serialize(writer)?;
+        len += self.body.serialize(writer)?;
+        Ok(len)
+    }
+}
+
+
 impl Ser for Hash256Digest {
-    fn serialized_length(&self) -> Result<usize> {
+    fn serialized_length(&self) -> IOResult<usize> {
         Ok(32)
     }
 
-    fn deserialize<T>(reader: &mut T, _limit: usize) -> Result<Self>
+    fn deserialize<T>(reader: &mut T, _limit: usize) -> IOResult<Self>
     where
         T: Read,
         Self: std::marker::Sized
@@ -124,7 +179,7 @@ impl Ser for Hash256Digest {
         Ok(buf)
     }
 
-    fn serialize<T>(&self, writer: &mut T) -> Result<usize>
+    fn serialize<T>(&self, writer: &mut T) -> IOResult<usize>
     where
         T: Write
     {
@@ -133,11 +188,11 @@ impl Ser for Hash256Digest {
 }
 
 impl Ser for u8 {
-    fn serialized_length(&self) -> Result<usize> {
+    fn serialized_length(&self) -> IOResult<usize> {
         Ok(1)
     }
 
-    fn deserialize<T>(reader: &mut T, _limit: usize) -> Result<Self>
+    fn deserialize<T>(reader: &mut T, _limit: usize) -> IOResult<Self>
     where
         T: Read,
         Self: std::marker::Sized
@@ -147,7 +202,7 @@ impl Ser for u8 {
         Ok(u8::from_le_bytes(buf))
     }
 
-    fn serialize<T>(&self, writer: &mut T) -> Result<usize>
+    fn serialize<T>(&self, writer: &mut T) -> IOResult<usize>
     where
         T: Write
     {
@@ -156,11 +211,11 @@ impl Ser for u8 {
 }
 
 impl Ser for u32 {
-    fn serialized_length(&self) -> Result<usize> {
+    fn serialized_length(&self) -> IOResult<usize> {
         Ok(4)
     }
 
-    fn deserialize<T>(reader: &mut T, _limit: usize) -> Result<Self>
+    fn deserialize<T>(reader: &mut T, _limit: usize) -> IOResult<Self>
     where
         T: Read,
         Self: std::marker::Sized
@@ -170,7 +225,7 @@ impl Ser for u32 {
         Ok(u32::from_le_bytes(buf))
     }
 
-    fn serialize<T>(&self, writer: &mut T) -> Result<usize>
+    fn serialize<T>(&self, writer: &mut T) -> IOResult<usize>
     where
         T: Write
     {
@@ -179,11 +234,11 @@ impl Ser for u32 {
 }
 
 impl Ser for u64 {
-    fn serialized_length(&self) -> Result<usize> {
+    fn serialized_length(&self) -> IOResult<usize> {
         Ok(8)
     }
 
-    fn deserialize<T>(reader: &mut T, _limit: usize) -> Result<Self>
+    fn deserialize<T>(reader: &mut T, _limit: usize) -> IOResult<Self>
     where
         T: Read,
         Self: std::marker::Sized
@@ -193,7 +248,7 @@ impl Ser for u64 {
         Ok(u64::from_le_bytes(buf))
     }
 
-    fn serialize<T>(&self, writer: &mut T) -> Result<usize>
+    fn serialize<T>(&self, writer: &mut T) -> IOResult<usize>
     where
         T: Write
     {
@@ -205,12 +260,12 @@ impl<A> Ser for Vec<A>
 where
     A: Ser
 {
-    fn serialized_length(&self) -> Result<usize> {
+    fn serialized_length(&self) -> IOResult<usize> {
         // panics. TODO: fix later
         Ok(self.iter().map(|v| v.serialized_length().unwrap()).sum())
     }
 
-    fn deserialize<T>(reader: &mut T, limit: usize) -> Result<Self>
+    fn deserialize<T>(reader: &mut T, limit: usize) -> IOResult<Self>
     where
         T: Read,
         Self: std::marker::Sized
@@ -222,7 +277,7 @@ where
         Ok(v)
     }
 
-    fn serialize<T>(&self, writer: &mut T) -> Result<usize>
+    fn serialize<T>(&self, writer: &mut T) -> IOResult<usize>
     where
         T: Write
     {
