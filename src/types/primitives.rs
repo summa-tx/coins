@@ -80,7 +80,7 @@ impl Ser for VarInt {
         T: Read
     {
         let mut prefix = [0u8; 1];
-        reader.read(&mut prefix)?;  // read at most one byte
+        reader.read_exact(&mut prefix)?;  // read at most one byte
 
         let len = VarInt::len_from_prefix(prefix[0]);
         if len == 1 {
@@ -89,7 +89,7 @@ impl Ser for VarInt {
 
         let mut buf = [0u8; 8];
         let mut body = reader.take(len as u64 - 1); // minus 1 to account for prefix
-        body.read(&mut buf)?;
+        let _ = body.read(&mut buf)?;
         Ok(VarInt(u64::from_le_bytes(buf), len))
     }
 
@@ -109,7 +109,6 @@ impl Ser for VarInt {
     }
 }
 
-
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Script {
     pub length: VarInt,
@@ -121,6 +120,10 @@ impl Script {
         self.length.0 as usize
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn null() -> Self {
         Script::new(vec![])
     }
@@ -130,6 +133,15 @@ impl Script {
             length: VarInt::new(script.len() as u64),
             body: script
         }
+    }
+}
+
+impl<T> From<T> for Script
+where
+    T: Into<Vec<u8>>
+{
+    fn from(v: T) -> Self {
+        Script::new(v.into())
     }
 }
 
@@ -148,7 +160,7 @@ impl Ser for Script {
         let length = VarInt::deserialize(reader, 0)?;
         let limit = length.0;
         Ok(Script{
-            length: length,
+            length,
             body: Vec::<u8>::deserialize(reader, limit as usize)?
         })
     }
@@ -163,7 +175,6 @@ impl Ser for Script {
     }
 }
 
-
 impl Ser for Hash256Digest {
     fn serialized_length(&self) -> IOResult<usize> {
         Ok(32)
@@ -175,7 +186,7 @@ impl Ser for Hash256Digest {
         Self: std::marker::Sized
     {
         let mut buf = Hash256Digest::default();
-        reader.read(&mut buf)?;
+        reader.read_exact(&mut buf)?;
         Ok(buf)
     }
 
@@ -198,7 +209,7 @@ impl Ser for u8 {
         Self: std::marker::Sized
     {
         let mut buf = [0u8; 1];
-        reader.read(&mut buf)?;
+        reader.read_exact(&mut buf)?;
         Ok(u8::from_le_bytes(buf))
     }
 
@@ -221,7 +232,7 @@ impl Ser for u32 {
         Self: std::marker::Sized
     {
         let mut buf = [0u8; 4];
-        reader.read(&mut buf)?;
+        reader.read_exact(&mut buf)?;
         Ok(u32::from_le_bytes(buf))
     }
 
@@ -244,7 +255,7 @@ impl Ser for u64 {
         Self: std::marker::Sized
     {
         let mut buf = [0u8; 8];
-        reader.read(&mut buf)?;
+        reader.read_exact(&mut buf)?;
         Ok(u64::from_le_bytes(buf))
     }
 

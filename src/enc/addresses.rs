@@ -1,7 +1,7 @@
 use bech32::{Error as FromBase32Error, FromBase32, ToBase32};
 use base58::{FromBase58Error, FromBase58, ToBase58};
 
-static BECH_HRP: &'static str = "bc1";
+static BECH_HRP: &str = "bc1";
 
 
 pub fn base58_encode<T>(v: T) -> String
@@ -10,7 +10,7 @@ where
 {
     v.to_base58()
 }
- 
+
 // pub fn base58_decode<T>(encoded: String) -> Result<T, FromBase58Error>
 // where
 //     T: FromBase58

@@ -1,11 +1,23 @@
 use std::io::{Read, Write, Result as IOResult};
 
-use crate::tx::primitives::{Script, Ser, VarInt};
+use crate::types::primitives::{Script, Ser, VarInt};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TxOut{
     pub value: u64,
     pub script_pubkey: Script
+}
+
+impl TxOut{
+    pub fn new<T>(value: u64, script_pubkey: T) -> Self
+    where
+        T: Into<Script>
+    {
+        TxOut{
+            value,
+            script_pubkey: script_pubkey.into()
+        }
+    }
 }
 
 impl Ser for TxOut {
@@ -78,6 +90,10 @@ impl Vout {
         self.length.0 as usize
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+    
     pub fn new(outputs: Vec<TxOut>) -> Self {
         Vout{
             length: VarInt::new(outputs.len() as u64),

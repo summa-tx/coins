@@ -1,6 +1,6 @@
 use std::io::{Read, Write, Result as IOResult};
 
-use crate::tx::primitives::{Script, Ser, VarInt};
+use crate::types::primitives::{Script, Ser, VarInt};
 
 pub type WitnessStackItem = Script;
 

@@ -1,9 +1,9 @@
 use std::io::{Read, Write, Result as IOResult};
 
-use crate::tx::txin::{Vin, TxIn};
-use crate::tx::txout::{Vout};
-use crate::tx::wit::{Witness};
-use crate::tx::primitives::{
+use crate::types::txin::{Vin, TxIn};
+use crate::types::txout::{Vout};
+use crate::types::wit::{Witness};
+use crate::types::primitives::{
     VarInt,
     Ser
 };
@@ -11,7 +11,8 @@ use crate::tx::primitives::{
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum TxError{
     WrongNumberOfWitnesses,
-    WitnessesWithoutSegwit
+    WitnessesWithoutSegwit,
+    BadVersion
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -54,6 +55,11 @@ impl Tx {
         } else {
             false
         };
+
+        if version > 2 {
+            return Err(TxError::BadVersion)
+        }
+
         Ok(Tx{
             version,
             segwit,
@@ -68,7 +74,7 @@ impl Tx {
 impl Ser for Tx {
     fn serialized_length(&self) -> IOResult<usize> {
         let mut len = self.version.serialized_length()?;
-        len += match self.segwit { true => 2, false => 0 };
+        len += if self.segwit { 2 } else { 0 };
         len += self.vin.serialized_length()?;
         len += self.vout.serialized_length()?;
         if let Some(wits) = &self.witnesses {
@@ -90,14 +96,12 @@ impl Ser for Tx {
         // So if the flag byte is NOT 0, then we read the
         let flag_or_vin_len = VarInt::deserialize(reader, 0)?;
         let segwit = match flag_or_vin_len.0 { 0 => true, _ => false };
-        let vin_len = match segwit {
-            true => {
-                reader.read(&mut [0u8])?;
-                VarInt::deserialize(reader, 0)?
-            },
-            false => {
-                flag_or_vin_len
-            }
+
+        let vin_len = if segwit {
+            reader.read_exact(&mut [0u8])?;
+            VarInt::deserialize(reader, 0)?
+        } else {
+            flag_or_vin_len
         };
         let limit = vin_len.0 as usize;
         let vin = Vin {
@@ -106,10 +110,10 @@ impl Ser for Tx {
         };
         let vout = Vout::deserialize(reader, 0)?;
 
-        let witnesses = match segwit {
-            // as many witnesses as inputs
-            true => Some(Vec::<Witness>::deserialize(reader, limit)?),
-            false => None
+        let witnesses = if segwit {
+            Some(Vec::<Witness>::deserialize(reader, limit)?)
+        } else {
+            None
         };
         let locktime = u32::deserialize(reader, 0)?;
         Ok(Tx{
@@ -145,7 +149,7 @@ impl Ser for Tx {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::tx::*;
+    use crate::types::*;
 
     #[test]
     fn it_assembles_legacy() {

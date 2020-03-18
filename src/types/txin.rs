@@ -1,7 +1,7 @@
 use bitcoin_spv::types::Hash256Digest;
 use std::io::{Read, Write, Result as IOResult};
 
-use crate::tx::primitives::{Script, Ser, VarInt};
+use crate::types::primitives::{Script, Ser, VarInt};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Outpoint{
@@ -13,7 +13,7 @@ impl Outpoint {
     pub fn null() -> Self {
         Outpoint{
             txid: Hash256Digest::default(),
-            idx: 0xffffffff
+            idx: 0xffff_ffff
         }
     }
 }
@@ -49,6 +49,19 @@ pub struct TxIn{
     pub outpoint: Outpoint,
     pub script_sig: Script,
     pub sequence: u32
+}
+
+impl TxIn{
+    pub fn new<T>(outpoint: Outpoint, script_sig: T, sequence: u32) -> Self
+    where
+        T: Into<Script>
+    {
+        TxIn{
+            outpoint,
+            script_sig: script_sig.into(),
+            sequence
+        }
+    }
 }
 
 impl Ser for TxIn {
@@ -93,6 +106,10 @@ impl Vin {
         self.length.0 as usize
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
     pub fn new(inputs: Vec<TxIn>) -> Self {
         Vin{
             length: VarInt::new(inputs.len() as u64),
@@ -134,7 +151,7 @@ impl Ser for Vin {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::tx::*;
+    use crate::types::*;
 
     static NULL_OUTPOINT: &str = "0000000000000000000000000000000000000000000000000000000000000000ffffffff";
 
