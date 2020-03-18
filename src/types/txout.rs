@@ -18,6 +18,13 @@ impl TxOut{
             script_pubkey: script_pubkey.into()
         }
     }
+
+    pub fn null() -> Self {
+        TxOut{
+            value: 0xffff_ffff_ffff_ffff,
+            script_pubkey: Script::null()
+        }
+    }
 }
 
 impl Ser for TxOut {
@@ -93,7 +100,7 @@ impl Vout {
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
-    
+
     pub fn new(outputs: Vec<TxOut>) -> Self {
         Vout{
             length: VarInt::new(outputs.len() as u64),

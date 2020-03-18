@@ -4,6 +4,34 @@ use std::io::{Read, Write, Result as IOResult, Cursor};
 
 use bitcoin_spv::types::Hash256Digest;
 
+pub trait Ser {
+    fn serialized_length(&self) -> IOResult<usize>;
+
+    fn deserialize<T>(reader: &mut T, _limit: usize) -> IOResult<Self>
+    where
+        T: Read,
+        Self: std::marker::Sized;
+
+    fn serialize<T>(&self, writer: &mut T) -> IOResult<usize>
+    where
+        T: Write;
+
+    fn serialize_hex(&self) -> IOResult<String> {
+        let mut v: Vec<u8> = vec![];
+        self.serialize(&mut v)?;
+        Ok(hex::encode(v))
+    }
+
+    fn deserialize_hex(s: String) -> IOResult<Self>
+    where
+        Self: std::marker::Sized
+    {
+        let v: Vec<u8> = hex::decode(s).unwrap();
+        let mut cursor = Cursor::new(v);
+        Ok(Self::deserialize(&mut cursor, 0)?)
+    }
+}
+
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
 pub struct VarInt(pub u64, pub u8);   // number and byte-length
 
@@ -38,34 +66,6 @@ impl VarInt {
             0xfe => 5,
             0xff => 9
         }
-    }
-}
-
-pub trait Ser {
-    fn serialized_length(&self) -> IOResult<usize>;
-
-    fn deserialize<T>(reader: &mut T, _limit: usize) -> IOResult<Self>
-    where
-        T: Read,
-        Self: std::marker::Sized;
-
-    fn serialize<T>(&self, writer: &mut T) -> IOResult<usize>
-    where
-        T: Write;
-
-    fn serialize_hex(&self) -> IOResult<String> {
-        let mut v: Vec<u8> = vec![];
-        self.serialize(&mut v)?;
-        Ok(hex::encode(v))
-    }
-
-    fn deserialize_hex(s: String) -> IOResult<Self>
-    where
-        Self: std::marker::Sized
-    {
-        let v: Vec<u8> = hex::decode(s).unwrap();
-        let mut cursor = Cursor::new(v);
-        Ok(Self::deserialize(&mut cursor, 0)?)
     }
 }
 
@@ -267,10 +267,7 @@ impl Ser for u64 {
     }
 }
 
-impl<A> Ser for Vec<A>
-where
-    A: Ser
-{
+impl<A: Ser> Ser for Vec<A> {
     fn serialized_length(&self) -> IOResult<usize> {
         // panics. TODO: fix later
         Ok(self.iter().map(|v| v.serialized_length().unwrap()).sum())

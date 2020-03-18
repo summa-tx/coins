@@ -1,18 +1,53 @@
-use std::io::{Read, Write, Result as IOResult};
+use std::io::{Read, Write, Result as IOResult, Error as IOError};
+
+use bitcoin_spv::{types::Hash256Digest, btcspv::hash256};
+
 
 use crate::types::txin::{Vin, TxIn};
-use crate::types::txout::{Vout};
+use crate::types::txout::{Vout, TxOut};
 use crate::types::wit::{Witness};
 use crate::types::primitives::{
     VarInt,
+    Script,
     Ser
 };
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Debug)]
 pub enum TxError{
+    IOError(IOError),
     WrongNumberOfWitnesses,
     WitnessesWithoutSegwit,
-    BadVersion
+    BadVersion,
+    /// Sighash NONE is unsupported
+    NoneUnsupported,
+    /// Satoshi's sighash single bug. Throws an error here.
+    SighashSingleBug
+
+}
+
+type TxResult<T> = Result<T, TxError>;
+
+impl From<IOError> for TxError {
+    fn from(error: IOError) -> Self {
+        TxError::IOError(error)
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Sighash{
+    None,
+    All,
+    Single
+}
+
+pub fn sighash_type_to_flag(t: Sighash, anyone_can_pay: bool) -> u8 {
+    let mut flag = match t {
+        Sighash::None => 0x02,
+        Sighash::All => 0x01,
+        Sighash::Single => 0x03,
+    };
+    if anyone_can_pay { flag |= 0x80 };
+    flag
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -26,6 +61,17 @@ pub struct Tx{
 }
 
 impl Tx {
+    pub fn without_witness(&self) -> Self {
+        if !self.segwit { return self.clone() };
+        Tx::new(
+            self.version,
+            self.vin.clone(),
+            self.vout.clone(),
+            None,
+            self.locktime
+        ).unwrap()
+    }
+
     pub fn new_unsigned_witness(
         version: u32,
         vin: Vin,
@@ -48,7 +94,7 @@ impl Tx {
         vout: Vout,
         witnesses: Option<Vec<Witness>>,
         locktime: u32
-    ) -> Result<Self, TxError> {
+    ) -> TxResult<Self> {
         let segwit = if let Some(wit) = &witnesses {
             if wit.len() != vin.inputs.len() { return Err(TxError::WrongNumberOfWitnesses) };
             true
@@ -65,9 +111,184 @@ impl Tx {
             segwit,
             vin,
             vout,
-            witnesses,
+            witnesses: witnesses.map(|v| v),
             locktime
         })
+    }
+
+    fn _hash_prevouts(&self, anyone_can_pay: bool) -> TxResult<Hash256Digest> {
+        if anyone_can_pay {
+            Ok(Hash256Digest::default())
+        } else {
+            let mut data: Vec<u8> = vec![];
+            for input in self.vin.inputs.iter() {
+                input.outpoint.serialize(&mut data)?;
+            }
+            Ok(hash256(&data))
+        }
+
+    }
+
+    fn _hash_sequence(&self, sighash_type: &Sighash, anyone_can_pay: bool) -> TxResult<Hash256Digest> {
+        if anyone_can_pay || *sighash_type == Sighash::Single {
+            Ok(Hash256Digest::default())
+        } else {
+            let mut data: Vec<u8> = vec![];
+            for input in self.vin.inputs.iter() {
+                input.sequence.serialize(&mut data)?;
+            }
+            Ok(hash256(&data))
+        }
+    }
+
+    fn _hash_outputs(&self, index: usize, sighash_type: &Sighash) -> TxResult<Hash256Digest> {
+        match sighash_type {
+            Sighash::All => {
+                let mut data: Vec<u8> = vec![];
+                for output in self.vout.outputs.iter() {
+                    output.serialize(&mut data)?;
+                }
+                Ok(hash256(&data))
+            },
+            Sighash::Single => {
+                let mut data: Vec<u8> = vec![];
+                self.vout.outputs[index].serialize(&mut data)?;
+                Ok(hash256(&data))
+            },
+            _ => Ok(Hash256Digest::default())
+        }
+    }
+
+    fn _tx_id(&self) -> TxResult<Hash256Digest> {
+        let mut data = vec![];
+        self.without_witness().serialize(&mut data)?;
+        Ok(hash256(&data))
+    }
+
+    pub fn write_segwit_sighash_preimage<T, U>(
+        &self,
+        writer: &mut U,
+        index: usize,
+        sighash_type: Sighash,
+        prevout_value: u64,
+        prevout_script: T,
+        anyone_can_pay: bool) -> TxResult<()>
+    where
+        T: Into<Script>,
+        U: Write
+    {
+        let script: Script = prevout_script.into();
+        let input = &self.vin.inputs[index];
+
+        self.version.serialize(writer)?;
+        self._hash_prevouts(anyone_can_pay)?.serialize(writer)?;
+        self._hash_sequence(&sighash_type, anyone_can_pay)?.serialize(writer)?;
+        input.outpoint.serialize(writer)?;
+        script.serialize(writer)?;
+        prevout_value.serialize(writer)?;
+        input.sequence.serialize(writer)?;
+        self._hash_outputs(index, &sighash_type)?.serialize(writer)?;
+        self.locktime.serialize(writer)?;
+        (sighash_type_to_flag(sighash_type, anyone_can_pay) as u32).serialize(writer)?;
+        Ok(())
+    }
+
+    pub fn segwit_sighash<T>(
+        &self,
+        index: usize,
+        sighash_type: Sighash,
+        prevout_value: u64,
+        prevout_script: T,
+        anyone_can_pay: bool) -> TxResult<Hash256Digest>
+    where
+        T: Into<Script>
+    {
+        let mut data = vec![];
+        self.write_segwit_sighash_preimage(&mut data, index, sighash_type, prevout_value, prevout_script, anyone_can_pay)?;
+        Ok(hash256(&data))
+    }
+
+    fn _legacy_sighash_prep(&self, index: usize, prevout_script: &Script) -> Self
+    {
+        let mut copy_tx = self.clone();
+
+        for mut input in &mut copy_tx.vin.inputs {
+            input.script_sig = Script::null();
+        }
+
+        copy_tx.vin.inputs[index].script_sig = prevout_script.clone();
+
+        copy_tx
+    }
+
+    fn _legacy_sighash_single(
+        copy_tx: &mut Self,
+        index: usize) -> TxResult<()>
+    {
+        let mut tx_outs: Vec<TxOut> = (0..index - 1).map(|_| TxOut::null()).collect();
+        tx_outs.push(copy_tx.vout.outputs[index].clone());
+        copy_tx.vout = Vout::new(tx_outs);
+
+        let mut vin = copy_tx.vin.clone();
+        for (i, mut input) in vin.inputs.iter_mut().enumerate() {
+            if i != index { input.sequence = 0; }
+        }
+        copy_tx.vin = vin;
+
+        Ok(())
+    }
+
+    fn _legacy_sighash_anyone_can_pay(
+        copy_tx: &mut Self,
+        index: usize) -> TxResult<()>
+    {
+        copy_tx.vin = Vin::new(vec![copy_tx.vin.inputs[index].clone()]);
+        Ok(())
+    }
+
+    pub fn write_legacy_sighash_preimage<T, U>(
+        &self,
+        writer: &mut U,
+        index: usize,
+        sighash_type: Sighash,
+        prevout_script: T,
+        anyone_can_pay: bool) -> TxResult<()>
+    where
+        T: Into<Script>,
+        U: Write
+    {
+        let script: Script = prevout_script.into();
+        let mut copy_tx: Self = self._legacy_sighash_prep(index, &script);
+
+        if sighash_type == Sighash::Single {
+            Tx::_legacy_sighash_single(
+                &mut copy_tx,
+                index
+            )?;
+        }
+
+        if anyone_can_pay {
+            Tx::_legacy_sighash_anyone_can_pay(&mut copy_tx, index)?;
+        }
+
+        copy_tx.serialize(writer)?;
+        (sighash_type_to_flag(sighash_type, anyone_can_pay) as u32).serialize(writer)?;
+
+        Ok(())
+    }
+
+    pub fn legacy_sighash<T>(
+        &self,
+        index: usize,
+        sighash_type: Sighash,
+        prevout_script: T,
+        anyone_can_pay: bool) -> TxResult<Hash256Digest>
+    where
+        T: Into<Script>
+    {
+        let mut data = vec![];
+        self.write_legacy_sighash_preimage(&mut data, index, sighash_type, prevout_script, anyone_can_pay)?;
+        Ok(hash256(&data))
     }
 }
 
