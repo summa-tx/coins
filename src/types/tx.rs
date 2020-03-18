@@ -21,7 +21,9 @@ pub enum TxError{
     /// Sighash NONE is unsupported
     NoneUnsupported,
     /// Satoshi's sighash single bug. Throws an error here.
-    SighashSingleBug
+    SighashSingleBug,
+    /// Called sighash on a witness tx without passing in the value
+    RequirePrevoutValue
 
 }
 
@@ -225,7 +227,7 @@ impl Tx {
         copy_tx: &mut Self,
         index: usize) -> TxResult<()>
     {
-        let mut tx_outs: Vec<TxOut> = (0..index - 1).map(|_| TxOut::null()).collect();
+        let mut tx_outs: Vec<TxOut> = (0..index).map(|_| TxOut::null()).collect();
         tx_outs.push(copy_tx.vout.outputs[index].clone());
         copy_tx.vout = Vout::new(tx_outs);
 
@@ -259,7 +261,7 @@ impl Tx {
     {
         let script: Script = prevout_script.into();
         let mut copy_tx: Self = self._legacy_sighash_prep(index, &script);
-
+        println!("copy tx {:?}", copy_tx.serialize_hex().unwrap());
         if sighash_type == Sighash::Single {
             Tx::_legacy_sighash_single(
                 &mut copy_tx,
@@ -289,6 +291,28 @@ impl Tx {
         let mut data = vec![];
         self.write_legacy_sighash_preimage(&mut data, index, sighash_type, prevout_script, anyone_can_pay)?;
         Ok(hash256(&data))
+    }
+
+    pub fn sighash<T>(
+        &self,
+        index: usize,
+        sighash_type: Sighash,
+        prevout_value: Option<u64>,
+        prevout_script: T,
+        anyone_can_pay: bool
+    ) -> TxResult<Hash256Digest>
+    where
+        T: Into<Script>
+    {
+        if self.segwit {
+            if let Some(value) = prevout_value {
+                self.segwit_sighash(index, sighash_type, value, prevout_script, anyone_can_pay)
+            } else {
+                Err(TxError::RequirePrevoutValue)
+            }
+        } else {
+            self.legacy_sighash(index, sighash_type, prevout_script, anyone_can_pay)
+        }
     }
 }
 
@@ -371,6 +395,7 @@ impl Ser for Tx {
 mod tests {
     use super::*;
     use crate::types::*;
+    use hex;
 
     #[test]
     fn it_assembles_legacy() {
@@ -454,5 +479,28 @@ mod tests {
             Tx::deserialize_hex(ser_str).unwrap(),
             tx
         );
+    }
+
+    #[test]
+    fn it_calculates_legacy_sighashes() {
+        // pulled from riemann helpers
+        let tx_hex = "0100000001813f79011acb80925dfe69b3def355fe914bd1d96a3f5f71bf8303c6a989c7d1000000006b483045022100ed81ff192e75a3fd2304004dcadb746fa5e24c5031ccfcf21320b0277457c98f02207a986d955c6e0cb35d446a89d3f56100f4d7f67801c31967743a9c8e10615bed01210349fc4e631e3624a545de3f89f5d8684c7b8138bd94bdd531d2e213bf016b278afeffffff02a135ef01000000001976a914bc3b654dca7e56b04dca18f2566cdaf02e8d9ada88ac99c39800000000001976a9141c4bc762dd5423e332166702cb75f40df79fea1288ac19430600";
+        let tx = Tx::deserialize_hex(tx_hex.to_owned()).unwrap();
+
+        let prevout_script_hex = "17a91424d6008f143af0cca57344069c46661aa4fcea2387";
+        let prevout_script = Script::deserialize_hex(prevout_script_hex.to_owned()).unwrap();
+
+        let all = Hash256Digest::deserialize_hex("b85c4f8d1377cc138225dd9b319d0a4ca547f7884270640f44c5fcdf269e0fe8".to_owned()).unwrap();
+        let all_anyonecanpay = Hash256Digest::deserialize_hex("3b67a5114cc9fc837ddd6f6ec11bde38db5f68c34ab6ece2a043d7b25f2cf8bb".to_owned()).unwrap();
+        let single = Hash256Digest::deserialize_hex("1dab67d768be0380fc800098005d1f61744ffe585b0852f8d7adc12121a86938".to_owned()).unwrap();
+        let single_anyonecanpay = Hash256Digest::deserialize_hex("d4687b93c0a9090dc0a3384cd3a594ce613834bb37abc56f6032e96c597547e3".to_owned()).unwrap();
+
+        let mut data = vec![];
+        tx.write_legacy_sighash_preimage(&mut data, 0, Sighash::All, prevout_script.clone(), false);
+
+        assert_eq!(tx.sighash(0, Sighash::All, None, prevout_script.clone(), false).unwrap(), all);
+        assert_eq!(tx.sighash(0, Sighash::All, None, prevout_script.clone(), true).unwrap(), all_anyonecanpay);
+        assert_eq!(tx.sighash(0, Sighash::Single, None, prevout_script.clone(), false).unwrap(), single);
+        assert_eq!(tx.sighash(0, Sighash::Single, None, prevout_script.clone(), true).unwrap(), single_anyonecanpay);
     }
 }
