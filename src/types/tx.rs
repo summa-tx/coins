@@ -74,6 +74,12 @@ impl Tx {
         ).unwrap()
     }
 
+    pub fn txid(&self) -> TxResult<Hash256Digest> {
+        let mut buf = vec![];
+        self.without_witness().serialize(&mut buf)?;
+        Ok(hash256(&buf))
+    }
+
     pub fn new_unsigned_witness(
         version: u32,
         vin: Vin,
@@ -122,11 +128,11 @@ impl Tx {
         if anyone_can_pay {
             Ok(Hash256Digest::default())
         } else {
-            let mut data: Vec<u8> = vec![];
+            let mut buf: Vec<u8> = vec![];
             for input in self.vin.inputs.iter() {
-                input.outpoint.serialize(&mut data)?;
+                input.outpoint.serialize(&mut buf)?;
             }
-            Ok(hash256(&data))
+            Ok(hash256(&buf))
         }
 
     }
@@ -135,36 +141,36 @@ impl Tx {
         if anyone_can_pay || *sighash_type == Sighash::Single {
             Ok(Hash256Digest::default())
         } else {
-            let mut data: Vec<u8> = vec![];
+            let mut buf: Vec<u8> = vec![];
             for input in self.vin.inputs.iter() {
-                input.sequence.serialize(&mut data)?;
+                input.sequence.serialize(&mut buf)?;
             }
-            Ok(hash256(&data))
+            Ok(hash256(&buf))
         }
     }
 
     fn _hash_outputs(&self, index: usize, sighash_type: &Sighash) -> TxResult<Hash256Digest> {
         match sighash_type {
             Sighash::All => {
-                let mut data: Vec<u8> = vec![];
+                let mut buf: Vec<u8> = vec![];
                 for output in self.vout.outputs.iter() {
-                    output.serialize(&mut data)?;
+                    output.serialize(&mut buf)?;
                 }
-                Ok(hash256(&data))
+                Ok(hash256(&buf))
             },
             Sighash::Single => {
-                let mut data: Vec<u8> = vec![];
-                self.vout.outputs[index].serialize(&mut data)?;
-                Ok(hash256(&data))
+                let mut buf: Vec<u8> = vec![];
+                self.vout.outputs[index].serialize(&mut buf)?;
+                Ok(hash256(&buf))
             },
             _ => Ok(Hash256Digest::default())
         }
     }
 
     fn _tx_id(&self) -> TxResult<Hash256Digest> {
-        let mut data = vec![];
-        self.without_witness().serialize(&mut data)?;
-        Ok(hash256(&data))
+        let mut buf = vec![];
+        self.without_witness().serialize(&mut buf)?;
+        Ok(hash256(&buf))
     }
 
     pub fn write_segwit_sighash_preimage<T, U>(
@@ -205,9 +211,9 @@ impl Tx {
     where
         T: Into<Script>
     {
-        let mut data = vec![];
-        self.write_segwit_sighash_preimage(&mut data, index, sighash_type, prevout_value, prevout_script, anyone_can_pay)?;
-        Ok(hash256(&data))
+        let mut buf = vec![];
+        self.write_segwit_sighash_preimage(&mut buf, index, sighash_type, prevout_value, prevout_script, anyone_can_pay)?;
+        Ok(hash256(&buf))
     }
 
     fn _legacy_sighash_prep(&self, index: usize, prevout_script: &Script) -> Self
@@ -288,9 +294,9 @@ impl Tx {
     where
         T: Into<Script>
     {
-        let mut data = vec![];
-        self.write_legacy_sighash_preimage(&mut data, index, sighash_type, prevout_script, anyone_can_pay)?;
-        Ok(hash256(&data))
+        let mut buf = vec![];
+        self.write_legacy_sighash_preimage(&mut buf, index, sighash_type, prevout_script, anyone_can_pay)?;
+        Ok(hash256(&buf))
     }
 
     pub fn sighash<T>(
@@ -494,9 +500,11 @@ mod tests {
         let single = Hash256Digest::deserialize_hex("1dab67d768be0380fc800098005d1f61744ffe585b0852f8d7adc12121a86938".to_owned()).unwrap();
         let single_anyonecanpay = Hash256Digest::deserialize_hex("d4687b93c0a9090dc0a3384cd3a594ce613834bb37abc56f6032e96c597547e3".to_owned()).unwrap();
 
-        // let mut data = vec![];
-        // tx.write_legacy_sighash_preimage(&mut data, 0, Sighash::All, prevout_script.clone(), false);
+        let txid = Hash256Digest::deserialize_hex("03ee4f7a4e68f802303bc659f8f817964b4b74fe046facc3ae1be4679d622c45".to_owned()).unwrap();
 
+        // let mut buf = vec![];
+        // tx.write_legacy_sighash_preimage(&mut buf, 0, Sighash::All, prevout_script.clone(), false);
+        assert_eq!(tx.txid().unwrap(), txid);
         assert_eq!(tx.sighash(0, Sighash::All, None, prevout_script.clone(), false).unwrap(), all);
         assert_eq!(tx.sighash(0, Sighash::All, None, prevout_script.clone(), true).unwrap(), all_anyonecanpay);
         assert_eq!(tx.sighash(0, Sighash::Single, None, prevout_script.clone(), false).unwrap(), single);
@@ -517,9 +525,11 @@ mod tests {
         let single = Hash256Digest::deserialize_hex("d04631d2742e6fd8e80e2e4309dece65becca41d37fd6bc0bcba041c52d824d5".to_owned()).unwrap();
         let single_anyonecanpay = Hash256Digest::deserialize_hex("ffea9cdda07170af9bc9967cedf485e9fe15b78a622e0c196c0b6fc64f40c615".to_owned()).unwrap();
 
-        // let mut data = vec![];
-        // tx.write_legacy_sighash_preimage(&mut data, 0, Sighash::All, prevout_script.clone(), false);
+        let txid = Hash256Digest::deserialize_hex("9e77087321b870859ebf08976d665c42d9f98cad18fff6a05a91c1d2da6d6c41".to_owned()).unwrap();
 
+        // let mut buf = vec![];
+        // tx.write_legacy_sighash_preimage(&mut buf, 0, Sighash::All, prevout_script.clone(), false);
+        assert_eq!(tx.txid().unwrap(), txid);
         assert_eq!(tx.sighash(0, Sighash::All, Some(120000), prevout_script.clone(), false).unwrap(), all);
         assert_eq!(tx.sighash(0, Sighash::All, Some(120000), prevout_script.clone(), true).unwrap(), all_anyonecanpay);
         assert_eq!(tx.sighash(0, Sighash::Single, Some(120000), prevout_script.clone(), false).unwrap(), single);
