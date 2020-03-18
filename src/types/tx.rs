@@ -395,7 +395,6 @@ impl Ser for Tx {
 mod tests {
     use super::*;
     use crate::types::*;
-    use hex;
 
     #[test]
     fn it_assembles_legacy() {
@@ -495,12 +494,35 @@ mod tests {
         let single = Hash256Digest::deserialize_hex("1dab67d768be0380fc800098005d1f61744ffe585b0852f8d7adc12121a86938".to_owned()).unwrap();
         let single_anyonecanpay = Hash256Digest::deserialize_hex("d4687b93c0a9090dc0a3384cd3a594ce613834bb37abc56f6032e96c597547e3".to_owned()).unwrap();
 
-        let mut data = vec![];
-        tx.write_legacy_sighash_preimage(&mut data, 0, Sighash::All, prevout_script.clone(), false);
+        // let mut data = vec![];
+        // tx.write_legacy_sighash_preimage(&mut data, 0, Sighash::All, prevout_script.clone(), false);
 
         assert_eq!(tx.sighash(0, Sighash::All, None, prevout_script.clone(), false).unwrap(), all);
         assert_eq!(tx.sighash(0, Sighash::All, None, prevout_script.clone(), true).unwrap(), all_anyonecanpay);
         assert_eq!(tx.sighash(0, Sighash::Single, None, prevout_script.clone(), false).unwrap(), single);
         assert_eq!(tx.sighash(0, Sighash::Single, None, prevout_script.clone(), true).unwrap(), single_anyonecanpay);
+    }
+
+    #[test]
+    fn it_calculates_witness_sighashes() {
+        // pulled from riemann helpers
+        let tx_hex = "02000000000101ee9242c89e79ab2aa537408839329895392b97505b3496d5543d6d2f531b94d20000000000fdffffff0173d301000000000017a914bba5acbec4e6e3374a0345bf3609fa7cfea825f18700cafd0700";
+        let tx = Tx::deserialize_hex(tx_hex.to_owned()).unwrap();
+
+        let prevout_script_hex = "160014758ce550380d964051086798d6546bebdca27a73";
+        let prevout_script = Script::deserialize_hex(prevout_script_hex.to_owned()).unwrap();
+
+        let all = Hash256Digest::deserialize_hex("135754ab872e4943f7a9c30d6143c4c7187e33d0f63c75ec82a7f9a15e2f2d00".to_owned()).unwrap();
+        let all_anyonecanpay = Hash256Digest::deserialize_hex("cc7438d5b15e93ba612dcd227cf1937c35273675b3aa7d1b771573667376ddf6".to_owned()).unwrap();
+        let single = Hash256Digest::deserialize_hex("d04631d2742e6fd8e80e2e4309dece65becca41d37fd6bc0bcba041c52d824d5".to_owned()).unwrap();
+        let single_anyonecanpay = Hash256Digest::deserialize_hex("ffea9cdda07170af9bc9967cedf485e9fe15b78a622e0c196c0b6fc64f40c615".to_owned()).unwrap();
+
+        // let mut data = vec![];
+        // tx.write_legacy_sighash_preimage(&mut data, 0, Sighash::All, prevout_script.clone(), false);
+
+        assert_eq!(tx.sighash(0, Sighash::All, Some(120000), prevout_script.clone(), false).unwrap(), all);
+        assert_eq!(tx.sighash(0, Sighash::All, Some(120000), prevout_script.clone(), true).unwrap(), all_anyonecanpay);
+        assert_eq!(tx.sighash(0, Sighash::Single, Some(120000), prevout_script.clone(), false).unwrap(), single);
+        assert_eq!(tx.sighash(0, Sighash::Single, Some(120000), prevout_script.clone(), true).unwrap(), single_anyonecanpay);
     }
 }
