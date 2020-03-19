@@ -160,7 +160,7 @@ impl Tx {
             },
             Sighash::Single => {
                 let mut buf: Vec<u8> = vec![];
-                self.vout.items[index].serialize(&mut buf)?;
+                self.vout[index].serialize(&mut buf)?;
                 Ok(hash256(&buf))
             },
             _ => Ok(Hash256Digest::default())
@@ -186,7 +186,7 @@ impl Tx {
         U: Write
     {
         let script: Script = prevout_script.into();
-        let input = &self.vin.items[index];
+        let input = &self.vin[index];
 
         self.version.serialize(writer)?;
         self._hash_prevouts(anyone_can_pay)?.serialize(writer)?;
@@ -224,7 +224,7 @@ impl Tx {
             input.script_sig = Script::null();
         }
 
-        copy_tx.vin.items[index].script_sig = prevout_script.clone();
+        copy_tx.vin[index].script_sig = prevout_script.clone();
 
         copy_tx
     }
@@ -234,7 +234,7 @@ impl Tx {
         index: usize) -> TxResult<()>
     {
         let mut tx_outs: Vec<TxOut> = (0..index).map(|_| TxOut::null()).collect();
-        tx_outs.push(copy_tx.vout.items[index].clone());
+        tx_outs.push(copy_tx.vout[index].clone());
         copy_tx.vout = Vout::new(tx_outs);
 
         let mut vin = copy_tx.vin.clone();
@@ -250,7 +250,7 @@ impl Tx {
         copy_tx: &mut Self,
         index: usize) -> TxResult<()>
     {
-        copy_tx.vin = Vin::new(vec![copy_tx.vin.items[index].clone()]);
+        copy_tx.vin = Vin::new(vec![copy_tx.vin[index].clone()]);
         Ok(())
     }
 

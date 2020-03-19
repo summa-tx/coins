@@ -1,5 +1,6 @@
 extern crate hex;
 
+use std::ops::{Index, IndexMut};
 use std::io::{Read, Write, Result as IOResult, Cursor};
 
 use bitcoin_spv::types::Hash256Digest;
@@ -58,6 +59,20 @@ impl<T> PrefixVec<T> {
             length: VarInt::new(v.len() as u64),
             items: v
         }
+    }
+}
+
+impl<T> Index<usize> for PrefixVec<T> {
+    type Output = T;
+
+    fn index(&self, index: usize) -> &T {
+        &self.items[index]
+    }
+}
+
+impl<T> IndexMut<usize> for PrefixVec<T> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.items[index]
     }
 }
 
