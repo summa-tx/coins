@@ -23,7 +23,11 @@ pub enum TxError{
     /// Satoshi's sighash single bug. Throws an error here.
     SighashSingleBug,
     /// Called sighash on a witness tx without passing in the value
-    RequirePrevoutValue
+    RequirePrevoutValue,
+    /// No inputs in vin
+    EmptyVin,
+    /// No outputs in vout
+    EmptyVout
 
 }
 
@@ -103,6 +107,8 @@ impl Tx {
         witnesses: Option<Vec<Witness>>,
         locktime: u32
     ) -> TxResult<Self> {
+        if vin.is_empty() { return Err(TxError::EmptyVin) };
+        if vout.is_empty() { return Err(TxError::EmptyVout) };
         let segwit = if let Some(wit) = &witnesses {
             if wit.len() != vin.items.len() { return Err(TxError::WrongNumberOfWitnesses) };
             true
@@ -220,11 +226,14 @@ impl Tx {
     {
         let mut copy_tx = self.clone();
 
-        for mut input in &mut copy_tx.vin.items {
-            input.script_sig = Script::null();
-        }
-
-        copy_tx.vin[index].script_sig = prevout_script.clone();
+        for i in 0..copy_tx.vin.len() {
+            copy_tx.vin[i].script_sig = if i == index {
+                prevout_script.clone()
+            } else {
+                Script::null()
+            };
+        };
+        println!("{:?} {:?}", index, prevout_script);
 
         copy_tx
     }
@@ -519,12 +528,12 @@ mod tests {
         let prevout_script_hex = "160014758ce550380d964051086798d6546bebdca27a73";
         let prevout_script = Script::deserialize_hex(prevout_script_hex.to_owned()).unwrap();
 
-        let all = Hash256Digest::deserialize_hex("135754ab872e4943f7a9c30d6143c4c7187e33d0f63c75ec82a7f9a15e2f2d00".to_owned()).unwrap();
-        let all_anyonecanpay = Hash256Digest::deserialize_hex("cc7438d5b15e93ba612dcd227cf1937c35273675b3aa7d1b771573667376ddf6".to_owned()).unwrap();
-        let single = Hash256Digest::deserialize_hex("d04631d2742e6fd8e80e2e4309dece65becca41d37fd6bc0bcba041c52d824d5".to_owned()).unwrap();
-        let single_anyonecanpay = Hash256Digest::deserialize_hex("ffea9cdda07170af9bc9967cedf485e9fe15b78a622e0c196c0b6fc64f40c615".to_owned()).unwrap();
+                let all = Hash256Digest::deserialize_hex("135754ab872e4943f7a9c30d6143c4c7187e33d0f63c75ec82a7f9a15e2f2d00".to_owned()).unwrap();
+                let all_anyonecanpay = Hash256Digest::deserialize_hex("cc7438d5b15e93ba612dcd227cf1937c35273675b3aa7d1b771573667376ddf6".to_owned()).unwrap();
+                let single = Hash256Digest::deserialize_hex("d04631d2742e6fd8e80e2e4309dece65becca41d37fd6bc0bcba041c52d824d5".to_owned()).unwrap();
+                let single_anyonecanpay = Hash256Digest::deserialize_hex("ffea9cdda07170af9bc9967cedf485e9fe15b78a622e0c196c0b6fc64f40c615".to_owned()).unwrap();
 
-        let txid = Hash256Digest::deserialize_hex("9e77087321b870859ebf08976d665c42d9f98cad18fff6a05a91c1d2da6d6c41".to_owned()).unwrap();
+                let txid = Hash256Digest::deserialize_hex("9e77087321b870859ebf08976d665c42d9f98cad18fff6a05a91c1d2da6d6c41".to_owned()).unwrap();
 
         // let mut buf = vec![];
         // tx.write_legacy_sighash_preimage(&mut buf, 0, Sighash::All, prevout_script.clone(), false);
@@ -533,5 +542,56 @@ mod tests {
         assert_eq!(tx.sighash(0, Sighash::All, Some(120000), prevout_script.clone(), true).unwrap(), all_anyonecanpay);
         assert_eq!(tx.sighash(0, Sighash::Single, Some(120000), prevout_script.clone(), false).unwrap(), single);
         assert_eq!(tx.sighash(0, Sighash::Single, Some(120000), prevout_script.clone(), true).unwrap(), single_anyonecanpay);
+    }
+
+    #[test]
+    fn it_passes_more_witness_sighash_tests() {
+        // from riemann
+        let tx_hex = "02000000000102ee9242c89e79ab2aa537408839329895392b97505b3496d5543d6d2f531b94d20000000000fdffffffee9242c89e79ab2aa537408839329895392b97505b3496d5543d6d2f531b94d20000000000fdffffff0273d301000000000017a914bba5acbec4e6e3374a0345bf3609fa7cfea825f18773d301000000000017a914bba5acbec4e6e3374a0345bf3609fa7cfea825f1870000cafd0700";
+        let tx = Tx::deserialize_hex(tx_hex.to_owned()).unwrap();
+
+        let prevout_script_hex = "160014758ce550380d964051086798d6546bebdca27a73";
+        let prevout_script = Script::deserialize_hex(prevout_script_hex.to_owned()).unwrap();
+
+        let all = Hash256Digest::deserialize_hex("75385c87ece4980b581cfd71bc5814f607801a87f6e0973c63dc9fda465c19c4".to_owned()).unwrap();
+        let all_anyonecanpay = Hash256Digest::deserialize_hex("bc55c4303c82cdcc8e290c597a00d662ab34414d79ec15d63912b8be7fe2ca3c".to_owned()).unwrap();
+        let single = Hash256Digest::deserialize_hex("9d57bf7af01a4e0baa57e749aa193d37a64e3bbc08eb88af93944f41af8dfc70".to_owned()).unwrap();
+        let single_anyonecanpay = Hash256Digest::deserialize_hex("ffea9cdda07170af9bc9967cedf485e9fe15b78a622e0c196c0b6fc64f40c615".to_owned()).unwrap();
+
+        let txid = Hash256Digest::deserialize_hex("184e7bce099679b27ed958213c97d2fb971e227c6517bca11f06ccbb97dcdc30".to_owned()).unwrap();
+
+        assert_eq!(tx.txid().unwrap(), txid);
+        assert_eq!(tx.sighash(1, Sighash::All, Some(120000), prevout_script.clone(), false).unwrap(), all);
+        assert_eq!(tx.sighash(1, Sighash::All, Some(120000), prevout_script.clone(), true).unwrap(), all_anyonecanpay);
+        assert_eq!(tx.sighash(1, Sighash::Single, Some(120000), prevout_script.clone(), false).unwrap(), single);
+        assert_eq!(tx.sighash(1, Sighash::Single, Some(120000), prevout_script.clone(), true).unwrap(), single_anyonecanpay);
+    }
+
+    #[test]
+    fn it_passes_more_legacy_sighash_tests() {
+        // from riemann
+        let tx_hex = "0200000002ee9242c89e79ab2aa537408839329895392b97505b3496d5543d6d2f531b94d20000000000fdffffffee9242c89e79ab2aa537408839329895392b97505b3496d5543d6d2f531b94d20000000000fdffffff0273d301000000000017a914bba5acbec4e6e3374a0345bf3609fa7cfea825f18773d301000000000017a914bba5acbec4e6e3374a0345bf3609fa7cfea825f18700000000";
+        let tx = Tx::deserialize_hex(tx_hex.to_owned()).unwrap();
+
+        let prevout_script_hex = "160014758ce550380d964051086798d6546bebdca27a73";
+        let prevout_script = Script::deserialize_hex(prevout_script_hex.to_owned()).unwrap();
+
+        let all = Hash256Digest::deserialize_hex("3ab40bf1287b7be9a5c67ed0f97f80b38c5f68e53ec93bffd3893901eaaafdb2".to_owned()).unwrap();
+        let all_anyonecanpay = Hash256Digest::deserialize_hex("2d5802fed31e1ef6a857346cc0a9085ea452daeeb3a0b5afcb16a2203ce5689d".to_owned()).unwrap();
+        let single = Hash256Digest::deserialize_hex("ea52b62b26c1f0db838c952fa50806fb8e39ba4c92a9a88d1b4ba7e9c094517d".to_owned()).unwrap();
+        let single_anyonecanpay = Hash256Digest::deserialize_hex("9e2aca0a04afa6e1e5e00ff16b06a247a0da1e7bbaa7cd761c066a82bb3b07d0".to_owned()).unwrap();
+
+        let txid = Hash256Digest::deserialize_hex("40157948972c5c97a2bafff861ee2f8745151385c7f9fbd03991ddf59b76ac81".to_owned()).unwrap();
+
+        // let mut buf = vec![];
+        // tx.write_legacy_sighash_preimage(&mut buf, 1, Sighash::All, prevout_script.clone(), false).expect("");
+        // println!("{:?}", hex::encode(buf));
+        // println!("{:?}", tx.without_witness().serialize_hex());
+
+        assert_eq!(tx.txid().unwrap(), txid);
+        assert_eq!(tx.sighash(1, Sighash::All, None, prevout_script.clone(), false).unwrap(), all);
+        assert_eq!(tx.sighash(1, Sighash::All, None, prevout_script.clone(), true).unwrap(), all_anyonecanpay);
+        assert_eq!(tx.sighash(1, Sighash::Single, None, prevout_script.clone(), false).unwrap(), single);
+        assert_eq!(tx.sighash(1, Sighash::Single, None, prevout_script.clone(), true).unwrap(), single_anyonecanpay);
     }
 }
