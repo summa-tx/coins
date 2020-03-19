@@ -307,9 +307,68 @@ mod test {
             (VarInt(0xaabbccdd, 9), "ffddccbbaa00000000")
         ];
         for case in cases.iter() {
+            assert_eq!((case.0).0.serialized_length().unwrap(), 8);
             assert_eq!(case.0.serialize_hex().unwrap(), case.1.to_owned());
             assert_eq!(VarInt::deserialize_hex(case.1.to_owned()).unwrap(), case.0);
         }
     }
 
+    #[test]
+    fn it_matches_byte_len_and_prefix() {
+        let cases = [
+            (1, 1, None),
+            (0xff, 3, Some(0xfd)),
+            (0xffff_ffff, 5, Some(0xfe)),
+            (0xffff_ffff_ffff_ffff, 9, Some(0xff))];
+        for case in cases.iter() {
+            assert_eq!(VarInt::byte_len(case.0), case.1);
+            assert_eq!(VarInt::prefix_from_len(case.1), case.2);
+        }
+    }
+
+    #[test]
+    fn it_serializes_and_derializes_scripts() {
+        let cases = [
+            (
+                Script::new(hex::decode("0014758ce550380d964051086798d6546bebdca27a73".to_owned()).unwrap()),
+                "160014758ce550380d964051086798d6546bebdca27a73",
+                22
+            ),
+            (
+                Script::new(vec![]),
+                "00",
+                0
+            ),
+            (
+                Script::from(""),
+                "00",
+                0
+            ),
+        ];
+        for case in cases.iter() {
+            let prevout_script = Script::deserialize_hex(case.1.to_owned()).unwrap();
+            assert_eq!(prevout_script, case.0);
+            assert_eq!(prevout_script.serialize_hex().unwrap(), case.1);
+            assert_eq!(prevout_script.len(), case.2);
+            assert_eq!(prevout_script.is_empty(), case.2 == 0);
+
+            assert_eq!(case.0.serialize_hex().unwrap(), case.1);
+            assert_eq!(case.0.len(), case.2);
+            assert_eq!(case.0.is_empty(), case.2 == 0);
+        }
+    }
+
+    #[test]
+    fn it_serializes_and_derializes_hash256digests() {
+        let cases = [
+            (Hash256Digest::default(), "0000000000000000000000000000000000000000000000000000000000000000"),
+        ];
+        for case in cases.iter() {
+            let digest = Hash256Digest::deserialize_hex(case.1.to_owned()).unwrap();
+            assert_eq!(digest.serialized_length().unwrap(), 32);
+            assert_eq!(digest, case.0);
+            assert_eq!(digest.serialize_hex().unwrap(), case.1);
+            assert_eq!(case.0.serialize_hex().unwrap(), case.1);
+        }
+    }
 }
