@@ -1,7 +1,7 @@
 use bitcoin_spv::types::Hash256Digest;
 use std::io::{Read, Write, Result as IOResult};
 
-use crate::types::primitives::{Script, Ser, VarInt};
+use crate::types::primitives::{Script, Ser, PrefixVec};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Outpoint{
@@ -95,58 +95,59 @@ impl Ser for TxIn {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Vin{
-    pub length: VarInt,
-    pub inputs: Vec<TxIn>
-}
+pub type Vin = PrefixVec<TxIn>;
 
-impl Vin {
-    pub fn len(&self) -> usize {
-        self.length.0 as usize
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    pub fn new(inputs: Vec<TxIn>) -> Self {
-        Vin{
-            length: VarInt::new(inputs.len() as u64),
-            inputs
-        }
-    }
-}
-
-impl Ser for Vin {
-    fn serialized_length(&self) -> IOResult<usize> {
-        let mut len = self.length.serialized_length()?;
-        len += self.inputs.serialized_length()?;
-        Ok(len)
-    }
-
-    fn deserialize<T>(reader: &mut T, _limit: usize) -> IOResult<Self>
-    where
-        T: Read,
-        Self: std::marker::Sized
-    {
-        let length = VarInt::deserialize(reader, 0)?;
-        let limit = length.0;
-        Ok(Vin{
-            length,
-            inputs: Vec::<TxIn>::deserialize(reader, limit as usize)?
-        })
-    }
-
-    fn serialize<T>(&self, writer: &mut T) -> IOResult<usize>
-    where
-        T: Write
-    {
-        let mut len = self.length.serialize(writer)?;
-        len += self.inputs.serialize(writer)?;
-        Ok(len)
-    }
-}
+// #[derive(Clone, Debug, Eq, PartialEq)]
+// pub struct Vin{
+//     pub length: VarInt,
+//     pub inputs: Vec<TxIn>
+// }
+// impl Vin {
+//     pub fn len(&self) -> usize {
+//         self.length.0 as usize
+//     }
+//
+//     pub fn is_empty(&self) -> bool {
+//         self.len() == 0
+//     }
+//
+//     pub fn new(inputs: Vec<TxIn>) -> Self {
+//         Vin{
+//             length: VarInt::new(inputs.len() as u64),
+//             inputs
+//         }
+//     }
+// }
+//
+// impl Ser for Vin {
+//     fn serialized_length(&self) -> IOResult<usize> {
+//         let mut len = self.length.serialized_length()?;
+//         len += self.inputs.serialized_length()?;
+//         Ok(len)
+//     }
+//
+//     fn deserialize<T>(reader: &mut T, _limit: usize) -> IOResult<Self>
+//     where
+//         T: Read,
+//         Self: std::marker::Sized
+//     {
+//         let length = VarInt::deserialize(reader, 0)?;
+//         let limit = length.0;
+//         Ok(Vin{
+//             length,
+//             inputs: Vec::<TxIn>::deserialize(reader, limit as usize)?
+//         })
+//     }
+//
+//     fn serialize<T>(&self, writer: &mut T) -> IOResult<usize>
+//     where
+//         T: Write
+//     {
+//         let mut len = self.length.serialize(writer)?;
+//         len += self.inputs.serialize(writer)?;
+//         Ok(len)
+//     }
+// }
 
 #[cfg(test)]
 mod test {
@@ -182,7 +183,7 @@ mod test {
         (
             Script{
                 length: VarInt(0x16, 3),
-                body: vec![0x00, 0x14, 0x11, 0x00, 0x33, 0x00, 0x55, 0x00, 0x77, 0x00, 0x99, 0x00, 0xbb, 0x00, 0xdd, 0x00, 0xff, 0x11, 0x00, 0x33, 0x00, 0x55]
+                items: vec![0x00, 0x14, 0x11, 0x00, 0x33, 0x00, 0x55, 0x00, 0x77, 0x00, 0x99, 0x00, 0xbb, 0x00, 0xdd, 0x00, 0xff, 0x11, 0x00, 0x33, 0x00, 0x55]
             },
             "fd1600001411003300550077009900bb00dd00ff1100330055"
         ),
@@ -211,7 +212,7 @@ mod test {
                 outpoint: Outpoint::null(),
                 script_sig: Script{
                     length: VarInt(0x16, 3),
-                    body: vec![0x00, 0x14, 0x11, 0x00, 0x33, 0x00, 0x55, 0x00, 0x77, 0x00, 0x99, 0x00, 0xbb, 0x00, 0xdd, 0x00, 0xff, 0x11, 0x00, 0x33, 0x00, 0x55]
+                    items: vec![0x00, 0x14, 0x11, 0x00, 0x33, 0x00, 0x55, 0x00, 0x77, 0x00, 0x99, 0x00, 0xbb, 0x00, 0xdd, 0x00, 0xff, 0x11, 0x00, 0x33, 0x00, 0x55]
                 },
                 sequence: 0x1234abcd
             },

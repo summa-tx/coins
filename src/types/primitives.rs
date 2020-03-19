@@ -33,6 +33,77 @@ pub trait Ser {
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
+pub struct PrefixVec<T> {
+    pub length: VarInt,
+    pub items: Vec<T>
+}
+
+pub type Script = PrefixVec<u8>;
+
+impl<T> PrefixVec<T> {
+    pub fn len(&self) -> usize {
+        self.length.0 as usize
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn null() -> Self {
+        PrefixVec::<T>::new(vec![])
+    }
+
+    pub fn new(v: Vec<T>) -> Self {
+        PrefixVec{
+            length: VarInt::new(v.len() as u64),
+            items: v
+        }
+    }
+}
+
+impl<T, U> From<U> for PrefixVec<T>
+where
+    U: Into<Vec<T>>
+{
+    fn from(v: U) -> Self {
+        PrefixVec::<T>::new(v.into())
+    }
+}
+
+impl<T> Ser for PrefixVec<T>
+where
+    T: Ser
+{
+    fn serialized_length(&self) -> IOResult<usize> {
+        let mut len = self.length.serialized_length()?;
+        len += self.items.serialized_length()?;
+        Ok(len)
+    }
+
+    fn deserialize<U>(reader: &mut U, _limit: usize) -> IOResult<Self>
+    where
+        U: Read,
+        Self: std::marker::Sized
+    {
+        let length = VarInt::deserialize(reader, 0)?;
+        let limit = length.0;
+        Ok(PrefixVec{
+            length,
+            items: Vec::<T>::deserialize(reader, limit as usize)?
+        })
+    }
+
+    fn serialize<U>(&self, writer: &mut U) -> IOResult<usize>
+    where
+        U: Write
+    {
+        let mut len = self.length.serialize(writer)?;
+        len += self.items.serialize(writer)?;
+        Ok(len)
+    }
+}
+
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
 pub struct VarInt(pub u64, pub u8);   // number and byte-length
 
 impl VarInt {
@@ -106,72 +177,6 @@ impl Ser for VarInt {
             },
             None => writer.write(&[self.0 as u8])
         }
-    }
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Script {
-    pub length: VarInt,
-    pub body: Vec<u8>
-}
-
-impl Script {
-    pub fn len(&self) -> usize {
-        self.length.0 as usize
-    }
-
-    pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    pub fn null() -> Self {
-        Script::new(vec![])
-    }
-
-    pub fn new(script: Vec<u8>) -> Self {
-        Script{
-            length: VarInt::new(script.len() as u64),
-            body: script
-        }
-    }
-}
-
-impl<T> From<T> for Script
-where
-    T: Into<Vec<u8>>
-{
-    fn from(v: T) -> Self {
-        Script::new(v.into())
-    }
-}
-
-impl Ser for Script {
-    fn serialized_length(&self) -> IOResult<usize> {
-        let mut len = self.length.serialized_length()?;
-        len += self.body.serialized_length()?;
-        Ok(len)
-    }
-
-    fn deserialize<T>(reader: &mut T, _limit: usize) -> IOResult<Self>
-    where
-        T: Read,
-        Self: std::marker::Sized
-    {
-        let length = VarInt::deserialize(reader, 0)?;
-        let limit = length.0;
-        Ok(Script{
-            length,
-            body: Vec::<u8>::deserialize(reader, limit as usize)?
-        })
-    }
-
-    fn serialize<T>(&self, writer: &mut T) -> IOResult<usize>
-    where
-        T: Write
-    {
-        let mut len = self.length.serialize(writer)?;
-        len += self.body.serialize(writer)?;
-        Ok(len)
     }
 }
 

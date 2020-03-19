@@ -104,7 +104,7 @@ impl Tx {
         locktime: u32
     ) -> TxResult<Self> {
         let segwit = if let Some(wit) = &witnesses {
-            if wit.len() != vin.inputs.len() { return Err(TxError::WrongNumberOfWitnesses) };
+            if wit.len() != vin.items.len() { return Err(TxError::WrongNumberOfWitnesses) };
             true
         } else {
             false
@@ -129,7 +129,7 @@ impl Tx {
             Ok(Hash256Digest::default())
         } else {
             let mut buf: Vec<u8> = vec![];
-            for input in self.vin.inputs.iter() {
+            for input in self.vin.items.iter() {
                 input.outpoint.serialize(&mut buf)?;
             }
             Ok(hash256(&buf))
@@ -142,7 +142,7 @@ impl Tx {
             Ok(Hash256Digest::default())
         } else {
             let mut buf: Vec<u8> = vec![];
-            for input in self.vin.inputs.iter() {
+            for input in self.vin.items.iter() {
                 input.sequence.serialize(&mut buf)?;
             }
             Ok(hash256(&buf))
@@ -153,14 +153,14 @@ impl Tx {
         match sighash_type {
             Sighash::All => {
                 let mut buf: Vec<u8> = vec![];
-                for output in self.vout.outputs.iter() {
+                for output in self.vout.items.iter() {
                     output.serialize(&mut buf)?;
                 }
                 Ok(hash256(&buf))
             },
             Sighash::Single => {
                 let mut buf: Vec<u8> = vec![];
-                self.vout.outputs[index].serialize(&mut buf)?;
+                self.vout.items[index].serialize(&mut buf)?;
                 Ok(hash256(&buf))
             },
             _ => Ok(Hash256Digest::default())
@@ -186,7 +186,7 @@ impl Tx {
         U: Write
     {
         let script: Script = prevout_script.into();
-        let input = &self.vin.inputs[index];
+        let input = &self.vin.items[index];
 
         self.version.serialize(writer)?;
         self._hash_prevouts(anyone_can_pay)?.serialize(writer)?;
@@ -220,11 +220,11 @@ impl Tx {
     {
         let mut copy_tx = self.clone();
 
-        for mut input in &mut copy_tx.vin.inputs {
+        for mut input in &mut copy_tx.vin.items {
             input.script_sig = Script::null();
         }
 
-        copy_tx.vin.inputs[index].script_sig = prevout_script.clone();
+        copy_tx.vin.items[index].script_sig = prevout_script.clone();
 
         copy_tx
     }
@@ -234,11 +234,11 @@ impl Tx {
         index: usize) -> TxResult<()>
     {
         let mut tx_outs: Vec<TxOut> = (0..index).map(|_| TxOut::null()).collect();
-        tx_outs.push(copy_tx.vout.outputs[index].clone());
+        tx_outs.push(copy_tx.vout.items[index].clone());
         copy_tx.vout = Vout::new(tx_outs);
 
         let mut vin = copy_tx.vin.clone();
-        for (i, mut input) in vin.inputs.iter_mut().enumerate() {
+        for (i, mut input) in vin.items.iter_mut().enumerate() {
             if i != index { input.sequence = 0; }
         }
         copy_tx.vin = vin;
@@ -250,7 +250,7 @@ impl Tx {
         copy_tx: &mut Self,
         index: usize) -> TxResult<()>
     {
-        copy_tx.vin = Vin::new(vec![copy_tx.vin.inputs[index].clone()]);
+        copy_tx.vin = Vin::new(vec![copy_tx.vin.items[index].clone()]);
         Ok(())
     }
 
@@ -267,7 +267,6 @@ impl Tx {
     {
         let script: Script = prevout_script.into();
         let mut copy_tx: Self = self._legacy_sighash_prep(index, &script);
-        println!("copy tx {:?}", copy_tx.serialize_hex().unwrap());
         if sighash_type == Sighash::Single {
             Tx::_legacy_sighash_single(
                 &mut copy_tx,
@@ -357,7 +356,7 @@ impl Ser for Tx {
         let limit = vin_len.0 as usize;
         let vin = Vin {
             length: vin_len,
-            inputs: Vec::<TxIn>::deserialize(reader, limit)?
+            items: Vec::<TxIn>::deserialize(reader, limit)?
         };
         let vout = Vout::deserialize(reader, 0)?;
 
