@@ -57,3 +57,22 @@ impl Ser for TxOut {
 }
 
 pub type Vout = PrefixVec<TxOut>;
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn it_serializes_and_derializes_outputs() {
+        let cases = [
+            (TxOut::new(0, ""), "000000000000000000", 9),
+            (TxOut::null(), "ffffffffffffffff00", 9)
+        ];
+        for case in cases.iter() {
+            assert_eq!(case.0.serialized_length().unwrap(), case.2);
+            assert_eq!(case.0.serialize_hex().unwrap(), case.1.to_owned());
+            assert_eq!(TxOut::deserialize_hex(case.1.to_owned()).unwrap(), case.0);
+        }
+    }
+}
