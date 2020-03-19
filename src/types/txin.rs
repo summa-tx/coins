@@ -199,25 +199,33 @@ mod test {
     #[test]
     fn it_serializes_and_derializes_inputs() {
         let cases = [
-        (
-            TxIn{
-                outpoint: Outpoint::null(),
-                script_sig: Script::null(),
-                sequence: 0x1234abcd
-            },
-            format!("{}{}{}", NULL_OUTPOINT, "00", "cdab3412")
-        ),
-        (
-            TxIn{
-                outpoint: Outpoint::null(),
-                script_sig: Script{
-                    length: VarInt(0x16, 3),
-                    items: vec![0x00, 0x14, 0x11, 0x00, 0x33, 0x00, 0x55, 0x00, 0x77, 0x00, 0x99, 0x00, 0xbb, 0x00, 0xdd, 0x00, 0xff, 0x11, 0x00, 0x33, 0x00, 0x55]
+            (
+                TxIn{
+                    outpoint: Outpoint::null(),
+                    script_sig: Script::null(),
+                    sequence: 0x1234abcd
                 },
-                sequence: 0x1234abcd
-            },
-            format!("{}{}{}", NULL_OUTPOINT, "fd1600001411003300550077009900bb00dd00ff1100330055", "cdab3412")
-        ),
+                format!("{}{}{}", NULL_OUTPOINT, "00", "cdab3412")
+            ),
+            (
+                TxIn{
+                    outpoint: Outpoint::null(),
+                    script_sig: Script{
+                        length: VarInt(0x16, 3),
+                        items: vec![0x00, 0x14, 0x11, 0x00, 0x33, 0x00, 0x55, 0x00, 0x77, 0x00, 0x99, 0x00, 0xbb, 0x00, 0xdd, 0x00, 0xff, 0x11, 0x00, 0x33, 0x00, 0x55]
+                    },
+                    sequence: 0x1234abcd
+                },
+                format!("{}{}{}", NULL_OUTPOINT, "fd1600001411003300550077009900bb00dd00ff1100330055", "cdab3412")
+            ),
+            (
+                TxIn::new(
+                    Outpoint::null(),
+                    vec![],
+                    0x11223344
+                ),
+                format!("{}{}{}", NULL_OUTPOINT, "00", "44332211")
+            ),
         ];
 
         for case in cases.iter() {
