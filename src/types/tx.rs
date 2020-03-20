@@ -1,5 +1,6 @@
 use std::io::{Read, Write, Result as IOResult, Error as IOError};
 
+use thiserror::Error;
 use bitcoin_spv::{types::Hash256Digest, btcspv::hash256};
 
 
@@ -12,32 +13,36 @@ use crate::types::primitives::{
     Ser
 };
 
-#[derive(Debug)]
+#[derive(Debug, Error)]
 pub enum TxError{
-    IOError(IOError),
+    #[error("Serialization error")]
+    IOError(#[from] IOError),
+    /// Caller provided the wrong number of witnesses
+    #[error("Witness vector must be same length as input Vector")]
     WrongNumberOfWitnesses,
-    WitnessesWithoutSegwit,
-    BadVersion,
-    /// Sighash NONE is unsupported
-    NoneUnsupported,
-    /// Satoshi's sighash single bug. Throws an error here.
-    SighashSingleBug,
-    /// Called sighash on a witness tx without passing in the value
-    RequirePrevoutValue,
-    /// No inputs in vin
-    EmptyVin,
-    /// No outputs in vout
-    EmptyVout
 
+    /// Sighash NONE is unsupported
+    #[error("SIGHASH_NONE is unsupported")]
+    NoneUnsupported,
+
+    /// Satoshi's sighash single bug. Throws an error here.
+    #[error("SIGHASH_SINGLE bug is unsupported")]
+    SighashSingleBug,
+
+    /// Called sighash on a witness tx without passing in the value
+    #[error("Must provide prevout value for segwit sighash")]
+    RequirePrevoutValue,
+
+    /// No inputs in vin
+    #[error("Vin may not be empty")]
+    EmptyVin,
+
+    /// No outputs in vout
+    #[error("Vout may not be empty")]
+    EmptyVout
 }
 
 type TxResult<T> = Result<T, TxError>;
-
-impl From<IOError> for TxError {
-    fn from(error: IOError) -> Self {
-        TxError::IOError(error)
-    }
-}
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Sighash{
@@ -115,10 +120,6 @@ impl Tx {
         } else {
             false
         };
-
-        if version > 2 {
-            return Err(TxError::BadVersion)
-        }
 
         Ok(Tx{
             version,

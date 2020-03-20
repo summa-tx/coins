@@ -41,6 +41,7 @@ pub struct PrefixVec<T> {
 
 pub type Script = PrefixVec<u8>;
 
+#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
 pub enum ScriptType {
     PKH,
     SH,
