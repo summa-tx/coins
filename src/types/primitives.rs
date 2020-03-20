@@ -3,7 +3,7 @@ extern crate hex;
 use std::ops::{Index, IndexMut};
 use std::io::{Read, Write, Result as IOResult, Cursor};
 
-use bitcoin_spv::types::Hash256Digest;
+use bitcoin_spv::types::{Hash256Digest};
 
 pub trait Ser {
     fn serialized_length(&self) -> IOResult<usize>;
@@ -40,6 +40,53 @@ pub struct PrefixVec<T> {
 }
 
 pub type Script = PrefixVec<u8>;
+
+pub enum ScriptType {
+    PKH,
+    SH,
+    WPKH,
+    WSH,
+    NonStandard
+}
+
+impl Script {
+    pub fn determine_type(&self) -> ScriptType {
+        match &self.length.0 {
+            0x19 => {
+                // PKH
+                if self.items[0..=2] == [0x76, 0xa9, 0x14] && self.items[17..=18] == [0x88, 0xac] {
+                    ScriptType::PKH
+                } else {
+                    ScriptType::NonStandard
+                }
+            },
+            0x17 => {
+                // SH
+                if self.items[0..=2] == [0xa9, 0x14] && self.items[17..=18] == [0x87] {
+                    ScriptType::SH
+                } else {
+                    ScriptType::NonStandard
+                }
+            },
+            0x16 => {
+                // WPKH
+                if self.items[0..=1] == [0x00, 0x14] {
+                    ScriptType::WPKH
+                } else {
+                    ScriptType::NonStandard
+                }
+            },
+            0x22 => {
+                if self.items[0..=1] == [0x00, 0x20] {
+                    ScriptType::WSH
+                } else {
+                    ScriptType::NonStandard
+                }
+            },
+            _ => ScriptType::NonStandard
+        }
+    }
+}
 
 impl<T> PrefixVec<T> {
     pub fn len(&self) -> usize {

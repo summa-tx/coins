@@ -130,7 +130,7 @@ impl Tx {
         })
     }
 
-    fn _hash_prevouts(&self, anyone_can_pay: bool) -> TxResult<Hash256Digest> {
+    fn hash_prevouts(&self, anyone_can_pay: bool) -> TxResult<Hash256Digest> {
         if anyone_can_pay {
             Ok(Hash256Digest::default())
         } else {
@@ -143,7 +143,7 @@ impl Tx {
 
     }
 
-    fn _hash_sequence(&self, sighash_type: &Sighash, anyone_can_pay: bool) -> TxResult<Hash256Digest> {
+    fn hash_sequence(&self, sighash_type: &Sighash, anyone_can_pay: bool) -> TxResult<Hash256Digest> {
         if anyone_can_pay || *sighash_type == Sighash::Single {
             Ok(Hash256Digest::default())
         } else {
@@ -155,7 +155,7 @@ impl Tx {
         }
     }
 
-    fn _hash_outputs(&self, index: usize, sighash_type: &Sighash) -> TxResult<Hash256Digest> {
+    fn hash_outputs(&self, index: usize, sighash_type: &Sighash) -> TxResult<Hash256Digest> {
         match sighash_type {
             Sighash::All => {
                 let mut buf: Vec<u8> = vec![];
@@ -173,7 +173,7 @@ impl Tx {
         }
     }
 
-    fn _tx_id(&self) -> TxResult<Hash256Digest> {
+    pub fn tx_id(&self) -> TxResult<Hash256Digest> {
         let mut buf = vec![];
         self.without_witness().serialize(&mut buf)?;
         Ok(hash256(&buf))
@@ -195,13 +195,13 @@ impl Tx {
         let input = &self.vin[index];
 
         self.version.serialize(writer)?;
-        self._hash_prevouts(anyone_can_pay)?.serialize(writer)?;
-        self._hash_sequence(&sighash_type, anyone_can_pay)?.serialize(writer)?;
+        self.hash_prevouts(anyone_can_pay)?.serialize(writer)?;
+        self.hash_sequence(&sighash_type, anyone_can_pay)?.serialize(writer)?;
         input.outpoint.serialize(writer)?;
         script.serialize(writer)?;
         prevout_value.serialize(writer)?;
         input.sequence.serialize(writer)?;
-        self._hash_outputs(index, &sighash_type)?.serialize(writer)?;
+        self.hash_outputs(index, &sighash_type)?.serialize(writer)?;
         self.locktime.serialize(writer)?;
         (sighash_type_to_flag(sighash_type, anyone_can_pay) as u32).serialize(writer)?;
         Ok(())
@@ -222,7 +222,7 @@ impl Tx {
         Ok(hash256(&buf))
     }
 
-    fn _legacy_sighash_prep(&self, index: usize, prevout_script: &Script) -> Self
+    fn legacy_sighash_prep(&self, index: usize, prevout_script: &Script) -> Self
     {
         let mut copy_tx = self.clone();
 
@@ -238,7 +238,7 @@ impl Tx {
         copy_tx
     }
 
-    fn _legacy_sighash_single(
+    fn legacy_sighash_single(
         copy_tx: &mut Self,
         index: usize) -> TxResult<()>
     {
@@ -255,7 +255,7 @@ impl Tx {
         Ok(())
     }
 
-    fn _legacy_sighash_anyone_can_pay(
+    fn legacy_sighash_anyone_can_pay(
         copy_tx: &mut Self,
         index: usize) -> TxResult<()>
     {
@@ -275,16 +275,16 @@ impl Tx {
         U: Write
     {
         let script: Script = prevout_script.into();
-        let mut copy_tx: Self = self._legacy_sighash_prep(index, &script);
+        let mut copy_tx: Self = self.legacy_sighash_prep(index, &script);
         if sighash_type == Sighash::Single {
-            Tx::_legacy_sighash_single(
+            Tx::legacy_sighash_single(
                 &mut copy_tx,
                 index
             )?;
         }
 
         if anyone_can_pay {
-            Tx::_legacy_sighash_anyone_can_pay(&mut copy_tx, index)?;
+            Tx::legacy_sighash_anyone_can_pay(&mut copy_tx, index)?;
         }
 
         copy_tx.serialize(writer)?;
