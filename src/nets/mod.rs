@@ -37,8 +37,6 @@ impl<P: NetworkParams> Network<P> {
                 Err(EncodingError::UnknownScriptType)
             }
         }
-
-        // unimplemented!();
     }
 
     pub fn decode_address(addr: Address) -> EncodingResult<Script> {
