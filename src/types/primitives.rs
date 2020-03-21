@@ -34,14 +34,93 @@ pub trait Ser {
 }
 
 #[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
+pub struct VarInt(pub u64, pub u8);   // number and byte-length
+
+impl VarInt {
+    pub fn new(number: u64) -> Self {
+        let byte_len = VarInt::byte_len(number);
+        VarInt(number, byte_len)
+    }
+
+    pub fn byte_len(number: u64) -> u8 {
+        match number {
+            0..=0xfc => 1,
+            0xfd..=0xffff => 3,
+            0x10000..=0xffff_ffff => 5,
+            _ => 9
+        }
+    }
+
+    pub fn prefix_from_len(number: u8) -> Option<u8> {
+        match number {
+             3 =>  Some(0xfd),
+             5 =>  Some(0xfe),
+             9 =>  Some(0xff),
+             _ => None
+        }
+    }
+
+    pub fn len_from_prefix(number: u8) -> u8 {
+        match number {
+            0..=0xfc => 1,
+            0xfd => 3,
+            0xfe => 5,
+            0xff => 9
+        }
+    }
+}
+
+impl Ser for VarInt {
+
+    fn serialized_length(&self) -> IOResult<usize> {
+        Ok(self.1 as usize)
+    }
+
+    fn deserialize<T>(reader: &mut T, _limit: usize) -> IOResult<VarInt>
+    where
+        T: Read
+    {
+        let mut prefix = [0u8; 1];
+        reader.read_exact(&mut prefix)?;  // read at most one byte
+
+        let len = VarInt::len_from_prefix(prefix[0]);
+        if len == 1 {
+            return Ok(VarInt(prefix[0] as u64, 1u8));
+        }
+
+        let mut buf = [0u8; 8];
+        let mut body = reader.take(len as u64 - 1); // minus 1 to account for prefix
+        let _ = body.read(&mut buf)?;
+        Ok(VarInt(u64::from_le_bytes(buf), len))
+    }
+
+    fn serialize<T>(&self, writer: &mut T) -> IOResult<usize>
+    where
+        T: Write
+    {
+        match VarInt::prefix_from_len(self.1) {
+            Some(prefix) => {
+                let body = self.0.to_le_bytes();
+                let mut len = writer.write(&[prefix])?;
+                len += writer.write(&body[..self.1 as usize - 1])?; // adjust by one for prefix
+                Ok(len)
+            },
+            None => writer.write(&[self.0 as u8])
+        }
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub struct PrefixVec<T> {
     pub length: VarInt,
     pub items: Vec<T>
 }
 
+
 pub type Script = PrefixVec<u8>;
 
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
+
+#[derive(PartialEq, Eq, Clone, Debug)]
 pub enum ScriptType {
     PKH,
     SH,
@@ -163,83 +242,6 @@ where
         let mut len = self.length.serialize(writer)?;
         len += self.items.serialize(writer)?;
         Ok(len)
-    }
-}
-
-#[derive(PartialEq, Eq, PartialOrd, Ord, Clone, Debug)]
-pub struct VarInt(pub u64, pub u8);   // number and byte-length
-
-impl VarInt {
-    pub fn new(number: u64) -> Self {
-        let byte_len = VarInt::byte_len(number);
-        VarInt(number, byte_len)
-    }
-
-    pub fn byte_len(number: u64) -> u8 {
-        match number {
-            0..=0xfc => 1,
-            0xfd..=0xffff => 3,
-            0x10000..=0xffff_ffff => 5,
-            _ => 9
-        }
-    }
-
-    pub fn prefix_from_len(number: u8) -> Option<u8> {
-        match number {
-             3 =>  Some(0xfd),
-             5 =>  Some(0xfe),
-             9 =>  Some(0xff),
-             _ => None
-        }
-    }
-
-    pub fn len_from_prefix(number: u8) -> u8 {
-        match number {
-            0..=0xfc => 1,
-            0xfd => 3,
-            0xfe => 5,
-            0xff => 9
-        }
-    }
-}
-
-impl Ser for VarInt {
-
-    fn serialized_length(&self) -> IOResult<usize> {
-        Ok(self.1 as usize)
-    }
-
-    fn deserialize<T>(reader: &mut T, _limit: usize) -> IOResult<VarInt>
-    where
-        T: Read
-    {
-        let mut prefix = [0u8; 1];
-        reader.read_exact(&mut prefix)?;  // read at most one byte
-
-        let len = VarInt::len_from_prefix(prefix[0]);
-        if len == 1 {
-            return Ok(VarInt(prefix[0] as u64, 1u8));
-        }
-
-        let mut buf = [0u8; 8];
-        let mut body = reader.take(len as u64 - 1); // minus 1 to account for prefix
-        let _ = body.read(&mut buf)?;
-        Ok(VarInt(u64::from_le_bytes(buf), len))
-    }
-
-    fn serialize<T>(&self, writer: &mut T) -> IOResult<usize>
-    where
-        T: Write
-    {
-        match VarInt::prefix_from_len(self.1) {
-            Some(prefix) => {
-                let body = self.0.to_le_bytes();
-                let mut len = writer.write(&[prefix])?;
-                len += writer.write(&body[..self.1 as usize - 1])?; // adjust by one for prefix
-                Ok(len)
-            },
-            None => writer.write(&[self.0 as u8])
-        }
     }
 }
 

@@ -97,58 +97,6 @@ impl Ser for TxIn {
 
 pub type Vin = PrefixVec<TxIn>;
 
-// #[derive(Clone, Debug, Eq, PartialEq)]
-// pub struct Vin{
-//     pub length: VarInt,
-//     pub inputs: Vec<TxIn>
-// }
-// impl Vin {
-//     pub fn len(&self) -> usize {
-//         self.length.0 as usize
-//     }
-//
-//     pub fn is_empty(&self) -> bool {
-//         self.len() == 0
-//     }
-//
-//     pub fn new(inputs: Vec<TxIn>) -> Self {
-//         Vin{
-//             length: VarInt::new(inputs.len() as u64),
-//             inputs
-//         }
-//     }
-// }
-//
-// impl Ser for Vin {
-//     fn serialized_length(&self) -> IOResult<usize> {
-//         let mut len = self.length.serialized_length()?;
-//         len += self.inputs.serialized_length()?;
-//         Ok(len)
-//     }
-//
-//     fn deserialize<T>(reader: &mut T, _limit: usize) -> IOResult<Self>
-//     where
-//         T: Read,
-//         Self: std::marker::Sized
-//     {
-//         let length = VarInt::deserialize(reader, 0)?;
-//         let limit = length.0;
-//         Ok(Vin{
-//             length,
-//             inputs: Vec::<TxIn>::deserialize(reader, limit as usize)?
-//         })
-//     }
-//
-//     fn serialize<T>(&self, writer: &mut T) -> IOResult<usize>
-//     where
-//         T: Write
-//     {
-//         let mut len = self.length.serialize(writer)?;
-//         len += self.inputs.serialize(writer)?;
-//         Ok(len)
-//     }
-// }
-
 #[cfg(test)]
 mod test {
     use super::*;

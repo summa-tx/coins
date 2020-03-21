@@ -3,7 +3,6 @@ use std::io::{Read, Write, Result as IOResult, Error as IOError};
 use thiserror::Error;
 use bitcoin_spv::{types::Hash256Digest, btcspv::hash256};
 
-
 use crate::types::txin::{Vin, TxIn};
 use crate::types::txout::{Vout, TxOut};
 use crate::types::wit::{Witness};
