@@ -11,13 +11,18 @@ pub struct Hash256Writer {
 }
 
 impl Hash256Writer {
-    /// Consume the Writer and produce the hash result.
-    pub fn finish<T: MarkedHash<Hash256Digest>>(self) -> T {
+
+    pub fn finish(self) -> Hash256Digest {
         let first = self.internal.result();
         let second = Sha256::digest(&first);
         let mut digest = Hash256Digest::default();
         digest[..].copy_from_slice(&second[..]);
-        MarkedHash::new(digest)
+        digest
+    }
+
+    /// Consume the Writer and produce the hash result.
+    pub fn finish_marked<T: MarkedHash<Hash256Digest>>(self) -> T {
+        MarkedHash::new(self.finish())
     }
 }
 
