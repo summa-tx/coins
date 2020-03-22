@@ -3,8 +3,8 @@ use bitcoin_spv::types::{Hash256Digest};
 
 use crate::{
     hashes::{
-        hash256::Hash256Writer,
-        marked::{MarkedHash, TXID, WTXID},
+        hash256::{HashWriter, Hash256Writer},
+        marked::{DigestMarker, MarkedHash, TXID, WTXID},
     },
     types::{
         primitives::{Ser, TxError, TxResult, PrefixVec},
@@ -16,35 +16,74 @@ use crate::{
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+/// All possible Sighash modes
 pub enum Sighash{
+    /// Sign ALL inputs and ALL outputs
     All = 0x01,
+    /// Sign ALL inputs and NO outputs (unsupported)
     None = 0x02,
+    /// Sign ALL inputs and ONE output
     Single = 0x3,
+    /// Sign ONE inputs and ALL outputs
     AllACP = 0x81,
+    /// Sign ONE inputs and NO outputs (unsupported)
     NoneACP = 0x82,
+    /// Sign ONE inputs and ONE output
     SingleACP = 0x83,
 }
 
+/// Basic functionality for a Transaction object.
+///
+/// This trait has been generalized to support transactions from Non-Bitcoin networks. The
+/// transaction specificies which types it considers to be inputs and outputs, and a struct that
+/// contains its Sighash arguments. This allows others to define custom transaction types with
+/// unique functionality.
 trait Transaction<'a>: Ser {
-   type TxIn;
-   type TxOut;
-   type SighashArgs;
-   type TXID: MarkedHash<Hash256Digest>;
-   // TODO: abstract the hash writer
+    type Digest: DigestMarker;
+    /// The Input type for the transaction
+    type TxIn;
+    /// The Output type for the transaction
+    type TxOut;
+    /// A type describing arguments for the sighash function for this transaction
+    type SighashArgs;
+    /// A marked hash (see crate::hashes::marked) to be used as teh transaction ID type.
+    type TXID: MarkedHash<Self::Digest>;
+    /// An object that implements `HashWriter`. Used to generate the Sighash
+    type HashWriter: HashWriter<Self::Digest>;
 
-   fn inputs(&'a self) -> &'a[Self::TxIn];
-   fn outputs(&'a self) -> &'a[Self::TxOut];
-   fn version(&self) -> u32;
-   fn locktime(&self) -> u32;
+    /// Returns the transaction version number
+    fn version(&self) -> u32;
 
-   fn txid(&self) -> Self::TXID;
+    /// Returns a reference to the transaction input vector
+    fn inputs(&'a self) -> &'a[Self::TxIn];
 
-   fn write_legacy_sighash_preimage<W: Write>(&self, writer: &mut W, _args: &Self::SighashArgs) -> TxResult<()>;
+    /// Returns a reference the the transaction output vector
+    fn outputs(&'a self) -> &'a[Self::TxOut];
 
-   fn legacy_sighash(&self, args: &Self::SighashArgs) -> Hash256Digest {
-       let mut w = Hash256Writer::default();
-       self.write_legacy_sighash_preimage(&mut w, args).expect("No IOError from SHA2");
-       w.finish()
+    /// Returns the transaction's nLocktime field
+    fn locktime(&self) -> u32;
+
+    /// Calculates and returns the transaction's ID. The default TXID is simply the serialized
+    /// transaction. However, Witness transactions will have to override this in order to avoid
+    /// serializing witnesses.
+    /// TODO: memoize
+    fn txid(&self) -> Self::TXID {
+        let mut w = Self::HashWriter::default();
+        self.serialize(&mut w).expect("No IOError from hash functions");
+        w.finish_marked()
+    }
+
+    /// Serializes the transaction in the sighash format, depending on the args provided. Writes
+    /// the result to `writer`. Used in `legacy_sighash`. Abstracts of the sighash serialization
+    /// logic from the hasher used.
+    fn write_legacy_sighash_preimage<W: Write>(&self, writer: &mut W, _args: &Self::SighashArgs) -> TxResult<()>;
+
+    /// Calls `write_legacy_sighash_preimage` with the provided arguments and a new HashWriter.
+    /// Returns the sighash digest which should be signed.
+    fn legacy_sighash(&self, args: &Self::SighashArgs) -> Self::Digest {
+        let mut w = Self::HashWriter::default();
+        self.write_legacy_sighash_preimage(&mut w, args).expect("No IOError from hash functions");
+        w.finish()
    }
 }
 
@@ -111,10 +150,12 @@ impl LegacyTx {
 }
 
 impl<'a> Transaction<'a> for LegacyTx {
+    type Digest = Hash256Digest;
     type TxIn = TxIn;
     type TxOut = TxOut;
     type SighashArgs = LegacySighashArgs<'a>;
     type TXID = TXID;
+    type HashWriter = Hash256Writer;
 
     fn inputs(&'a self) -> &'a[Self::TxIn] {
         &self.vin.items()
@@ -130,12 +171,6 @@ impl<'a> Transaction<'a> for LegacyTx {
 
     fn locktime(&self) -> u32 {
         self.locktime
-    }
-
-    fn txid(&self) -> Self::TXID {
-        let mut w = Hash256Writer::default();
-        self.serialize(&mut w).expect("No IOError from SHA2");
-        w.finish_marked()
     }
 
     fn write_legacy_sighash_preimage<W: Write>(
@@ -207,8 +242,8 @@ trait WitnessTransaction<'a>: Transaction<'a> {
 
     fn wtxid(&self) -> Self::WTXID;
     fn write_witness_sighash_preimage<W: Write>(&self, _writer: &mut W, args: &Self::WitnessSighashArgs) -> TxResult<()>;
-    fn witness_sighash(&self, args: &Self::WitnessSighashArgs) -> Hash256Digest {
-        let mut w = Hash256Writer::default();
+    fn witness_sighash(&self, args: &Self::WitnessSighashArgs) -> Self::Digest {
+        let mut w = Self::HashWriter::default();
         self.write_witness_sighash_preimage(&mut w, args).expect("No IOError from SHA2");
         w.finish()
     }
@@ -291,10 +326,12 @@ impl WitnessTx {
 }
 
 impl<'a> Transaction<'a> for WitnessTx {
+    type Digest = Hash256Digest;
     type TxIn = TxIn;
     type TxOut = TxOut;
     type SighashArgs = LegacySighashArgs<'a>;
     type TXID = TXID;
+    type HashWriter = Hash256Writer;
 
     fn inputs(&'a self) -> &'a[Self::TxIn] {
         &self.vin.items()
@@ -313,7 +350,7 @@ impl<'a> Transaction<'a> for WitnessTx {
     }
 
     fn txid(&self) -> Self::TXID {
-        let mut w = Hash256Writer::default();
+        let mut w = Self::HashWriter::default();
         self.version().serialize(&mut w).expect("No IOError from SHA2");
         self.vin.serialize(&mut w).expect("No IOError from SHA2");
         self.vout.serialize(&mut w).expect("No IOError from SHA2");
@@ -335,7 +372,7 @@ impl<'a> WitnessTransaction<'a> for WitnessTx {
     type WitnessSighashArgs = WitnessSighashArgs<'a>;
 
     fn wtxid(&self) -> Self::WTXID {
-        let mut w = Hash256Writer::default();
+        let mut w = Self::HashWriter::default();
         self.serialize(&mut w).expect("No IOError from SHA2");
         w.finish_marked()
     }
