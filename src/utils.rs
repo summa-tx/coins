@@ -3,7 +3,7 @@ use sha2::{Digest, Sha256};
 
 use bitcoin_spv::types::Hash256Digest;
 
-use crate::new_types::hashes::{MarkedHash256};
+use crate::new_types::hashes::{MarkedHash};
 
 #[derive(Default)]
 pub struct Hash256Writer {
@@ -12,12 +12,12 @@ pub struct Hash256Writer {
 
 impl Hash256Writer {
     /// Consume the Writer and produce the hash result.
-    pub fn finish<T: MarkedHash256>(self) -> T {
+    pub fn finish<T: MarkedHash<Hash256Digest>>(self) -> T {
         let first = self.internal.result();
         let second = Sha256::digest(&first);
         let mut digest = Hash256Digest::default();
         digest[..].copy_from_slice(&second[..]);
-        MarkedHash256::new(digest)
+        MarkedHash::new(digest)
     }
 }
 

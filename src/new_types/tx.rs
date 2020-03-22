@@ -6,7 +6,7 @@ use super::{
     txin::{TxIn, Vin},
     txout::{TxOut, Vout},
     script::{Witness},
-    hashes::{MarkedHash256, TXID, WTXID},
+    hashes::{MarkedHash, TXID, WTXID},
 };
 
 use crate::utils::{Hash256Writer};
@@ -32,7 +32,7 @@ trait Transaction<'a>: Ser {
    type TxIn;
    type TxOut;
    // type SighashArgs;
-   type TXID: MarkedHash256;
+   type TXID: MarkedHash<Hash256Digest>;
 
    fn inputs(&'a self) -> &'a[Self::TxIn];
    fn outputs(&'a self) -> &'a[Self::TxOut];
@@ -45,7 +45,7 @@ trait Transaction<'a>: Ser {
 }
 
 trait WitnessTransaction<'a>: Transaction<'a> {
-    type WtxIdType: MarkedHash256;
+    type WtxIdType: MarkedHash<Hash256Digest>;
     // type WitnessSighashArgs;
 
     fn wtxid(&self) -> Self::WtxIdType;
@@ -132,6 +132,7 @@ impl Ser for LegacyTx
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WitnessTx {
     version: u32,
     vin: Vin,

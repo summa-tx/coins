@@ -3,11 +3,13 @@ use bitcoin_spv::types::{Hash256Digest};
 
 use super::primitives::{Ser, TxResult};
 
-pub trait MarkedHash256 {
-    fn new(hash: Hash256Digest) -> Self;
-    fn internal(&self) -> Hash256Digest;
-}
+pub trait HashMarker {}
+impl HashMarker for Hash256Digest {}
 
+pub trait MarkedHash<T: HashMarker> {
+    fn new(hash: T) -> Self;
+    fn internal(&self) -> T;
+}
 
 #[derive(Copy, Clone, Default, Debug, Eq, PartialEq)]
 pub struct TXID(pub Hash256Digest);
@@ -34,7 +36,7 @@ impl Ser for TXID {
         Ok(writer.write(&self.0)?)
     }
 }
-impl MarkedHash256 for TXID {
+impl MarkedHash<Hash256Digest> for TXID {
     fn new(hash: Hash256Digest) -> Self {
         Self(hash)
     }
@@ -74,7 +76,7 @@ impl Ser for WTXID {
         Ok(writer.write(&self.0)?)
     }
 }
-impl MarkedHash256 for WTXID {
+impl MarkedHash<Hash256Digest> for WTXID {
     fn new(hash: Hash256Digest) -> Self {
         Self(hash)
     }

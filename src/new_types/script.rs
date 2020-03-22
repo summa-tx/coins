@@ -1,7 +1,7 @@
 use super::primitives::{ConcretePrefixVec, PrefixVec, TxResult};
 
 /// A WitnessStackItem is a marked ConcretePrefixVec<u8>
-#[derive(PartialEq, Eq, Clone, Default, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct  WitnessStackItem(pub ConcretePrefixVec<u8>);
 
 impl WitnessStackItem {
@@ -47,7 +47,7 @@ where
 }
 
 /// A Script is a marked ConcretePrefixVec<u8>
-#[derive(PartialEq, Eq, Clone, Default, Debug)]
+#[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct Script(pub ConcretePrefixVec<u8>);
 
 #[derive(PartialEq, Eq, Clone, Debug)]
