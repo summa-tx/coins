@@ -3,10 +3,10 @@ use bitcoin_spv::types::{Hash256Digest};
 
 use crate::types::primitives::{Ser, TxResult};
 
-pub trait HashMarker {}
-impl HashMarker for Hash256Digest {}
+pub trait DigestMarker {}
+impl DigestMarker for Hash256Digest {}
 
-pub trait MarkedHash<T: HashMarker> {
+pub trait MarkedHash<T: DigestMarker> {
     fn new(hash: T) -> Self;
     fn internal(&self) -> T;
 }
@@ -50,6 +50,11 @@ impl From<Hash256Digest> for TXID {
         Self::new(h)
     }
 }
+impl Into<Hash256Digest> for TXID {
+    fn into(self) -> Hash256Digest {
+        self.internal()
+    }
+}
 
 #[derive(Copy, Clone, Default, Debug, Eq, PartialEq)]
 pub struct WTXID(pub Hash256Digest);
@@ -90,7 +95,11 @@ impl From<Hash256Digest> for WTXID {
         Self::new(h)
     }
 }
-
+impl Into<Hash256Digest> for WTXID {
+    fn into(self) -> Hash256Digest {
+        self.internal()
+    }
+}
 
 #[cfg(test)]
 mod test {
