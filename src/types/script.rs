@@ -1,8 +1,10 @@
+use std::ops::{Index, IndexMut};
+
 use crate::types::primitives::{ConcretePrefixVec, PrefixVec, TxResult};
 
 /// A WitnessStackItem is a marked ConcretePrefixVec<u8>
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
-pub struct  WitnessStackItem(pub ConcretePrefixVec<u8>);
+pub struct WitnessStackItem(pub ConcretePrefixVec<u8>);
 
 impl WitnessStackItem {
     pub fn null() -> Self {
@@ -43,6 +45,20 @@ where
 {
     fn from(v: T) -> Self {
         Self(v.into())
+    }
+}
+
+impl Index<usize> for WitnessStackItem {
+    type Output = u8;
+
+    fn index(&self, index: usize) -> &u8 {
+        &self.0[index]
+    }
+}
+
+impl IndexMut<usize> for WitnessStackItem {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.0[index]
     }
 }
 
@@ -133,6 +149,20 @@ where
 {
     fn from(v: T) -> Self {
         Self(v.into())
+    }
+}
+
+impl Index<usize> for Script {
+    type Output = u8;
+
+    fn index(&self, index: usize) -> &u8 {
+        &self.0[index]
+    }
+}
+
+impl IndexMut<usize> for Script {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+        &mut self.0[index]
     }
 }
 
