@@ -1,40 +1,51 @@
-use bitcoin_spv::types::Hash256Digest;
-use std::io::{Read, Write, Result as IOResult};
+use std::io::{Read, Write};
 
-use crate::types::primitives::{Script, Ser, PrefixVec};
+use crate::{
+    hashes::marked::{TXID},
+    types::{
+        primitives::{ConcretePrefixVec, Ser, TxResult},
+        script::Script,
+    }
+};
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Outpoint{
-    pub txid: Hash256Digest,
+    pub txid: TXID,
     pub idx: u32
 }
 
 impl Outpoint {
     pub fn null() -> Self {
         Outpoint{
-            txid: Hash256Digest::default(),
+            txid: TXID::default(),
             idx: 0xffff_ffff
         }
     }
 }
 
+impl Default for Outpoint {
+    fn default() -> Self {
+        Outpoint::null()
+    }
+}
+
 impl Ser for Outpoint {
-    fn serialized_length(&self) -> IOResult<usize> {
-        Ok(36)
+    fn serialized_length(&self) -> usize {
+        36
     }
 
-    fn deserialize<T>(reader: &mut T, _limit: usize) -> IOResult<Self>
+    fn deserialize<T>(reader: &mut T, _limit: usize) -> TxResult<Self>
     where
         T: Read,
         Self: std::marker::Sized
     {
         Ok(Outpoint{
-            txid: Hash256Digest::deserialize(reader, 0)?,
+            txid: TXID::deserialize(reader, 0)?,
             idx: u32::deserialize(reader, 0)?
         })
     }
 
-    fn serialize<T>(&self, writer: &mut T) -> IOResult<usize>
+    fn serialize<T>(&self, writer: &mut T) -> TxResult<usize>
     where
         T: Write
     {
@@ -65,14 +76,14 @@ impl TxIn{
 }
 
 impl Ser for TxIn {
-    fn serialized_length(&self) -> IOResult<usize> {
-        let mut len = self.outpoint.serialized_length()?;
-        len += self.script_sig.serialized_length()?;
-        len += self.sequence.serialized_length()?;
-        Ok(len)
+    fn serialized_length(&self) -> usize {
+        let mut len = self.outpoint.serialized_length();
+        len += self.script_sig.serialized_length();
+        len += self.sequence.serialized_length();
+        len
     }
 
-    fn deserialize<T>(reader: &mut T, _limit: usize) -> IOResult<Self>
+    fn deserialize<T>(reader: &mut T, _limit: usize) -> TxResult<Self>
     where
         T: Read,
         Self: std::marker::Sized
@@ -84,7 +95,7 @@ impl Ser for TxIn {
         })
     }
 
-    fn serialize<T>(&self, writer: &mut T) -> IOResult<usize>
+    fn serialize<T>(&self, writer: &mut T) -> TxResult<usize>
     where
         T: Write
     {
@@ -95,52 +106,25 @@ impl Ser for TxIn {
     }
 }
 
-pub type Vin = PrefixVec<TxIn>;
+pub type Vin = ConcretePrefixVec<TxIn>;
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::types::*;
+    use crate::types::primitives::{Ser, PrefixVec};
 
     static NULL_OUTPOINT: &str = "0000000000000000000000000000000000000000000000000000000000000000ffffffff";
 
     #[test]
     fn it_serializes_and_derializes_outpoints() {
         let cases = [
-        (Outpoint{txid: Hash256Digest::default(), idx: 0}, (0..36).map(|_| "00").collect::<String>()),
+        (Outpoint{txid: TXID::default(), idx: 0}, (0..36).map(|_| "00").collect::<String>()),
         (Outpoint::null(), NULL_OUTPOINT.to_string())
         ];
         for case in cases.iter() {
-            assert_eq!(case.0.serialized_length().unwrap(), case.1.len() / 2);
+            assert_eq!(case.0.serialized_length(), case.1.len() / 2);
             assert_eq!(case.0.serialize_hex().unwrap(), case.1.to_owned());
             assert_eq!(Outpoint::deserialize_hex(case.1.to_owned()).unwrap(), case.0);
-        }
-    }
-
-    #[test]
-    fn it_serializes_and_derializes_scripts() {
-        let cases = [
-        (Script::new(vec![0xaa, 0xbb, 0xcc, 0xdd]), "04aabbccdd"),
-        (Script::new(vec![1u8; 256]), &format!("fd0001{}", (0..256).map(|_| "01").collect::<String>())),
-        (
-            Script::new(
-                vec![0x00, 0x14, 0x11, 0x00, 0x33, 0x00, 0x55, 0x00, 0x77, 0x00, 0x99, 0x00, 0xbb, 0x00, 0xdd, 0x00, 0xff, 0x11, 0x00, 0x33, 0x00, 0x55]
-            ),
-            "16001411003300550077009900bb00dd00ff1100330055"
-        ),
-        (
-            Script{
-                length: VarInt(0x16, 3),
-                items: vec![0x00, 0x14, 0x11, 0x00, 0x33, 0x00, 0x55, 0x00, 0x77, 0x00, 0x99, 0x00, 0xbb, 0x00, 0xdd, 0x00, 0xff, 0x11, 0x00, 0x33, 0x00, 0x55]
-            },
-            "fd1600001411003300550077009900bb00dd00ff1100330055"
-        ),
-        ];
-
-        for case in cases.iter() {
-            assert_eq!(case.0.serialized_length().unwrap(), case.1.len() / 2);
-            assert_eq!(case.0.serialize_hex().unwrap(), case.1.to_owned());
-            assert_eq!(Script::deserialize_hex(case.1.to_owned()).unwrap(), case.0);
         }
     }
 
@@ -158,11 +142,12 @@ mod test {
             (
                 TxIn{
                     outpoint: Outpoint::null(),
-                    script_sig: Script{
-                        length: VarInt(0x16, 3),
-                        items: vec![0x00, 0x14, 0x11, 0x00, 0x33, 0x00, 0x55, 0x00, 0x77, 0x00, 0x99, 0x00, 0xbb, 0x00, 0xdd, 0x00, 0xff, 0x11, 0x00, 0x33, 0x00, 0x55]
-                    },
+                    script_sig: Script::new_non_minimal(
+                        vec![0x00, 0x14, 0x11, 0x00, 0x33, 0x00, 0x55, 0x00, 0x77, 0x00, 0x99, 0x00, 0xbb, 0x00, 0xdd, 0x00, 0xff, 0x11, 0x00, 0x33, 0x00, 0x55],
+                        3
+                    ).unwrap(),
                     sequence: 0x1234abcd
+
                 },
                 format!("{}{}{}", NULL_OUTPOINT, "fd1600001411003300550077009900bb00dd00ff1100330055", "cdab3412")
             ),
@@ -177,7 +162,7 @@ mod test {
         ];
 
         for case in cases.iter() {
-            assert_eq!(case.0.serialized_length().unwrap(), case.1.len() / 2);
+            assert_eq!(case.0.serialized_length(), case.1.len() / 2);
             assert_eq!(case.0.serialize_hex().unwrap(), case.1.to_owned());
             assert_eq!(TxIn::deserialize_hex(case.1.to_owned()).unwrap(), case.0);
         }

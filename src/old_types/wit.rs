@@ -1,4 +1,4 @@
-use crate::types::primitives::{Script, PrefixVec};
+use super::primitives::{Script, PrefixVec};
 
 /// Alias for Script, as both are opaque byte vectors
 pub type WitnessStackItem = Script;
@@ -8,7 +8,7 @@ pub type Witness = PrefixVec<WitnessStackItem>;
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::types::primitives::{Ser};
+    use crate::old_types::primitives::Ser;
 
     #[test]
     fn it_serializes_and_derializes_witnesses() {

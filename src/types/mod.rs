@@ -1,11 +1,11 @@
 pub mod primitives;
-pub mod tx;
+pub mod script;
 pub mod txin;
 pub mod txout;
-pub mod wit;
+pub mod tx;
 
 pub use primitives::*;
-pub use tx::*;
+pub use script::*;
 pub use txin::*;
 pub use txout::*;
-pub use wit::*;
+pub use tx::*;

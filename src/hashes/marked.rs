@@ -1,7 +1,7 @@
 use std::io::{Read, Write};
 use bitcoin_spv::types::{Hash256Digest};
 
-use super::primitives::{Ser, TxResult};
+use crate::types::primitives::{Ser, TxResult};
 
 pub trait HashMarker {}
 impl HashMarker for Hash256Digest {}

@@ -1,13 +1,19 @@
-use crate::types::primitives::{Script, ScriptType};
-use crate::enc::{
-    Address,
-    EncodingError,
-    EncodingResult,
-    encode_base58,
-    decode_base58,
-    encode_bech32,
-    decode_bech32
+use crate::{
+    types::{
+        primitives::{PrefixVec},
+        script::{Script, ScriptType},
+    },
+    enc::{
+        Address,
+        EncodingError,
+        EncodingResult,
+        encode_base58,
+        decode_base58,
+        encode_bech32,
+        decode_bech32,
+    },
 };
+
 use std::marker::PhantomData;
 
 pub trait NetworkParams {
@@ -22,16 +28,16 @@ impl<P: NetworkParams> Network<P> {
     pub fn encode_address(a: Script) -> EncodingResult<Address> {
         match a.determine_type() {
             ScriptType::PKH => {
-                Ok(Address::PKH(encode_base58(P::PKH_VERSION, &a.items)))
+                Ok(Address::PKH(encode_base58(P::PKH_VERSION, &a.items())))
             },
             ScriptType::SH => {
-                Ok(Address::SH(encode_base58(P::SH_VERSION, &a.items)))
+                Ok(Address::SH(encode_base58(P::SH_VERSION, &a.items())))
             },
             ScriptType::WSH => {
-                Ok(Address::WSH(encode_bech32(P::HRP, &a.items)?))
+                Ok(Address::WSH(encode_bech32(P::HRP, &a.items())?))
             }
             ScriptType::WPKH => {
-                Ok(Address::WPKH(encode_bech32(P::HRP, &a.items)?))
+                Ok(Address::WPKH(encode_bech32(P::HRP, &a.items())?))
             }
             ScriptType::NonStandard => {
                 Err(EncodingError::UnknownScriptType)

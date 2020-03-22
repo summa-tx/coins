@@ -1,25 +1,11 @@
-use std::io::{Read, Write};
+use std::io::{Read, Write, Result as IOResult};
 
-use super::{
-    primitives::{
-        ConcretePrefixVec,
-        Ser,
-        PrefixVec,
-        TxResult,
-    },
-    script::Script,
-};
+use super::primitives::{Script, Ser, PrefixVec};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TxOut{
     pub value: u64,
     pub script_pubkey: Script
-}
-
-impl Default for TxOut {
-    fn default() -> Self {
-        Self::null()
-    }
 }
 
 impl TxOut{
@@ -42,13 +28,13 @@ impl TxOut{
 }
 
 impl Ser for TxOut {
-    fn serialized_length(&self) -> usize {
-        let mut len = self.value.serialized_length();
-        len += self.script_pubkey.serialized_length();
-        len
+    fn serialized_length(&self) -> IOResult<usize> {
+        let mut len = self.value.serialized_length()?;
+        len += self.script_pubkey.serialized_length()?;
+        Ok(len)
     }
 
-    fn deserialize<T>(reader: &mut T, _limit: usize) -> TxResult<Self>
+    fn deserialize<T>(reader: &mut T, _limit: usize) -> IOResult<Self>
     where
         T: Read,
         Self: std::marker::Sized
@@ -60,7 +46,7 @@ impl Ser for TxOut {
         })
     }
 
-    fn serialize<T>(&self, writer: &mut T) -> TxResult<usize>
+    fn serialize<T>(&self, writer: &mut T) -> IOResult<usize>
     where
         T: Write
     {
@@ -70,13 +56,12 @@ impl Ser for TxOut {
     }
 }
 
-pub type Vout = ConcretePrefixVec<TxOut>;
+pub type Vout = PrefixVec<TxOut>;
 
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::new_types::primitives::Ser;
 
     #[test]
     fn it_serializes_and_derializes_outputs() {
@@ -85,7 +70,7 @@ mod test {
             (TxOut::null(), "ffffffffffffffff00", 9)
         ];
         for case in cases.iter() {
-            assert_eq!(case.0.serialized_length(), case.2);
+            assert_eq!(case.0.serialized_length().unwrap(), case.2);
             assert_eq!(case.0.serialize_hex().unwrap(), case.1.to_owned());
             assert_eq!(TxOut::deserialize_hex(case.1.to_owned()).unwrap(), case.0);
         }

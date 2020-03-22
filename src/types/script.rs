@@ -1,4 +1,4 @@
-use super::primitives::{ConcretePrefixVec, PrefixVec, TxResult};
+use crate::types::primitives::{ConcretePrefixVec, PrefixVec, TxResult};
 
 /// A WitnessStackItem is a marked ConcretePrefixVec<u8>
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
@@ -141,7 +141,7 @@ pub type Witness = ConcretePrefixVec<WitnessStackItem>;
 #[cfg(test)]
 mod test{
     use super::*;
-    use crate::new_types::primitives::{Ser, PrefixVec};
+    use crate::types::primitives::{Ser, PrefixVec};
 
     #[test]
     fn it_serializes_and_derializes_scripts() {
