@@ -1,6 +1,8 @@
 use std::ops::{Index, IndexMut};
 use std::io::{Read, Write, Error as IOError, Cursor};
 
+use bitcoin_spv::types::Hash256Digest;
+
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -95,6 +97,29 @@ impl<A: Ser> Ser for Vec<A> {
         W: Write
     {
         Ok(self.iter().map(|v| v.serialize(writer).unwrap()).sum())
+    }
+}
+
+impl Ser for Hash256Digest {
+    fn serialized_length(&self) -> usize {
+        32
+    }
+
+    fn deserialize<R>(reader: &mut R, _limit: usize) -> TxResult<Self>
+    where
+        R: Read,
+        Self: std::marker::Sized
+    {
+        let mut buf = Hash256Digest::default();
+        reader.read_exact(&mut buf)?;
+        Ok(buf)
+    }
+
+    fn serialize<W>(&self, writer: &mut W) -> TxResult<usize>
+    where
+        W: Write
+    {
+        Ok(writer.write(self)?)
     }
 }
 

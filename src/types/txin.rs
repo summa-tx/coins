@@ -1,7 +1,8 @@
 use std::io::{Read, Write};
 
+use bitcoin_spv::types::Hash256Digest;
+
 use crate::{
-    hashes::marked::{TXID},
     types::{
         primitives::{ConcretePrefixVec, Ser, TxResult},
         script::Script,
@@ -10,14 +11,14 @@ use crate::{
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Outpoint{
-    pub txid: TXID,
+    pub txid: Hash256Digest,
     pub idx: u32
 }
 
 impl Outpoint {
     pub fn null() -> Self {
         Outpoint{
-            txid: TXID::default(),
+            txid: Hash256Digest::default(),
             idx: 0xffff_ffff
         }
     }
@@ -40,7 +41,7 @@ impl Ser for Outpoint {
         Self: std::marker::Sized
     {
         Ok(Outpoint{
-            txid: TXID::deserialize(reader, 0)?,
+            txid: Hash256Digest::deserialize(reader, 0)?,
             idx: u32::deserialize(reader, 0)?
         })
     }
@@ -118,7 +119,7 @@ mod test {
     #[test]
     fn it_serializes_and_derializes_outpoints() {
         let cases = [
-        (Outpoint{txid: TXID::default(), idx: 0}, (0..36).map(|_| "00").collect::<String>()),
+        (Outpoint{txid: Hash256Digest::default(), idx: 0}, (0..36).map(|_| "00").collect::<String>()),
         (Outpoint::null(), NULL_OUTPOINT.to_string())
         ];
         for case in cases.iter() {

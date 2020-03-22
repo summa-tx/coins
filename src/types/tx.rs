@@ -44,15 +44,15 @@ trait Transaction<'a>: Ser {
 
    fn txid(&self) -> Self::TXID;
 
-   fn legacy_sighash(&self, /*args: Self::SighashArgs*/) -> Hash256Digest;
+   fn legacy_sighash(&self, /*args: &Self::SighashArgs*/) -> Hash256Digest;
 }
 
 trait WitnessTransaction<'a>: Transaction<'a> {
-    type WtxIdType: MarkedHash<Hash256Digest>;
+    type WTXID: MarkedHash<Hash256Digest>;
     // type WitnessSighashArgs;
 
-    fn wtxid(&self) -> Self::WtxIdType;
-    fn witness_sighash(&self, /* args: Self::WitnessSighashArgs*/) -> Hash256Digest;
+    fn wtxid(&self) -> Self::WTXID;
+    fn witness_sighash(&self, /* args: &Self::WitnessSighashArgs*/) -> Hash256Digest;
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -91,7 +91,7 @@ impl<'a> Transaction<'a> for LegacyTx {
         w.finish()
     }
 
-    fn legacy_sighash(&self, /* args: Self::SighashArgs */) -> Hash256Digest {
+    fn legacy_sighash(&self, /* args: &Self::SighashArgs */) -> Hash256Digest {
         unimplemented!()
     }
 }
@@ -175,22 +175,22 @@ impl<'a> Transaction<'a> for WitnessTx {
         w.finish()
     }
 
-    fn legacy_sighash(&self, /* args: Self::SighashArgs */) -> Hash256Digest {
+    fn legacy_sighash(&self, /* args: &Self::SighashArgs */) -> Hash256Digest {
         Hash256Digest::default()
     }
 }
 
 impl<'a> WitnessTransaction<'a> for WitnessTx {
-    type WtxIdType = WTXID;
+    type WTXID = WTXID;
     // type WitnessSighashArgs
 
-    fn wtxid(&self) -> Self::WtxIdType {
+    fn wtxid(&self) -> Self::WTXID {
         let mut w = Hash256Writer::default();
         self.serialize(&mut w).expect("No IOError from SHA2");
         w.finish()
     }
 
-    fn witness_sighash(&self, /*w: WitnessSighashArgs */) -> Hash256Digest {
+    fn witness_sighash(&self, /*w: &WitnessSighashArgs */) -> Hash256Digest {
         unimplemented!()
     }
 }
