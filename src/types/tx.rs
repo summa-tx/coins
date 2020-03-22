@@ -233,8 +233,6 @@ impl Tx {
                 Script::null()
             };
         };
-        println!("{:?} {:?}", index, prevout_script);
-
         copy_tx
     }
 
