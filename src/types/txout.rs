@@ -10,6 +10,12 @@ use crate::types::{
     script::Script,
 };
 
+/// An Output. This describes a new UTXO to be created. The value is encoded as an LE u64. The
+/// script pubkey encodes the spending constraints.
+///
+/// `TxOut::null()` and `TxOut::default()` return the "null" TxOut, which has a value of
+/// 0xffff_ffff_ffff_ffff, and an empty `script_pubkey`. This null output is used within legacy
+/// sighash calculations.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TxOut{
     pub value: u64,
@@ -70,6 +76,8 @@ impl Ser for TxOut {
     }
 }
 
+/// Vout is a type alias for `ConcretePrefixVec<TxOut>`. A transaction's Vout is the Vector of
+/// OUTputs, with a length prefix.
 pub type Vout = ConcretePrefixVec<TxOut>;
 
 

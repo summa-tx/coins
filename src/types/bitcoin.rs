@@ -636,7 +636,6 @@ mod tests {
             prevout_script: &prevout_script,
         };
 
-
         assert_eq!(tx.legacy_sighash(&args).unwrap(), all);
 
         args.sighash_flag = Sighash::AllACP;

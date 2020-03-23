@@ -5,6 +5,7 @@ use bitcoin_spv::types::Hash256Digest;
 
 use thiserror::Error;
 
+/// An Error type for transaction objects
 #[derive(Debug, Error)]
 pub enum TxError{
     /// IOError bubbled up from a `Write` passed to a `Ser::serialize` implementation.
@@ -42,10 +43,15 @@ pub enum TxError{
     // EmptyVout
 }
 
-/// Type alias for result
+/// Type alias for result with TxError
 pub type TxResult<T> = Result<T, TxError>;
 
 /// A simple trait for deserializing from `std::io::Read` and serializing to `std::io::Write`.
+/// We have provided implementations that write LE u8, u32, and u64, and several other basic
+/// types. Bitcoin doesn't use u16, so we have left that unimplemented.
+///
+/// `Ser` is used extensively in Sighash calculation, txid calculations, and transaction
+/// serialization and deserialization.
 pub trait Ser {
 
     /// Returns the byte-length of the serialized data structure.
@@ -151,7 +157,7 @@ pub fn first_byte_from_len(number: u8) -> Option<u8> {
     }
 }
 
-/// Matches the flag to the serialized length.
+/// Matches the VarInt prefix flag to the serialized length
 pub fn prefix_len_from_first_byte(number: u8) -> u8 {
     match number {
         0..=0xfc => 1,
@@ -161,10 +167,19 @@ pub fn prefix_len_from_first_byte(number: u8) -> u8 {
     }
 }
 
+/// Determines whether `prefix_bytes` bytes is sufficient to encode `number` in a VarInt
+pub fn sufficient_prefix(prefix_bytes: u8, number: usize) -> bool {
+    let req = prefix_byte_len(number as u64);
+    prefix_bytes >= req
+}
+
 /// A vector of items prefixed by a Bitcoin-style VarInt. The VarInt is encoded only as the length
 /// of the vector, and the serialized length of the VarInt.
+///
+/// The `PrefixVec` is a common Bitcoin datastructure, used throughout transactions and blocks.
+/// TODO: change set_items into push_item.
 pub trait PrefixVec {
-    /// The Item that the vector contains
+    /// The Item that the represented vector contains.
     type Item;
 
     /// Construct an empty PrefixVec instance.
@@ -185,17 +200,8 @@ pub trait PrefixVec {
         self.len_prefix() == prefix_byte_len(self.len() as u64)
     }
 
-    fn sufficient_prefix(prefix_bytes: u8, length: usize) -> TxResult<()> {
-        let req = prefix_byte_len(length as u64);
-        if prefix_bytes < req {
-            Err(TxError::VarIntTooShort{got: prefix_bytes, need: req})
-        } else {
-            Ok(())
-        }
-    }
-
-    fn is_sufficient(&self, length: usize) -> TxResult<()> {
-        Self::sufficient_prefix(self.len_prefix(), length)
+    fn is_sufficient(&self, length: usize) -> bool {
+        sufficient_prefix(self.len_prefix(), length)
     }
 
     fn new(v: Vec<Self::Item>) -> Self
@@ -283,6 +289,21 @@ where
     }
 }
 
+/// `ConcretePrefixVec` implements PrefixVec. We provide generic impls for indexing, and mutable
+/// indexing, Into<Vec<T>> to ConcretePrefixVec<T>.
+///
+/// - `type Vin = ConcretePrefixVec<TxIn>`
+/// - `type Vout  = ConcretePrefixVec<TxIn>
+/// - `Scripts` are a newtype wrapping ConcretePrefixVec<u8>, and a passthrough implementation of
+///     PrefixVec.
+/// - `WitnessStackItems` are a newtype wrapping ConcretePrefixVec<u8>
+/// - `type Witness = ConcretePrefixVec<WitnessStackItem>`
+///
+/// ConcretePrefixVec tracks the expected serialized length of its prefix, and allows non-minimal
+/// VarInts. If the vector length can't be serialized in that number of bytes the current prefix,
+/// an error will be returned.
+///
+/// TODO: `impl<T> Into<Iter> for &ConcretePrefixVec<T>
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct ConcretePrefixVec<T> {
     prefix_bytes: u8,
@@ -301,13 +322,27 @@ impl<T> PrefixVec for ConcretePrefixVec<T>
     }
 
     fn set_items(&mut self, v: Vec<T>) -> TxResult<()> {
-        self.is_sufficient(v.len())?;
+        if !self.is_sufficient(v.len()) {
+            return Err(
+                TxError::VarIntTooShort{
+                    got: self.prefix_bytes,
+                    need: prefix_byte_len(v.len() as u64)
+                }
+            );
+        };
         self.items = v;
         Ok(())
     }
 
     fn set_prefix_len(&mut self, prefix_bytes: u8) -> TxResult<()> {
-        Self::sufficient_prefix(prefix_bytes, self.len())?;
+        if !sufficient_prefix(prefix_bytes, self.len()) {
+            return Err(
+                TxError::VarIntTooShort{
+                    got: prefix_bytes,
+                    need: prefix_byte_len(self.len() as u64)
+                }
+            );
+        };
         self.prefix_bytes = prefix_bytes;
         Ok(())
     }

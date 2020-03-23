@@ -2,15 +2,19 @@ use std::ops::{Index, IndexMut};
 
 use crate::types::primitives::{ConcretePrefixVec, PrefixVec, TxResult};
 
-/// A WitnessStackItem is a marked ConcretePrefixVec<u8>
+/// A WitnessStackItem is a marked ConcretePrefixVec<u8> intended for use in witnesses. Each
+/// Witness is a `PrefixVec<WitnessStackItem>`. The Transactions `witnesses` is a non-prefixed
+/// `Vec<Witness>.`
+///
+/// `WitnessStackItem::null()` and `WitnessStackItem::default()` return the empty byte vector with
+/// a 0 prefix, which represents numerical 0, or null bytestring.
+///
+/// TODO: Witness stack items do not permit non-minimal VarInt prefixes. Return an error if the
+/// user tries to pass one in to `set_prefix_len`.
+///
+/// TODO: change set_items into push_item.
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct WitnessStackItem(pub ConcretePrefixVec<u8>);
-
-impl WitnessStackItem {
-    pub fn null() -> Self {
-        Default::default()
-    }
-}
 
 impl PrefixVec for WitnessStackItem {
     type Item = u8;
@@ -62,7 +66,11 @@ impl IndexMut<usize> for WitnessStackItem {
     }
 }
 
-/// A Script is a marked ConcretePrefixVec<u8>
+/// A Script is a marked ConcretePrefixVec<u8> for use in the script_sig, and script_pubkey
+/// fields.
+///
+/// `Script::null()` and `Script::default()` return the empty byte vector with a 0 prefix, which
+/// represents numerical 0, or null bytestring.
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct Script(pub ConcretePrefixVec<u8>);
 
@@ -118,6 +126,8 @@ impl Script {
 impl PrefixVec for Script {
     type Item = u8;
 
+    /// Return a null (empty) witness stack item. This item represents numerical 0, or the null
+    /// string.
     fn null() -> Self {
         Self(Default::default())
     }

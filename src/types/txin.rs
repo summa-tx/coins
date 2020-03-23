@@ -9,6 +9,12 @@ use crate::{
     }
 };
 
+/// An Outpoint. This is a unique identifier for a UTXO, and is composed of a transaction ID (in
+/// Bitcoin-style LE format), and the index of the output being spent within that transactions
+/// output vectour (vout).
+///
+/// `Outpoint::null()` and `Outpoint::default()` return the null Outpoint, which references a txid
+/// of all 0, and a index 0xffff_ffff. This null outpoint is used in every coinbase transaction.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Outpoint{
     pub txid: Hash256Digest,
@@ -56,6 +62,15 @@ impl Ser for Outpoint {
     }
 }
 
+/// An Input. This data structure contains an outpoint referencing an existing UTXO, a
+/// `script_sig`, which will contain spend authorization information (when spending a Legacy or
+/// Witness-via-P2SH prevout), and a sequence number which may encode relative locktim semantics
+/// in version 2+ transactions.
+///
+/// The `script_sig` is always empty (a null prefixed vector), for native Witness prevouts.
+///
+/// Sequence encoding is complex and the field also encodes information about locktimes and RBF.
+/// See [my blogpost on the subject](https://prestwi.ch/bitcoin-time-locks/).
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TxIn{
     pub outpoint: Outpoint,
@@ -107,6 +122,8 @@ impl Ser for TxIn {
     }
 }
 
+/// Vin is a type alias for `ConcretePrefixVec<TxIn>`. A transaction's Vin is the Vector of
+/// INputs, with a length prefix.
 pub type Vin = ConcretePrefixVec<TxIn>;
 
 #[cfg(test)]
