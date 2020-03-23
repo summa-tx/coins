@@ -13,3 +13,7 @@ pub use script::*;
 pub use utils::*;
 pub use nets::*;
 pub use hashes::*;
+
+
+pub mod builder;
+pub use builder::*;

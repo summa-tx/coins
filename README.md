@@ -16,7 +16,7 @@ let tx: WitnessTx = builder
   .pay(value, output_script)
   .extend_outputs(tx_outs)
   .witness(0, witness)         /// Should always output WitnessTx
-  .locktime()
+  .locktime(5801238)
   .build();
 
 let builder = Network::new_transaction_builder();
