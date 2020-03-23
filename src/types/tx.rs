@@ -32,7 +32,7 @@ pub enum Sighash{
     SingleACP = 0x83,
 }
 
-/// Basic functionality for a Transaction object.
+/// Basic functionality for a Transaction
 ///
 /// This trait has been generalized to support transactions from Non-Bitcoin networks. The
 /// transaction specificies which types it considers to be inputs and outputs, and a struct that
@@ -48,7 +48,7 @@ trait Transaction<'a>: Ser {
     type SighashArgs;
     /// A marked hash (see crate::hashes::marked) to be used as teh transaction ID type.
     type TXID: MarkedHash<Self::Digest>;
-    /// An object that implements `HashWriter`. Used to generate the Sighash
+    /// A type that implements `HashWriter`. Used to generate the Sighash
     type HashWriter: HashWriter<Self::Digest>;
 
     /// Returns the transaction version number
@@ -76,7 +76,47 @@ trait Transaction<'a>: Ser {
     /// Serializes the transaction in the sighash format, depending on the args provided. Writes
     /// the result to `writer`. Used in `legacy_sighash`. Abstracts of the sighash serialization
     /// logic from the hasher used.
-    fn write_legacy_sighash_preimage<W: Write>(&self, writer: &mut W, _args: &Self::SighashArgs) -> TxResult<()>;
+    ///
+    /// SIGHASH_ALL commits to ALL inputs, and ALL outputs. It indicates that
+    /// no further modification of the transaction is allowed without
+    /// invalidating the signature.
+    ///
+    /// SIGHASH_ALL + ANYONECANPAY commits to ONE input and ALL outputs. It
+    /// indicates that anyone may add additional value to the transaction, but
+    /// that no one may modify the payments made. Any extra value added above
+    /// the sum of output values will be given to miners as part of the tx fee.
+    ///
+    /// SIGHASH_SINGLE commits to ALL inputs, and ONE output. It indicates that/
+    /// anyone may append additional outputs to the transaction to reroute
+    /// funds from the inputs. Additional inputs cannot be added without
+    /// invalidating the signature. It is logically difficult to use securely,
+    /// as it consents to funds being moved, without specifying their
+    /// destination.
+    ///
+    /// SIGHASH_SINGLE commits specifically the the output at the same index as
+    /// the input being signed. If there is no output at that index, (because,
+    /// e.g. the input vector is longer than the output vector) it behaves
+    /// insecurely, and we do not implement that protocol bug.
+    ///
+    /// SIGHASH_SINGLE + ANYONECANPAY commits to ONE input and ONE output. It
+    /// indicates that anyone may add additional value to the transaction, and
+    /// route value to any other location. The signed input and output must be
+    /// included in the fully-formed transaction at the same index in their
+    /// respective vectors.
+    ///
+    /// For Legacy sighash documentation, see here:
+    ///
+    /// - https://en.bitcoin.it/wiki/OP_CHECKSIG#Hashtype_SIGHASH_ALL_.28default.29
+    ///
+    /// # Note
+    ///     After signing the digest, you MUST append the sighash indicator
+    ///     byte to the resulting signature. This will be 0x01 (SIGHASH_ALL),
+    ///     0x81 (SIGHASH_ALL + SIGHASH_ANYONECANPAY), 0x81.
+    fn write_legacy_sighash_preimage<W: Write>(
+        &self,
+        writer: &mut W,
+        _args: &Self::SighashArgs
+    ) -> TxResult<()>;
 
     /// Calls `write_legacy_sighash_preimage` with the provided arguments and a new HashWriter.
     /// Returns the sighash digest which should be signed.
@@ -87,6 +127,7 @@ trait Transaction<'a>: Ser {
    }
 }
 
+/// The arguments to the Legacy sighash function
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LegacySighashArgs<'a> {
     /// The index of the input we'd like to sign
@@ -97,15 +138,25 @@ pub struct LegacySighashArgs<'a> {
     pub prevout_script: &'a Script,
 }
 
+/// A Legacy (non-witness) Transaction.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LegacyTx {
+    /// The version number. Usually 1 or 2.
     version: u32,
+    /// The vector of inputs
     vin: Vin,
+    /// The vector of outputs
     vout: Vout,
+    /// The nLocktime field.
     locktime: u32
 }
 
 impl LegacyTx {
+    /// Performs steps 6, 7, and 8 of the sighash setup described here:
+    /// https://en.bitcoin.it/wiki/OP_CHECKSIG#How_it_works
+    /// https://bitcoin.stackexchange.com/questions/3374/how-to-redeem-a-basic-tx
+    ///
+    /// OP_CODESEPARATOR functionality is NOT provided here.
     fn legacy_sighash_prep(&self, index: usize, prevout_script: &Script) -> Self
     {
         let mut copy_tx = self.clone();
@@ -120,6 +171,11 @@ impl LegacyTx {
         copy_tx
     }
 
+    /// Modifies copy_tx according to legacy SIGHASH_SINGLE semantics.
+    ///
+    /// For Legacy sighash documentation, see here:
+    ///
+    /// - https://en.bitcoin.it/wiki/OP_CHECKSIG#Hashtype_SIGHASH_ALL_.28default.29
     fn legacy_sighash_single(
         copy_tx: &mut Self,
         index: usize) -> TxResult<()>
@@ -140,6 +196,11 @@ impl LegacyTx {
         Ok(())
     }
 
+    /// Modifies copy_tx according to legacy SIGHASH_ANYONECANPAY semantics.
+    ///
+    /// For Legacy sighash documentation, see here:
+    ///
+    /// - https://en.bitcoin.it/wiki/OP_CHECKSIG#Hashtype_SIGHASH_ALL_.28default.29
     fn legacy_sighash_anyone_can_pay(
         copy_tx: &mut Self,
         index: usize) -> TxResult<()>
@@ -236,6 +297,13 @@ impl Ser for LegacyTx
     }
 }
 
+
+/// Basic functionality for a Witness Transaction
+///
+/// This trait has been generalized to support transactions from Non-Bitcoin networks. The
+/// transaction specificies which types it considers to be inputs and outputs, and a struct that
+/// contains its Sighash arguments. This allows others to define custom transaction types with
+/// unique functionality.
 trait WitnessTransaction<'a>: Transaction<'a> {
     type WTXID: MarkedHash<Hash256Digest>;
     type WitnessSighashArgs;
@@ -249,7 +317,7 @@ trait WitnessTransaction<'a>: Transaction<'a> {
     }
 }
 
-/// The arguments to the BIP143 sighash function
+/// The arguments to the BIP143 (witness) sighash function
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WitnessSighashArgs<'a> {
     /// The index of the input we'd like to sign
@@ -262,6 +330,7 @@ pub struct WitnessSighashArgs<'a> {
     pub prevout_value: u64,
 }
 
+/// A witness transaction. Any transaction that contains 1 or more witnesses.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WitnessTx {
     version: u32,
@@ -272,6 +341,9 @@ pub struct WitnessTx {
 }
 
 impl WitnessTx {
+    /// Returns a legacy transaction with identical properties (less witnesses). Used to override
+    /// `write_legacy_sighash_preimage`. When signing a transaction, legacy inputs are signed
+    /// with legacy sighash, and witness inputs are signed with witness sighash.
     pub fn without_witness(&self) -> LegacyTx {
         LegacyTx {
             version: self.version,
@@ -281,6 +353,11 @@ impl WitnessTx {
         }
     }
 
+    /// Calculates `hash_prevouts` according to BIP143 semantics.`
+    ///
+    /// For BIP143 (Witness and Compatibility sighash) documentation, see here:
+    ///
+    /// - https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
     fn hash_prevouts(&self, sighash_flag: Sighash) -> TxResult<Hash256Digest> {
         if sighash_flag as u8 & 0x80 == 0x80 {
             Ok(Hash256Digest::default())
@@ -294,6 +371,11 @@ impl WitnessTx {
 
     }
 
+    /// Calculates `hash_sequence` according to BIP143 semantics.`
+    ///
+    /// For BIP143 (Witness and Compatibility sighash) documentation, see here:
+    ///
+    /// - https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
     fn hash_sequence(&self, sighash_flag: Sighash) -> TxResult<Hash256Digest> {
         if sighash_flag == Sighash::Single || sighash_flag as u8 & 0x80 == 0x80 {
             Ok(Hash256Digest::default())
@@ -306,6 +388,11 @@ impl WitnessTx {
         }
     }
 
+    /// Calculates `hash_outputs` according to BIP143 semantics.`
+    ///
+    /// For BIP143 (Witness and Compatibility sighash) documentation, see here:
+    ///
+    /// - https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
     fn hash_outputs(&self, index: usize, sighash_flag: Sighash) -> TxResult<Hash256Digest> {
         match sighash_flag {
             Sighash::All | Sighash::AllACP  => {
@@ -349,6 +436,7 @@ impl<'a> Transaction<'a> for WitnessTx {
         self.locktime
     }
 
+    // Override the txid method to exclude witnesses
     fn txid(&self) -> Self::TXID {
         let mut w = Self::HashWriter::default();
         self.version().serialize(&mut w).expect("No IOError from SHA2");
@@ -358,6 +446,7 @@ impl<'a> Transaction<'a> for WitnessTx {
         w.finish_marked()
     }
 
+    // TODO: This allocates an _extra_ copy tx. So we temporarily have 3 txns. Not ideal.
     fn write_legacy_sighash_preimage<W: Write>(
         &self,
         writer: &mut W,
