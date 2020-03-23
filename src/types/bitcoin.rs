@@ -532,13 +532,13 @@ mod tests {
             prevout_script: &prevout_script,
         };
 
-        assert_eq!(tx.legacy_sighash(&args), all);
+        assert_eq!(tx.legacy_sighash(&args).unwrap(), all);
         args.sighash_flag = Sighash::AllACP;
-        assert_eq!(tx.legacy_sighash(&args), all_anyonecanpay);
+        assert_eq!(tx.legacy_sighash(&args).unwrap(), all_anyonecanpay);
         args.sighash_flag = Sighash::Single;
-        assert_eq!(tx.legacy_sighash(&args), single);
+        assert_eq!(tx.legacy_sighash(&args).unwrap(), single);
         args.sighash_flag = Sighash::SingleACP;
-        assert_eq!(tx.legacy_sighash(&args), single_anyonecanpay);
+        assert_eq!(tx.legacy_sighash(&args).unwrap(), single_anyonecanpay);
     }
 
     #[test]
@@ -565,16 +565,16 @@ mod tests {
             prevout_value: 120000,
         };
 
-        assert_eq!(tx.witness_sighash(&args), all);
+        assert_eq!(tx.witness_sighash(&args).unwrap(), all);
 
         args.sighash_flag = Sighash::AllACP;
-        assert_eq!(tx.witness_sighash(&args), all_anyonecanpay);
+        assert_eq!(tx.witness_sighash(&args).unwrap(), all_anyonecanpay);
 
         args.sighash_flag = Sighash::Single;
-        assert_eq!(tx.witness_sighash(&args), single);
+        assert_eq!(tx.witness_sighash(&args).unwrap(), single);
 
         args.sighash_flag = Sighash::SingleACP;
-        assert_eq!(tx.witness_sighash(&args), single_anyonecanpay);
+        assert_eq!(tx.witness_sighash(&args).unwrap(), single_anyonecanpay);
     }
 
     #[test]
@@ -601,16 +601,16 @@ mod tests {
             prevout_value: 120000,
         };
 
-        assert_eq!(tx.witness_sighash(&args), all);
+        assert_eq!(tx.witness_sighash(&args).unwrap(), all);
 
         args.sighash_flag = Sighash::AllACP;
-        assert_eq!(tx.witness_sighash(&args), all_anyonecanpay);
+        assert_eq!(tx.witness_sighash(&args).unwrap(), all_anyonecanpay);
 
         args.sighash_flag = Sighash::Single;
-        assert_eq!(tx.witness_sighash(&args), single);
+        assert_eq!(tx.witness_sighash(&args).unwrap(), single);
 
         args.sighash_flag = Sighash::SingleACP;
-        assert_eq!(tx.witness_sighash(&args), single_anyonecanpay);
+        assert_eq!(tx.witness_sighash(&args).unwrap(), single_anyonecanpay);
     }
 
     #[test]
@@ -637,15 +637,15 @@ mod tests {
         };
 
 
-        assert_eq!(tx.legacy_sighash(&args), all);
+        assert_eq!(tx.legacy_sighash(&args).unwrap(), all);
 
         args.sighash_flag = Sighash::AllACP;
-        assert_eq!(tx.legacy_sighash(&args), all_anyonecanpay);
+        assert_eq!(tx.legacy_sighash(&args).unwrap(), all_anyonecanpay);
 
         args.sighash_flag = Sighash::Single;
-        assert_eq!(tx.legacy_sighash(&args), single);
+        assert_eq!(tx.legacy_sighash(&args).unwrap(), single);
 
         args.sighash_flag = Sighash::SingleACP;
-        assert_eq!(tx.legacy_sighash(&args), single_anyonecanpay);
+        assert_eq!(tx.legacy_sighash(&args).unwrap(), single_anyonecanpay);
     }
 }

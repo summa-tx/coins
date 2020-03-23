@@ -97,9 +97,9 @@ pub trait Transaction<'a>: Ser {
     /// - https://en.bitcoin.it/wiki/OP_CHECKSIG#Hashtype_SIGHASH_ALL_.28default.29
     ///
     /// # Note
-    ///     After signing the digest, you MUST append the sighash indicator
-    ///     byte to the resulting signature. This will be 0x01 (SIGHASH_ALL),
-    ///     0x81 (SIGHASH_ALL + SIGHASH_ANYONECANPAY), 0x81.
+    ///
+    /// After signing the digest, you MUST append the sighash indicator
+    /// byte to the resulting signature.
     fn write_legacy_sighash_preimage<W: Write>(
         &self,
         writer: &mut W,
