@@ -2,6 +2,7 @@ use crate::{
     types::{
         primitives::{PrefixVec},
         script::{Script, ScriptType},
+        // tx::{Transaction, WitnessTransaction},
     },
     enc::{
         Address,

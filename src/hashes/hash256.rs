@@ -1,9 +1,11 @@
 use std::io::{Write, Result as IOResult};
 use sha2::{Digest, Sha256};
 
-use bitcoin_spv::types::Hash256Digest;
+use bitcoin_spv::types::{Hash256Digest};
 
-use crate::hashes::marked::{MarkedHash, DigestMarker};
+use crate::hashes::{
+    writer::{HashWriter},
+};
 
 #[derive(Default)]
 pub struct Hash256Writer {
@@ -17,14 +19,6 @@ impl Write for Hash256Writer {
 
     fn flush(&mut self) -> IOResult<()> {
         Ok(())
-    }
-}
-
-pub trait HashWriter<T: DigestMarker>: Default + Write {
-    fn finish(self) -> T;
-
-    fn finish_marked<M: MarkedHash<T>>(self) -> M {
-        MarkedHash::new(self.finish())
     }
 }
 

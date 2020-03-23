@@ -7,34 +7,32 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum TxError{
+    /// IOError bubbled up from a `Write` passed to a `Ser::serialize` implementation.
     #[error("Serialization error")]
     IOError(#[from] IOError),
 
+    /// VarInts must be 1, 3, 5, or 9 bytes long
     #[error("Bad VarInt length. Must be 1,3,5, or 9. Got {:?}.", .0)]
     BadVarIntLen(u8),
 
+    /// Tried to add more inputs to a prefix vector, but the var int serialized length couldn't
+    /// be incremented.
     #[error("VarInt length too short. Got {:?}. Need at least {:?} bytes.", .got, .need)]
     VarIntTooShort{got: u8, need: u8},
 
+    /// Got an unknown flag where we expected a witness flag. May indicate a non-witness
+    /// transaction.
     #[error("Witness flag not as expected. Got {:?}. Expected {:?}.", .0, [0u8, 1u8])]
     BadWitnessFlag([u8; 2]),
 
-    // /// Caller provided the wrong number of witnesses
-    // #[error("Witness vector must be same length as input Vector")]
-    // WrongNumberOfWitnesses,
-    //
-    // /// Sighash NONE is unsupported
-    // #[error("SIGHASH_NONE is unsupported")]
-    // NoneUnsupported,
-    //
-    // /// Satoshi's sighash single bug. Throws an error here.
-    // #[error("SIGHASH_SINGLE bug is unsupported")]
-    // SighashSingleBug,
-    //
-    // /// Called sighash on a witness tx without passing in the value
-    // #[error("Must provide prevout value for segwit sighash")]
-    // RequirePrevoutValue,
-    //
+    /// Sighash NONE is unsupported
+    #[error("SIGHASH_NONE is unsupported")]
+    NoneUnsupported,
+
+    /// Satoshi's sighash single bug. Throws an error here.
+    #[error("SIGHASH_SINGLE bug is unsupported")]
+    SighashSingleBug,
+
     // /// No inputs in vin
     // #[error("Vin may not be empty")]
     // EmptyVin,
@@ -44,26 +42,24 @@ pub enum TxError{
     // EmptyVout
 }
 
+/// Type alias for result
 pub type TxResult<T> = Result<T, TxError>;
 
+/// A simple trait for deserializing from `std::io::Read` and serializing to `std::io::Write`.
 pub trait Ser {
+
+    /// Returns the byte-length of the serialized data structure.
     fn serialized_length(&self) -> usize;
 
+    /// Deserializes an instance of `Self` from a `std::io::Read`
     fn deserialize<R>(reader: &mut R, _limit: usize) -> TxResult<Self>
     where
         R: Read,
         Self: std::marker::Sized;
 
-    fn serialize<W>(&self, writer: &mut W) -> TxResult<usize>
-    where
-        W: Write;
-
-    fn serialize_hex(&self) -> TxResult<String> {
-        let mut v: Vec<u8> = vec![];
-        self.serialize(&mut v)?;
-        Ok(hex::encode(v))
-    }
-
+    /// Decodes a hex string to a vector, deserializes an instance of `Self` from that vector
+    ///
+    /// TODO: Can panic if the string is non-hex.
     fn deserialize_hex(s: String) -> TxResult<Self>
     where
         Self: std::marker::Sized
@@ -71,6 +67,18 @@ pub trait Ser {
         let v: Vec<u8> = hex::decode(s).unwrap();
         let mut cursor = Cursor::new(v);
         Ok(Self::deserialize(&mut cursor, 0)?)
+    }
+
+    /// Serializes `Self` to a `std::io::Write`
+    fn serialize<W>(&self, writer: &mut W) -> TxResult<usize>
+    where
+        W: Write;
+
+    /// Serializes `self` to a vector, returns the hex-encoded vector
+    fn serialize_hex(&self) -> TxResult<String> {
+        let mut v: Vec<u8> = vec![];
+        self.serialize(&mut v)?;
+        Ok(hex::encode(v))
     }
 }
 
@@ -123,6 +131,7 @@ impl Ser for Hash256Digest {
     }
 }
 
+/// Calculates the minimum prefix length for a VarInt encoding `number`
 pub fn prefix_byte_len(number: u64) -> u8 {
     match number {
         0..=0xfc => 1,
@@ -132,6 +141,7 @@ pub fn prefix_byte_len(number: u64) -> u8 {
     }
 }
 
+/// Matches the length of the VarInt to the 1-byte flag
 pub fn first_byte_from_len(number: u8) -> Option<u8> {
     match number {
          3 =>  Some(0xfd),
@@ -141,6 +151,7 @@ pub fn first_byte_from_len(number: u8) -> Option<u8> {
     }
 }
 
+/// Matches the flag to the serialized length.
 pub fn prefix_len_from_first_byte(number: u8) -> u8 {
     match number {
         0..=0xfc => 1,
@@ -150,9 +161,13 @@ pub fn prefix_len_from_first_byte(number: u8) -> u8 {
     }
 }
 
+/// A vector of items prefixed by a Bitcoin-style VarInt. The VarInt is encoded only as the length
+/// of the vector, and the serialized length of the VarInt.
 pub trait PrefixVec {
+    /// The Item that the vector contains
     type Item;
 
+    /// Construct an empty PrefixVec instance.
     fn null() -> Self;
 
     fn set_items(&mut self, v: Vec<Self::Item>) -> TxResult<()>;
