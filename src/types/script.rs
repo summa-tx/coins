@@ -14,7 +14,7 @@ use crate::types::primitives::{ConcretePrefixVec, PrefixVec, TxResult};
 ///
 /// TODO: change set_items into push_item.
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
-pub struct WitnessStackItem(pub ConcretePrefixVec<u8>);
+pub struct WitnessStackItem(ConcretePrefixVec<u8>);
 
 impl PrefixVec for WitnessStackItem {
     type Item = u8;
@@ -29,6 +29,10 @@ impl PrefixVec for WitnessStackItem {
 
     fn set_prefix_len(&mut self, prefix_len: u8) -> TxResult<()> {
         self.0.set_prefix_len(prefix_len)
+    }
+
+    fn push(&mut self, i: Self::Item) {
+        self.0.push(i)
     }
 
     fn len(&self) -> usize {
@@ -66,13 +70,19 @@ impl IndexMut<usize> for WitnessStackItem {
     }
 }
 
+impl Extend<u8> for WitnessStackItem {
+    fn extend<I: IntoIterator<Item=u8>>(&mut self, iter: I) {
+        self.0.extend(iter)
+    }
+}
+
 /// A Script is a marked ConcretePrefixVec<u8> for use in the script_sig, and script_pubkey
 /// fields.
 ///
 /// `Script::null()` and `Script::default()` return the empty byte vector with a 0 prefix, which
 /// represents numerical 0, or null bytestring.
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
-pub struct Script(pub ConcretePrefixVec<u8>);
+pub struct Script(ConcretePrefixVec<u8>);
 
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum ScriptType {
@@ -140,6 +150,10 @@ impl PrefixVec for Script {
         self.0.set_prefix_len(prefix_len)
     }
 
+    fn push(&mut self, i: Self::Item) {
+        self.0.push(i)
+    }
+
     fn len(&self) -> usize {
         self.0.len()
     }
@@ -173,6 +187,12 @@ impl Index<usize> for Script {
 impl IndexMut<usize> for Script {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.0[index]
+    }
+}
+
+impl Extend<u8> for Script {
+    fn extend<I: IntoIterator<Item=u8>>(&mut self, iter: I) {
+        self.0.extend(iter)
     }
 }
 

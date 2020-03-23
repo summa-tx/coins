@@ -1,5 +1,6 @@
 use std::ops::{Index, IndexMut};
 use std::io::{Read, Write, Error as IOError, Cursor};
+// use std::iter::{Extend};
 
 use bitcoin_spv::types::Hash256Digest;
 
@@ -188,6 +189,8 @@ pub trait PrefixVec {
     fn set_items(&mut self, v: Vec<Self::Item>) -> TxResult<()>;
     fn set_prefix_len(&mut self, prefix_len: u8) -> TxResult<()>;
 
+    fn push(&mut self, i: Self::Item);
+
     fn len(&self) -> usize;
     fn len_prefix(&self) -> u8;
     fn items(&self) -> &[Self::Item];
@@ -347,6 +350,10 @@ impl<T> PrefixVec for ConcretePrefixVec<T>
         Ok(())
     }
 
+    fn push(&mut self, i: Self::Item) {
+        self.items.push(i)
+    }
+
     fn len(&self) -> usize {
         self.items.len()
     }
@@ -386,6 +393,12 @@ where
 {
     fn from(v: U) -> Self {
         ConcretePrefixVec::<T>::new(v.into())
+    }
+}
+
+impl<T> Extend<T> for ConcretePrefixVec<T> {
+    fn extend<I: IntoIterator<Item=T>>(&mut self, iter: I) {
+        self.items.extend(iter)
     }
 }
 

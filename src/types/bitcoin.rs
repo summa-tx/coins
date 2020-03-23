@@ -34,7 +34,6 @@ pub enum Sighash{
     SingleACP = 0x83,
 }
 
-
 /// The arguments to the Legacy sighash function
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LegacySighashArgs<'a> {
