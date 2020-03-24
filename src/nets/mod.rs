@@ -70,12 +70,20 @@ pub type BitcoinSignet<'a> = Bitcoin<SignetEncoder>;
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::types::{
+        primitives::{Ser},
+        txin::{Outpoint}
+    };
 
     #[test]
     fn it_hash_sensible_syntax() {
         let mut b = BitcoinMainnet::builder()
             .version(2)
-            .spend(Outpoint::default(), 32);
+            .spend(Outpoint::default(), 32)
+            // .pay(33, "bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy")  // Errors b/c of encoder bug
+            .build()
+            .serialize_hex();
+        println!("{:?}", b);
         let u = BitcoinMainnet::decode_address(Address::WPKH("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned()));
         println!("({:?})", &u);
         assert_eq!(true, false, "u is an error");
