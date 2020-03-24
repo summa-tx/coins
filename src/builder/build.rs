@@ -1,3 +1,5 @@
+use std::marker::{PhantomData};
+
 use crate::{
     enc::{
         bases::{Address},
@@ -12,10 +14,11 @@ use crate::{
     },
 };
 
-pub trait TxBuilder<'a, T: NetworkEncoder> {
+pub trait TxBuilder<'a> {
     type Transaction: Transaction<'a>;
     type WitnessTransaction: WitnessTransaction<'a>;
-    type WitnessBuilder: TxBuilder<'a, T>;
+    type Encoder: NetworkEncoder;
+    type WitnessBuilder: TxBuilder<'a>;
 
     fn new() -> Self;
     fn version(self, version: u32) -> Self;
@@ -28,58 +31,69 @@ pub trait TxBuilder<'a, T: NetworkEncoder> {
     fn build(self) -> Self::Transaction;
 }
 
-pub trait WitTxBuilder<'a, T: NetworkEncoder>: TxBuilder<'a, T> {
+pub trait WitTxBuilder<'a>: TxBuilder<'a> {
     type Transaction: WitnessTransaction<'a>;
-    type LegacyBuilder: TxBuilder<'a, T>;
+    type LegacyBuilder: TxBuilder<'a>;
 }
 
-#[derive(Default)]
-pub struct BitcoinBuilder {
+pub struct BitcoinBuilder<T: NetworkEncoder> {
     version: u32,
     vin: Vec<TxIn>,
     vout: Vec<TxOut>,
     locktime: u32,
+    encoder: PhantomData<T>
 }
 
 #[derive(Default)]
-pub struct WitnessBuilder {
+pub struct WitnessBuilder<T: NetworkEncoder> {
     version: u32,
     vin: Vec<TxIn>,
     vout: Vec<TxOut>,
     witnesses: Vec<Witness>,
     locktime: u32,
+    encoder: PhantomData<T>
 }
 
-impl From<BitcoinBuilder> for WitnessBuilder {
-    fn from(t: BitcoinBuilder) -> WitnessBuilder {
+impl<T: NetworkEncoder> From<BitcoinBuilder<T>> for WitnessBuilder<T> {
+    fn from(t: BitcoinBuilder<T>) -> WitnessBuilder<T> {
         WitnessBuilder{
             version: t.version,
             vin: t.vin,
             vout: t.vout,
             witnesses: vec![],
             locktime: t.locktime,
+            encoder: t.encoder,
         }
     }
 }
 
-impl From<WitnessBuilder> for BitcoinBuilder {
-    fn from(t: WitnessBuilder) -> BitcoinBuilder {
+impl<T: NetworkEncoder> From<WitnessBuilder<T>> for BitcoinBuilder<T> {
+    fn from(t: WitnessBuilder<T>) -> BitcoinBuilder<T> {
         BitcoinBuilder {
             version: t.version,
             vin: t.vin,
             vout: t.vout,
-            locktime: t.locktime
+            locktime: t.locktime,
+            encoder: t.encoder,
         }
     }
 }
 
-impl<'a, T: NetworkEncoder> TxBuilder<'a, T> for BitcoinBuilder {
+impl<'a, T: NetworkEncoder> TxBuilder<'a> for BitcoinBuilder<T> {
+    type Encoder = T;
+
     type Transaction = LegacyTx;
     type WitnessTransaction = WitnessTx;
-    type WitnessBuilder = WitnessBuilder;
+    type WitnessBuilder = WitnessBuilder<T>;
 
     fn new() -> Self {
-        Self::default()
+        Self {
+            version: 0,
+            vin: vec![],
+            vout: vec![],
+            locktime: 0,
+            encoder: PhantomData,
+        }
     }
 
     fn version(mut self, version: u32) -> Self {
@@ -108,10 +122,8 @@ impl<'a, T: NetworkEncoder> TxBuilder<'a, T> for BitcoinBuilder {
         self
     }
 
-    fn extend_witnesses<I: IntoIterator<Item=Witness>>(self, witnesses: I) -> WitnessBuilder  {
-        let mut wit_build = WitnessBuilder::from(self);
-        wit_build.witnesses = witnesses.into_iter().collect();
-        wit_build
+    fn extend_witnesses<I: IntoIterator<Item=Witness>>(self, witnesses: I) -> WitnessBuilder<T>  {
+        WitnessBuilder::from(self).extend_witnesses(witnesses)
     }
 
     fn locktime(mut self, locktime: u32) -> Self {
@@ -126,13 +138,22 @@ impl<'a, T: NetworkEncoder> TxBuilder<'a, T> for BitcoinBuilder {
     }
 }
 
-impl<'a, T: NetworkEncoder> TxBuilder<'a, T> for WitnessBuilder {
+impl<'a, T: NetworkEncoder> TxBuilder<'a> for WitnessBuilder<T> {
+    type Encoder = T;
+
     type Transaction = WitnessTx;
     type WitnessTransaction = WitnessTx;
     type WitnessBuilder = Self;
 
     fn new() -> Self {
-        Self::default()
+        Self{
+            version: 0,
+            vin: vec![],
+            vout: vec![],
+            witnesses: vec![],
+            locktime: 0,
+            encoder: PhantomData,
+        }
     }
 
     fn version(mut self, version: u32) -> Self {
@@ -178,7 +199,7 @@ impl<'a, T: NetworkEncoder> TxBuilder<'a, T> for WitnessBuilder {
     }
 }
 
-impl<'a, T: NetworkEncoder> WitTxBuilder<'a, T> for WitnessBuilder {
+impl<'a, T: NetworkEncoder> WitTxBuilder<'a> for WitnessBuilder<T> {
     type Transaction = WitnessTx;
-    type LegacyBuilder = BitcoinBuilder;
+    type LegacyBuilder = BitcoinBuilder<T>;
 }

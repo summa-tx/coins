@@ -4,13 +4,20 @@ use crate::{
     builder::{BitcoinBuilder, TxBuilder},
     types::{
         bitcoin::{LegacyTx, WitnessTx},
+        script::{Script},
         tx::{Transaction, WitnessTransaction},
     },
-    enc::encoders::{
-        NetworkEncoder,
-        MainnetEncoder,
-        TestnetEncoder,
-        SignetEncoder,
+    enc::{
+        bases::{
+            Address,
+            EncodingResult,
+        },
+        encoders::{
+            NetworkEncoder,
+            MainnetEncoder,
+            TestnetEncoder,
+            SignetEncoder,
+        },
     },
 };
 
@@ -32,7 +39,19 @@ pub trait Network<'a> {
     type Encoder: NetworkEncoder;
     type Tx: Transaction<'a>;
     type WTx: WitnessTransaction<'a>;
-    type Builder: TxBuilder<'a, Self::Encoder>;
+    type Builder: TxBuilder<'a, Encoder = Self::Encoder>;
+
+    fn builder() -> Self::Builder {
+        Self::Builder::new()
+    }
+
+    fn encode_address(a: Script) -> EncodingResult<Address> {
+        Self::Encoder::encode_address(a)
+    }
+
+    fn decode_address(addr: Address) -> EncodingResult<Script> {
+        Self::Encoder::decode_address(addr)
+    }
 }
 
 pub struct Bitcoin<T: NetworkEncoder>(PhantomData<T>);
@@ -41,9 +60,24 @@ impl<'a, T: NetworkEncoder> Network<'a> for Bitcoin<T> {
     type Encoder = T;
     type Tx = LegacyTx;
     type WTx = WitnessTx;
-    type Builder = BitcoinBuilder;
+    type Builder = BitcoinBuilder<T>;
 }
 
 pub type BitcoinMainnet<'a> = Bitcoin<MainnetEncoder>;
 pub type BitcoinRegtest<'a> = Bitcoin<TestnetEncoder>;
 pub type BitcoinSignet<'a> = Bitcoin<SignetEncoder>;
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn it_hash_sensible_syntax() {
+        let mut b = BitcoinMainnet::builder()
+            .version(2)
+            .spend(Outpoint::default(), 32);
+        let u = BitcoinMainnet::decode_address(Address::WPKH("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned()));
+        println!("({:?})", &u);
+        assert_eq!(true, false, "u is an error");
+    }
+}
