@@ -80,7 +80,6 @@ impl Ser for TxOut {
 /// OUTputs, with a length prefix.
 pub type Vout = ConcretePrefixVec<TxOut>;
 
-
 #[cfg(test)]
 mod test {
     use super::*;

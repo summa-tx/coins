@@ -14,8 +14,6 @@ use base58check::{
 
 use thiserror::Error;
 
-
-
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum Address {
     PKH(String),
