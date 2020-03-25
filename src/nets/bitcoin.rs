@@ -14,7 +14,7 @@ use crate::{
             TestnetEncoder,
             SignetEncoder,
         },
-        encoders::{
+        encoder::{
             AddressEncoder,
         },
     },

@@ -6,7 +6,7 @@ use crate::{
         tx::{Transaction, WitnessTransaction},
     },
     enc::{
-        encoders::AddressEncoder,
+        encoder::AddressEncoder,
     },
 };
 

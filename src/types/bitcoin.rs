@@ -4,7 +4,7 @@ use bitcoin_spv::types::{Hash256Digest};
 use crate::{
     hashes::{
         hash256::{Hash256Writer},
-        writer::{HashWriter},
+        marked::{MarkedHashWriter},
         bitcoin::{TXID, WTXID},
     },
     types::{

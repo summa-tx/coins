@@ -1,7 +1,7 @@
 
 use crate::{
     enc::{
-        encoders::{AddressEncoder},
+        encoder::{AddressEncoder},
     },
     types::{
         txin::{Outpoint},

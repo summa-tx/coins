@@ -1,9 +1,9 @@
 //! The
 
 pub mod bases;
-pub mod encoders;
+pub mod encoder;
 pub mod bitcoin;
 
 pub use bases::*;
-pub use encoders::*;
+pub use encoder::*;
 pub use bitcoin::*;

@@ -4,7 +4,7 @@ use std::{
 
 use crate::{
     enc::{
-        encoders::{AddressEncoder},
+        encoder::{AddressEncoder},
         bases::{
             EncodingError,
             EncodingResult,

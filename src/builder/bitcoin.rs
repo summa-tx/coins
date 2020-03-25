@@ -4,7 +4,7 @@ use crate::{
     builder::{TxBuilder, WitTxBuilder},
     enc::{
         bases::{EncodingError},
-        encoders::{AddressEncoder},
+        encoder::{AddressEncoder},
         bitcoin::{Address},
     },
     types::{

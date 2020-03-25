@@ -4,7 +4,7 @@ use sha2::{Digest, Sha256};
 use bitcoin_spv::types::{Hash256Digest};
 
 use crate::hashes::{
-    writer::{HashWriter},
+    marked::{MarkedHashWriter},
 };
 
 #[derive(Default)]
@@ -22,7 +22,7 @@ impl Write for Hash256Writer {
     }
 }
 
-impl HashWriter<Hash256Digest> for Hash256Writer {
+impl MarkedHashWriter<Hash256Digest> for Hash256Writer {
     fn finish(self) -> Hash256Digest {
         let first = self.internal.result();
         let second = Sha256::digest(&first);

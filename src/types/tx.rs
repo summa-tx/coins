@@ -2,8 +2,7 @@ use std::io::Write;
 
 use crate::{
     hashes::{
-        marked::{DigestMarker, MarkedHash},
-        writer::{HashWriter},
+        marked::{DigestMarker, MarkedHash, MarkedHashWriter},
     },
     types::{
         primitives::{Ser, TxResult},
@@ -27,7 +26,7 @@ pub trait Transaction<'a>: Ser {
     /// A marked hash (see crate::hashes::marked) to be used as teh transaction ID type.
     type TXID: MarkedHash<Self::Digest>;
     /// A type that implements `HashWriter`. Used to generate the Sighash
-    type HashWriter: HashWriter<Self::Digest>;
+    type HashWriter: MarkedHashWriter<Self::Digest>;
 
     fn new<I, O>(
         version: u32,
