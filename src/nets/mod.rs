@@ -41,7 +41,7 @@ pub trait Network<'a> {
     type WTx: WitnessTransaction<'a>;
     type Builder: TxBuilder<'a, Encoder = Self::Encoder>;
 
-    fn builder() -> Self::Builder {
+    fn tx_builder() -> Self::Builder {
         Self::Builder::new()
     }
 
@@ -76,16 +76,17 @@ mod test {
     };
 
     #[test]
-    fn it_hash_sensible_syntax() {
-        let mut b = BitcoinMainnet::builder()
+    fn it_has_sensible_syntax() {
+        let b = BitcoinMainnet::tx_builder()
             .version(2)
-            .spend(Outpoint::default(), 32)
-            // .pay(33, "bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy")  // Errors b/c of encoder bug
+            .spend(Outpoint::default(), 0xaabbccdd)
+            .pay(0x8888_8888_8888_8888, Address::WPKH("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned()))
+            .pay(0x7777_7777_7777_7777, Address::SH("377mKFYsaJPsxYSB5aFfx8SW3RaN5BzZVh".to_owned()))
             .build()
             .serialize_hex();
         println!("{:?}", b);
-        let u = BitcoinMainnet::decode_address(Address::WPKH("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned()));
-        println!("({:?})", &u);
-        assert_eq!(true, false, "u is an error");
+        // let u = BitcoinMainnet::decode_address(Address::WPKH("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned().to_uppercase()));
+        // println!("({:?})", &u);
+        // assert_eq!(true, false, "u is an error");
     }
 }

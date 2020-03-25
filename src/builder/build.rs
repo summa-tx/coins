@@ -166,6 +166,7 @@ impl<'a, T: NetworkEncoder> TxBuilder<'a> for WitnessBuilder<T> {
         self
     }
 
+    /// TODO: address as string
     fn pay(mut self, value: u64, address: Address) -> Self {
         let output = TxOut::new(value, T::decode_address(address).expect("TODO: handle"));
         self.vout.push(output);
