@@ -4,7 +4,8 @@ use crate::{
     builder::{TxBuilder, WitTxBuilder},
     enc::{
         bases::{EncodingError},
-        encoders::{Address, AddressEncoder},
+        encoders::{AddressEncoder},
+        bitcoin::{Address},
     },
     types::{
         bitcoin::{LegacyTx, WitnessTx},

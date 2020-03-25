@@ -1,7 +1,7 @@
 
 use crate::{
     enc::{
-        encoders::{Address, AddressEncoder},
+        encoders::{AddressEncoder},
     },
     types::{
         txin::{Outpoint},
@@ -47,7 +47,7 @@ pub trait TxBuilder<'a> {
     fn spend<I: Into<Outpoint>>(self, prevout: I, sequence: u32) -> Self;
 
     /// Pay an Address. Adds a TxOut paying `value` to `address.`
-    fn pay(self, value: u64, address: Address) -> Self;
+    fn pay(self, value: u64, address: <Self::Encoder as AddressEncoder>::Address) -> Self;
 
     /// Add a set of TxIns to the transaction.
     fn extend_inputs<I>(self, inputs: I) -> Self

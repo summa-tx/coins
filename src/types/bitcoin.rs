@@ -5,7 +5,7 @@ use crate::{
     hashes::{
         hash256::{Hash256Writer},
         writer::{HashWriter},
-        marked::{TXID, WTXID},
+        bitcoin::{TXID, WTXID},
     },
     types::{
         primitives::{Ser, TxError, TxResult, PrefixVec},
