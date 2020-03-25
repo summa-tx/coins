@@ -5,7 +5,7 @@ use crate::{
         marked::{DigestMarker, MarkedHash, MarkedHashWriter},
     },
     types::{
-        primitives::{Ser, TxResult},
+        primitives::{Ser},
     },
 };
 
@@ -16,6 +16,8 @@ use crate::{
 /// contains its Sighash arguments. This allows others to define custom transaction types with
 /// unique functionality.
 pub trait Transaction<'a>: Ser {
+    type Error;
+
     type Digest: DigestMarker;
     /// The Input type for the transaction
     type TxIn;
@@ -103,11 +105,11 @@ pub trait Transaction<'a>: Ser {
         &self,
         writer: &mut W,
         _args: &Self::SighashArgs
-    ) -> TxResult<()>;
+    ) -> Result<(), Self::Error>;
 
     /// Calls `write_legacy_sighash_preimage` with the provided arguments and a new HashWriter.
     /// Returns the sighash digest which should be signed.
-    fn legacy_sighash(&self, args: &Self::SighashArgs) -> TxResult<Self::Digest> {
+    fn legacy_sighash(&self, args: &Self::SighashArgs) -> Result<Self::Digest, Self::Error> {
         let mut w = Self::HashWriter::default();
         self.write_legacy_sighash_preimage(&mut w, args)?;
         Ok(w.finish())
@@ -138,8 +140,8 @@ pub trait WitnessTransaction<'a>: Transaction<'a> {
         W: Into<Vec<Self::Witness>>;
 
     fn wtxid(&self) -> Self::WTXID;
-    fn write_witness_sighash_preimage<W: Write>(&self, _writer: &mut W, args: &Self::WitnessSighashArgs) -> TxResult<()>;
-    fn witness_sighash(&self, args: &Self::WitnessSighashArgs) -> TxResult<Self::Digest> {
+    fn write_witness_sighash_preimage<W: Write>(&self, _writer: &mut W, args: &Self::WitnessSighashArgs) -> Result<(), Self::Error>;
+    fn witness_sighash(&self, args: &Self::WitnessSighashArgs) -> Result<Self::Digest, Self::Error> {
         let mut w = Self::HashWriter::default();
         self.write_witness_sighash_preimage(&mut w, args)?;
         Ok(w.finish())

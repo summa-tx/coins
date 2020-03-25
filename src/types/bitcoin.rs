@@ -118,6 +118,7 @@ impl LegacyTx {
 }
 
 impl<'a> Transaction<'a> for LegacyTx {
+    type Error = TxError;
     type Digest = Hash256Digest;
     type TxIn = TxIn;
     type TxOut = TxOut;
@@ -243,11 +244,8 @@ pub struct WitnessSighashArgs<'a> {
 /// A witness transaction. Any transaction that contains 1 or more witnesses.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WitnessTx {
-    version: u32,
-    vin: Vin,
-    vout: Vout,
+    legacy_tx: LegacyTx,
     witnesses: Vec<Witness>,
-    locktime: u32,
 }
 
 impl WitnessTx {
@@ -255,12 +253,7 @@ impl WitnessTx {
     /// `write_legacy_sighash_preimage`. When signing a transaction, legacy inputs are signed
     /// with legacy sighash, and witness inputs are signed with witness sighash.
     pub fn without_witness(&self) -> LegacyTx {
-        LegacyTx {
-            version: self.version,
-            vin: self.vin.clone(),
-            vout: self.vout.clone(),
-            locktime: self.locktime
-        }
+        self.legacy_tx.clone()
     }
 
     /// Calculates `hash_prevouts` according to BIP143 semantics.`
@@ -273,7 +266,7 @@ impl WitnessTx {
             Ok(Hash256Digest::default())
         } else {
             let mut w = Hash256Writer::default();
-            for input in self.vin.items().iter() {
+            for input in self.legacy_tx.vin.items().iter() {
                 input.outpoint.serialize(&mut w)?;
             }
             Ok(w.finish())
@@ -291,7 +284,7 @@ impl WitnessTx {
             Ok(Hash256Digest::default())
         } else {
             let mut w = Hash256Writer::default();
-            for input in self.vin.items().iter() {
+            for input in self.legacy_tx.vin.items().iter() {
                 input.sequence.serialize(&mut w)?;
             }
             Ok(w.finish())
@@ -307,14 +300,14 @@ impl WitnessTx {
         match sighash_flag {
             Sighash::All | Sighash::AllACP  => {
                 let mut w = Hash256Writer::default();
-                for output in self.vout.items().iter() {
+                for output in self.legacy_tx.vout.items().iter() {
                     output.serialize(&mut w)?;
                 }
                 Ok(w.finish())
             },
             Sighash::Single | Sighash::SingleACP => {
                 let mut w = Hash256Writer::default();
-                self.vout[index].serialize(&mut w)?;
+                self.legacy_tx.vout[index].serialize(&mut w)?;
                 Ok(w.finish())
             },
             _ => Ok(Hash256Digest::default())
@@ -323,6 +316,7 @@ impl WitnessTx {
 }
 
 impl<'a> Transaction<'a> for WitnessTx {
+    type Error = TxError;
     type Digest = Hash256Digest;
     type TxIn = TxIn;
     type TxOut = TxOut;
@@ -340,41 +334,39 @@ impl<'a> Transaction<'a> for WitnessTx {
         I: Into<Vec<Self::TxIn>>,
         O: Into<Vec<Self::TxOut>>
     {
-        let input_vector = Vin::from(vin);
-        let witnesses = input_vector.items().iter().map(|_| Witness::null()).collect();
+        let input_vector: Vec<TxIn> = vin.into();
+        let witnesses = input_vector.iter().map(|_| Witness::null()).collect();
 
+        let legacy_tx = LegacyTx::new(version, input_vector, vout, locktime);
         Self{
-            version,
-            vin: input_vector,
-            vout: Vout::from(vout),
-            locktime,
+            legacy_tx,
             witnesses
         }
     }
 
     fn inputs(&'a self) -> &'a[Self::TxIn] {
-        &self.vin.items()
+        &self.legacy_tx.vin.items()
     }
 
     fn outputs(&'a self) -> &'a[Self::TxOut] {
-        &self.vout.items()
+        &self.legacy_tx.vout.items()
     }
 
     fn version(&self) -> u32 {
-        self.version
+        self.legacy_tx.version
     }
 
     fn locktime(&self) -> u32 {
-        self.locktime
+        self.legacy_tx.locktime
     }
 
     // Override the txid method to exclude witnesses
     fn txid(&self) -> Self::TXID {
         let mut w = Self::HashWriter::default();
-        self.version().serialize(&mut w).expect("No IOError from SHA2");
-        self.vin.serialize(&mut w).expect("No IOError from SHA2");
-        self.vout.serialize(&mut w).expect("No IOError from SHA2");
-        self.locktime().serialize(&mut w).expect("No IOError from SHA2");
+        self.legacy_tx.version.serialize(&mut w).expect("No IOError from SHA2");
+        self.legacy_tx.vin.serialize(&mut w).expect("No IOError from SHA2");
+        self.legacy_tx.vout.serialize(&mut w).expect("No IOError from SHA2");
+        self.legacy_tx.locktime.serialize(&mut w).expect("No IOError from SHA2");
         w.finish_marked()
     }
 
@@ -384,7 +376,7 @@ impl<'a> Transaction<'a> for WitnessTx {
         writer: &mut W,
         args: &LegacySighashArgs
     ) -> TxResult<()> {
-        self.without_witness().write_legacy_sighash_preimage(writer, args)
+        self.legacy_tx.write_legacy_sighash_preimage(writer, args)
     }
 }
 
@@ -405,13 +397,14 @@ impl<'a> WitnessTransaction<'a> for WitnessTx {
         O: Into<Vec<Self::TxOut>>,
         W: Into<Vec<Self::Witness>>
     {
-        let input_vector = Vin::from(vin);
-
-        Self{
+        let legacy_tx = LegacyTx::new(
             version,
-            vin: input_vector,
-            vout: Vout::from(vout),
+            vin,
+            vout,
             locktime,
+        );
+        Self{
+            legacy_tx,
             witnesses: witnesses.into()
         }
     }
@@ -439,9 +432,9 @@ impl<'a> WitnessTransaction<'a> for WitnessTx {
             return Err(TxError::SighashSingleBug)
         }
 
-        let input = &self.vin[args.index];
+        let input = &self.legacy_tx.vin[args.index];
 
-        self.version.serialize(writer)?;
+        self.legacy_tx.version.serialize(writer)?;
         self.hash_prevouts(args.sighash_flag)?.serialize(writer)?;
         self.hash_sequence(args.sighash_flag)?.serialize(writer)?;
         input.outpoint.serialize(writer)?;
@@ -449,7 +442,7 @@ impl<'a> WitnessTransaction<'a> for WitnessTx {
         args.prevout_value.serialize(writer)?;
         input.sequence.serialize(writer)?;
         self.hash_outputs(args.index, args.sighash_flag)?.serialize(writer)?;
-        self.locktime.serialize(writer)?;
+        self.legacy_tx.locktime.serialize(writer)?;
         (args.sighash_flag as u32).serialize(writer)?;
         Ok(())
     }
@@ -464,8 +457,8 @@ impl Ser for WitnessTx
     fn serialized_length(&self) -> usize {
         let mut len = self.version().serialized_length();
         len += 2;  // Segwit Flag
-        len += self.vin.serialized_length();
-        len += self.vout.serialized_length();
+        len += self.legacy_tx.vin.serialized_length();
+        len += self.legacy_tx.vout.serialized_length();
         len += self.witnesses.serialized_length();
         len += self.locktime().serialized_length();
         len
@@ -484,12 +477,17 @@ impl Ser for WitnessTx
         let vout = Vout::deserialize(reader, 0)?;
         let witnesses = Vec::<Witness>::deserialize(reader, vin.len())?;
         let locktime = u32::deserialize(reader, 0)?;
-        Ok(Self{
+
+        let legacy_tx = LegacyTx{
             version,
             vin,
             vout,
-            witnesses,
             locktime,
+        };
+
+        Ok(Self{
+            legacy_tx,
+            witnesses,
         })
     }
 
@@ -499,8 +497,8 @@ impl Ser for WitnessTx
     {
         let mut len = self.version().serialize(writer)?;
         len += writer.write(&[0u8, 1u8])?;
-        len += self.vin.serialize(writer)?;
-        len += self.vout.serialize(writer)?;
+        len += self.legacy_tx.vin.serialize(writer)?;
+        len += self.legacy_tx.vout.serialize(writer)?;
         len += self.witnesses.serialize(writer)?;
         len += self.locktime().serialize(writer)?;
         Ok(len)
