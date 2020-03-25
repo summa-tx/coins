@@ -2,8 +2,8 @@ use std::marker::{PhantomData};
 
 use crate::{
     enc::{
-        bases::{Address},
-        encoders::{NetworkEncoder},
+        bases::{EncodingError},
+        encoders::{Address, AddressEncoder},
     },
     types::{
         bitcoin::{LegacyTx, WitnessTx},
@@ -14,10 +14,11 @@ use crate::{
     },
 };
 
+/// A builder-pattern interface for constructing transactions.
 pub trait TxBuilder<'a> {
     type Transaction: Transaction<'a>;
     type WitnessTransaction: WitnessTransaction<'a>;
-    type Encoder: NetworkEncoder;
+    type Encoder: AddressEncoder;
     type WitnessBuilder: TxBuilder<'a>;
 
     fn new() -> Self;
@@ -36,7 +37,7 @@ pub trait WitTxBuilder<'a>: TxBuilder<'a> {
     type LegacyBuilder: TxBuilder<'a>;
 }
 
-pub struct BitcoinBuilder<T: NetworkEncoder> {
+pub struct BitcoinBuilder<T: AddressEncoder> {
     version: u32,
     vin: Vec<TxIn>,
     vout: Vec<TxOut>,
@@ -45,7 +46,7 @@ pub struct BitcoinBuilder<T: NetworkEncoder> {
 }
 
 #[derive(Default)]
-pub struct WitnessBuilder<T: NetworkEncoder> {
+pub struct WitnessBuilder<T: AddressEncoder> {
     version: u32,
     vin: Vec<TxIn>,
     vout: Vec<TxOut>,
@@ -54,7 +55,7 @@ pub struct WitnessBuilder<T: NetworkEncoder> {
     encoder: PhantomData<T>
 }
 
-impl<T: NetworkEncoder> From<BitcoinBuilder<T>> for WitnessBuilder<T> {
+impl<T: AddressEncoder> From<BitcoinBuilder<T>> for WitnessBuilder<T> {
     fn from(t: BitcoinBuilder<T>) -> WitnessBuilder<T> {
         WitnessBuilder{
             version: t.version,
@@ -67,7 +68,7 @@ impl<T: NetworkEncoder> From<BitcoinBuilder<T>> for WitnessBuilder<T> {
     }
 }
 
-impl<T: NetworkEncoder> From<WitnessBuilder<T>> for BitcoinBuilder<T> {
+impl<T: AddressEncoder> From<WitnessBuilder<T>> for BitcoinBuilder<T> {
     fn from(t: WitnessBuilder<T>) -> BitcoinBuilder<T> {
         BitcoinBuilder {
             version: t.version,
@@ -79,7 +80,10 @@ impl<T: NetworkEncoder> From<WitnessBuilder<T>> for BitcoinBuilder<T> {
     }
 }
 
-impl<'a, T: NetworkEncoder> TxBuilder<'a> for BitcoinBuilder<T> {
+impl<'a, T> TxBuilder<'a> for BitcoinBuilder<T>
+where
+    T: AddressEncoder<Address = Address, Error = EncodingError>
+{
     type Encoder = T;
 
     type Transaction = LegacyTx;
@@ -138,7 +142,7 @@ impl<'a, T: NetworkEncoder> TxBuilder<'a> for BitcoinBuilder<T> {
     }
 }
 
-impl<'a, T: NetworkEncoder> TxBuilder<'a> for WitnessBuilder<T> {
+impl<'a, T: AddressEncoder<Address = Address, Error = EncodingError>> TxBuilder<'a> for WitnessBuilder<T> {
     type Encoder = T;
 
     type Transaction = WitnessTx;
@@ -200,7 +204,10 @@ impl<'a, T: NetworkEncoder> TxBuilder<'a> for WitnessBuilder<T> {
     }
 }
 
-impl<'a, T: NetworkEncoder> WitTxBuilder<'a> for WitnessBuilder<T> {
+impl<'a, T> WitTxBuilder<'a> for WitnessBuilder<T>
+where
+    T: AddressEncoder<Address = Address, Error = EncodingError>
+{
     type Transaction = WitnessTx;
     type LegacyBuilder = BitcoinBuilder<T>;
 }

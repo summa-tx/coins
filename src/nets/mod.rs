@@ -9,11 +9,11 @@ use crate::{
     },
     enc::{
         bases::{
-            Address,
-            EncodingResult,
+            EncodingError,
         },
         encoders::{
-            NetworkEncoder,
+            Address,
+            AddressEncoder,
             MainnetEncoder,
             TestnetEncoder,
             SignetEncoder,
@@ -24,7 +24,7 @@ use crate::{
 // // TODO: Add tx types here
 // pub struct Network<'a, Enc, Tx, WTx, B>
 // where
-//     Enc: NetworkEncoder,
+//     Enc: AddressEncoder,
 //     Tx: Transaction<'a>,
 //     WTx: WitnessTransaction<'a>,
 //     B: TxBuilder<'a, Transaction = Tx, WitnessTransaction = WTx>,
@@ -36,7 +36,9 @@ use crate::{
 // }
 
 pub trait Network<'a> {
-    type Encoder: NetworkEncoder;
+    type Address;
+    type Error;
+    type Encoder: AddressEncoder<Address = Self::Address, Error = Self::Error>;
     type Tx: Transaction<'a>;
     type WTx: WitnessTransaction<'a>;
     type Builder: TxBuilder<'a, Encoder = Self::Encoder>;
@@ -45,18 +47,20 @@ pub trait Network<'a> {
         Self::Builder::new()
     }
 
-    fn encode_address(a: Script) -> EncodingResult<Address> {
+    fn encode_address(a: Script) -> Result<Self::Address, Self::Error> {
         Self::Encoder::encode_address(a)
     }
 
-    fn decode_address(addr: Address) -> EncodingResult<Script> {
+    fn decode_address(addr: Self::Address) -> Result<Script, Self::Error> {
         Self::Encoder::decode_address(addr)
     }
 }
 
-pub struct Bitcoin<T: NetworkEncoder>(PhantomData<T>);
+pub struct Bitcoin<T: AddressEncoder>(PhantomData<T>);
 
-impl<'a, T: NetworkEncoder> Network<'a> for Bitcoin<T> {
+impl<'a, T: AddressEncoder<Address = Address, Error = EncodingError>> Network<'a> for Bitcoin<T> {
+    type Address = Address;
+    type Error = EncodingError;
     type Encoder = T;
     type Tx = LegacyTx;
     type WTx = WitnessTx;

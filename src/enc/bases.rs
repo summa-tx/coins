@@ -15,14 +15,6 @@ use base58check::{
 
 use thiserror::Error;
 
-#[derive(PartialEq, Eq, Clone, Debug)]
-pub enum Address {
-    PKH(String),
-    SH(String),
-    WPKH(String),
-    WSH(String)
-}
-
 #[derive(Debug, Error)]
 pub enum EncodingError {
     /// Returned when Script type is unknown. May be non-standard or newer than lib version.

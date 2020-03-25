@@ -1,6 +1,5 @@
 use std::ops::{Index, IndexMut};
 use std::io::{Read, Write, Error as IOError, Cursor};
-// use std::iter::{Extend};
 
 use bitcoin_spv::types::Hash256Digest;
 
