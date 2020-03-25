@@ -453,6 +453,10 @@ impl<'a> WitnessTransaction<'a> for WitnessTx {
         (args.sighash_flag as u32).serialize(writer)?;
         Ok(())
     }
+
+    fn witnesses(&'a self) -> &'a[Self::Witness] {
+        &self.witnesses
+    }
 }
 
 impl Ser for WitnessTx

@@ -145,4 +145,5 @@ pub trait WitnessTransaction<'a>: Transaction<'a> {
         self.write_witness_sighash_preimage(&mut w, args)?;
         Ok(w.finish())
     }
+    fn witnesses(&'a self) -> &'a[Self::Witness];
 }
