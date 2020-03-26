@@ -168,6 +168,9 @@ where
     }
 }
 
+/// A simple type alias for an outpoint type that will be repeated throught the `bitcoin` module.
+pub type BitcoinOutpoint = Outpoint<TXID>;
+
 /// A simple type alias for an input type that will be repeated throughout the `bitcoin` module.
 pub type BitcoinTxIn = TxInput<TXID>;
 

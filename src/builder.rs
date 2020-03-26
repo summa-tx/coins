@@ -5,7 +5,7 @@ use crate::{
     // bitcoin::{Outpoint},  // TODO: REFACTOR OUT AND GENERALIZE
     enc::{AddressEncoder},
     types::{
-        tx::{self, Transaction},
+        tx::{Transaction, Input},
     },
 };
 
@@ -28,12 +28,12 @@ pub trait TxBuilder<'a> {
     /// If implementing a network without a version field, feel free to leave this as a NOP
     fn version(self, version: u32) -> Self;
 
-    // /// TODO: GENERALIZE
-    // /// Spend an outpoint. Adds an unsigned input spending the associated outpoint with the
-    // /// specified sequence number.
-    // fn spend<I, M>(self, prevout: I, sequence: u32) -> Self
-    // where
-    //     I: Into<Self::TXID>;
+    /// TODO: GENERALIZE
+    /// Spend an outpoint. Adds an unsigned input spending the associated outpoint with the
+    /// specified sequence number.
+    fn spend<I>(self, prevout: I, sequence: u32) -> Self
+    where
+        I: Into<<<Self::Transaction as Transaction<'a>>::TxIn as Input>::TXOIdentifier>;
 
     /// Pay an Address. Adds an output paying `value` to `address.`
     fn pay(self, value: u64, address: <Self::Encoder as AddressEncoder>::Address) -> Self;
@@ -41,12 +41,12 @@ pub trait TxBuilder<'a> {
     /// Add a set of inputs to the transaction.
     fn extend_inputs<I>(self, inputs: I) -> Self
     where
-        I: IntoIterator<Item = <Self::Transaction as tx::Transaction<'a>>::TxIn>;
+        I: IntoIterator<Item = <Self::Transaction as Transaction<'a>>::TxIn>;
 
     /// Add a set of outputs to the transaction.
     fn extend_outputs<I>(self, outputs: I) -> Self
     where
-        I: IntoIterator<Item = <Self::Transaction as tx::Transaction<'a>>::TxOut>;
+        I: IntoIterator<Item = <Self::Transaction as Transaction<'a>>::TxOut>;
 
     /// Set or overwrite the transaction locktime.
     ///

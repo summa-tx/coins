@@ -13,7 +13,7 @@
 //! let legacy_builder = BitcoinMainnet::tx_builder();
 //! let tx = legacy_builder
 //!  .version(2)
-//!  .spend(Outpoint::default(), 0xaabbccdd)
+//!  .spend(BitcoinOutpoint::default(), 0xaabbccdd)
 //!  .pay(0x8888_8888_8888_8888, Address::WPKH("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned()))
 //!  .pay(0x7777_7777_7777_7777, Address::SH("377mKFYsaJPsxYSB5aFfx8SW3RaN5BzZVh".to_owned()))
 //!  .build();  // Legacy Transaction output
@@ -35,9 +35,9 @@ use crate::{
     bitcoin::{
         bases::{EncodingError},
         encoder::{Address},
-        script::{Witness},
+        script::{Script, Witness},
         transactions::{WitnessTransaction, LegacyTx, WitnessTx},
-        txin::{BitcoinTxIn},
+        txin::{BitcoinOutpoint, BitcoinTxIn},
         txout::{TxOut},
     },
     builder::{TxBuilder},
@@ -140,13 +140,13 @@ where
         self
     }
 
-    // fn spend<I, M>(mut self, prevout: I, sequence: u32) -> Self
-    // where
-    //     I: Into<Outpoint<TXID>>,
-    // {
-    //     self.vin.push(TxIn::new(prevout.into(), Script::default(), sequence));
-    //     self
-    // }
+    fn spend<I>(mut self, prevout: I, sequence: u32) -> Self
+    where
+        I: Into<BitcoinOutpoint>,
+    {
+        self.vin.push(BitcoinTxIn::new(prevout.into(), Script::default(), sequence));
+        self
+    }
 
     fn pay(mut self, value: u64, address: Address) -> Self {
         let output = TxOut::new(value, T::decode_address(address).expect("TODO: handle"));
@@ -214,13 +214,13 @@ where
         self
     }
 
-    // fn spend<I>(mut self, prevout: I, sequence: u32) -> Self
-    // where
-    //     I: Into<Outpoint<D>>
-    // {
-    //     self.builder.vin.push(TxIn::new(prevout.into(), Script::default(), sequence));
-    //     self
-    // }
+    fn spend<I>(mut self, prevout: I, sequence: u32) -> Self
+    where
+        I: Into<BitcoinOutpoint>
+    {
+        self.builder.vin.push(BitcoinTxIn::new(prevout.into(), Script::default(), sequence));
+        self
+    }
 
     /// TODO: address as string
     fn pay(mut self, value: u64, address: Address) -> Self {
