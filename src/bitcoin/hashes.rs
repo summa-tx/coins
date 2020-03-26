@@ -9,12 +9,11 @@ use crate::{
     ser::{Ser, SerResult}
 };
 
-
-macro_rules! mark_hash {
-    ($hash_name:ident, $hash_type:ty) => {
-        /// A marked `Hash256Digest` that represents Bitcoin Transaction IDs
+macro_rules! mark_hash256 {
+    ($hash_name:ident) => {
+        /// A Marked Hash256Digest that represents a $hash_name
         #[derive(Copy, Clone, Default, Debug, Eq, PartialEq)]
-        pub struct $hash_name(pub $hash_type);
+        pub struct $hash_name(pub Hash256Digest);
         impl Ser for $hash_name {
             fn serialized_length(&self) -> usize {
                 32
@@ -25,7 +24,7 @@ macro_rules! mark_hash {
             R: Read,
             Self: std::marker::Sized
             {
-                let mut buf = <$hash_type>::default();
+                let mut buf = <Hash256Digest>::default();
                 reader.read_exact(&mut buf)?;
                 Ok(Self(buf))
             }
@@ -38,31 +37,30 @@ macro_rules! mark_hash {
             }
         }
         impl MarkedDigest for $hash_name {
-            type Digest = $hash_type;
-            fn new(hash: $hash_type) -> Self {
+            type Digest = Hash256Digest;
+            fn new(hash: Hash256Digest) -> Self {
                 Self(hash)
             }
 
-            fn internal(&self) -> $hash_type {
+            fn internal(&self) -> Hash256Digest {
                 self.0
             }
         }
-        impl From<$hash_type> for $hash_name {
-            fn from(h: $hash_type) -> Self {
+        impl From<Hash256Digest> for $hash_name {
+            fn from(h: Hash256Digest) -> Self {
                 Self::new(h)
             }
         }
-        impl Into<$hash_type> for $hash_name {
-            fn into(self) -> $hash_type {
+        impl Into<Hash256Digest> for $hash_name {
+            fn into(self) -> Hash256Digest {
                 self.internal()
             }
         }
     }
 }
 
-
-mark_hash!(TXID, Hash256Digest);
-mark_hash!(WTXID, Hash256Digest);
+mark_hash256!(TXID);
+mark_hash256!(WTXID);
 
 #[cfg(test)]
 mod test {
