@@ -1,5 +1,5 @@
-//! Simple types for `Script` and `WitnessStackItem`, each of which are treated as opaque, wrapped
-//! `ConcretePrefixVec<u8>` instances.
+//! Simple types for Bitcoin Script Witness stack datastructures, each of which are treated as
+//! opaque, wrapped `ConcretePrefixVec<u8>` instance.
 
 use std::ops::{Index, IndexMut};
 

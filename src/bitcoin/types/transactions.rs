@@ -170,7 +170,9 @@ pub struct LegacySighashArgs<'a> {
     pub index: usize,
     /// The sighash mode to use.
     pub sighash_flag: Sighash,
-    /// The script used in the prevout, which must be signed.
+    /// The script used in the prevout, which must be signed. In complex cases involving
+    /// `OP_CODESEPARATOR` this must be the subset of the script containing the `OP_CHECKSIG`
+    /// currently being executed.
     pub prevout_script: &'a Script,
 }
 
@@ -398,9 +400,11 @@ pub struct WitnessSighashArgs<'a> {
     pub index: usize,
     /// The sighash mode to use.
     pub sighash_flag: Sighash,
-    /// The script used in the prevout, which must be signed.
+    /// The script used in the prevout, which must be signed. In complex cases involving
+    /// `OP_CODESEPARATOR` this must be the subset of the script containing the `OP_CHECKSIG`
+    /// currently being executed.
     pub prevout_script: &'a Script,
-    /// The value of the prevout
+    /// The value of the prevout.
     pub prevout_value: u64,
 }
 

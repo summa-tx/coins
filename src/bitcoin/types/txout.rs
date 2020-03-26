@@ -24,7 +24,7 @@ use crate::{
 pub struct TxOut{
     /// The value of the output in satoshis
     pub value: u64,
-    /// The script pubkey which locks the UTXO.
+    /// The `ScriptPubkey` which locks the UTXO.
     pub script_pubkey: ScriptPubkey
 }
 

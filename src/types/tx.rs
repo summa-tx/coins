@@ -18,7 +18,7 @@ pub trait Input{
 }
 
 /// A RecipientIdentifier represents the network's identifier for a recipient. In Bitcoin this is
-/// a script pubkey.
+/// a `ScriptPubkey`.
 pub trait RecipientIdentifier {}
 
 /// An Output represents a new TXO being created. It has an associated `RecipientIdentifier`.

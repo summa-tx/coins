@@ -22,8 +22,8 @@ use thiserror::Error;
 /// Errors that can be returned by the Bitcoin `AddressEncoder`.
 #[derive(Debug, Error)]
 pub enum EncodingError {
-    /// Returned when Script type is unknown. May be non-standard or newer than lib version.
-    #[error("Non-standard Script type")]
+    /// Returned when ScriptPubkey type is unknown. May be non-standard or newer than lib version.
+    #[error("Non-standard ScriptPubkey type")]
     UnknownScriptType,
 
     /// Bech32 HRP does not match the current network.

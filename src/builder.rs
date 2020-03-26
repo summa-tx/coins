@@ -16,7 +16,7 @@ pub trait TxBuilder<'a> {
     type Transaction: Transaction<'a>;
 
     /// An AddressEncoder that handles encoding and decoding network addresses. This is used in
-    /// the `pay` function to decode addresses into Scripts.
+    /// the `pay` function to decode addresses into associated `RecipientIdentifier`s.
     type Encoder: AddressEncoder;
 
     /// Instantiate a new builder

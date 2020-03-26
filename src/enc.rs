@@ -24,12 +24,12 @@ pub trait AddressEncoder {
     /// `RecipientIdentifier`s
     type RecipientIdentifier: RecipientIdentifier;
 
-    /// Encode a script as an address.
+    /// Attempt to encode a `RecipientIdentifier` as an `Address`.
     fn encode_address(s: Self::RecipientIdentifier) -> Result<Self::Address, Self::Error>;
 
-    /// Decode a script from an address.
+    /// Attempt to decode a `RecipientIdentifier` from an `Address`.
     fn decode_address(addr: Self::Address) -> Result<Self::RecipientIdentifier, Self::Error>;
 
-    /// Convert a string into an address.
+    /// Attempt to convert a string into an `Address`.
     fn wrap_string(s: String) -> Result<Self::Address, Self::Error>;
 }
