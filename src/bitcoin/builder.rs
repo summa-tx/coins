@@ -35,7 +35,7 @@ use crate::{
     bitcoin::{
         bases::{EncodingError},
         encoder::{Address},
-        script::{Script, Witness},
+        script::{ScriptSig, ScriptPubkey, Witness},
         transactions::{WitnessTransaction, LegacyTx, WitnessTx},
         txin::{BitcoinOutpoint, BitcoinTxIn},
         txout::{TxOut},
@@ -118,7 +118,7 @@ impl<T: AddressEncoder> From<WitnessBuilder<T>> for LegacyBuilder<T> {
 
 impl<'a, T> TxBuilder<'a> for LegacyBuilder<T>
 where
-    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = Script>
+    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>
 {
     type Encoder = T;
 
@@ -143,7 +143,7 @@ where
     where
         I: Into<BitcoinOutpoint>,
     {
-        self.vin.push(BitcoinTxIn::new(prevout.into(), Script::default(), sequence));
+        self.vin.push(BitcoinTxIn::new(prevout.into(), ScriptSig::default(), sequence));
         self
     }
 
@@ -180,7 +180,7 @@ where
 
 impl<'a, T> BitcoinBuilder<'a> for LegacyBuilder<T>
 where
-    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = Script>
+    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>
 {
     type WitnessTransaction = WitnessTx;
     type WitnessBuilder = WitnessBuilder<T>;
@@ -196,7 +196,7 @@ where
 
 impl<'a, T> TxBuilder<'a> for WitnessBuilder<T>
 where
-    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = Script>
+    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>
 {
     type Encoder = T;
 
@@ -218,7 +218,7 @@ where
     where
         I: Into<BitcoinOutpoint>
     {
-        self.builder.vin.push(BitcoinTxIn::new(prevout.into(), Script::default(), sequence));
+        self.builder.vin.push(BitcoinTxIn::new(prevout.into(), ScriptSig::default(), sequence));
         self
     }
 
@@ -258,7 +258,7 @@ where
 
 impl<'a, T> BitcoinBuilder<'a> for WitnessBuilder<T>
 where
-    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = Script> {
+    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey> {
 
     type WitnessTransaction = WitnessTx;
     type WitnessBuilder = Self;
@@ -275,7 +275,7 @@ where
 
 impl<'a, T> WitTxBuilder<'a> for WitnessBuilder<T>
 where
-    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = Script>
+    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>
 {
     type LegacyBuilder = LegacyBuilder<T>;
 

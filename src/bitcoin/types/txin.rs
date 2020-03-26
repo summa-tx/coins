@@ -4,7 +4,7 @@ use std::io::{Read, Write};
 
 use crate::{
     bitcoin::{
-        script::Script,
+        script::{ScriptSig},
         hashes::TXID,
     },
     hashes::marked::{MarkedDigest},
@@ -105,7 +105,7 @@ where
     /// The Outpoint identifying the UTXO being spent.
     pub outpoint: Outpoint<M>,
     /// For Legacy transactions, the authorization information necessary to spend the UTXO.
-    pub script_sig: Script,
+    pub script_sig: ScriptSig,
     /// The nSequence field
     pub sequence: u32
 }
@@ -124,7 +124,7 @@ where
     /// Instantiate a new TxInput
     pub fn new<T>(outpoint: Outpoint<M>, script_sig: T, sequence: u32) -> Self
     where
-        T: Into<Script>
+        T: Into<ScriptSig>
     {
         TxInput{
             outpoint,
@@ -152,7 +152,7 @@ where
     {
         Ok(TxInput{
             outpoint: Outpoint::deserialize(reader, 0)?,
-            script_sig: Script::deserialize(reader, 0)?,
+            script_sig: ScriptSig::deserialize(reader, 0)?,
             sequence: u32::deserialize(reader, 0)?
         })
     }
@@ -207,7 +207,7 @@ mod test {
             (
                 BitcoinTxIn{
                     outpoint: Outpoint::null(),
-                    script_sig: Script::null(),
+                    script_sig: ScriptSig::null(),
                     sequence: 0x1234abcd
                 },
                 format!("{}{}{}", NULL_OUTPOINT, "00", "cdab3412")
@@ -215,7 +215,7 @@ mod test {
             (
                 BitcoinTxIn{
                     outpoint: Outpoint::null(),
-                    script_sig: Script::new_non_minimal(
+                    script_sig: ScriptSig::new_non_minimal(
                         vec![0x00, 0x14, 0x11, 0x00, 0x33, 0x00, 0x55, 0x00, 0x77, 0x00, 0x99, 0x00, 0xbb, 0x00, 0xdd, 0x00, 0xff, 0x11, 0x00, 0x33, 0x00, 0x55],
                         3
                     ).unwrap(),

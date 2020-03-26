@@ -3,7 +3,7 @@
 use std::io::{Read, Write};
 
 use crate::{
-    bitcoin::script::{Script},
+    bitcoin::script::{ScriptPubkey},
     ser::{Ser, SerResult},
     types::{
         primitives::{
@@ -25,11 +25,11 @@ pub struct TxOut{
     /// The value of the output in satoshis
     pub value: u64,
     /// The script pubkey which locks the UTXO.
-    pub script_pubkey: Script
+    pub script_pubkey: ScriptPubkey
 }
 
 impl Output for TxOut {
-    type RecipientIdentifier = Script;
+    type RecipientIdentifier = ScriptPubkey;
 }
 
 impl Default for TxOut {
@@ -42,7 +42,7 @@ impl TxOut{
     /// Instantiate a new TxOut.
     pub fn new<T>(value: u64, script_pubkey: T) -> Self
     where
-        T: Into<Script>
+        T: Into<ScriptPubkey>
     {
         TxOut{
             value,
@@ -54,7 +54,7 @@ impl TxOut{
     pub fn null() -> Self {
         TxOut{
             value: 0xffff_ffff_ffff_ffff,
-            script_pubkey: Script::null()
+            script_pubkey: ScriptPubkey::null()
         }
     }
 }
@@ -74,7 +74,7 @@ impl Ser for TxOut {
         let value = u64::deserialize(reader, 0)?;
         Ok(TxOut{
             value,
-            script_pubkey: Script::deserialize(reader, 0)?
+            script_pubkey: ScriptPubkey::deserialize(reader, 0)?
         })
     }
 

@@ -6,7 +6,7 @@ use bitcoin_spv::types::{Hash256Digest};
 use crate::{
     bitcoin::{
         hashes::{TXID, WTXID},
-        script::{Script, Witness},
+        script::{Script, ScriptSig, Witness},
         txin::{BitcoinTxIn, Vin},
         txout::{TxOut, Vout},
     },
@@ -199,9 +199,9 @@ impl LegacyTx {
 
         for i in 0..copy_tx.vin.len() {
             copy_tx.vin[i].script_sig = if i == index {
-                prevout_script.clone()
+                ScriptSig::from(prevout_script.items())
             } else {
-                Script::null()
+                ScriptSig::null()
             };
         };
         copy_tx

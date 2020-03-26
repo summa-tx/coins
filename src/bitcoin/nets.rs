@@ -27,7 +27,7 @@ use crate::{
             TestnetEncoder,
             SignetEncoder,
         },
-        script::{Script},
+        script::{ScriptPubkey},
         transactions::{
             LegacyTx,
             WitnessTx,
@@ -53,11 +53,11 @@ pub struct Bitcoin<T: AddressEncoder>(PhantomData<T>);
 
 impl<'a, T> Network<'a> for Bitcoin<T>
 where
-    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = Script>
+    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>
 {
     type Address = Address;
     type Error = EncodingError;
-    type RecipientIdentifier = Script;
+    type RecipientIdentifier = ScriptPubkey;
     type Encoder = T;
     type TxIn = BitcoinTxIn;
     type TxOut = TxOut;
@@ -67,7 +67,7 @@ where
 
 impl<'a, T> BitcoinNetwork<'a> for Bitcoin<T>
 where
-    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = Script>
+    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>
 {
     type WTx = WitnessTx;
 }

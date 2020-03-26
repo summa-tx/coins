@@ -14,7 +14,7 @@ use crate::{
             encode_bech32,
             decode_bech32,
         },
-        script::{Script, ScriptType},
+        script::{ScriptPubkey, ScriptType},
     },
     enc::{AddressEncoder},
     types::{
@@ -54,9 +54,9 @@ pub struct BitcoinEncoder<P: NetworkParams>(PhantomData<P>);
 impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
     type Address = Address;
     type Error = EncodingError;
-    type RecipientIdentifier = Script;
+    type RecipientIdentifier = ScriptPubkey;
 
-    fn encode_address(s: Script) -> EncodingResult<Address> {
+    fn encode_address(s: ScriptPubkey) -> EncodingResult<Address> {
         match s.determine_type() {
             ScriptType::PKH => {
                 // s.items contains the op codes. we want only the pkh
@@ -78,7 +78,7 @@ impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
         }
     }
 
-    fn decode_address(addr: Address) -> EncodingResult<Script> {
+    fn decode_address(addr: Address) -> EncodingResult<ScriptPubkey> {
         match &addr {
             Address::PKH(s) => {
                 decode_base58(P::PKH_VERSION, s).map(|v| v.into())
