@@ -99,7 +99,6 @@ pub struct LegacyBuilder<T: AddressEncoder> {
 pub struct WitnessBuilder<T: AddressEncoder> {
     builder: LegacyBuilder<T>,
     witnesses: Vec<Witness>,
-    // encoder: PhantomData<T>
 }
 
 impl<T: AddressEncoder> From<LegacyBuilder<T>> for WitnessBuilder<T> {
@@ -119,7 +118,7 @@ impl<T: AddressEncoder> From<WitnessBuilder<T>> for LegacyBuilder<T> {
 
 impl<'a, T> TxBuilder<'a> for LegacyBuilder<T>
 where
-    T: AddressEncoder<Address = Address, Error = EncodingError>
+    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = Script>
 {
     type Encoder = T;
 
@@ -181,7 +180,8 @@ where
 
 impl<'a, T> BitcoinBuilder<'a> for LegacyBuilder<T>
 where
-    T: AddressEncoder<Address = Address, Error = EncodingError> {
+    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = Script>
+{
     type WitnessTransaction = WitnessTx;
     type WitnessBuilder = WitnessBuilder<T>;
 
@@ -196,7 +196,7 @@ where
 
 impl<'a, T> TxBuilder<'a> for WitnessBuilder<T>
 where
-    T: AddressEncoder<Address = Address, Error = EncodingError>
+    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = Script>
 {
     type Encoder = T;
 
@@ -258,7 +258,7 @@ where
 
 impl<'a, T> BitcoinBuilder<'a> for WitnessBuilder<T>
 where
-    T: AddressEncoder<Address = Address, Error = EncodingError> {
+    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = Script> {
 
     type WitnessTransaction = WitnessTx;
     type WitnessBuilder = Self;
@@ -275,7 +275,7 @@ where
 
 impl<'a, T> WitTxBuilder<'a> for WitnessBuilder<T>
 where
-    T: AddressEncoder<Address = Address, Error = EncodingError>
+    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = Script>
 {
     type LegacyBuilder = LegacyBuilder<T>;
 

@@ -7,7 +7,8 @@ use crate::{
     ser::{Ser}
 };
 
-/// A `TXOIdentifier` represents the network's unique identifier an output
+/// A `TXOIdentifier` represents the network's unique identifier an output. In Bitcoin this is an
+/// outpoint.
 pub trait TXOIdentifier {}
 
 /// An `Input` spends a specific TXO, and typically contains a `TXOIdentifier` for that TXO.
@@ -16,8 +17,15 @@ pub trait Input{
     type TXOIdentifier: TXOIdentifier;
 }
 
-/// An Output represents a new TXO being created.
-pub trait Output {}
+/// A RecipientIdentifier represents the network's identifier for a recipient. In Bitcoin this is
+/// a script pubkey.
+pub trait RecipientIdentifier {}
+
+/// An Output represents a new TXO being created. It has an associated `RecipientIdentifier`.
+pub trait Output {
+    /// The associated `RecipientIdentifier` type that describes to whom the output is paid.
+    type RecipientIdentifier: RecipientIdentifier;
+}
 
 /// Basic functionality for a Transaction
 ///

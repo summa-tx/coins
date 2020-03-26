@@ -5,8 +5,84 @@ use std::ops::{Index, IndexMut};
 
 use crate::{
     ser::{SerResult},
-    types::primitives::{ConcretePrefixVec, PrefixVec},
+    types::{
+        tx::{RecipientIdentifier},
+        primitives::{ConcretePrefixVec, PrefixVec},
+    },
 };
+
+
+macro_rules! wrap_prefix_vec {
+    ($wrapper_name:ident, $item:ty) => {
+
+        #[doc(hidden)]
+        #[derive(Clone, Debug, Eq, PartialEq, Default)]
+        pub struct $wrapper_name(ConcretePrefixVec<$item>);
+
+        impl PrefixVec for $wrapper_name {
+            type Item = $item;
+
+            fn null() -> Self {
+                Self(Default::default())
+            }
+
+            fn set_items(&mut self, v: Vec<Self::Item>) -> SerResult<()> {
+                self.0.set_items(v)
+            }
+
+            fn set_prefix_len(&mut self, prefix_len: u8) -> SerResult<()> {
+                self.0.set_prefix_len(prefix_len)
+            }
+
+            fn push(&mut self, i: Self::Item) {
+                self.0.push(i)
+            }
+
+            fn len(&self) -> usize {
+                self.0.len()
+            }
+
+            fn len_prefix(&self) -> u8 {
+                self.0.len_prefix()
+            }
+
+            fn items(&self) -> &[Self::Item] {
+                self.0.items()
+            }
+        }
+        impl<T> From<T> for $wrapper_name
+        where
+        T: Into<ConcretePrefixVec<u8>>
+        {
+            fn from(v: T) -> Self {
+                Self(v.into())
+            }
+        }
+
+        impl Index<usize> for $wrapper_name {
+            type Output = $item;
+
+            fn index(&self, index: usize) -> &Self::Output {
+                &self.0[index]
+            }
+        }
+
+        impl IndexMut<usize> for $wrapper_name {
+            fn index_mut(&mut self, index: usize) -> &mut Self::Output {
+                &mut self.0[index]
+            }
+        }
+
+        impl Extend<u8> for $wrapper_name {
+            fn extend<I: IntoIterator<Item=$item>>(&mut self, iter: I) {
+                self.0.extend(iter)
+            }
+        }
+    }
+}
+
+wrap_prefix_vec!(InternalScript, u8);
+wrap_prefix_vec!(WitStackItem, u8);
 
 /// A WitnessStackItem is a marked `ConcretePrefixVec<u8>` intended for use in witnesses. Each
 /// Witness is a `PrefixVec<WitnessStackItem>`. The Transactions `witnesses` is a non-prefixed
@@ -17,76 +93,22 @@ use crate::{
 ///
 /// TODO: Witness stack items do not permit non-minimal VarInt prefixes. Return an error if the
 /// user tries to pass one in to `set_prefix_len`.
-#[derive(Clone, Debug, Eq, PartialEq, Default)]
-pub struct WitnessStackItem(ConcretePrefixVec<u8>);
+pub type WitnessStackItem = WitStackItem;
 
-impl PrefixVec for WitnessStackItem {
-    type Item = u8;
 
-    fn null() -> Self {
-        Self(Default::default())
-    }
-
-    fn set_items(&mut self, v: Vec<Self::Item>) -> SerResult<()> {
-        self.0.set_items(v)
-    }
-
-    fn set_prefix_len(&mut self, prefix_len: u8) -> SerResult<()> {
-        self.0.set_prefix_len(prefix_len)
-    }
-
-    fn push(&mut self, i: Self::Item) {
-        self.0.push(i)
-    }
-
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    fn len_prefix(&self) -> u8 {
-        self.0.len_prefix()
-    }
-
-    fn items(&self) -> &[Self::Item] {
-        self.0.items()
-    }
-}
-impl<T> From<T> for WitnessStackItem
-where
-    T: Into<ConcretePrefixVec<u8>>
-{
-    fn from(v: T) -> Self {
-        Self(v.into())
-    }
-}
-
-impl Index<usize> for WitnessStackItem {
-    type Output = u8;
-
-    fn index(&self, index: usize) -> &u8 {
-        &self.0[index]
-    }
-}
-
-impl IndexMut<usize> for WitnessStackItem {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0[index]
-    }
-}
-
-impl Extend<u8> for WitnessStackItem {
-    fn extend<I: IntoIterator<Item=u8>>(&mut self, iter: I) {
-        self.0.extend(iter)
-    }
-}
+/// A Witness is a `PrefixVec` of `WitnessStackItem`s. This witness corresponds to a single input.
+///
+/// # Note
+///
+/// The transaction's witness is composed of many of these `Witness`es in an UNPREFIXED vector.
+pub type Witness = ConcretePrefixVec<WitnessStackItem>;
 
 /// A Script is a marked ConcretePrefixVec<u8> for use in the script_sig, and script_pubkey
 /// fields.
 ///
 /// `Script::null()` and `Script::default()` return the empty byte vector with a 0 prefix, which
 /// represents numerical 0, or null bytestring.
-#[derive(Clone, Debug, Eq, PartialEq, Default)]
-pub struct Script(ConcretePrefixVec<u8>);
+pub type Script = InternalScript;
 
 /// Standard script types, and a non-standard type for all other scripts.
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -102,6 +124,9 @@ pub enum ScriptType {
     /// Nonstandard or unknown `Script` type. May be a newer witness version.
     NonStandard
 }
+
+
+impl RecipientIdentifier for Script {}
 
 impl Script {
     /// Inspect the `Script` to determine its type.
@@ -143,76 +168,6 @@ impl Script {
         }
     }
 }
-
-impl PrefixVec for Script {
-    type Item = u8;
-
-    /// Return a null (empty) witness stack item. This item represents numerical 0, or the null
-    /// string.
-    fn null() -> Self {
-        Self(Default::default())
-    }
-
-    fn set_items(&mut self, v: Vec<Self::Item>) -> SerResult<()> {
-        self.0.set_items(v)
-    }
-
-    fn set_prefix_len(&mut self, prefix_len: u8) -> SerResult<()> {
-        self.0.set_prefix_len(prefix_len)
-    }
-
-    fn push(&mut self, i: Self::Item) {
-        self.0.push(i)
-    }
-
-    fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    fn len_prefix(&self) -> u8 {
-        self.0.len_prefix()
-    }
-
-    fn items(&self) -> &[Self::Item] {
-        self.0.items()
-    }
-}
-
-impl<T> From<T> for Script
-where
-    T: Into<ConcretePrefixVec<u8>>
-{
-    fn from(v: T) -> Self {
-        Self(v.into())
-    }
-}
-
-impl Index<usize> for Script {
-    type Output = u8;
-
-    fn index(&self, index: usize) -> &u8 {
-        &self.0[index]
-    }
-}
-
-impl IndexMut<usize> for Script {
-    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.0[index]
-    }
-}
-
-impl Extend<u8> for Script {
-    fn extend<I: IntoIterator<Item=u8>>(&mut self, iter: I) {
-        self.0.extend(iter)
-    }
-}
-
-/// A Witness is a `PrefixVec` of `WitnessStackItem`s. This witness corresponds to a single input.
-///
-/// # Note
-///
-/// The transaction's witness is composed of many of these `Witness`es in an UNPREFIXED vector.
-pub type Witness = ConcretePrefixVec<WitnessStackItem>;
 
 #[cfg(test)]
 mod test{

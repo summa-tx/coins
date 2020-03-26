@@ -3,12 +3,12 @@
 //! for various Bitcoin networks are found in the `bitcoin` module.
 
 use crate::{
-    bitcoin::script::{Script},  // TODO: REFACTOR THIS OUT AND GENERALIZE
+    // bitcoin::script::{Script},  // TODO: REFACTOR THIS OUT AND GENERALIZE
     builder::{TxBuilder},
     enc::{AddressEncoder},
     ser::{Ser},
     types::{
-        tx::{Input, Output, Transaction},
+        tx::{Input, Output, RecipientIdentifier, Transaction},
     },
 };
 
@@ -25,14 +25,21 @@ pub trait Network<'a> {
     /// predicate on the transaction. It is used by both the `Encoder` and the `Builder`.
     type Address;
 
+    /// A type representing the in-protocol recipient. This is usually different from the
+    /// Address type.
+    type RecipientIdentifier: RecipientIdentifier;
+
     /// An error type that will be used by the `Encoder`, and returned by the passthrough
     /// `encode_address` and `decode_address` functions
     type Error;
 
     /// An `Encoder` that uses the `Address` and `Error` types above. This `Encoder` must
     /// implement `AddressEncoder`. It handles translating the `Address` type to the networks
-    /// `Recipient` type.
-    type Encoder: AddressEncoder<Address = Self::Address, Error = Self::Error>;
+    /// `RecipientIdentifier` type.
+    type Encoder: AddressEncoder<
+        Address = Self::Address,
+        Error = Self::Error,
+        RecipientIdentifier = Self::RecipientIdentifier>;
 
     /// A transaction Input type. This type is used within the `Transaction` and specificies UTXOs
     /// being spent by the transaction.
@@ -55,12 +62,12 @@ pub trait Network<'a> {
     }
 
     /// Encode an address using the network's `Address` semantics
-    fn encode_address(a: Script) -> Result<Self::Address, Self::Error> {
+    fn encode_address(a: Self::RecipientIdentifier) -> Result<Self::Address, Self::Error> {
         Self::Encoder::encode_address(a)
     }
 
     /// Encode an address using the network's `Address` semantics
-    fn decode_address(addr: Self::Address) -> Result<Script, Self::Error> {
+    fn decode_address(addr: Self::Address) -> Result<Self::RecipientIdentifier, Self::Error> {
         Self::Encoder::decode_address(addr)
     }
 }

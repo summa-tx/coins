@@ -28,7 +28,9 @@ pub struct TxOut{
     pub script_pubkey: Script
 }
 
-impl Output for TxOut {}
+impl Output for TxOut {
+    type RecipientIdentifier = Script;
+}
 
 impl Default for TxOut {
     fn default() -> Self {

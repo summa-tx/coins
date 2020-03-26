@@ -54,6 +54,7 @@ pub struct BitcoinEncoder<P: NetworkParams>(PhantomData<P>);
 impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
     type Address = Address;
     type Error = EncodingError;
+    type RecipientIdentifier = Script;
 
     fn encode_address(s: Script) -> EncodingResult<Address> {
         match s.determine_type() {
