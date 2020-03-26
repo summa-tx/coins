@@ -52,9 +52,8 @@ pub trait Transaction<'a>: Ser {
     /// Returns the transaction's nLocktime field
     fn locktime(&self) -> u32;
 
-    /// Calculates and returns the transaction's ID. The default TXID is simply the serialized
-    /// transaction. However, Witness transactions will have to override this in order to avoid
-    /// serializing witnesses.
+    /// Calculates and returns the transaction's ID. The default TXID is simply the digest of the
+    /// serialized transaction.
     /// TODO: memoize
     fn txid(&self) -> Self::TXID {
         let mut w = Self::HashWriter::default();
@@ -114,37 +113,4 @@ pub trait Transaction<'a>: Ser {
         self.write_legacy_sighash_preimage(&mut w, args)?;
         Ok(w.finish())
    }
-}
-
-/// Basic functionality for a Witness Transaction
-///
-/// This trait has been generalized to support transactions from Non-Bitcoin networks. The
-/// transaction specificies which types it considers to be inputs and outputs, and a struct that
-/// contains its Sighash arguments. This allows others to define custom transaction types with
-/// unique functionality.
-pub trait WitnessTransaction<'a>: Transaction<'a> {
-    type WTXID: MarkedHash<Self::Digest>;
-    type WitnessSighashArgs;
-    type Witness;
-
-    fn new<I, O, W>(
-        version: u32,
-        vin: I,
-        vout: O,
-        witnesses: W,
-        locktime: u32
-    ) -> Self
-    where
-        I: Into<Vec<Self::TxIn>>,
-        O: Into<Vec<Self::TxOut>>,
-        W: Into<Vec<Self::Witness>>;
-
-    fn wtxid(&self) -> Self::WTXID;
-    fn write_witness_sighash_preimage<W: Write>(&self, _writer: &mut W, args: &Self::WitnessSighashArgs) -> Result<(), Self::Error>;
-    fn witness_sighash(&self, args: &Self::WitnessSighashArgs) -> Result<Self::Digest, Self::Error> {
-        let mut w = Self::HashWriter::default();
-        self.write_witness_sighash_preimage(&mut w, args)?;
-        Ok(w.finish())
-    }
-    fn witnesses(&'a self) -> &'a[Self::Witness];
 }

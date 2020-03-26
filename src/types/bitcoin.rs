@@ -4,7 +4,7 @@ use bitcoin_spv::types::{Hash256Digest};
 use crate::{
     hashes::{
         hash256::{Hash256Writer},
-        marked::{MarkedHashWriter},
+        marked::{MarkedHash, MarkedHashWriter},
         bitcoin::{TXID, WTXID},
     },
     types::{
@@ -12,9 +12,44 @@ use crate::{
         script::{Script, Witness},
         txin::{TxIn, Vin},
         txout::{TxOut, Vout},
-        tx::{Transaction, WitnessTransaction},
+        tx::{Transaction},
     },
 };
+
+pub trait BitcoinTransaction<'a>: Transaction<'a> {}
+
+/// Basic functionality for a Witness Transaction
+///
+/// This trait has been generalized to support transactions from Non-Bitcoin networks. The
+/// transaction specificies which types it considers to be inputs and outputs, and a struct that
+/// contains its Sighash arguments. This allows others to define custom transaction types with
+/// unique functionality.
+pub trait WitnessTransaction<'a>: BitcoinTransaction<'a> {
+    type WTXID: MarkedHash<Self::Digest>;
+    type WitnessSighashArgs;
+    type Witness;
+
+    fn new<I, O, W>(
+        version: u32,
+        vin: I,
+        vout: O,
+        witnesses: W,
+        locktime: u32
+    ) -> Self
+    where
+        I: Into<Vec<Self::TxIn>>,
+        O: Into<Vec<Self::TxOut>>,
+        W: Into<Vec<Self::Witness>>;
+
+    fn wtxid(&self) -> Self::WTXID;
+    fn write_witness_sighash_preimage<W: Write>(&self, _writer: &mut W, args: &Self::WitnessSighashArgs) -> Result<(), Self::Error>;
+    fn witness_sighash(&self, args: &Self::WitnessSighashArgs) -> Result<Self::Digest, Self::Error> {
+        let mut w = Self::HashWriter::default();
+        self.write_witness_sighash_preimage(&mut w, args)?;
+        Ok(w.finish())
+    }
+    fn witnesses(&'a self) -> &'a[Self::Witness];
+}
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -189,8 +224,9 @@ impl<'a> Transaction<'a> for LegacyTx {
     }
 }
 
-impl Ser for LegacyTx
-{
+impl<'a> BitcoinTransaction<'a> for LegacyTx {}
+
+impl Ser for LegacyTx {
     fn serialized_length(&self) -> usize {
         let mut len = self.version().serialized_length();
         len += self.vin.serialized_length();
@@ -380,6 +416,8 @@ impl<'a> Transaction<'a> for WitnessTx {
     }
 }
 
+impl<'a> BitcoinTransaction<'a> for WitnessTx {}
+
 impl<'a> WitnessTransaction<'a> for WitnessTx {
     type WTXID = WTXID;
     type WitnessSighashArgs = WitnessSighashArgs<'a>;
@@ -452,8 +490,7 @@ impl<'a> WitnessTransaction<'a> for WitnessTx {
     }
 }
 
-impl Ser for WitnessTx
-{
+impl Ser for WitnessTx {
     fn serialized_length(&self) -> usize {
         let mut len = self.version().serialized_length();
         len += 2;  // Segwit Flag

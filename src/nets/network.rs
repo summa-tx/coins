@@ -3,7 +3,7 @@ use crate::{
     builder::{TxBuilder},
     types::{
         script::{Script},
-        tx::{Transaction, WitnessTransaction},
+        tx::{Transaction},
     },
     enc::{
         encoder::AddressEncoder,
@@ -41,8 +41,7 @@ pub trait Network<'a> {
     type TxOut;
 
     type Tx: Transaction<'a, TxIn = Self::TxIn, TxOut = Self::TxOut>;
-    type WTx: WitnessTransaction<'a, TxIn = Self::TxIn, TxOut = Self::TxOut>;
-    type Builder: TxBuilder<'a, Encoder = Self::Encoder, Transaction = Self::Tx, WitnessTransaction = Self::WTx>;
+    type Builder: TxBuilder<'a, Encoder = Self::Encoder, Transaction = Self::Tx>;
 
     fn tx_builder() -> Self::Builder {
         Self::Builder::new()

@@ -1,8 +1,7 @@
-
 use std::marker::{PhantomData};
 
 use crate::{
-    builder::{BitcoinBuilder},
+    builder::{LegacyBuilder},
     nets::{Network},
     enc::{
         bases::{
@@ -21,10 +20,13 @@ use crate::{
     types::{
         txin::{TxIn},
         txout::{TxOut},
-        bitcoin::{LegacyTx, WitnessTx},
+        bitcoin::{LegacyTx, WitnessTx, WitnessTransaction},
     },
 };
 
+pub trait BitcoinNetwork<'a>: Network<'a> {
+    type WTx: WitnessTransaction<'a, TxIn = Self::TxIn, TxOut = Self::TxOut>;
+}
 
 pub struct Bitcoin<T: AddressEncoder>(PhantomData<T>);
 
@@ -38,8 +40,14 @@ where
     type TxIn = TxIn;
     type TxOut = TxOut;
     type Tx = LegacyTx;
+    type Builder = LegacyBuilder<T>;
+}
+
+impl<'a, T> BitcoinNetwork<'a> for Bitcoin<T>
+where
+    T: AddressEncoder<Address = Address, Error = EncodingError>
+{
     type WTx = WitnessTx;
-    type Builder = BitcoinBuilder<T>;
 }
 
 pub type BitcoinMainnet<'a> = Bitcoin<MainnetEncoder>;
