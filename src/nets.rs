@@ -3,7 +3,6 @@
 //! for various Bitcoin networks are found in the `bitcoin` module.
 
 use crate::{
-    // bitcoin::script::{Script},  // TODO: REFACTOR THIS OUT AND GENERALIZE
     builder::{TxBuilder},
     enc::{AddressEncoder},
     ser::{Ser},
@@ -46,7 +45,7 @@ pub trait Network<'a> {
     type TxIn: Input + Ser;
     /// A transaction Output type. This type is used within the `Transaction` and specificies
     /// UTXOs being consumed by the transaction.
-    type TxOut: Output + Ser;
+    type TxOut: Output<RecipientIdentifier = Self::RecipientIdentifier> + Ser;
 
     /// A Transaction type that uses the `TxIn` and `TxOut`.
     type Tx: Transaction<'a, TxIn = Self::TxIn, TxOut = Self::TxOut>;

@@ -2,7 +2,6 @@
 //! Bitcoin can be found in the `bitcoin` module
 
 use crate::{
-    // bitcoin::{Outpoint},  // TODO: REFACTOR OUT AND GENERALIZE
     enc::{AddressEncoder},
     types::{
         tx::{Transaction, Input},
