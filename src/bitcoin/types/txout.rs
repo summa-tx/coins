@@ -5,9 +5,12 @@ use std::io::{Read, Write};
 use crate::{
     bitcoin::script::{Script},
     ser::{Ser, SerResult},
-    types::primitives::{
-        ConcretePrefixVec,
-        PrefixVec,
+    types::{
+        primitives::{
+            ConcretePrefixVec,
+            PrefixVec,
+        },
+        tx::{Output},
     },
 };
 
@@ -24,6 +27,8 @@ pub struct TxOut{
     /// The script pubkey which locks the UTXO.
     pub script_pubkey: Script
 }
+
+impl Output for TxOut {}
 
 impl Default for TxOut {
     fn default() -> Self {
@@ -88,8 +93,9 @@ pub type Vout = ConcretePrefixVec<TxOut>;
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::types::primitives::Ser;
-
+    use crate::{
+        ser::{Ser},
+    };
     #[test]
     fn it_serializes_and_derializes_outputs() {
         let cases = [

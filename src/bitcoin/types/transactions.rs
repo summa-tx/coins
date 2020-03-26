@@ -7,7 +7,7 @@ use crate::{
     bitcoin::{
         hashes::{TXID, WTXID},
         script::{Script, Witness},
-        txin::{TxIn, Vin},
+        txin::{BitcoinTxIn, Vin},
         txout::{TxOut, Vout},
     },
     hashes::{
@@ -249,7 +249,7 @@ impl LegacyTx {
 impl<'a> Transaction<'a> for LegacyTx {
     type Error = TxError;
     type Digest = Hash256Digest;
-    type TxIn = TxIn;
+    type TxIn = BitcoinTxIn;
     type TxOut = TxOut;
     type SighashArgs = LegacySighashArgs<'a>;
     type TXID = TXID;
@@ -479,7 +479,7 @@ impl WitnessTx {
 impl<'a> Transaction<'a> for WitnessTx {
     type Error = TxError;
     type Digest = Hash256Digest;
-    type TxIn = TxIn;
+    type TxIn = BitcoinTxIn;
     type TxOut = TxOut;
     type SighashArgs = WitnessSighashArgs<'a>;
     type TXID = TXID;
@@ -495,7 +495,7 @@ impl<'a> Transaction<'a> for WitnessTx {
         I: Into<Vec<Self::TxIn>>,
         O: Into<Vec<Self::TxOut>>
     {
-        let input_vector: Vec<TxIn> = vin.into();
+        let input_vector: Vec<BitcoinTxIn> = vin.into();
         let witnesses = input_vector.iter().map(|_| Witness::null()).collect();
 
         let legacy_tx = LegacyTx::new(version, input_vector, vout, locktime);

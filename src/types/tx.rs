@@ -7,6 +7,18 @@ use crate::{
     ser::{Ser}
 };
 
+/// A `TXOIdentifier` represents the network's unique identifier an output
+pub trait TXOIdentifier {}
+
+/// An `Input` spends a specific TXO, and typically contains a `TXOIdentifier` for that TXO.
+pub trait Input{
+    /// An input must define what type contains the TXO ID it is spending.
+    type TXOIdentifier: TXOIdentifier;
+}
+
+/// An Output represents a new TXO being created.
+pub trait Output {}
+
 /// Basic functionality for a Transaction
 ///
 /// This trait has been generalized to support transactions from Non-Bitcoin networks. The
@@ -19,9 +31,9 @@ pub trait Transaction<'a>: Ser {
     /// A Digest type that underlies the associated marked hash, and is returned by `sighash()`.
     type Digest: Digest + Ser;
     /// The Input type for the transaction
-    type TxIn: Ser;
+    type TxIn: Input + Ser;
     /// The Output type for the transaction
-    type TxOut: Ser;
+    type TxOut: Output + Ser;
     /// A type describing arguments for the sighash function for this transaction.
     type SighashArgs;
     /// A marked hash (see crate::hashes::marked) to be used as the transaction ID type.

@@ -8,7 +8,7 @@ use crate::{
     enc::{AddressEncoder},
     ser::{Ser},
     types::{
-        tx::{Transaction},
+        tx::{Input, Output, Transaction},
     },
 };
 
@@ -36,10 +36,10 @@ pub trait Network<'a> {
 
     /// A transaction Input type. This type is used within the `Transaction` and specificies UTXOs
     /// being spent by the transaction.
-    type TxIn: Ser;
+    type TxIn: Input + Ser;
     /// A transaction Output type. This type is used within the `Transaction` and specificies
     /// UTXOs being consumed by the transaction.
-    type TxOut: Ser;
+    type TxOut: Output + Ser;
 
     /// A Transaction type that uses the `TxIn` and `TxOut`.
     type Tx: Transaction<'a, TxIn = Self::TxIn, TxOut = Self::TxOut>;

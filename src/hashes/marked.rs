@@ -14,7 +14,6 @@ pub trait MarkedDigest: Default + Ser {
     type Digest: Digest;
     /// Wrap a digest of the appropriate type in the marker.
     fn new(hash: Self::Digest) -> Self;
-
     /// Return a copy of the internal digest.
     fn internal(&self) -> Self::Digest;
 }
@@ -24,7 +23,6 @@ pub trait MarkedDigestWriter<T: Digest>: Default + Write {
     /// Consumes the hasher, calculates the digest from the written bytes. Returns a Digest
     /// of the parameterized type.
     fn finish(self) -> T;
-
     /// Calls finish, and wraps the result in a `MarkedDigest` type. Genericized to support any
     /// `MarkedDigest` that wraps the same parameterized type.
     fn finish_marked<M: MarkedDigest<Digest = T>>(self) -> M {

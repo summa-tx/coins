@@ -9,7 +9,10 @@ use crate::{
     },
     hashes::marked::{MarkedDigest},
     ser::{Ser, SerResult},
-    types::primitives::{ConcretePrefixVec},
+    types::{
+        primitives::{ConcretePrefixVec},
+        tx::{Input, TXOIdentifier},
+    },
 };
 
 /// An Outpoint. This is a unique identifier for a UTXO, and is composed of a transaction ID (in
@@ -28,6 +31,11 @@ where
     /// The index of that UTXO in the transaction's output vector.
     pub idx: u32
 }
+
+impl<M> TXOIdentifier for Outpoint<M>
+where
+    M: MarkedDigest
+{}
 
 impl<M> Outpoint<M>
 where
@@ -80,7 +88,7 @@ where
     }
 }
 
-/// An Input. This data structure contains an outpoint referencing an existing UTXO, a
+/// An TxInput. This data structure contains an outpoint referencing an existing UTXO, a
 /// `script_sig`, which will contain spend authorization information (when spending a Legacy or
 /// Witness-via-P2SH prevout), and a sequence number which may encode relative locktim semantics
 /// in version 2+ transactions.
@@ -90,7 +98,7 @@ where
 /// Sequence encoding is complex and the field also encodes information about locktimes and RBF.
 /// See [my blogpost on the subject](https://prestwi.ch/bitcoin-time-locks/).
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct Input<M>
+pub struct TxInput<M>
 where
     M: MarkedDigest
 {
@@ -102,16 +110,23 @@ where
     pub sequence: u32
 }
 
-impl<M> Input<M>
+impl<M> Input for TxInput<M>
 where
     M: MarkedDigest
 {
-    /// Instantiate a new Input
+    type TXOIdentifier = Outpoint<M>;
+}
+
+impl<M> TxInput<M>
+where
+    M: MarkedDigest
+{
+    /// Instantiate a new TxInput
     pub fn new<T>(outpoint: Outpoint<M>, script_sig: T, sequence: u32) -> Self
     where
         T: Into<Script>
     {
-        Input{
+        TxInput{
             outpoint,
             script_sig: script_sig.into(),
             sequence
@@ -119,7 +134,7 @@ where
     }
 }
 
-impl<M> Ser for Input<M>
+impl<M> Ser for TxInput<M>
 where
     M: MarkedDigest + Ser
 {
@@ -135,7 +150,7 @@ where
         T: Read,
         Self: std::marker::Sized
     {
-        Ok(Input{
+        Ok(TxInput{
             outpoint: Outpoint::deserialize(reader, 0)?,
             script_sig: Script::deserialize(reader, 0)?,
             sequence: u32::deserialize(reader, 0)?
@@ -154,29 +169,32 @@ where
 }
 
 /// A simple type alias for an input type that will be repeated throughout the `bitcoin` module.
-pub type TxIn = Input<TXID>;
+pub type BitcoinTxIn = TxInput<TXID>;
 
-/// Vin is a type alias for `ConcretePrefixVec<Input>`. A transaction's Vin is the Vector of
+/// Vin is a type alias for `ConcretePrefixVec<TxInput>`. A transaction's Vin is the Vector of
 /// INputs, with a length prefix.
-pub type Vin = ConcretePrefixVec<TxIn>;
+pub type Vin = ConcretePrefixVec<BitcoinTxIn>;
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::types::primitives::{Ser, PrefixVec};
+    use crate::{
+        ser::{Ser},
+        types::primitives::{PrefixVec},
+    };
 
     static NULL_OUTPOINT: &str = "0000000000000000000000000000000000000000000000000000000000000000ffffffff";
 
     #[test]
     fn it_serializes_and_derializes_outpoints() {
         let cases = [
-        (Outpoint{txid: Hash256Digest::default(), idx: 0}, (0..36).map(|_| "00").collect::<String>()),
-        (Outpoint::null(), NULL_OUTPOINT.to_string())
+        (Outpoint::<TXID>{txid: TXID::default(), idx: 0}, (0..36).map(|_| "00").collect::<String>()),
+        (Outpoint::<TXID>::null(), NULL_OUTPOINT.to_string())
         ];
         for case in cases.iter() {
             assert_eq!(case.0.serialized_length(), case.1.len() / 2);
             assert_eq!(case.0.serialize_hex().unwrap(), case.1.to_owned());
-            assert_eq!(Outpoint::deserialize_hex(case.1.to_owned()).unwrap(), case.0);
+            assert_eq!(Outpoint::<TXID>::deserialize_hex(case.1.to_owned()).unwrap(), case.0);
         }
     }
 
@@ -184,7 +202,7 @@ mod test {
     fn it_serializes_and_derializes_inputs() {
         let cases = [
             (
-                TxIn{
+                BitcoinTxIn{
                     outpoint: Outpoint::null(),
                     script_sig: Script::null(),
                     sequence: 0x1234abcd
@@ -192,7 +210,7 @@ mod test {
                 format!("{}{}{}", NULL_OUTPOINT, "00", "cdab3412")
             ),
             (
-                TxIn{
+                BitcoinTxIn{
                     outpoint: Outpoint::null(),
                     script_sig: Script::new_non_minimal(
                         vec![0x00, 0x14, 0x11, 0x00, 0x33, 0x00, 0x55, 0x00, 0x77, 0x00, 0x99, 0x00, 0xbb, 0x00, 0xdd, 0x00, 0xff, 0x11, 0x00, 0x33, 0x00, 0x55],
@@ -204,7 +222,7 @@ mod test {
                 format!("{}{}{}", NULL_OUTPOINT, "fd1600001411003300550077009900bb00dd00ff1100330055", "cdab3412")
             ),
             (
-                TxIn::new(
+                BitcoinTxIn::new(
                     Outpoint::null(),
                     vec![],
                     0x11223344
@@ -216,7 +234,7 @@ mod test {
         for case in cases.iter() {
             assert_eq!(case.0.serialized_length(), case.1.len() / 2);
             assert_eq!(case.0.serialize_hex().unwrap(), case.1.to_owned());
-            assert_eq!(TxIn::deserialize_hex(case.1.to_owned()).unwrap(), case.0);
+            assert_eq!(BitcoinTxIn::deserialize_hex(case.1.to_owned()).unwrap(), case.0);
         }
     }
 }

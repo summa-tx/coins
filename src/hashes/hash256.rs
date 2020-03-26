@@ -18,7 +18,6 @@ impl Write for Hash256Writer {
     fn write(&mut self, buf: &[u8]) -> IOResult<usize> {
         self.internal.write(buf)
     }
-
     fn flush(&mut self) -> IOResult<()> {
         Ok(())
     }

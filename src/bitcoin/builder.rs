@@ -37,7 +37,7 @@ use crate::{
         encoder::{Address},
         script::{Witness},
         transactions::{WitnessTransaction, LegacyTx, WitnessTx},
-        txin::{TxIn},
+        txin::{BitcoinTxIn},
         txout::{TxOut},
     },
     builder::{TxBuilder},
@@ -86,7 +86,7 @@ pub trait WitTxBuilder<'a>: BitcoinBuilder<'a> {
 /// logic can be used on mainnet and testnet.
 pub struct LegacyBuilder<T: AddressEncoder> {
     version: u32,
-    vin: Vec<TxIn>,
+    vin: Vec<BitcoinTxIn>,
     vout: Vec<TxOut>,
     locktime: u32,
     encoder: PhantomData<T>
@@ -156,7 +156,7 @@ where
 
     fn extend_inputs<I>(mut self, inputs: I) -> Self
     where
-        I: IntoIterator<Item = TxIn>
+        I: IntoIterator<Item = BitcoinTxIn>
     {
         self.vin.extend(inputs);
         self
@@ -231,7 +231,7 @@ where
 
     fn extend_inputs<I>(mut self, inputs: I) -> Self
     where
-        I: IntoIterator<Item = TxIn>
+        I: IntoIterator<Item = BitcoinTxIn>
     {
         self.builder.vin.extend(inputs);
         self

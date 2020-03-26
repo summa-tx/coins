@@ -32,7 +32,7 @@ use crate::{
             WitnessTx,
             WitnessTransaction,
         },
-        txin::{TxIn},
+        txin::{BitcoinTxIn},
         txout::{TxOut},
     },
     nets::{Network},
@@ -57,7 +57,7 @@ where
     type Address = Address;
     type Error = EncodingError;
     type Encoder = T;
-    type TxIn = TxIn;
+    type TxIn = BitcoinTxIn;
     type TxOut = TxOut;
     type Tx = LegacyTx;
     type Builder = LegacyBuilder<T>;
@@ -84,7 +84,6 @@ pub type BitcoinSignet<'a> = Bitcoin<SignetEncoder>;
 mod test {
     use super::*;
     use crate::{
-        bitcoin::txin::{Outpoint},
         builder::{TxBuilder},
         ser::{Ser},
     };
