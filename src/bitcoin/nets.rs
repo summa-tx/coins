@@ -1,26 +1,30 @@
 use std::marker::{PhantomData};
 
 use crate::{
-    builder::{LegacyBuilder},
-    nets::{Network},
-    enc::{
+    bitcoin::{
         bases::{
             EncodingError,
         },
-        bitcoin::{
+        builder::{LegacyBuilder},
+        encoder::{
             Address,
             MainnetEncoder,
             TestnetEncoder,
             SignetEncoder,
         },
+        transactions::{
+            LegacyTx,
+            WitnessTx,
+            WitnessTransaction,
+        },
+        txin::{TxIn},
+        txout::{TxOut},
+    },
+    nets::{Network},
+    enc::{
         encoder::{
             AddressEncoder,
         },
-    },
-    types::{
-        txin::{TxIn},
-        txout::{TxOut},
-        bitcoin::{LegacyTx, WitnessTx, WitnessTransaction},
     },
 };
 
@@ -58,11 +62,9 @@ pub type BitcoinSignet<'a> = Bitcoin<SignetEncoder>;
 mod test {
     use super::*;
     use crate::{
+        bitcoin::txin::{Outpoint},
         build::{TxBuilder},
-        types::{
-            primitives::{Ser},
-            txin::{Outpoint}
-        }
+        types::primitives::{Ser},
     };
 
     #[test]

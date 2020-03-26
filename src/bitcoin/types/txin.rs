@@ -3,9 +3,9 @@ use std::io::{Read, Write};
 use bitcoin_spv::types::Hash256Digest;
 
 use crate::{
+    bitcoin::script::Script,
     types::{
         primitives::{ConcretePrefixVec, Ser, TxResult},
-        script::Script,
     }
 };
 

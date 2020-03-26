@@ -1,13 +1,15 @@
 use std::io::{Read, Write};
 
-use crate::types::{
-    primitives::{
-        ConcretePrefixVec,
-        Ser,
-        PrefixVec,
-        TxResult,
+use crate::{
+    bitcoin::script::{Script},
+    types::{
+        primitives::{
+            ConcretePrefixVec,
+            Ser,
+            PrefixVec,
+            TxResult,
+        },
     },
-    script::Script,
 };
 
 /// An Output. This describes a new UTXO to be created. The value is encoded as an LE u64. The

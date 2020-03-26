@@ -2,7 +2,5 @@
 //! of concrete implementations that build Bitcoin transactions (in `bitcoin.rs`);
 
 pub mod build;
-pub mod bitcoin;
 
 pub use build::*;
-pub use bitcoin::*;

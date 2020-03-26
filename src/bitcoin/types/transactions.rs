@@ -2,16 +2,18 @@ use std::io::{Read, Write};
 use bitcoin_spv::types::{Hash256Digest};
 
 use crate::{
-    hashes::{
-        hash256::{Hash256Writer},
-        marked::{MarkedHash, MarkedHashWriter},
-        bitcoin::{TXID, WTXID},
-    },
-    types::{
-        primitives::{Ser, TxError, TxResult, PrefixVec},
+    bitcoin::{
+        hashes::{TXID, WTXID},
         script::{Script, Witness},
         txin::{TxIn, Vin},
         txout::{TxOut, Vout},
+    },
+    hashes::{
+        hash256::{Hash256Writer},
+        marked::{MarkedHash, MarkedHashWriter},
+    },
+    types::{
+        primitives::{Ser, TxError, TxResult, PrefixVec},
         tx::{Transaction},
     },
 };
@@ -545,7 +547,6 @@ impl Ser for WitnessTx {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::*;
 
     #[test]
     fn it_calculates_legacy_sighashes_and_txids() {

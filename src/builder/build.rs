@@ -1,9 +1,9 @@
 use crate::{
+    bitcoin::{Outpoint},  // TODO: REFACTOR OUT AND GENERALIZE
     enc::{
         encoder::{AddressEncoder},
     },
     types::{
-        txin::{Outpoint},
         tx::{self, Transaction},
     },
 };

@@ -1,7 +1,5 @@
 use crate::{
-    types::{
-        script::{Script},
-    },
+    bitcoin::script::{Script},  // TODO: REFACTOR THIS OUT AND GENERALIZE
 };
 
 /// An AddressEncoder encodes and decodes addresses. This struct is used by the Builder to decode

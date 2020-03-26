@@ -3,8 +3,7 @@ use std::{
 };
 
 use crate::{
-    enc::{
-        encoder::{AddressEncoder},
+    bitcoin::{
         bases::{
             EncodingError,
             EncodingResult,
@@ -13,10 +12,13 @@ use crate::{
             encode_bech32,
             decode_bech32,
         },
+        script::{Script, ScriptType},
+    },
+    enc::{
+        encoder::{AddressEncoder},
     },
     types::{
         primitives::{PrefixVec},
-        script::{Script, ScriptType},
     },
 };
 

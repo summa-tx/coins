@@ -1,8 +1,7 @@
-
 use crate::{
+    bitcoin::script::{Script},  // TODO: REFACTOR THIS OUT AND GENERALIZE
     builder::{TxBuilder},
     types::{
-        script::{Script},
         tx::{Transaction},
     },
     enc::{

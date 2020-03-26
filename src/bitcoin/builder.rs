@@ -1,18 +1,20 @@
 use std::marker::{PhantomData};
 
 use crate::{
-    builder::{TxBuilder},
-    enc::{
+    bitcoin::{
         bases::{EncodingError},
-        encoder::{AddressEncoder},
-        bitcoin::{Address},
-    },
-    types::{
-        bitcoin::{WitnessTransaction, LegacyTx, WitnessTx},
+        encoder::{Address},
         script::{Script, Witness},
-        tx::{Transaction},
+        transactions::{WitnessTransaction, LegacyTx, WitnessTx},
         txin::{Outpoint, TxIn},
         txout::{TxOut},
+    },
+    builder::{TxBuilder},
+    enc::{
+        encoder::{AddressEncoder},
+    },
+    types::{
+        tx::{Transaction},
     },
 };
 
