@@ -10,7 +10,7 @@ use crate::{
     },
     hashes::{
         hash256::{Hash256Writer},
-        marked::{MarkedHash, MarkedHashWriter},
+        marked::{MarkedDigest, MarkedDigestWriter},
     },
     types::{
         primitives::{Ser, TxError, TxResult, PrefixVec},
@@ -18,6 +18,7 @@ use crate::{
     },
 };
 
+/// Marker trait for BitcoinTransactions.
 pub trait BitcoinTransaction<'a>: Transaction<'a> {}
 
 /// Basic functionality for a Witness Transaction
@@ -27,10 +28,11 @@ pub trait BitcoinTransaction<'a>: Transaction<'a> {}
 /// contains its Sighash arguments. This allows others to define custom transaction types with
 /// unique functionality.
 pub trait WitnessTransaction<'a>: BitcoinTransaction<'a> {
-    type WTXID: MarkedHash<Self::Digest>;
+    type WTXID: MarkedDigest<Self::Digest>;
     type WitnessSighashArgs;
     type Witness;
 
+    /// Instantiate a new WitnessTx from the arguments.
     fn new<I, O, W>(
         version: u32,
         vin: I,
@@ -43,13 +45,32 @@ pub trait WitnessTransaction<'a>: BitcoinTransaction<'a> {
         O: Into<Vec<Self::TxOut>>,
         W: Into<Vec<Self::Witness>>;
 
+    /// Calculates the witness txid of the transaction.
     fn wtxid(&self) -> Self::WTXID;
-    fn write_witness_sighash_preimage<W: Write>(&self, _writer: &mut W, args: &Self::WitnessSighashArgs) -> Result<(), Self::Error>;
+
+    /// Writes the Legacy sighash preimage to the provider writer.
+    fn write_legacy_sighash_preimage<W: Write>(&self, writer: &mut W, args: &LegacySighashArgs) -> Result<(), Self::Error>;
+
+    /// Calculates the Legacy sighash preimage given the sighash args.
+    fn legacy_sighash(&self, args: &LegacySighashArgs) -> Result<Self::Digest, Self::Error> {
+        let mut w = Self::HashWriter::default();
+        self.write_legacy_sighash_preimage(&mut w, args)?;
+        Ok(w.finish())
+    }
+
+    /// Writes the BIP143 sighash preimage to the provided `writer`. See the
+    /// `WitnessSighashArgsSigh` documentation for more in-depth discussion of sighash.
+    fn write_witness_sighash_preimage<W: Write>(&self, writer: &mut W, args: &Self::WitnessSighashArgs) -> Result<(), Self::Error>;
+
+    /// Calculates the BIP143 sighash given the sighash args. See the
+    /// `WitnessSighashArgsSigh` documentation for more in-depth discussion of sighash.
     fn witness_sighash(&self, args: &Self::WitnessSighashArgs) -> Result<Self::Digest, Self::Error> {
         let mut w = Self::HashWriter::default();
         self.write_witness_sighash_preimage(&mut w, args)?;
         Ok(w.finish())
     }
+
+    /// Returns a reference to the transaction's witnesses.
     fn witnesses(&'a self) -> &'a[Self::Witness];
 }
 
@@ -71,7 +92,39 @@ pub enum Sighash{
     SingleACP = 0x83,
 }
 
-/// The arguments to the Legacy sighash function
+/// Arguments required to serialize the transaction to create the sighash digest.Used in
+/// `legacy_sighash`to abstract the sighash serialization logic from the hasher used.
+///
+/// SIGHASH_ALL commits to ALL inputs, and ALL outputs. It indicates that no further modification
+/// of the transaction is allowed without invalidating the signature.
+///
+/// SIGHASH_ALL + ANYONECANPAY commits to ONE input and ALL outputs. It indicates that anyone may
+/// add additional value to the transaction, but that no one may modify the payments made. Any
+/// extra value added above the sum of output values will be given to miners as part of the tx
+/// fee.
+///
+/// SIGHASH_SINGLE commits to ALL inputs, and ONE output. It indicates that anyone may append
+/// additional outputs to the transaction to reroute funds from the inputs. Additional inputs
+/// cannot be added without invalidating the signature. It is logically difficult to use securely,
+/// as it consents to funds being moved, without specifying their destination.
+///
+/// SIGHASH_SINGLE commits specifically the the output at the same index as the input being
+/// signed. If there is no output at that index, (because, e.g. the input vector is longer than
+/// the output vector) it behaves insecurely, and we do not implement that protocol bug.
+///
+/// SIGHASH_SINGLE + ANYONECANPAY commits to ONE input and ONE output. It indicates that anyone
+/// may add additional value to the transaction, and route value to any other location. The
+/// signed input and output must be included in the fully-formed transaction at the same index in
+/// their respective vectors.
+///
+/// For Legacy sighash documentation, see here:
+///
+/// - https://en.bitcoin.it/wiki/OP_CHECKSIG#Hashtype_SIGHASH_ALL_.28default.29
+///
+/// # Note
+///
+/// After signing the digest, you MUST append the sighash indicator
+/// byte to the resulting signature.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct LegacySighashArgs<'a> {
     /// The index of the input we'd like to sign
@@ -197,7 +250,7 @@ impl<'a> Transaction<'a> for LegacyTx {
         self.locktime
     }
 
-    fn write_legacy_sighash_preimage<W: Write>(
+    fn write_sighash_preimage<W: Write>(
         &self,
         writer: &mut W,
         args: &LegacySighashArgs
@@ -266,7 +319,40 @@ impl Ser for LegacyTx {
     }
 }
 
-/// The arguments to the BIP143 (witness) sighash function
+/// Arguments required to serialize the transaction to create the BIP143 (witness) sighash
+/// digest. Used in `witness_sighash` to abstract the sighash serialization logic from the hash
+/// used.
+///
+/// SIGHASH_ALL commits to ALL inputs, and ALL outputs. It indicates that no further modification
+/// of the transaction is allowed without invalidating the signature.
+///
+/// SIGHASH_ALL + ANYONECANPAY commits to ONE input and ALL outputs. It indicates that anyone may
+/// add additional value to the transaction, but that no one may modify the payments made. Any
+/// extra value added above the sum of output values will be given to miners as part of the tx
+/// fee.
+///
+/// SIGHASH_SINGLE commits to ALL inputs, and ONE output. It indicates that anyone may append
+/// additional outputs to the transaction to reroute funds from the inputs. Additional inputs
+/// cannot be added without invalidating the signature. It is logically difficult to use securely,
+/// as it consents to funds being moved, without specifying their destination.
+///
+/// SIGHASH_SINGLE commits specifically the the output at the same index as the input being
+/// signed. If there is no output at that index, (because, e.g. the input vector is longer than
+/// the output vector) it behaves insecurely, and we do not implement that protocol bug.
+///
+/// SIGHASH_SINGLE + ANYONECANPAY commits to ONE input and ONE output. It indicates that anyone
+/// may add additional value to the transaction, and route value to any other location. The
+/// signed input and output must be included in the fully-formed transaction at the same index in
+/// their respective vectors.
+///
+/// For BIP143 sighash documentation, see here:
+///
+/// - https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
+///
+/// # Note
+///
+/// After signing the digest, you MUST append the sighash indicator byte to the resulting
+/// signature.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct WitnessSighashArgs<'a> {
     /// The index of the input we'd like to sign
@@ -287,9 +373,7 @@ pub struct WitnessTx {
 }
 
 impl WitnessTx {
-    /// Returns a legacy transaction with identical properties (less witnesses). Used to override
-    /// `write_legacy_sighash_preimage`. When signing a transaction, legacy inputs are signed
-    /// with legacy sighash, and witness inputs are signed with witness sighash.
+    /// Returns a legacy transaction with identical properties (less witnesses).
     pub fn without_witness(&self) -> LegacyTx {
         self.legacy_tx.clone()
     }
@@ -358,7 +442,7 @@ impl<'a> Transaction<'a> for WitnessTx {
     type Digest = Hash256Digest;
     type TxIn = TxIn;
     type TxOut = TxOut;
-    type SighashArgs = LegacySighashArgs<'a>;
+    type SighashArgs = WitnessSighashArgs<'a>;
     type TXID = TXID;
     type HashWriter = Hash256Writer;
 
@@ -408,13 +492,12 @@ impl<'a> Transaction<'a> for WitnessTx {
         w.finish_marked()
     }
 
-    // TODO: This allocates an _extra_ copy tx. So we temporarily have 3 txns. Not ideal.
-    fn write_legacy_sighash_preimage<W: Write>(
+    fn write_sighash_preimage<W: Write>(
         &self,
         writer: &mut W,
-        args: &LegacySighashArgs
+        args: &Self::SighashArgs,
     ) -> TxResult<()> {
-        self.legacy_tx.write_legacy_sighash_preimage(writer, args)
+        self.write_witness_sighash_preimage(writer, args)
     }
 }
 
@@ -453,6 +536,10 @@ impl<'a> WitnessTransaction<'a> for WitnessTx {
         let mut w = Self::HashWriter::default();
         self.serialize(&mut w).expect("No IOError from SHA2");
         w.finish_marked()
+    }
+
+    fn write_legacy_sighash_preimage<W: Write>(&self, writer: &mut W, args: &LegacySighashArgs) -> Result<(), Self::Error> {
+        self.legacy_tx.write_sighash_preimage(writer, args)
     }
 
     fn write_witness_sighash_preimage<W>(
@@ -571,13 +658,13 @@ mod tests {
             prevout_script: &prevout_script,
         };
 
-        assert_eq!(tx.legacy_sighash(&args).unwrap(), all);
+        assert_eq!(tx.sighash(&args).unwrap(), all);
         args.sighash_flag = Sighash::AllACP;
-        assert_eq!(tx.legacy_sighash(&args).unwrap(), all_anyonecanpay);
+        assert_eq!(tx.sighash(&args).unwrap(), all_anyonecanpay);
         args.sighash_flag = Sighash::Single;
-        assert_eq!(tx.legacy_sighash(&args).unwrap(), single);
+        assert_eq!(tx.sighash(&args).unwrap(), single);
         args.sighash_flag = Sighash::SingleACP;
-        assert_eq!(tx.legacy_sighash(&args).unwrap(), single_anyonecanpay);
+        assert_eq!(tx.sighash(&args).unwrap(), single_anyonecanpay);
     }
 
     #[test]
@@ -604,16 +691,16 @@ mod tests {
             prevout_value: 120000,
         };
 
-        assert_eq!(tx.witness_sighash(&args).unwrap(), all);
+        assert_eq!(tx.sighash(&args).unwrap(), all);
 
         args.sighash_flag = Sighash::AllACP;
-        assert_eq!(tx.witness_sighash(&args).unwrap(), all_anyonecanpay);
+        assert_eq!(tx.sighash(&args).unwrap(), all_anyonecanpay);
 
         args.sighash_flag = Sighash::Single;
-        assert_eq!(tx.witness_sighash(&args).unwrap(), single);
+        assert_eq!(tx.sighash(&args).unwrap(), single);
 
         args.sighash_flag = Sighash::SingleACP;
-        assert_eq!(tx.witness_sighash(&args).unwrap(), single_anyonecanpay);
+        assert_eq!(tx.sighash(&args).unwrap(), single_anyonecanpay);
     }
 
     #[test]
@@ -640,16 +727,16 @@ mod tests {
             prevout_value: 120000,
         };
 
-        assert_eq!(tx.witness_sighash(&args).unwrap(), all);
+        assert_eq!(tx.sighash(&args).unwrap(), all);
 
         args.sighash_flag = Sighash::AllACP;
-        assert_eq!(tx.witness_sighash(&args).unwrap(), all_anyonecanpay);
+        assert_eq!(tx.sighash(&args).unwrap(), all_anyonecanpay);
 
         args.sighash_flag = Sighash::Single;
-        assert_eq!(tx.witness_sighash(&args).unwrap(), single);
+        assert_eq!(tx.sighash(&args).unwrap(), single);
 
         args.sighash_flag = Sighash::SingleACP;
-        assert_eq!(tx.witness_sighash(&args).unwrap(), single_anyonecanpay);
+        assert_eq!(tx.sighash(&args).unwrap(), single_anyonecanpay);
     }
 
     #[test]
@@ -675,15 +762,15 @@ mod tests {
             prevout_script: &prevout_script,
         };
 
-        assert_eq!(tx.legacy_sighash(&args).unwrap(), all);
+        assert_eq!(tx.sighash(&args).unwrap(), all);
 
         args.sighash_flag = Sighash::AllACP;
-        assert_eq!(tx.legacy_sighash(&args).unwrap(), all_anyonecanpay);
+        assert_eq!(tx.sighash(&args).unwrap(), all_anyonecanpay);
 
         args.sighash_flag = Sighash::Single;
-        assert_eq!(tx.legacy_sighash(&args).unwrap(), single);
+        assert_eq!(tx.sighash(&args).unwrap(), single);
 
         args.sighash_flag = Sighash::SingleACP;
-        assert_eq!(tx.legacy_sighash(&args).unwrap(), single_anyonecanpay);
+        assert_eq!(tx.sighash(&args).unwrap(), single_anyonecanpay);
     }
 }

@@ -2,7 +2,7 @@ use std::ops::{Index, IndexMut};
 
 use crate::types::primitives::{ConcretePrefixVec, PrefixVec, TxResult};
 
-/// A WitnessStackItem is a marked ConcretePrefixVec<u8> intended for use in witnesses. Each
+/// A WitnessStackItem is a marked `ConcretePrefixVec<u8>` intended for use in witnesses. Each
 /// Witness is a `PrefixVec<WitnessStackItem>`. The Transactions `witnesses` is a non-prefixed
 /// `Vec<Witness>.`
 ///
@@ -11,8 +11,6 @@ use crate::types::primitives::{ConcretePrefixVec, PrefixVec, TxResult};
 ///
 /// TODO: Witness stack items do not permit non-minimal VarInt prefixes. Return an error if the
 /// user tries to pass one in to `set_prefix_len`.
-///
-/// TODO: change set_items into push_item.
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct WitnessStackItem(ConcretePrefixVec<u8>);
 

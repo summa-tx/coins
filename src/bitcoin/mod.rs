@@ -1,3 +1,6 @@
+//! Holds concrete type implementations for Bitcoin networks. This includes Mainnet, Testnet, and
+//! Signet.
+
 pub mod builder;
 pub mod enc;
 pub mod hashes;

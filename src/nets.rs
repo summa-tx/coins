@@ -1,12 +1,14 @@
+//! The `nets` module defines an abstract `Network.` The `Network` trait is a highly-abstracted
+//! representation of the relationships between types in a UTXO network. Concrete implementations
+//! for various Bitcoin networks are found in the `bitcoin` module.
+
 use crate::{
     bitcoin::script::{Script},  // TODO: REFACTOR THIS OUT AND GENERALIZE
     builder::{TxBuilder},
     types::{
         tx::{Transaction},
     },
-    enc::{
-        encoder::AddressEncoder,
-    },
+    enc::AddressEncoder,
 };
 
 /// A Network describes a possible Bitcoin-like network. It is primarily a collection of types
@@ -17,10 +19,6 @@ use crate::{
 /// we provide Networks to enforce relationships between them. This is why the `Network` trait's
 /// associated types are complex. It exists to guarantee consistency of associated types across a
 /// large number of disparate elements.
-///
-/// In particular, we want to guarantee that `Tx` and `WTx` use the same `TxIn` and `TxOut`
-/// types, that the `Builder` uses that specific pair of `Tx` and `WTx` and that the `Builder`
-/// uses the correct `Encoder`.
 ///
 /// ```compile_fail
 /// let b = BitcoinMainnet::tx_builder();

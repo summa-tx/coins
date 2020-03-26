@@ -14,9 +14,7 @@ use crate::{
         },
         script::{Script, ScriptType},
     },
-    enc::{
-        encoder::{AddressEncoder},
-    },
+    enc::{AddressEncoder},
     types::{
         primitives::{PrefixVec},
     },
@@ -35,9 +33,9 @@ pub enum Address {
     WSH(String),
 }
 
-/// NetworkParams holds the encoding paramteres for a network. Currently this is composed of the
-/// address version bytes for Legacy PKH and SH addresses, and the bech32 human-readable prefix
-/// for witness addresses.
+/// NetworkParams holds the encoding paramteres for a bitcoin-like network. Currently this is
+/// composed of the address version bytes for Legacy PKH and SH addresses, and the bech32
+/// human-readable prefix for witness addresses.
 pub trait NetworkParams {
     /// The BECH32 HRP. "bc" for mainnet.
     const HRP: &'static str;

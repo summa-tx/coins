@@ -10,29 +10,24 @@ use crate::{
         txout::{TxOut},
     },
     builder::{TxBuilder},
-    enc::{
-        encoder::{AddressEncoder},
-    },
+    enc::{AddressEncoder},
     types::{
         tx::{Transaction},
     },
 };
 
+/// A `TxBuilder` that builds Bitcoin transactions. This trait extends `TxBuilder` to provide
+/// easy conversion between Legacy and Witness bitcoin builders.
 pub trait BitcoinBuilder<'a>: TxBuilder<'a> {
     /// A WitnessTransaction type. This represents the Witness transaction associated with this
     /// builder. We add this associated type so that `extend_witnesses` can accept a vector of
     /// witnesses.
-    ///
-    /// If implementing TxBuilder for a network that doesn't support Witnesses, make a dummy type
-    /// that implements WitnessTransaction, and use it here.
     type WitnessTransaction: WitnessTransaction<'a>;
 
     /// An associated WitnessBuilder. This is used as the return type for `extend_witnesses`.
     /// Calling `extend_witnesses` should return a new `WitnessBuilder` with all information
     /// carried over. This allows for a magic builder experience, where the user can be naive of
     /// the changed type.
-    ///
-    /// If implementing TxBuilder for a network that doesn't support Witnesses, use `Self` here.
     type WitnessBuilder: TxBuilder<'a>;
 
     /// Add a set of witnesses to the transaction, and return a witness builder.
@@ -41,11 +36,8 @@ pub trait BitcoinBuilder<'a>: TxBuilder<'a> {
     I: IntoIterator<Item = <Self::WitnessTransaction as WitnessTransaction<'a>>::Witness>;
 }
 
-
 /// A WitnessTxBuilder. This should provide all the same functionality as the TxBuilder, but build
 /// Witness Txs.
-///
-/// If your network does not support witnesses, set `type LegacyBuilder = Self;`.
 pub trait WitTxBuilder<'a>: BitcoinBuilder<'a> {
     type LegacyBuilder: BitcoinBuilder<'a>;
 }
@@ -84,13 +76,6 @@ impl<T: AddressEncoder> From<LegacyBuilder<T>> for WitnessBuilder<T> {
 impl<T: AddressEncoder> From<WitnessBuilder<T>> for LegacyBuilder<T> {
     fn from(t: WitnessBuilder<T>) -> LegacyBuilder<T> {
         t.builder
-        // LegacyBuilder {
-        //     version: t.version,
-        //     vin: t.vin,
-        //     vout: t.vout,
-        //     locktime: t.locktime,
-        //     encoder: t.encoder,
-        // }
     }
 }
 

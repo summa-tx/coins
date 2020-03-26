@@ -1,32 +1,16 @@
 # Builder Interface Notes
 
-Great:
+Library Usage:
 ```rust
-let prevout: Prevout;
-let tx_ins: Vec<TxIn>;
-let tx_outs = Vec<TxOut>;
+use riemann::{BitcoinMainnet};
 
-let builder = Network::new_transaction_builder();
+let b = BitcoinMainnet::tx_builder()
+    .version(2)
+    .spend(Outpoint::default(), 0xaabbccdd)
+    .pay(0x8888_8888_8888_8888, Address::WPKH("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned()))
+    .pay(0x7777_7777_7777_7777, Address::SH("377mKFYsaJPsxYSB5aFfx8SW3RaN5BzZVh".to_owned()))
+    .build()
+    .serialize_hex();
 
-let tx: WitnessTx = builder
-  .version(2)
-  .spend(prevout, sequence)
-  .extend_inputs(tx_ins)
-  .pay(value, address)
-  .pay(value, output_script)
-  .extend_outputs(tx_outs)
-  .witness(0, witness)         /// Should always output WitnessTx
-  .locktime(5801238)
-  .build();
-
-let builder = Network::new_transaction_builder();
-let legacy: LegacyTx = builder
-  .from("HEX_ENCODED_TX")
-  .spend(prevout, sequence)
-  .build();
-
-let builder = Network::new_transaction_builder();
-let another: WitnessTx = builder
-  .from(legacy)
-  .build();
+println!("{:?}", b);
 ```

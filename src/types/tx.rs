@@ -2,7 +2,7 @@ use std::io::Write;
 
 use crate::{
     hashes::{
-        marked::{DigestMarker, MarkedHash, MarkedHashWriter},
+        marked::{DigestMarker, MarkedDigest, MarkedDigestWriter},
     },
     types::{
         primitives::{Ser},
@@ -26,9 +26,9 @@ pub trait Transaction<'a>: Ser {
     /// A type describing arguments for the sighash function for this transaction
     type SighashArgs;
     /// A marked hash (see crate::hashes::marked) to be used as teh transaction ID type.
-    type TXID: MarkedHash<Self::Digest>;
+    type TXID: MarkedDigest<Self::Digest>;
     /// A type that implements `HashWriter`. Used to generate the Sighash
-    type HashWriter: MarkedHashWriter<Self::Digest>;
+    type HashWriter: MarkedDigestWriter<Self::Digest>;
 
     fn new<I, O>(
         version: u32,
@@ -61,56 +61,19 @@ pub trait Transaction<'a>: Ser {
         w.finish_marked()
     }
 
-    /// Serializes the transaction in the sighash format, depending on the args provided. Writes
-    /// the result to `writer`. Used in `legacy_sighash`. Abstracts of the sighash serialization
-    /// logic from the hasher used.
-    ///
-    /// SIGHASH_ALL commits to ALL inputs, and ALL outputs. It indicates that
-    /// no further modification of the transaction is allowed without
-    /// invalidating the signature.
-    ///
-    /// SIGHASH_ALL + ANYONECANPAY commits to ONE input and ALL outputs. It
-    /// indicates that anyone may add additional value to the transaction, but
-    /// that no one may modify the payments made. Any extra value added above
-    /// the sum of output values will be given to miners as part of the tx fee.
-    ///
-    /// SIGHASH_SINGLE commits to ALL inputs, and ONE output. It indicates that/
-    /// anyone may append additional outputs to the transaction to reroute
-    /// funds from the inputs. Additional inputs cannot be added without
-    /// invalidating the signature. It is logically difficult to use securely,
-    /// as it consents to funds being moved, without specifying their
-    /// destination.
-    ///
-    /// SIGHASH_SINGLE commits specifically the the output at the same index as
-    /// the input being signed. If there is no output at that index, (because,
-    /// e.g. the input vector is longer than the output vector) it behaves
-    /// insecurely, and we do not implement that protocol bug.
-    ///
-    /// SIGHASH_SINGLE + ANYONECANPAY commits to ONE input and ONE output. It
-    /// indicates that anyone may add additional value to the transaction, and
-    /// route value to any other location. The signed input and output must be
-    /// included in the fully-formed transaction at the same index in their
-    /// respective vectors.
-    ///
-    /// For Legacy sighash documentation, see here:
-    ///
-    /// - https://en.bitcoin.it/wiki/OP_CHECKSIG#Hashtype_SIGHASH_ALL_.28default.29
-    ///
-    /// # Note
-    ///
-    /// After signing the digest, you MUST append the sighash indicator
-    /// byte to the resulting signature.
-    fn write_legacy_sighash_preimage<W: Write>(
+    /// Generate the digest that must be signed to authorize inputs. For Bitcoin transactions
+    /// this is a function of the transaction, and the input's prevout. What follows
+    fn write_sighash_preimage<W: Write>(
         &self,
         writer: &mut W,
         _args: &Self::SighashArgs
     ) -> Result<(), Self::Error>;
 
-    /// Calls `write_legacy_sighash_preimage` with the provided arguments and a new HashWriter.
+    /// Calls `write_sighash_preimage` with the provided arguments and a new HashWriter.
     /// Returns the sighash digest which should be signed.
-    fn legacy_sighash(&self, args: &Self::SighashArgs) -> Result<Self::Digest, Self::Error> {
+    fn sighash(&self, args: &Self::SighashArgs) -> Result<Self::Digest, Self::Error> {
         let mut w = Self::HashWriter::default();
-        self.write_legacy_sighash_preimage(&mut w, args)?;
+        self.write_sighash_preimage(&mut w, args)?;
         Ok(w.finish())
    }
 }

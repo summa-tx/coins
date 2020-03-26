@@ -45,30 +45,45 @@ impl From<FromBase58CheckError> for EncodingError {
     }
 }
 
+/// A simple result type alias
 pub type EncodingResult<T> = Result<T, EncodingError>;
 
+/// Encode a byte vector to bech32. This function expects `v` to be a witness program, and will
+/// return an `UnknownScriptType` if it does not meet the witness program format.
 pub fn encode_bech32(hrp: &str, v: &[u8]) -> EncodingResult<String> {
     let (version_and_len, payload) = v.split_at(2);
+    if version_and_len[0] > 16 || version_and_len[1] as usize != payload.len() {
+        return Err(EncodingError::UnknownScriptType)
+    };
     let mut v = vec![u5::try_from_u8(version_and_len[0])?];
     v.extend(&payload.to_base32());
     b32_encode(hrp, &v).map_err(|v| v.into())
 }
 
+/// Decode a witness program from a bech32 string. Caller specifies an expected HRP. If a
+/// different HRP is found, returns `WrongHRP`.
 pub fn decode_bech32(expected_hrp: &str, s: &str) -> EncodingResult<Vec<u8>> {
     let (hrp, data) = b32_decode(&s)?;
     if hrp != expected_hrp { return Err(EncodingError::WrongHRP{got: hrp, expected: expected_hrp.to_owned()}) }
 
+    // Extract the witness version and payload
     let (v, p) = data.split_at(1);
     let payload = Vec::from_base32(&p)?;
+
+    // Encode as witness program: witness version, then len(payload), then payload.
     let mut s: Vec<u8> = vec![v[0].to_u8(), payload.len() as u8];
     s.extend(&payload);
+
     Ok(s)
 }
 
+/// Encodes a byte slice to base58check with the specified version byte.
 pub fn encode_base58(version: u8, v: &[u8]) -> String {
     v.to_base58check(version)
 }
 
+/// Decodes base58check into a byte string. Returns a `FromBase58CheckError` if the checksum or
+/// encoding is wrong. Returns a `WrongVersion` if it decodes an unexpected version.
 pub fn decode_base58(expected_version: u8, s: &str) -> EncodingResult<Vec<u8>> {
     let (version, data) = s.from_base58check()?;
     if version != expected_version { return Err(EncodingError::WrongVersion{got: version, expected: expected_version}) };

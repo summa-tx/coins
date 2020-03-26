@@ -2,10 +2,11 @@ use std::io::{Read, Write};
 use bitcoin_spv::types::{Hash256Digest};
 
 use crate::{
-    hashes::{MarkedHash},
+    hashes::{MarkedDigest},
     types::primitives::{Ser, TxResult}
 };
 
+/// A marked `Hash256Digest` that represents Bitcoin Transaction IDs
 #[derive(Copy, Clone, Default, Debug, Eq, PartialEq)]
 pub struct TXID(pub Hash256Digest);
 
@@ -31,7 +32,7 @@ impl Ser for TXID {
         Ok(writer.write(&self.0)?)
     }
 }
-impl MarkedHash<Hash256Digest> for TXID {
+impl MarkedDigest<Hash256Digest> for TXID {
     fn new(hash: Hash256Digest) -> Self {
         Self(hash)
     }
@@ -51,6 +52,7 @@ impl Into<Hash256Digest> for TXID {
     }
 }
 
+/// A marked `Hash256Digest` that represents Bitcoin Witness Transaction IDs
 #[derive(Copy, Clone, Default, Debug, Eq, PartialEq)]
 pub struct WTXID(pub Hash256Digest);
 
@@ -76,7 +78,7 @@ impl Ser for WTXID {
         Ok(writer.write(&self.0)?)
     }
 }
-impl MarkedHash<Hash256Digest> for WTXID {
+impl MarkedDigest<Hash256Digest> for WTXID {
     fn new(hash: Hash256Digest) -> Self {
         Self(hash)
     }

@@ -1,3 +1,6 @@
+//! Specifies an abstract `AddressEncoder` that is used to convert `Address` to/from the in-memory
+//! representation of the associated spending constraint.
+
 use crate::{
     bitcoin::script::{Script},  // TODO: REFACTOR THIS OUT AND GENERALIZE
 };
@@ -7,8 +10,9 @@ use crate::{
 /// scripts and vice versa. It also contains a function that wraps a string in the appropriate
 /// address type.
 ///
-/// The associated type defines what the encoder considers to be an "address."
-/// The default BitcoinEncoder below uses the `Address` enum above.
+/// The associated `Address` type defines what the encoder considers to be an "address."
+///
+/// A Bitcoin encoder can be found in the `bitcoin` module.
 pub trait AddressEncoder {
     /// A type representing the encoded address
     type Address;

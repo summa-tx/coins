@@ -21,17 +21,17 @@ use crate::{
         txout::{TxOut},
     },
     nets::{Network},
-    enc::{
-        encoder::{
-            AddressEncoder,
-        },
-    },
+    enc::{AddressEncoder},
 };
 
+/// A trait for a Bitcoin network. Specifies that Witness Txns must use the same Input and Output
+/// format as Legacy transactions.
 pub trait BitcoinNetwork<'a>: Network<'a> {
     type WTx: WitnessTransaction<'a, TxIn = Self::TxIn, TxOut = Self::TxOut>;
 }
 
+/// A newtype for Bitcoin networks, parameterized by an encoder. We change the encoder to
+/// differentiate between main, test, and signet.
 pub struct Bitcoin<T: AddressEncoder>(PhantomData<T>);
 
 impl<'a, T> Network<'a> for Bitcoin<T>
@@ -54,16 +54,23 @@ where
     type WTx = WitnessTx;
 }
 
+
+/// A fully-parameterized BitcoinMainnet. This is the main interface for accessing the library.
 pub type BitcoinMainnet<'a> = Bitcoin<MainnetEncoder>;
+
+/// A fully-parameterized BitcoinTestnet. This is the main interface for accessing the library.
 pub type BitcoinRegtest<'a> = Bitcoin<TestnetEncoder>;
+
+/// A fully-parameterized BitcoinSignet. This is the main interface for accessing the library.
 pub type BitcoinSignet<'a> = Bitcoin<SignetEncoder>;
+
 
 #[cfg(test)]
 mod test {
     use super::*;
     use crate::{
         bitcoin::txin::{Outpoint},
-        build::{TxBuilder},
+        builder::{TxBuilder},
         types::primitives::{Ser},
     };
 

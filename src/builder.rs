@@ -1,8 +1,9 @@
+//! The `builder` module defines an abstract `TxBuilder` trait. A concrete implementation for
+//! Bitcoin can be found in the `bitcoin` module
+
 use crate::{
     bitcoin::{Outpoint},  // TODO: REFACTOR OUT AND GENERALIZE
-    enc::{
-        encoder::{AddressEncoder},
-    },
+    enc::{AddressEncoder},
     types::{
         tx::{self, Transaction},
     },
@@ -23,26 +24,31 @@ pub trait TxBuilder<'a> {
     fn new() -> Self;
 
     /// Set or overwrite the transaction version.
+    ///
+    /// If implementing a network without a version field, feel free to leave this as a NOP
     fn version(self, version: u32) -> Self;
 
-    /// Spend an outpoint. Adds an unsigned TxIn spending the associated outpoint with the
+    /// TODO: GENERALIZE
+    /// Spend an outpoint. Adds an unsigned input spending the associated outpoint with the
     /// specified sequence number.
     fn spend<I: Into<Outpoint>>(self, prevout: I, sequence: u32) -> Self;
 
-    /// Pay an Address. Adds a TxOut paying `value` to `address.`
+    /// Pay an Address. Adds an output paying `value` to `address.`
     fn pay(self, value: u64, address: <Self::Encoder as AddressEncoder>::Address) -> Self;
 
-    /// Add a set of TxIns to the transaction.
+    /// Add a set of inputs to the transaction.
     fn extend_inputs<I>(self, inputs: I) -> Self
     where
         I: IntoIterator<Item = <Self::Transaction as tx::Transaction<'a>>::TxIn>;
 
-    /// Add a set of TxOuts to the transaction.
+    /// Add a set of outputs to the transaction.
     fn extend_outputs<I>(self, outputs: I) -> Self
     where
         I: IntoIterator<Item = <Self::Transaction as tx::Transaction<'a>>::TxOut>;
 
     /// Set or overwrite the transaction locktime.
+    ///
+    /// If implementing a network without a locktime field, feel free to leave this as a NOP
     fn locktime(self, locktime: u32) -> Self;
 
     /// Consume the builder and produce a transaction from the builder's current state.
