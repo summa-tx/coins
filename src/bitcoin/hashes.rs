@@ -1,102 +1,68 @@
+//! This module holds `MarkedDigest` types used by Bitcoin transactions. Currently we represent
+//! only `TXID`s and `WTXID`s. In the future we will also represent
+
 use std::io::{Read, Write};
 use bitcoin_spv::types::{Hash256Digest};
 
 use crate::{
-    hashes::{MarkedDigest},
-    types::primitives::{Ser, TxResult}
+    hashes::marked::{MarkedDigest},
+    ser::{Ser, SerResult}
 };
 
-/// A marked `Hash256Digest` that represents Bitcoin Transaction IDs
-#[derive(Copy, Clone, Default, Debug, Eq, PartialEq)]
-pub struct TXID(pub Hash256Digest);
 
-impl Ser for TXID {
-    fn serialized_length(&self) -> usize {
-        32
-    }
+macro_rules! mark_hash {
+    ($hash_name:ident, $hash_type:ty) => {
+        /// A marked `Hash256Digest` that represents Bitcoin Transaction IDs
+        #[derive(Copy, Clone, Default, Debug, Eq, PartialEq)]
+        pub struct $hash_name(pub $hash_type);
+        impl Ser for $hash_name {
+            fn serialized_length(&self) -> usize {
+                32
+            }
 
-    fn deserialize<R>(reader: &mut R, _limit: usize) -> TxResult<Self>
-    where
-        R: Read,
-        Self: std::marker::Sized
-    {
-        let mut buf = Hash256Digest::default();
-        reader.read_exact(&mut buf)?;
-        Ok(Self(buf))
-    }
+            fn deserialize<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
+            where
+            R: Read,
+            Self: std::marker::Sized
+            {
+                let mut buf = <$hash_type>::default();
+                reader.read_exact(&mut buf)?;
+                Ok(Self(buf))
+            }
 
-    fn serialize<W>(&self, writer: &mut W) -> TxResult<usize>
-    where
-        W: Write
-    {
-        Ok(writer.write(&self.0)?)
+            fn serialize<W>(&self, writer: &mut W) -> SerResult<usize>
+            where
+            W: Write
+            {
+                Ok(writer.write(&self.0)?)
+            }
+        }
+        impl MarkedDigest for $hash_name {
+            type Digest = $hash_type;
+            fn new(hash: $hash_type) -> Self {
+                Self(hash)
+            }
+
+            fn internal(&self) -> $hash_type {
+                self.0
+            }
+        }
+        impl From<$hash_type> for $hash_name {
+            fn from(h: $hash_type) -> Self {
+                Self::new(h)
+            }
+        }
+        impl Into<$hash_type> for $hash_name {
+            fn into(self) -> $hash_type {
+                self.internal()
+            }
+        }
     }
 }
-impl MarkedDigest<Hash256Digest> for TXID {
-    fn new(hash: Hash256Digest) -> Self {
-        Self(hash)
-    }
 
-    fn internal(&self) -> Hash256Digest {
-        self.0
-    }
-}
-impl From<Hash256Digest> for TXID {
-    fn from(h: Hash256Digest) -> Self {
-        Self::new(h)
-    }
-}
-impl Into<Hash256Digest> for TXID {
-    fn into(self) -> Hash256Digest {
-        self.internal()
-    }
-}
 
-/// A marked `Hash256Digest` that represents Bitcoin Witness Transaction IDs
-#[derive(Copy, Clone, Default, Debug, Eq, PartialEq)]
-pub struct WTXID(pub Hash256Digest);
-
-impl Ser for WTXID {
-    fn serialized_length(&self) -> usize {
-        32
-    }
-
-    fn deserialize<R>(reader: &mut R, _limit: usize) -> TxResult<Self>
-    where
-        R: Read,
-        Self: std::marker::Sized
-    {
-        let mut buf = Hash256Digest::default();
-        reader.read_exact(&mut buf)?;
-        Ok(Self(buf))
-    }
-
-    fn serialize<W>(&self, writer: &mut W) -> TxResult<usize>
-    where
-        W: Write
-    {
-        Ok(writer.write(&self.0)?)
-    }
-}
-impl MarkedDigest<Hash256Digest> for WTXID {
-    fn new(hash: Hash256Digest) -> Self {
-        Self(hash)
-    }
-
-    fn internal(&self) -> Hash256Digest {
-        self.0
-    }
-}
-impl From<Hash256Digest> for WTXID {
-    fn from(h: Hash256Digest) -> Self {
-        Self::new(h)
-    }
-}
-impl Into<Hash256Digest> for WTXID {
-    fn into(self) -> Hash256Digest {
-        self.internal()
-    }
-}
+mark_hash!(TXID, Hash256Digest);
+mark_hash!(WTXID, Hash256Digest);
 
 #[cfg(test)]
 mod test {

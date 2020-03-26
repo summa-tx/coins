@@ -1,6 +1,12 @@
+//! Simple types for `Script` and `WitnessStackItem`, each of which are treated as opaque, wrapped
+//! `ConcretePrefixVec<u8>` instances.
+
 use std::ops::{Index, IndexMut};
 
-use crate::types::primitives::{ConcretePrefixVec, PrefixVec, TxResult};
+use crate::{
+    ser::{SerResult},
+    types::primitives::{ConcretePrefixVec, PrefixVec},
+};
 
 /// A WitnessStackItem is a marked `ConcretePrefixVec<u8>` intended for use in witnesses. Each
 /// Witness is a `PrefixVec<WitnessStackItem>`. The Transactions `witnesses` is a non-prefixed
@@ -21,11 +27,11 @@ impl PrefixVec for WitnessStackItem {
         Self(Default::default())
     }
 
-    fn set_items(&mut self, v: Vec<Self::Item>) -> TxResult<()> {
+    fn set_items(&mut self, v: Vec<Self::Item>) -> SerResult<()> {
         self.0.set_items(v)
     }
 
-    fn set_prefix_len(&mut self, prefix_len: u8) -> TxResult<()> {
+    fn set_prefix_len(&mut self, prefix_len: u8) -> SerResult<()> {
         self.0.set_prefix_len(prefix_len)
     }
 
@@ -82,16 +88,23 @@ impl Extend<u8> for WitnessStackItem {
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct Script(ConcretePrefixVec<u8>);
 
+/// Standard script types, and a non-standard type for all other scripts.
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum ScriptType {
+    /// Pay to Pubkeyhash.
     PKH,
+    /// Pay to Scripthash.
     SH,
+    /// Pay to Witness Pubkeyhash.
     WPKH,
+    /// Pay to Witness Scripthash.
     WSH,
+    /// Nonstandard or unknown `Script` type. May be a newer witness version.
     NonStandard
 }
 
 impl Script {
+    /// Inspect the `Script` to determine its type.
     pub fn determine_type(&self) -> ScriptType {
         let items = self.0.items();
         match self.0.len() {
@@ -140,11 +153,11 @@ impl PrefixVec for Script {
         Self(Default::default())
     }
 
-    fn set_items(&mut self, v: Vec<Self::Item>) -> TxResult<()> {
+    fn set_items(&mut self, v: Vec<Self::Item>) -> SerResult<()> {
         self.0.set_items(v)
     }
 
-    fn set_prefix_len(&mut self, prefix_len: u8) -> TxResult<()> {
+    fn set_prefix_len(&mut self, prefix_len: u8) -> SerResult<()> {
         self.0.set_prefix_len(prefix_len)
     }
 
@@ -194,12 +207,20 @@ impl Extend<u8> for Script {
     }
 }
 
+/// A Witness is a `PrefixVec` of `WitnessStackItem`s. This witness corresponds to a single input.
+///
+/// # Note
+///
+/// The transaction's witness is composed of many of these `Witness`es in an UNPREFIXED vector.
 pub type Witness = ConcretePrefixVec<WitnessStackItem>;
 
 #[cfg(test)]
 mod test{
     use super::*;
-    use crate::types::primitives::{Ser, PrefixVec};
+    use crate::{
+        ser::{Ser},
+        types::primitives::{PrefixVec}
+    };
 
     #[test]
     fn it_serializes_and_derializes_scripts() {

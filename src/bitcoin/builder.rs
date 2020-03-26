@@ -1,12 +1,43 @@
+//! Implementations of the `TxBuilder` for Bitcoin transactions. This module includes both a
+//! `LegacyBuilder` for legacy transactions, and a `WitnessBuilder` for Witness transactions
+//! The two types are very similar, but a witness builder will always build witness transactions.
+//! As soon as the caller adds a witness to a legacy builder, it is substituted behind-the-scenes
+//! with a witness builder. This means that the caller doesn't typically need to worry about the
+//! implementation details. They can simply use the builder transparently.
+//!
+//! The builder can also be explicitly converted using the `as_witness` and `as_legacy` functions.
+//!
+//! The builder is best accessed via the preconstructed `BitcoinMainnet` objects in `nets.rs`.
+//!
+//! ```compile_fail
+//! let legacy_builder = BitcoinMainnet::tx_builder();
+//! let tx = legacy_builder
+//!  .version(2)
+//!  .spend(Outpoint::default(), 0xaabbccdd)
+//!  .pay(0x8888_8888_8888_8888, Address::WPKH("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned()))
+//!  .pay(0x7777_7777_7777_7777, Address::SH("377mKFYsaJPsxYSB5aFfx8SW3RaN5BzZVh".to_owned()))
+//!  .build();  // Legacy Transaction output
+//!
+//! let new_legacy_builder = BitcoinMainnet::tx_builder();
+//! let tx = new_legacy_builder
+//!  .version(2)
+//!  .spend(Outpoint::default(), 0xaabbccdd)
+//!  .pay(0x8888_8888_8888_8888, Address::WPKH("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned()))
+//!  .pay(0x7777_7777_7777_7777, Address::SH("377mKFYsaJPsxYSB5aFfx8SW3RaN5BzZVh".to_owned()))
+//!  .locktime(300000)
+//!  .extend_witnesses(vec![/*...*/])   // Automatically converts to a `WitnessBuilder` as soon as you add a witness
+//!  .build();  // Witness Transaction output
+//! ```
+
 use std::marker::{PhantomData};
 
 use crate::{
     bitcoin::{
         bases::{EncodingError},
         encoder::{Address},
-        script::{Script, Witness},
+        script::{Witness},
         transactions::{WitnessTransaction, LegacyTx, WitnessTx},
-        txin::{Outpoint, TxIn},
+        txin::{TxIn},
         txout::{TxOut},
     },
     builder::{TxBuilder},
@@ -34,12 +65,19 @@ pub trait BitcoinBuilder<'a>: TxBuilder<'a> {
     fn extend_witnesses<I>(self, outputs: I) -> Self::WitnessBuilder
     where
     I: IntoIterator<Item = <Self::WitnessTransaction as WitnessTransaction<'a>>::Witness>;
+
+    /// Converts the builder into a witness builder.
+    fn as_witness(self) -> Self::WitnessBuilder;
 }
 
 /// A WitnessTxBuilder. This should provide all the same functionality as the TxBuilder, but build
 /// Witness Txs.
 pub trait WitTxBuilder<'a>: BitcoinBuilder<'a> {
+    /// The associated `LegacyBuilder` type..
     type LegacyBuilder: BitcoinBuilder<'a>;
+
+    /// Convert the witness builder into a legacy builder. Discards any existing witnesses.
+    fn as_legacy(self) -> Self::LegacyBuilder;
 }
 
 /// BitcoinBuilder provides a struct on which we implement `TxBuilder` for legacy Bitcoin
@@ -102,10 +140,13 @@ where
         self
     }
 
-    fn spend<I: Into<Outpoint>>(mut self, prevout: I, sequence: u32) -> Self {
-        self.vin.push(TxIn::new(prevout.into(), Script::default(), sequence));
-        self
-    }
+    // fn spend<I, M>(mut self, prevout: I, sequence: u32) -> Self
+    // where
+    //     I: Into<Outpoint<TXID>>,
+    // {
+    //     self.vin.push(TxIn::new(prevout.into(), Script::default(), sequence));
+    //     self
+    // }
 
     fn pay(mut self, value: u64, address: Address) -> Self {
         let output = TxOut::new(value, T::decode_address(address).expect("TODO: handle"));
@@ -113,7 +154,10 @@ where
         self
     }
 
-    fn extend_inputs<I: IntoIterator<Item=TxIn>>(mut self, inputs: I) -> Self  {
+    fn extend_inputs<I>(mut self, inputs: I) -> Self
+    where
+        I: IntoIterator<Item = TxIn>
+    {
         self.vin.extend(inputs);
         self
     }
@@ -144,6 +188,10 @@ where
     fn extend_witnesses<I: IntoIterator<Item=Witness>>(self, witnesses: I) -> WitnessBuilder<T>  {
         WitnessBuilder::from(self).extend_witnesses(witnesses)
     }
+
+    fn as_witness(self) -> Self::WitnessBuilder {
+        self.into()
+    }
 }
 
 impl<'a, T> TxBuilder<'a> for WitnessBuilder<T>
@@ -166,10 +214,13 @@ where
         self
     }
 
-    fn spend<I: Into<Outpoint>>(mut self, prevout: I, sequence: u32) -> Self {
-        self.builder.vin.push(TxIn::new(prevout.into(), Script::default(), sequence));
-        self
-    }
+    // fn spend<I>(mut self, prevout: I, sequence: u32) -> Self
+    // where
+    //     I: Into<Outpoint<D>>
+    // {
+    //     self.builder.vin.push(TxIn::new(prevout.into(), Script::default(), sequence));
+    //     self
+    // }
 
     /// TODO: address as string
     fn pay(mut self, value: u64, address: Address) -> Self {
@@ -178,7 +229,10 @@ where
         self
     }
 
-    fn extend_inputs<I: IntoIterator<Item=TxIn>>(mut self, inputs: I) -> Self  {
+    fn extend_inputs<I>(mut self, inputs: I) -> Self
+    where
+        I: IntoIterator<Item = TxIn>
+    {
         self.builder.vin.extend(inputs);
         self
     }
@@ -213,6 +267,10 @@ where
         self.witnesses.extend(outputs);
         self
     }
+
+    fn as_witness(self) -> Self::WitnessBuilder {
+        self
+    }
 }
 
 impl<'a, T> WitTxBuilder<'a> for WitnessBuilder<T>
@@ -220,4 +278,9 @@ where
     T: AddressEncoder<Address = Address, Error = EncodingError>
 {
     type LegacyBuilder = LegacyBuilder<T>;
+
+    fn as_legacy(self) -> Self::LegacyBuilder {
+        self.builder
+    }
+
 }

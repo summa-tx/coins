@@ -1,3 +1,5 @@
+//! Defines parameterized Bitcoin encoders for Mainnet, Testnet, and Signet.
+
 use std::{
     marker::{PhantomData},
 };

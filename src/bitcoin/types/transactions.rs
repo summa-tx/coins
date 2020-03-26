@@ -1,4 +1,6 @@
-use std::io::{Read, Write};
+//! Bitcoin transaction types and associated sighash arguments.
+
+use std::io::{Read, Write, Error as IOError};
 use bitcoin_spv::types::{Hash256Digest};
 
 use crate::{
@@ -12,11 +14,45 @@ use crate::{
         hash256::{Hash256Writer},
         marked::{MarkedDigest, MarkedDigestWriter},
     },
+    ser::{Ser, SerError, SerResult},
     types::{
-        primitives::{Ser, TxError, TxResult, PrefixVec},
+        primitives::{PrefixVec},
         tx::{Transaction},
     },
 };
+
+use thiserror::Error;
+
+/// An Error type for transaction objects
+#[derive(Debug, Error)]
+pub enum TxError{
+    /// Sighash NONE is unsupported
+    #[error("SIGHASH_NONE is unsupported")]
+    NoneUnsupported,
+
+    /// Satoshi's sighash single bug. Throws an error here.
+    #[error("SIGHASH_SINGLE bug is unsupported")]
+    SighashSingleBug,
+
+    /// Serialization-related errors
+    #[error("Serialization-related error")]
+    SerError(#[from] SerError),
+
+    /// IOError bubbled up from a `Write` passed to a `Ser::serialize` implementation.
+    #[error("IO-related error")]
+    IOError(#[from] IOError),
+
+    // /// No inputs in vin
+    // #[error("Vin may not be empty")]
+    // EmptyVin,
+    //
+    // /// No outputs in vout
+    // #[error("Vout may not be empty")]
+    // EmptyVout
+}
+
+/// Type alias for result with TxError
+pub type TxResult<T> = Result<T, TxError>;
 
 /// Marker trait for BitcoinTransactions.
 pub trait BitcoinTransaction<'a>: Transaction<'a> {}
@@ -28,8 +64,11 @@ pub trait BitcoinTransaction<'a>: Transaction<'a> {}
 /// contains its Sighash arguments. This allows others to define custom transaction types with
 /// unique functionality.
 pub trait WitnessTransaction<'a>: BitcoinTransaction<'a> {
-    type WTXID: MarkedDigest<Self::Digest>;
+    /// The MarkedDigest type for the Transaction's Witness TXID
+    type WTXID: MarkedDigest<Digest = Self::Digest>;
+    /// The BIP143 sighash args needed to sign an input
     type WitnessSighashArgs;
+    /// A type that represents this transactions per-input `Witness`.
     type Witness;
 
     /// Instantiate a new WitnessTx from the arguments.
@@ -290,7 +329,7 @@ impl Ser for LegacyTx {
         len
     }
 
-    fn deserialize<R>(reader: &mut R, _limit: usize) -> TxResult<Self>
+    fn deserialize<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
     where
         R: Read,
         Self: std::marker::Sized
@@ -307,7 +346,7 @@ impl Ser for LegacyTx {
         })
     }
 
-    fn serialize<T>(&self, writer: &mut T) -> TxResult<usize>
+    fn serialize<T>(&self, writer: &mut T) -> SerResult<usize>
     where
         T: Write
     {
@@ -590,7 +629,7 @@ impl Ser for WitnessTx {
         len
     }
 
-    fn deserialize<R>(reader: &mut R, _limit: usize) -> TxResult<Self>
+    fn deserialize<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
     where
         R: Read,
         Self: std::marker::Sized
@@ -598,7 +637,7 @@ impl Ser for WitnessTx {
         let version = u32::deserialize(reader, 0)?;
         let mut flag = [0u8; 2];
         reader.read_exact(&mut flag)?;
-        if flag != [0u8, 1u8] { return Err(TxError::BadWitnessFlag(flag)); };
+        if flag != [0u8, 1u8] { return Err(SerError::BadWitnessFlag(flag)); };
         let vin = Vin::deserialize(reader, 0)?;
         let vout = Vout::deserialize(reader, 0)?;
         let witnesses = Vec::<Witness>::deserialize(reader, vin.len())?;
@@ -617,7 +656,7 @@ impl Ser for WitnessTx {
         })
     }
 
-    fn serialize<T>(&self, writer: &mut T) -> TxResult<usize>
+    fn serialize<T>(&self, writer: &mut T) -> SerResult<usize>
     where
         T: Write
     {

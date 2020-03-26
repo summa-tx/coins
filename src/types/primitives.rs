@@ -1,141 +1,7 @@
 use std::ops::{Index, IndexMut};
-use std::io::{Read, Write, Error as IOError, Cursor};
+use std::io::{Read, Write};
 
-use bitcoin_spv::types::Hash256Digest;
-
-use thiserror::Error;
-
-/// An Error type for transaction objects
-#[derive(Debug, Error)]
-pub enum TxError{
-    /// IOError bubbled up from a `Write` passed to a `Ser::serialize` implementation.
-    #[error("Serialization error")]
-    IOError(#[from] IOError),
-
-    /// VarInts must be 1, 3, 5, or 9 bytes long
-    #[error("Bad VarInt length. Must be 1,3,5, or 9. Got {:?}.", .0)]
-    BadVarIntLen(u8),
-
-    /// Tried to add more inputs to a prefix vector, but the var int serialized length couldn't
-    /// be incremented.
-    #[error("VarInt length too short. Got {:?}. Need at least {:?} bytes.", .got, .need)]
-    VarIntTooShort{got: u8, need: u8},
-
-    /// Got an unknown flag where we expected a witness flag. May indicate a non-witness
-    /// transaction.
-    #[error("Witness flag not as expected. Got {:?}. Expected {:?}.", .0, [0u8, 1u8])]
-    BadWitnessFlag([u8; 2]),
-
-    /// Sighash NONE is unsupported
-    #[error("SIGHASH_NONE is unsupported")]
-    NoneUnsupported,
-
-    /// Satoshi's sighash single bug. Throws an error here.
-    #[error("SIGHASH_SINGLE bug is unsupported")]
-    SighashSingleBug,
-
-    // /// No inputs in vin
-    // #[error("Vin may not be empty")]
-    // EmptyVin,
-    //
-    // /// No outputs in vout
-    // #[error("Vout may not be empty")]
-    // EmptyVout
-}
-
-/// Type alias for result with TxError
-pub type TxResult<T> = Result<T, TxError>;
-
-/// A simple trait for deserializing from `std::io::Read` and serializing to `std::io::Write`.
-/// We have provided implementations that write LE u8, u32, and u64, and several other basic
-/// types. Bitcoin doesn't use u16, so we have left that unimplemented.
-///
-/// `Ser` is used extensively in Sighash calculation, txid calculations, and transaction
-/// serialization and deserialization.
-pub trait Ser {
-
-    /// Returns the byte-length of the serialized data structure.
-    fn serialized_length(&self) -> usize;
-
-    /// Deserializes an instance of `Self` from a `std::io::Read`
-    fn deserialize<R>(reader: &mut R, _limit: usize) -> TxResult<Self>
-    where
-        R: Read,
-        Self: std::marker::Sized;
-
-    /// Decodes a hex string to a vector, deserializes an instance of `Self` from that vector
-    ///
-    /// TODO: Can panic if the string is non-hex.
-    fn deserialize_hex(s: String) -> TxResult<Self>
-    where
-        Self: std::marker::Sized
-    {
-        let v: Vec<u8> = hex::decode(s).unwrap();
-        let mut cursor = Cursor::new(v);
-        Ok(Self::deserialize(&mut cursor, 0)?)
-    }
-
-    /// Serializes `Self` to a `std::io::Write`
-    fn serialize<W>(&self, writer: &mut W) -> TxResult<usize>
-    where
-        W: Write;
-
-    /// Serializes `self` to a vector, returns the hex-encoded vector
-    fn serialize_hex(&self) -> TxResult<String> {
-        let mut v: Vec<u8> = vec![];
-        self.serialize(&mut v)?;
-        Ok(hex::encode(v))
-    }
-}
-
-impl<A: Ser> Ser for Vec<A> {
-    fn serialized_length(&self) -> usize {
-        // panics. TODO: fix later
-        self.iter().map(|v| v.serialized_length()).sum()
-    }
-
-    fn deserialize<T>(reader: &mut T, limit: usize) -> TxResult<Self>
-    where
-        T: Read,
-        Self: std::marker::Sized
-    {
-        let mut v = vec![];
-        for _ in 0..limit {
-            v.push(A::deserialize(reader, 0)?);
-        }
-        Ok(v)
-    }
-
-    fn serialize<W>(&self, writer: &mut W) -> TxResult<usize>
-    where
-        W: Write
-    {
-        Ok(self.iter().map(|v| v.serialize(writer).unwrap()).sum())
-    }
-}
-
-impl Ser for Hash256Digest {
-    fn serialized_length(&self) -> usize {
-        32
-    }
-
-    fn deserialize<R>(reader: &mut R, _limit: usize) -> TxResult<Self>
-    where
-        R: Read,
-        Self: std::marker::Sized
-    {
-        let mut buf = Hash256Digest::default();
-        reader.read_exact(&mut buf)?;
-        Ok(buf)
-    }
-
-    fn serialize<W>(&self, writer: &mut W) -> TxResult<usize>
-    where
-        W: Write
-    {
-        Ok(writer.write(self)?)
-    }
-}
+use crate::ser::{Ser, SerError, SerResult};
 
 /// Calculates the minimum prefix length for a VarInt encoding `number`
 pub fn prefix_byte_len(number: u64) -> u8 {
@@ -177,35 +43,49 @@ pub fn sufficient_prefix(prefix_bytes: u8, number: usize) -> bool {
 /// of the vector, and the serialized length of the VarInt.
 ///
 /// The `PrefixVec` is a common Bitcoin datastructure, used throughout transactions and blocks.
-/// TODO: change set_items into push_item.
-pub trait PrefixVec {
+pub trait PrefixVec: Ser {
     /// The Item that the represented vector contains.
-    type Item;
+    type Item: Ser;
 
     /// Construct an empty PrefixVec instance.
     fn null() -> Self;
 
-    fn set_items(&mut self, v: Vec<Self::Item>) -> TxResult<()>;
-    fn set_prefix_len(&mut self, prefix_len: u8) -> TxResult<()>;
+    /// Set the underlying items vector. This must also either set the `prefix_len`, or error if
+    /// the prefix_len is insufficient to encode the new item vector length.
+    fn set_items(&mut self, v: Vec<Self::Item>) -> SerResult<()>;
 
+    /// Set the prefix length. This shoumust error if the new length is insufficent to encode the
+    /// current item vector length.
+    fn set_prefix_len(&mut self, prefix_len: u8) -> SerResult<()>;
+
+    /// Push an item to the item vector.
     fn push(&mut self, i: Self::Item);
 
+    /// Return the length of the item vector.
     fn len(&self) -> usize;
+
+    /// Return the encoded length of the VarInt prefix.
     fn len_prefix(&self) -> u8;
+
+    /// Return a reference to the contents of the item vector.
     fn items(&self) -> &[Self::Item];
 
+    /// Return true if the length of the item vector is 0.
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
+    /// Return false if the length of the item vector could be represented by a smaller VarInt.
     fn is_minimal(&self) -> bool {
         self.len_prefix() == prefix_byte_len(self.len() as u64)
     }
 
+    /// Return true if the current `prefix_len` can encode `length`. False otherwise.
     fn is_sufficient(&self, length: usize) -> bool {
         sufficient_prefix(self.len_prefix(), length)
     }
 
+    /// Instantiate a new `PrefixVec` that contains v.
     fn new(v: Vec<Self::Item>) -> Self
     where
         Self: std::marker::Sized
@@ -216,10 +96,12 @@ pub trait PrefixVec {
         s
     }
 
-    fn new_non_minimal(v: Vec<Self::Item>, prefix_bytes: u8) -> TxResult<Self>
+    /// Instantiate a new `PrefixVec` that contains `v` and has a non-minimal `VarInt` prefix.
+    fn new_non_minimal(v: Vec<Self::Item>, prefix_bytes: u8) -> SerResult<Self>
     where
         Self: Sized
     {
+        // TODO: this can cause bad state. Need to check sufficient.
         match prefix_bytes {
             1 | 3 | 5 | 9 => {
                 let mut s = Self::null();
@@ -227,15 +109,15 @@ pub trait PrefixVec {
                 s.set_items(v).expect("");
                 Ok(s)
             },
-            _ => Err(TxError::BadVarIntLen(prefix_bytes))
+            _ => Err(SerError::BadVarIntLen(prefix_bytes))
         }
     }
 }
 
 impl<T, I> Ser for T
 where
-    T: PrefixVec<Item = I>,
     I: Ser,
+    T: PrefixVec<Item = I>,
 {
     fn serialized_length(&self) -> usize {
         let mut length = self.items().iter().map(|v| v.serialized_length()).sum();
@@ -243,7 +125,7 @@ where
         length
     }
 
-    fn deserialize<R>(reader: &mut R, _limit: usize) -> TxResult<T>
+    fn deserialize<R>(reader: &mut R, _limit: usize) -> SerResult<T>
     where
         R: Read,
         Self: std::marker::Sized
@@ -262,11 +144,11 @@ where
             prefix[0] as u64
         };
 
-        let vec = Vec::<I>::deserialize(reader, expected_vector_length as usize)?;
+        let vec = Vec::<<T as PrefixVec>::Item>::deserialize(reader, expected_vector_length as usize)?;
         Ok(T::new_non_minimal(vec, prefix_len)?)
     }
 
-    fn serialize<W>(&self, writer: &mut W) -> TxResult<usize>
+    fn serialize<W>(&self, writer: &mut W) -> SerResult<usize>
     where
         W: Write
     {
@@ -281,7 +163,7 @@ where
                 written
             }
         };
-        let writes: TxResult<Vec<usize>> = self.items()
+        let writes: SerResult<Vec<usize>> = self.items()
             .iter()
             .map(|v| v.serialize(writer))
             .collect();
@@ -312,7 +194,7 @@ pub struct ConcretePrefixVec<T> {
     items: Vec<T>
 }
 
-impl<T> PrefixVec for ConcretePrefixVec<T>
+impl<T: Ser> PrefixVec for ConcretePrefixVec<T>
 {
     type Item = T;
 
@@ -323,10 +205,10 @@ impl<T> PrefixVec for ConcretePrefixVec<T>
         }
     }
 
-    fn set_items(&mut self, v: Vec<T>) -> TxResult<()> {
+    fn set_items(&mut self, v: Vec<T>) -> SerResult<()> {
         if !self.is_sufficient(v.len()) {
             return Err(
-                TxError::VarIntTooShort{
+                SerError::VarIntTooShort{
                     got: self.prefix_bytes,
                     need: prefix_byte_len(v.len() as u64)
                 }
@@ -336,10 +218,10 @@ impl<T> PrefixVec for ConcretePrefixVec<T>
         Ok(())
     }
 
-    fn set_prefix_len(&mut self, prefix_bytes: u8) -> TxResult<()> {
+    fn set_prefix_len(&mut self, prefix_bytes: u8) -> SerResult<()> {
         if !sufficient_prefix(prefix_bytes, self.len()) {
             return Err(
-                TxError::VarIntTooShort{
+                SerError::VarIntTooShort{
                     got: prefix_bytes,
                     need: prefix_byte_len(self.len() as u64)
                 }
@@ -386,7 +268,7 @@ impl<T> IndexMut<usize> for ConcretePrefixVec<T> {
     }
 }
 
-impl<T, U> From<U> for ConcretePrefixVec<T>
+impl<T:Ser, U> From<U> for ConcretePrefixVec<T>
 where
     U: Into<Vec<T>>
 {
@@ -406,7 +288,7 @@ impl Ser for u8 {
         1
     }
 
-    fn deserialize<R>(reader: &mut R, _limit: usize) -> TxResult<Self>
+    fn deserialize<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
     where
         R: Read,
         Self: std::marker::Sized
@@ -416,7 +298,7 @@ impl Ser for u8 {
         Ok(u8::from_le_bytes(buf))
     }
 
-    fn serialize<W>(&self, writer: &mut W) -> TxResult<usize>
+    fn serialize<W>(&self, writer: &mut W) -> SerResult<usize>
     where
         W: Write
     {
@@ -429,7 +311,7 @@ impl Ser for u32 {
         4
     }
 
-    fn deserialize<R>(reader: &mut R, _limit: usize) -> TxResult<Self>
+    fn deserialize<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
     where
         R: Read,
         Self: std::marker::Sized
@@ -439,7 +321,7 @@ impl Ser for u32 {
         Ok(u32::from_le_bytes(buf))
     }
 
-    fn serialize<W>(&self, writer: &mut W) -> TxResult<usize>
+    fn serialize<W>(&self, writer: &mut W) -> SerResult<usize>
     where
         W: Write
     {
@@ -452,7 +334,7 @@ impl Ser for u64 {
         8
     }
 
-    fn deserialize<R>(reader: &mut R, _limit: usize) -> TxResult<Self>
+    fn deserialize<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
     where
         R: Read,
         Self: std::marker::Sized
@@ -462,7 +344,7 @@ impl Ser for u64 {
         Ok(u64::from_le_bytes(buf))
     }
 
-    fn serialize<W>(&self, writer: &mut W) -> TxResult<usize>
+    fn serialize<W>(&self, writer: &mut W) -> SerResult<usize>
     where
         W: Write
     {

@@ -2,11 +2,9 @@ use std::io::Write;
 
 use crate::{
     hashes::{
-        marked::{DigestMarker, MarkedDigest, MarkedDigestWriter},
+        marked::{Digest, MarkedDigest, MarkedDigestWriter},
     },
-    types::{
-        primitives::{Ser},
-    },
+    ser::{Ser}
 };
 
 /// Basic functionality for a Transaction
@@ -16,20 +14,22 @@ use crate::{
 /// contains its Sighash arguments. This allows others to define custom transaction types with
 /// unique functionality.
 pub trait Transaction<'a>: Ser {
+    /// An associated error type, using in Results returned by the Transaction.
     type Error;
-
-    type Digest: DigestMarker;
+    /// A Digest type that underlies the associated marked hash, and is returned by `sighash()`.
+    type Digest: Digest + Ser;
     /// The Input type for the transaction
-    type TxIn;
+    type TxIn: Ser;
     /// The Output type for the transaction
-    type TxOut;
-    /// A type describing arguments for the sighash function for this transaction
+    type TxOut: Ser;
+    /// A type describing arguments for the sighash function for this transaction.
     type SighashArgs;
-    /// A marked hash (see crate::hashes::marked) to be used as teh transaction ID type.
-    type TXID: MarkedDigest<Self::Digest>;
-    /// A type that implements `HashWriter`. Used to generate the Sighash
+    /// A marked hash (see crate::hashes::marked) to be used as the transaction ID type.
+    type TXID: MarkedDigest<Digest = Self::Digest>;
+    /// A type that implements `HashWriter`. Used to generate the `TXID` and `Sighash`.
     type HashWriter: MarkedDigestWriter<Self::Digest>;
 
+    /// Instantiate a new Transaction by specifying inputs and outputs.
     fn new<I, O>(
         version: u32,
         vin: I,
@@ -62,7 +62,13 @@ pub trait Transaction<'a>: Ser {
     }
 
     /// Generate the digest that must be signed to authorize inputs. For Bitcoin transactions
-    /// this is a function of the transaction, and the input's prevout. What follows
+    /// this is a function of the transaction, and the input's prevout.
+    ///
+    /// # Note:
+    ///
+    /// For Bitcoin, this will write the DEFAULT sighash for the current transaction type. For
+    /// witness transactions, that is the BIP143 sighash. When signing Legacy inputs included in a
+    /// witness transaction, use `write_legacy_sighash_preimage` instead.
     fn write_sighash_preimage<W: Write>(
         &self,
         writer: &mut W,

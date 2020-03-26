@@ -2,7 +2,7 @@
 //! Bitcoin can be found in the `bitcoin` module
 
 use crate::{
-    bitcoin::{Outpoint},  // TODO: REFACTOR OUT AND GENERALIZE
+    // bitcoin::{Outpoint},  // TODO: REFACTOR OUT AND GENERALIZE
     enc::{AddressEncoder},
     types::{
         tx::{self, Transaction},
@@ -28,10 +28,12 @@ pub trait TxBuilder<'a> {
     /// If implementing a network without a version field, feel free to leave this as a NOP
     fn version(self, version: u32) -> Self;
 
-    /// TODO: GENERALIZE
-    /// Spend an outpoint. Adds an unsigned input spending the associated outpoint with the
-    /// specified sequence number.
-    fn spend<I: Into<Outpoint>>(self, prevout: I, sequence: u32) -> Self;
+    // /// TODO: GENERALIZE
+    // /// Spend an outpoint. Adds an unsigned input spending the associated outpoint with the
+    // /// specified sequence number.
+    // fn spend<I, M>(self, prevout: I, sequence: u32) -> Self
+    // where
+    //     I: Into<Self::TXID>;
 
     /// Pay an Address. Adds an output paying `value` to `address.`
     fn pay(self, value: u64, address: <Self::Encoder as AddressEncoder>::Address) -> Self;

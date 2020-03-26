@@ -1,12 +1,15 @@
+//! Bitcoin Outpoint, TxIn, and Vin types.
+
 use std::io::{Read, Write};
 
-use bitcoin_spv::types::Hash256Digest;
-
 use crate::{
-    bitcoin::script::Script,
-    types::{
-        primitives::{ConcretePrefixVec, Ser, TxResult},
-    }
+    bitcoin::{
+        script::Script,
+        hashes::TXID,
+    },
+    hashes::marked::{MarkedDigest},
+    ser::{Ser, SerResult},
+    types::primitives::{ConcretePrefixVec},
 };
 
 /// An Outpoint. This is a unique identifier for a UTXO, and is composed of a transaction ID (in
@@ -16,43 +19,58 @@ use crate::{
 /// `Outpoint::null()` and `Outpoint::default()` return the null Outpoint, which references a txid
 /// of all 0, and a index 0xffff_ffff. This null outpoint is used in every coinbase transaction.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
-pub struct Outpoint{
-    pub txid: Hash256Digest,
+pub struct Outpoint<M>
+where
+    M: MarkedDigest
+{
+    /// The txid that created the UTXO being pointed to.
+    pub txid: M,
+    /// The index of that UTXO in the transaction's output vector.
     pub idx: u32
 }
 
-impl Outpoint {
+impl<M> Outpoint<M>
+where
+    M: MarkedDigest
+ {
+    /// Returns the `default`, or `null` Outpoint. This is used in the coinbase input.
     pub fn null() -> Self {
         Outpoint{
-            txid: Hash256Digest::default(),
+            txid: M::default(),
             idx: 0xffff_ffff
         }
     }
 }
 
-impl Default for Outpoint {
+impl<M> Default for Outpoint<M>
+where
+    M: MarkedDigest
+{
     fn default() -> Self {
         Outpoint::null()
     }
 }
 
-impl Ser for Outpoint {
+impl<M> Ser for Outpoint<M>
+where
+    M: MarkedDigest + Ser
+{
     fn serialized_length(&self) -> usize {
         36
     }
 
-    fn deserialize<T>(reader: &mut T, _limit: usize) -> TxResult<Self>
+    fn deserialize<T>(reader: &mut T, _limit: usize) -> SerResult<Self>
     where
         T: Read,
         Self: std::marker::Sized
     {
         Ok(Outpoint{
-            txid: Hash256Digest::deserialize(reader, 0)?,
+            txid: M::deserialize(reader, 0)?,
             idx: u32::deserialize(reader, 0)?
         })
     }
 
-    fn serialize<T>(&self, writer: &mut T) -> TxResult<usize>
+    fn serialize<T>(&self, writer: &mut T) -> SerResult<usize>
     where
         T: Write
     {
@@ -72,18 +90,28 @@ impl Ser for Outpoint {
 /// Sequence encoding is complex and the field also encodes information about locktimes and RBF.
 /// See [my blogpost on the subject](https://prestwi.ch/bitcoin-time-locks/).
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct TxIn{
-    pub outpoint: Outpoint,
+pub struct Input<M>
+where
+    M: MarkedDigest
+{
+    /// The Outpoint identifying the UTXO being spent.
+    pub outpoint: Outpoint<M>,
+    /// For Legacy transactions, the authorization information necessary to spend the UTXO.
     pub script_sig: Script,
+    /// The nSequence field
     pub sequence: u32
 }
 
-impl TxIn{
-    pub fn new<T>(outpoint: Outpoint, script_sig: T, sequence: u32) -> Self
+impl<M> Input<M>
+where
+    M: MarkedDigest
+{
+    /// Instantiate a new Input
+    pub fn new<T>(outpoint: Outpoint<M>, script_sig: T, sequence: u32) -> Self
     where
         T: Into<Script>
     {
-        TxIn{
+        Input{
             outpoint,
             script_sig: script_sig.into(),
             sequence
@@ -91,7 +119,10 @@ impl TxIn{
     }
 }
 
-impl Ser for TxIn {
+impl<M> Ser for Input<M>
+where
+    M: MarkedDigest + Ser
+{
     fn serialized_length(&self) -> usize {
         let mut len = self.outpoint.serialized_length();
         len += self.script_sig.serialized_length();
@@ -99,19 +130,19 @@ impl Ser for TxIn {
         len
     }
 
-    fn deserialize<T>(reader: &mut T, _limit: usize) -> TxResult<Self>
+    fn deserialize<T>(reader: &mut T, _limit: usize) -> SerResult<Self>
     where
         T: Read,
         Self: std::marker::Sized
     {
-        Ok(TxIn{
+        Ok(Input{
             outpoint: Outpoint::deserialize(reader, 0)?,
             script_sig: Script::deserialize(reader, 0)?,
             sequence: u32::deserialize(reader, 0)?
         })
     }
 
-    fn serialize<T>(&self, writer: &mut T) -> TxResult<usize>
+    fn serialize<T>(&self, writer: &mut T) -> SerResult<usize>
     where
         T: Write
     {
@@ -122,7 +153,10 @@ impl Ser for TxIn {
     }
 }
 
-/// Vin is a type alias for `ConcretePrefixVec<TxIn>`. A transaction's Vin is the Vector of
+/// A simple type alias for an input type that will be repeated throughout the `bitcoin` module.
+pub type TxIn = Input<TXID>;
+
+/// Vin is a type alias for `ConcretePrefixVec<Input>`. A transaction's Vin is the Vector of
 /// INputs, with a length prefix.
 pub type Vin = ConcretePrefixVec<TxIn>;
 

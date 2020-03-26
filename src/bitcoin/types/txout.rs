@@ -1,14 +1,13 @@
+//! Bitcoin TxOut and Vout types.
+
 use std::io::{Read, Write};
 
 use crate::{
     bitcoin::script::{Script},
-    types::{
-        primitives::{
-            ConcretePrefixVec,
-            Ser,
-            PrefixVec,
-            TxResult,
-        },
+    ser::{Ser, SerResult},
+    types::primitives::{
+        ConcretePrefixVec,
+        PrefixVec,
     },
 };
 
@@ -20,7 +19,9 @@ use crate::{
 /// sighash calculations.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct TxOut{
+    /// The value of the output in satoshis
     pub value: u64,
+    /// The script pubkey which locks the UTXO.
     pub script_pubkey: Script
 }
 
@@ -31,6 +32,7 @@ impl Default for TxOut {
 }
 
 impl TxOut{
+    /// Instantiate a new TxOut.
     pub fn new<T>(value: u64, script_pubkey: T) -> Self
     where
         T: Into<Script>
@@ -41,6 +43,7 @@ impl TxOut{
         }
     }
 
+    /// Instantiate the null TxOut, which is used in Legacy Sighash.
     pub fn null() -> Self {
         TxOut{
             value: 0xffff_ffff_ffff_ffff,
@@ -56,7 +59,7 @@ impl Ser for TxOut {
         len
     }
 
-    fn deserialize<T>(reader: &mut T, _limit: usize) -> TxResult<Self>
+    fn deserialize<T>(reader: &mut T, _limit: usize) -> SerResult<Self>
     where
         T: Read,
         Self: std::marker::Sized
@@ -68,7 +71,7 @@ impl Ser for TxOut {
         })
     }
 
-    fn serialize<T>(&self, writer: &mut T) -> TxResult<usize>
+    fn serialize<T>(&self, writer: &mut T) -> SerResult<usize>
     where
         T: Write
     {

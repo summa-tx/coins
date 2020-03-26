@@ -1,3 +1,6 @@
+//! Contains simplified access to `bech32` and `base58check` encoder/decoder for Bitcoin
+//! addresses. Also defines common encoder errors.
+
 use bech32::{
     FromBase32,
     ToBase32,
@@ -15,6 +18,8 @@ use base58check::{
 
 use thiserror::Error;
 
+
+/// Errors that can be returned by the Bitcoin `AddressEncoder`.
 #[derive(Debug, Error)]
 pub enum EncodingError {
     /// Returned when Script type is unknown. May be non-standard or newer than lib version.
@@ -23,11 +28,21 @@ pub enum EncodingError {
 
     /// Bech32 HRP does not match the current network.
     #[error("Bech32 HRP does not match. \nGot {:?} expected {:?} Hint: Is this address for another network?", got, expected)]
-    WrongHRP{got: String, expected: String},
+    WrongHRP{
+        /// The actual HRP.
+        got: String,
+        /// The expected HRP.
+        expected: String
+    },
 
     /// Base58Check version does not match the current network
     #[error("Base58Check version does not match. \nGot {:?} expected {:?} Hint: Is this address for another network?", got, expected)]
-    WrongVersion{got: u8, expected: u8},
+    WrongVersion{
+        /// The actual version byte.
+        got: u8,
+        /// The expected version byte.
+        expected: u8
+    },
 
     /// Bubbled up error from base58check library
     #[error("FromBase58CheckError: {:?}", .0)]
