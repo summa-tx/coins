@@ -316,7 +316,7 @@ impl<'a> Transaction<'a> for LegacyTx {
         }
 
         copy_tx.serialize(writer)?;
-        (args.sighash_flag as u32).serialize(writer)?;
+        Self::write_u32_le(writer, args.sighash_flag as u32)?;
 
         Ok(())
     }
@@ -326,10 +326,10 @@ impl<'a> BitcoinTransaction<'a> for LegacyTx {}
 
 impl Ser for LegacyTx {
     fn serialized_length(&self) -> usize {
-        let mut len = self.version().serialized_length();
+        let mut len = 4; // version
         len += self.vin.serialized_length();
         len += self.vout.serialized_length();
-        len += self.locktime().serialized_length();
+        len += 4; // locktime
         len
     }
 
@@ -338,10 +338,10 @@ impl Ser for LegacyTx {
         R: Read,
         Self: std::marker::Sized
     {
-        let version = u32::deserialize(reader, 0)?;
+        let version = Self::read_u32_le(reader)?;
         let vin = Vin::deserialize(reader, 0)?;
         let vout = Vout::deserialize(reader, 0)?;
-        let locktime = u32::deserialize(reader, 0)?;
+        let locktime = Self::read_u32_le(reader)?;
         Ok(Self{
             version,
             vin,
@@ -354,10 +354,10 @@ impl Ser for LegacyTx {
     where
         T: Write
     {
-        let mut len = self.version().serialize(writer)?;
+        let mut len = Self::write_u32_le(writer, self.version())?;
         len += self.vin.serialize(writer)?;
         len += self.vout.serialize(writer)?;
-        len += self.locktime().serialize(writer)?;
+        len += Self::write_u32_le(writer, self.locktime())?;
         Ok(len)
     }
 }
@@ -456,7 +456,7 @@ impl WitnessTx {
         } else {
             let mut w = Hash256Writer::default();
             for input in self.legacy_tx.vin.items().iter() {
-                input.sequence.serialize(&mut w)?;
+                Self::write_u32_le(&mut w, input.sequence)?;
             }
             Ok(w.finish())
         }
@@ -536,10 +536,10 @@ impl<'a> Transaction<'a> for WitnessTx {
     // Override the txid method to exclude witnesses
     fn txid(&self) -> Self::TXID {
         let mut w = Self::HashWriter::default();
-        self.legacy_tx.version.serialize(&mut w).expect("No IOError from SHA2");
+        Self::write_u32_le(&mut w, self.version()).expect("No IOError from SHA2");
         self.legacy_tx.vin.serialize(&mut w).expect("No IOError from SHA2");
         self.legacy_tx.vout.serialize(&mut w).expect("No IOError from SHA2");
-        self.legacy_tx.locktime.serialize(&mut w).expect("No IOError from SHA2");
+        Self::write_u32_le(&mut w, self.locktime()).expect("No IOError from SHA2");
         w.finish_marked()
     }
 
@@ -612,16 +612,16 @@ impl<'a> WitnessTransaction<'a> for WitnessTx {
 
         let input = &self.legacy_tx.vin[args.index];
 
-        self.legacy_tx.version.serialize(writer)?;
+        Self::write_u32_le(writer, self.legacy_tx.version)?;
         self.hash_prevouts(args.sighash_flag)?.serialize(writer)?;
         self.hash_sequence(args.sighash_flag)?.serialize(writer)?;
         input.outpoint.serialize(writer)?;
         args.prevout_script.serialize(writer)?;
-        args.prevout_value.serialize(writer)?;
-        input.sequence.serialize(writer)?;
+        Self::write_u64_le(writer, args.prevout_value)?;
+        Self::write_u32_le(writer, input.sequence)?;
         self.hash_outputs(args.index, args.sighash_flag)?.serialize(writer)?;
-        self.legacy_tx.locktime.serialize(writer)?;
-        (args.sighash_flag as u32).serialize(writer)?;
+        Self::write_u32_le(writer, self.legacy_tx.locktime)?;
+        Self::write_u32_le(writer, args.sighash_flag as u32)?;
         Ok(())
     }
 
@@ -632,12 +632,12 @@ impl<'a> WitnessTransaction<'a> for WitnessTx {
 
 impl Ser for WitnessTx {
     fn serialized_length(&self) -> usize {
-        let mut len = self.version().serialized_length();
+        let mut len = 4; // version
         len += 2;  // Segwit Flag
         len += self.legacy_tx.vin.serialized_length();
         len += self.legacy_tx.vout.serialized_length();
         len += self.witnesses.serialized_length();
-        len += self.locktime().serialized_length();
+        len += 4; // locktime
         len
     }
 
@@ -646,14 +646,14 @@ impl Ser for WitnessTx {
         R: Read,
         Self: std::marker::Sized
     {
-        let version = u32::deserialize(reader, 0)?;
+        let version = Self::read_u32_le(reader)?;
         let mut flag = [0u8; 2];
         reader.read_exact(&mut flag)?;
         if flag != [0u8, 1u8] { return Err(SerError::BadWitnessFlag(flag)); };
         let vin = Vin::deserialize(reader, 0)?;
         let vout = Vout::deserialize(reader, 0)?;
         let witnesses = Vec::<Witness>::deserialize(reader, vin.len())?;
-        let locktime = u32::deserialize(reader, 0)?;
+        let locktime = Self::read_u32_le(reader)?;
 
         let legacy_tx = LegacyTx{
             version,
@@ -668,16 +668,16 @@ impl Ser for WitnessTx {
         })
     }
 
-    fn serialize<T>(&self, writer: &mut T) -> SerResult<usize>
+    fn serialize<W>(&self, writer: &mut W) -> SerResult<usize>
     where
-        T: Write
+        W: Write
     {
-        let mut len = self.version().serialize(writer)?;
+        let mut len = Self::write_u32_le(writer, self.version())?;
         len += writer.write(&[0u8, 1u8])?;
         len += self.legacy_tx.vin.serialize(writer)?;
         len += self.legacy_tx.vout.serialize(writer)?;
         len += self.witnesses.serialize(writer)?;
-        len += self.locktime().serialize(writer)?;
+        len += Self::write_u32_le(writer, self.locktime())?;
         Ok(len)
     }
 }

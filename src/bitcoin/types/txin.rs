@@ -74,7 +74,7 @@ where
     {
         Ok(Outpoint{
             txid: M::deserialize(reader, 0)?,
-            idx: u32::deserialize(reader, 0)?
+            idx: Self::read_u32_le(reader)?
         })
     }
 
@@ -83,7 +83,7 @@ where
         T: Write
     {
         let mut len = self.txid.serialize(writer)?;
-        len += self.idx.serialize(writer)?;
+        len += Self::write_u32_le(writer, self.idx)?;
         Ok(len)
     }
 }
@@ -141,7 +141,7 @@ where
     fn serialized_length(&self) -> usize {
         let mut len = self.outpoint.serialized_length();
         len += self.script_sig.serialized_length();
-        len += self.sequence.serialized_length();
+        len += 4; // sequence
         len
     }
 
@@ -153,7 +153,7 @@ where
         Ok(TxInput{
             outpoint: Outpoint::deserialize(reader, 0)?,
             script_sig: ScriptSig::deserialize(reader, 0)?,
-            sequence: u32::deserialize(reader, 0)?
+            sequence: Self::read_u32_le(reader)?
         })
     }
 
@@ -163,7 +163,7 @@ where
     {
         let mut len = self.outpoint.serialize(writer)?;
         len += self.script_sig.serialize(writer)?;
-        len += self.sequence.serialize(writer)?;
+        len += Self::write_u32_le(writer, self.sequence)?;
         Ok(len)
     }
 }

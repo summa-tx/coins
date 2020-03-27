@@ -52,6 +52,42 @@ pub trait Ser {
     /// Returns the byte-length of the serialized data structure.
     fn serialized_length(&self) -> usize;
 
+    /// Convenience function for reading a LE u32
+    fn read_u32_le<R>(reader: &mut R) -> SerResult<u32>
+    where
+        R: Read
+    {
+        let mut buf = [0u8; 4];
+        reader.read_exact(&mut buf)?;
+        Ok(u32::from_le_bytes(buf))
+    }
+
+    /// Convenience function for reading a LE u64
+    fn read_u64_le<R>(reader: &mut R) -> SerResult<u64>
+    where
+        R: Read
+    {
+        let mut buf = [0u8; 8];
+        reader.read_exact(&mut buf)?;
+        Ok(u64::from_le_bytes(buf))
+    }
+
+    /// Convenience function for writing a LE u32
+    fn write_u32_le<W>(writer: &mut W, number: u32) -> SerResult<usize>
+    where
+        W: Write
+    {
+        Ok(writer.write(&number.to_le_bytes())?)
+    }
+
+    /// Convenience function for writing a LE u64
+    fn write_u64_le<W>(writer: &mut W, number: u64) -> SerResult<usize>
+    where
+        W: Write
+    {
+        Ok(writer.write(&number.to_le_bytes())?)
+    }
+
     /// Deserializes an instance of `Self` from a `std::io::Read`
     fn deserialize<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
     where

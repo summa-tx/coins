@@ -29,6 +29,7 @@ pub struct TxOut{
 }
 
 impl Output for TxOut {
+    type Value = u64;
     type RecipientIdentifier = ScriptPubkey;
 }
 
@@ -61,7 +62,7 @@ impl TxOut{
 
 impl Ser for TxOut {
     fn serialized_length(&self) -> usize {
-        let mut len = self.value.serialized_length();
+        let mut len = 8; // value
         len += self.script_pubkey.serialized_length();
         len
     }
@@ -71,7 +72,7 @@ impl Ser for TxOut {
         T: Read,
         Self: std::marker::Sized
     {
-        let value = u64::deserialize(reader, 0)?;
+        let value = Self::read_u64_le(reader)?;
         Ok(TxOut{
             value,
             script_pubkey: ScriptPubkey::deserialize(reader, 0)?
@@ -82,7 +83,7 @@ impl Ser for TxOut {
     where
         T: Write
     {
-        let mut len = self.value.serialize(writer)?;
+        let mut len = Self::write_u64_le(writer, self.value)?;
         len += self.script_pubkey.serialize(writer)?;
         Ok(len)
     }

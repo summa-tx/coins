@@ -23,7 +23,10 @@ pub trait RecipientIdentifier {}
 
 /// An Output represents a new TXO being created. It has an associated `RecipientIdentifier`.
 pub trait Output {
+    /// How is value represented in this Output? For Bitcoin this is a u64.
+    type Value;
     /// The associated `RecipientIdentifier` type that describes to whom the output is paid.
+    /// For Bitcoin, this is a `ScriptPubkey`
     type RecipientIdentifier: RecipientIdentifier;
 }
 

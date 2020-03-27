@@ -4,7 +4,7 @@
 use crate::{
     enc::{AddressEncoder},
     types::{
-        tx::{Transaction, Input},
+        tx::{Transaction, Input, Output},
     },
 };
 
@@ -34,7 +34,11 @@ pub trait TxBuilder<'a>: std::marker::Sized {
         I: Into<<<Self::Transaction as Transaction<'a>>::TxIn as Input>::TXOIdentifier>;
 
     /// Pay an Address. Adds an output paying `value` to `address.`
-    fn pay(self, value: u64, address: <Self::Encoder as AddressEncoder>::Address) -> Result<Self, <Self::Encoder as AddressEncoder>::Error>;
+    fn pay(
+        self,
+        value: <<Self::Transaction as Transaction<'a>>::TxOut as Output>::Value,
+        address: <Self::Encoder as AddressEncoder>::Address
+    ) -> Result<Self, <Self::Encoder as AddressEncoder>::Error>;
 
     /// Add a set of inputs to the transaction.
     fn extend_inputs<I>(self, inputs: I) -> Self
