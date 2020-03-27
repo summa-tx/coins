@@ -308,52 +308,6 @@ impl Ser for u8 {
     }
 }
 
-// impl Ser for u32 {
-//     fn serialized_length(&self) -> usize {
-//         4
-//     }
-//
-//     fn deserialize<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
-//     where
-//         R: Read,
-//         Self: std::marker::Sized
-//     {
-//         let mut buf = [0u8; 4];
-//         reader.read_exact(&mut buf)?;
-//         Ok(u32::from_le_bytes(buf))
-//     }
-//
-//     fn serialize<W>(&self, writer: &mut W) -> SerResult<usize>
-//     where
-//         W: Write
-//     {
-//         Ok(writer.write(&self.to_le_bytes())?)
-//     }
-// }
-//
-// impl Ser for u64 {
-//     fn serialized_length(&self) -> usize {
-//         8
-//     }
-//
-//     fn deserialize<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
-//     where
-//         R: Read,
-//         Self: std::marker::Sized
-//     {
-//         let mut buf = [0u8; 8];
-//         reader.read_exact(&mut buf)?;
-//         Ok(u64::from_le_bytes(buf))
-//     }
-//
-//     fn serialize<W>(&self, writer: &mut W) -> SerResult<usize>
-//     where
-//         W: Write
-//     {
-//         Ok(writer.write(&self.to_le_bytes())?)
-//     }
-// }
-
 #[cfg(test)]
 mod test {
     use super::*;
