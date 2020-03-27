@@ -43,8 +43,7 @@ pub enum SerError{
 pub type SerResult<T> = Result<T, SerError>;
 
 /// A simple trait for deserializing from `std::io::Read` and serializing to `std::io::Write`.
-/// We have provided implementations that write LE u8, u32, and u64, and several other basic
-/// types. Bitcoin doesn't use u16, so we have left that unimplemented.
+/// We have provided implementations for `u8` and `Vec<T: Ser>`
 ///
 /// `Ser` is used extensively in Sighash calculation, txid calculations, and transaction
 /// serialization and deserialization.
@@ -88,8 +87,26 @@ pub trait Ser {
         Ok(writer.write(&number.to_le_bytes())?)
     }
 
-    /// Deserializes an instance of `Self` from a `std::io::Read`
-    fn deserialize<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
+    /// Deserializes an instance of `Self` from a `std::io::Read`.
+    /// The `limit` argument is used only when deserializing collections, and  specifies a maximum
+    /// number of instances of the underlying type to read.
+    ///
+    /// ```
+    /// # use std::io::Read;
+    /// # use riemann::ser::*;
+    /// # use bitcoin_spv::types::Hash256Digest;
+    ///
+    /// let mut a = [0u8; 32];
+    /// let result = Hash256Digest::deserialize(&mut a.as_ref(), 0).unwrap();
+    ///
+    /// assert_eq!(result, Hash256Digest::default());
+    ///
+    /// let mut b = [0u8; 32];
+    /// let result = Vec::<u8>::deserialize(&mut b.as_ref(), 16).unwrap();
+    ///
+    /// assert_eq!(result, vec![0u8; 16]);
+    /// ```
+    fn deserialize<R>(reader: &mut R, limit: usize) -> SerResult<Self>
     where
         R: Read,
         Self: std::marker::Sized;
