@@ -285,6 +285,15 @@ impl<T> Extend<T> for ConcretePrefixVec<T> {
     }
 }
 
+impl<T> IntoIterator for ConcretePrefixVec<T> {
+    type Item = T;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.items.into_iter()
+    }
+}
+
 impl Ser for u8 {
     fn serialized_length(&self) -> usize {
         1

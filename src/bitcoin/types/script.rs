@@ -112,6 +112,15 @@ macro_rules! wrap_script_type {
                 self.0.extend(iter)
             }
         }
+
+        impl IntoIterator for $wrapper_name {
+            type Item = u8;
+            type IntoIter = std::vec::IntoIter<u8>;
+
+            fn into_iter(self) -> Self::IntoIter {
+                self.0.into_iter()
+            }
+        }
     }
 }
 
