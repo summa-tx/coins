@@ -1,6 +1,7 @@
 //! A simple trait for binary (de)Serialization using std `Read` and `Write` traits.
 
 use std::io::{Read, Write, Error as IOError, Cursor};
+use hex::FromHexError;
 
 use thiserror::Error;
 use bitcoin_spv::types::Hash256Digest;
@@ -32,6 +33,10 @@ pub enum SerError{
     /// transaction.
     #[error("Witness flag not as expected. Got {:?}. Expected {:?}.", .0, [0u8, 1u8])]
     BadWitnessFlag([u8; 2]),
+
+    /// `deserialize_hex` encountered an error on its input.
+    #[error("Error deserializing hex string")]
+    FromHexError(#[from] FromHexError),
 }
 
 /// Type alias for serialization errors
@@ -54,13 +59,11 @@ pub trait Ser {
         Self: std::marker::Sized;
 
     /// Decodes a hex string to a vector, deserializes an instance of `Self` from that vector
-    ///
-    /// TODO: Can panic if the string is non-hex.
     fn deserialize_hex(s: String) -> SerResult<Self>
     where
         Self: std::marker::Sized
     {
-        let v: Vec<u8> = hex::decode(s).unwrap();
+        let v: Vec<u8> = hex::decode(s)?;
         let mut cursor = Cursor::new(v);
         Self::deserialize(&mut cursor, 0)
     }
@@ -80,7 +83,6 @@ pub trait Ser {
 
 impl<A: Ser> Ser for Vec<A> {
     fn serialized_length(&self) -> usize {
-        // panics. TODO: fix later
         self.iter().map(|v| v.serialized_length()).sum()
     }
 

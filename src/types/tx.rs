@@ -74,7 +74,6 @@ pub trait Transaction<'a>: Ser {
 
     /// Calculates and returns the transaction's ID. The default TXID is simply the digest of the
     /// serialized transaction.
-    /// TODO: memoize
     fn txid(&self) -> Self::TXID {
         let mut w = Self::HashWriter::default();
         self.serialize(&mut w).expect("No IOError from hash functions");

@@ -33,7 +33,7 @@ use std::marker::{PhantomData};
 
 use crate::{
     bitcoin::{
-        bases::{EncodingError},
+        bases::{EncodingError, EncodingResult},
         encoder::{Address},
         script::{ScriptSig, ScriptPubkey, Witness},
         transactions::{WitnessTransaction, LegacyTx, WitnessTx},
@@ -147,10 +147,10 @@ where
         self
     }
 
-    fn pay(mut self, value: u64, address: Address) -> Self {
-        let output = TxOut::new(value, T::decode_address(address).expect("TODO: handle"));
+    fn pay(mut self, value: u64, address: Address) -> EncodingResult<Self> {
+        let output = TxOut::new(value, T::decode_address(address)?);
         self.vout.push(output);
-        self
+        Ok(self)
     }
 
     fn extend_inputs<I>(mut self, inputs: I) -> Self
@@ -222,11 +222,10 @@ where
         self
     }
 
-    /// TODO: address as string
-    fn pay(mut self, value: u64, address: Address) -> Self {
-        let output = TxOut::new(value, T::decode_address(address).expect("TODO: handle"));
+    fn pay(mut self, value: u64, address: Address) -> EncodingResult<Self> {
+        let output = TxOut::new(value, T::decode_address(address)?);
         self.builder.vout.push(output);
-        self
+        Ok(self)
     }
 
     fn extend_inputs<I>(mut self, inputs: I) -> Self

@@ -13,9 +13,11 @@ use crate::{
 
 
 macro_rules! wrap_prefix_vec {
-    ($wrapper_name:ident, $item:ty) => {
-
-        #[doc(hidden)]
+    (
+        $(#[$outer:meta])*
+        $wrapper_name:ident<$item:ty>
+    )=> {
+        $(#[$outer])*
         #[derive(Clone, Debug, Eq, PartialEq, Default)]
         pub struct $wrapper_name(ConcretePrefixVec<$item>);
 
@@ -81,26 +83,48 @@ macro_rules! wrap_prefix_vec {
     }
 }
 
-wrap_prefix_vec!(InternalScript, u8);
-wrap_prefix_vec!(InternalScriptSig, u8);
-wrap_prefix_vec!(InternalWitnessStackItem, u8);
-wrap_prefix_vec!(InternalScriptPubkey, u8);
-
-/// A Script is marked ConcretePrefixVec<u8> for use as an opaque `Script` in `SighashArgs`
-/// structs.
-///
-/// `Script::null()` and `Script::default()` return the empty byte vector with a 0
-/// prefix, which represents numerical 0, boolean `false`, or null bytestring.
-pub type Script = InternalScript;
-
-/// A ScriptPubkey is a marked ConcretePrefixVec<u8> for use as a `RecipientIdentifier` in
-/// Bitcoin TxOuts.
-///
-/// `ScriptPubkey::null()` and `ScriptPubkey::default()` return the empty byte vector with a 0
-/// prefix, which represents numerical 0, boolean `false`, or null bytestring.
-pub type ScriptPubkey = InternalScriptPubkey;
+wrap_prefix_vec!(
+    /// A Script is marked ConcretePrefixVec<u8> for use as an opaque `Script` in `SighashArgs`
+    /// structs.
+    ///
+    /// `Script::null()` and `Script::default()` return the empty byte vector with a 0
+    /// prefix, which represents numerical 0, boolean `false`, or null bytestring.
+    Script<u8>
+);
+wrap_prefix_vec!(
+    /// A ScriptSig is a marked ConcretePrefixVec<u8> for use in the script_sig.
+    ///
+    /// `ScriptSig::null()` and `ScriptSig::default()` return the empty byte vector with a 0
+    /// prefix, which represents numerical 0, boolean `false`, or null bytestring.
+    ScriptSig<u8>
+);
+wrap_prefix_vec!(
+    /// A WitnessStackItem is a marked `ConcretePrefixVec<u8>` intended for use in witnesses. Each
+    /// Witness is a `PrefixVec<WitnessStackItem>`. The Transactions `witnesses` is a non-prefixed
+    /// `Vec<Witness>.`
+    ///
+    /// `WitnessStackItem::null()` and `WitnessStackItem::default()` return the empty byte vector
+    /// with a 0 prefix, which represents numerical 0, or null bytestring.
+    ///
+    WitnessStackItem<u8>
+);
+wrap_prefix_vec!(
+    /// A ScriptPubkey is a marked ConcretePrefixVec<u8> for use as a `RecipientIdentifier` in
+    /// Bitcoin TxOuts.
+    ///
+    /// `ScriptPubkey::null()` and `ScriptPubkey::default()` return the empty byte vector with a 0
+    /// prefix, which represents numerical 0, boolean `false`, or null bytestring.
+    ScriptPubkey<u8>
+);
 
 impl RecipientIdentifier for ScriptPubkey {}
+
+/// A Witness is a `PrefixVec` of `WitnessStackItem`s. This witness corresponds to a single input.
+///
+/// # Note
+///
+/// The transaction's witness is composed of many of these `Witness`es in an UNPREFIXED vector.
+pub type Witness = ConcretePrefixVec<WitnessStackItem>;
 
 /// Standard script types, and a non-standard type for all other scripts.
 #[derive(PartialEq, Eq, Clone, Debug)]
@@ -157,30 +181,6 @@ impl ScriptPubkey {
         }
     }
 }
-
-/// A ScriptSig is a marked ConcretePrefixVec<u8> for use in the script_sig.
-///
-/// `ScriptSig::null()` and `ScriptSig::default()` return the empty byte vector with a 0 prefix,
-/// which represents numerical 0, boolean `false`, or null bytestring.
-pub type ScriptSig = InternalScriptSig;
-
-/// A WitnessStackItem is a marked `ConcretePrefixVec<u8>` intended for use in witnesses. Each
-/// Witness is a `PrefixVec<WitnessStackItem>`. The Transactions `witnesses` is a non-prefixed
-/// `Vec<Witness>.`
-///
-/// `WitnessStackItem::null()` and `WitnessStackItem::default()` return the empty byte vector with
-/// a 0 prefix, which represents numerical 0, or null bytestring.
-///
-/// TODO: Witness stack items do not permit non-minimal VarInt prefixes. Return an error if the
-/// user tries to pass one in to `set_prefix_len`.
-pub type WitnessStackItem = InternalWitnessStackItem;
-
-/// A Witness is a `PrefixVec` of `WitnessStackItem`s. This witness corresponds to a single input.
-///
-/// # Note
-///
-/// The transaction's witness is composed of many of these `Witness`es in an UNPREFIXED vector.
-pub type Witness = ConcretePrefixVec<WitnessStackItem>;
 
 #[cfg(test)]
 mod test{

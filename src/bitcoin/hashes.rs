@@ -11,7 +11,7 @@ use crate::{
 
 macro_rules! mark_hash256 {
     ($hash_name:ident) => {
-        /// A Marked Hash256Digest that represents a $hash_name
+        #[doc = "A Marked Hash256Digest that represents a $hash_name"]
         #[derive(Copy, Clone, Default, Debug, Eq, PartialEq)]
         pub struct $hash_name(pub Hash256Digest);
         impl Ser for $hash_name {

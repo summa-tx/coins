@@ -101,7 +101,9 @@ pub trait PrefixVec: Ser {
     where
         Self: Sized
     {
-        // TODO: this can cause bad state. Need to check sufficient.
+        if !sufficient_prefix(prefix_bytes, v.len()) {
+            return Err(SerError::VarIntTooShort{got: prefix_bytes, need: prefix_byte_len(v.len() as u64)});
+        }
         match prefix_bytes {
             1 | 3 | 5 | 9 => {
                 let mut s = Self::null();

@@ -195,6 +195,8 @@ impl LegacyTx {
     /// https://bitcoin.stackexchange.com/questions/3374/how-to-redeem-a-basic-tx
     ///
     /// OP_CODESEPARATOR functionality is NOT provided here.
+    ///
+    /// TODO: memoize
     fn legacy_sighash_prep(&self, index: usize, prevout_script: &Script) -> Self
     {
         let mut copy_tx = self.clone();
@@ -426,6 +428,8 @@ impl WitnessTx {
     /// For BIP143 (Witness and Compatibility sighash) documentation, see here:
     ///
     /// - https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
+    ///
+    /// TODO: memoize
     fn hash_prevouts(&self, sighash_flag: Sighash) -> TxResult<Hash256Digest> {
         if sighash_flag as u8 & 0x80 == 0x80 {
             Ok(Hash256Digest::default())
@@ -444,6 +448,8 @@ impl WitnessTx {
     /// For BIP143 (Witness and Compatibility sighash) documentation, see here:
     ///
     /// - https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
+    ///
+    /// TODO: memoize
     fn hash_sequence(&self, sighash_flag: Sighash) -> TxResult<Hash256Digest> {
         if sighash_flag == Sighash::Single || sighash_flag as u8 & 0x80 == 0x80 {
             Ok(Hash256Digest::default())
@@ -461,6 +467,8 @@ impl WitnessTx {
     /// For BIP143 (Witness and Compatibility sighash) documentation, see here:
     ///
     /// - https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
+    ///
+    /// TODO: memoize
     fn hash_outputs(&self, index: usize, sighash_flag: Sighash) -> TxResult<Hash256Digest> {
         match sighash_flag {
             Sighash::All | Sighash::AllACP  => {
