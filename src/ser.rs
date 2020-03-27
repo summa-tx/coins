@@ -111,7 +111,7 @@ pub trait Ser {
         R: Read,
         Self: std::marker::Sized;
 
-    /// Decodes a hex string to a vector, deserializes an instance of `Self` from that vector
+    /// Decodes a hex string to a `Vec<u8>`, deserializes an instance of `Self` from that vector.
     fn deserialize_hex(s: String) -> SerResult<Self>
     where
         Self: std::marker::Sized
@@ -121,7 +121,22 @@ pub trait Ser {
         Self::deserialize(&mut cursor, 0)
     }
 
-    /// Serializes `Self` to a `std::io::Write`
+    /// Serializes `Self` to a `std::io::Write`. Following `Write` trait conventions, its `Ok`
+    /// type is a `usize` denoting the number of bytes written.
+    ///
+    /// ```
+    /// # use std::io::Write;
+    /// # use riemann::ser::*;
+    /// # use bitcoin_spv::types::Hash256Digest;
+    ///
+    /// let mut buf: Vec<u8> = vec![];
+    /// let written = Hash256Digest::default().serialize(&mut buf).unwrap();
+    ///
+    /// assert_eq!(
+    ///    buf,
+    ///    vec![0u8; 32]
+    /// );
+    /// ```
     fn serialize<W>(&self, writer: &mut W) -> SerResult<usize>
     where
         W: Write;
