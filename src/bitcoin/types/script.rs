@@ -1,5 +1,25 @@
 //! Simple types for Bitcoin Script Witness stack datastructures, each of which are treated as
 //! opaque, wrapped `ConcretePrefixVec<u8>` instance.
+//!
+//! We do not handle assembly, disassembly, or Script execution in riemann. Scripts are treated as
+//! opaque bytes vectors with no semantics.
+//!
+//! Scripts can be freely converted between eachother using `From` and `Into`. This merely rewraps
+//! the underlying `ConcretePrefixVec<u8>` in the new type.
+//!
+//! For a complete Script builder solution see
+//! [rust-bitcoin's](https://github.com/rust-bitcoin/rust-bitcoin) builder.
+//!
+//! For a macro version for in-line scripts, see mappum's
+//! [rust-bitcoin-script](https://github.com/mappum/rust-bitcoin-script). This crate uses the
+//! builder under the hood.
+//!
+//! In order to convert a `bitcoin::Script` to any variation of `riemann::Script`, use
+//!
+//! ```compile_fail
+//! let script = bitcoin::Script::new(/* your script info */);
+//! let script = riemann::Script::from(script.into_bytes());
+//! ```
 
 use std::ops::{Index, IndexMut};
 
@@ -11,18 +31,29 @@ use crate::{
     },
 };
 
+/// A wrapped script.
+pub trait BitcoinScript {
+    /// Instantiate a new wrapped script
+    fn from_script(v: ConcretePrefixVec<u8>) -> Self;
+}
 
-macro_rules! wrap_prefix_vec {
+macro_rules! wrap_script_type {
     (
         $(#[$outer:meta])*
-        $wrapper_name:ident<$item:ty>
-    )=> {
+        $wrapper_name:ident
+    ) => {
         $(#[$outer])*
         #[derive(Clone, Debug, Eq, PartialEq, Default)]
-        pub struct $wrapper_name(ConcretePrefixVec<$item>);
+        pub struct $wrapper_name(ConcretePrefixVec<u8>);
+
+        impl BitcoinScript for $wrapper_name {
+            fn from_script(s: ConcretePrefixVec<u8>) -> Self {
+                Self(s)
+            }
+        }
 
         impl PrefixVec for $wrapper_name {
-            type Item = $item;
+            type Item = u8;
 
             fn null() -> Self {
                 Self(Default::default())
@@ -52,6 +83,7 @@ macro_rules! wrap_prefix_vec {
                 self.0.items()
             }
         }
+
         impl<T> From<T> for $wrapper_name
         where
             T: Into<ConcretePrefixVec<u8>>
@@ -62,7 +94,7 @@ macro_rules! wrap_prefix_vec {
         }
 
         impl Index<usize> for $wrapper_name {
-            type Output = $item;
+            type Output = u8;
 
             fn index(&self, index: usize) -> &Self::Output {
                 &self.0[index]
@@ -76,29 +108,45 @@ macro_rules! wrap_prefix_vec {
         }
 
         impl Extend<u8> for $wrapper_name {
-            fn extend<I: IntoIterator<Item=$item>>(&mut self, iter: I) {
+            fn extend<I: IntoIterator<Item=u8>>(&mut self, iter: I) {
                 self.0.extend(iter)
             }
         }
     }
 }
 
-wrap_prefix_vec!(
+// TOOD: make this repeat properly
+macro_rules! impl_script_conversion {
+    ($t1:ty, $t2:ty) => {
+        impl From<$t2> for $t1 {
+            fn from(t: $t2) -> $t1 {
+                <$t1>::from_script(t.0)
+            }
+        }
+        impl From<$t1> for $t2 {
+            fn from(t: $t1) -> $t2 {
+                <$t2>::from_script(t.0)
+            }
+        }
+    }
+}
+
+wrap_script_type!(
     /// A Script is marked ConcretePrefixVec<u8> for use as an opaque `Script` in `SighashArgs`
     /// structs.
     ///
     /// `Script::null()` and `Script::default()` return the empty byte vector with a 0
     /// prefix, which represents numerical 0, boolean `false`, or null bytestring.
-    Script<u8>
+    Script
 );
-wrap_prefix_vec!(
+wrap_script_type!(
     /// A ScriptSig is a marked ConcretePrefixVec<u8> for use in the script_sig.
     ///
     /// `ScriptSig::null()` and `ScriptSig::default()` return the empty byte vector with a 0
     /// prefix, which represents numerical 0, boolean `false`, or null bytestring.
-    ScriptSig<u8>
+    ScriptSig
 );
-wrap_prefix_vec!(
+wrap_script_type!(
     /// A WitnessStackItem is a marked `ConcretePrefixVec<u8>` intended for use in witnesses. Each
     /// Witness is a `PrefixVec<WitnessStackItem>`. The Transactions `witnesses` is a non-prefixed
     /// `Vec<Witness>.`
@@ -106,16 +154,24 @@ wrap_prefix_vec!(
     /// `WitnessStackItem::null()` and `WitnessStackItem::default()` return the empty byte vector
     /// with a 0 prefix, which represents numerical 0, or null bytestring.
     ///
-    WitnessStackItem<u8>
+    WitnessStackItem
 );
-wrap_prefix_vec!(
+wrap_script_type!(
     /// A ScriptPubkey is a marked ConcretePrefixVec<u8> for use as a `RecipientIdentifier` in
     /// Bitcoin TxOuts.
     ///
     /// `ScriptPubkey::null()` and `ScriptPubkey::default()` return the empty byte vector with a 0
     /// prefix, which represents numerical 0, boolean `false`, or null bytestring.
-    ScriptPubkey<u8>
+    ScriptPubkey
 );
+
+impl_script_conversion!(Script, ScriptPubkey);
+impl_script_conversion!(Script, ScriptSig);
+impl_script_conversion!(Script, WitnessStackItem);
+impl_script_conversion!(ScriptPubkey, ScriptSig);
+impl_script_conversion!(ScriptPubkey, WitnessStackItem);
+impl_script_conversion!(ScriptSig, WitnessStackItem);
+
 
 impl RecipientIdentifier for ScriptPubkey {}
 
