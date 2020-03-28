@@ -1,3 +1,5 @@
-/target
+target/
+pkg/
 **/*.rs.bk
 Cargo.lock
+tarpaulin-report.html

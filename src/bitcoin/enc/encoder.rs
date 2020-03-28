@@ -56,7 +56,7 @@ impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
     type Error = EncodingError;
     type RecipientIdentifier = ScriptPubkey;
 
-    fn encode_address(s: ScriptPubkey) -> EncodingResult<Address> {
+    fn encode_address(s: &ScriptPubkey) -> EncodingResult<Address> {
         match s.determine_type() {
             ScriptType::PKH => {
                 // s.items contains the op codes. we want only the pkh
@@ -78,7 +78,7 @@ impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
         }
     }
 
-    fn decode_address(addr: Address) -> EncodingResult<ScriptPubkey> {
+    fn decode_address(addr: &Address) -> EncodingResult<ScriptPubkey> {
         match &addr {
             Address::PKH(s) => {
                 decode_base58(P::PKH_VERSION, s).map(|v| v.into())
@@ -92,8 +92,21 @@ impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
         }
     }
 
-    fn wrap_string(_s: String) -> EncodingResult<Address> {
-        unimplemented!()
+    fn wrap_string(s: String) -> EncodingResult<Address> {
+        if s.starts_with(P::HRP) {
+            let result = decode_bech32(P::HRP, &s)?;
+            match result.len() {
+                22 => Ok(Address::WPKH(s)),
+                34 => Ok(Address::WSH(s)),
+                _ => Err(EncodingError::UnknownScriptType)
+            }
+        } else if decode_base58(P::PKH_VERSION, &s).is_ok() {
+                Ok(Address::PKH(s))
+        } else if decode_base58(P::SH_VERSION, &s).is_ok() {
+                Ok(Address::SH(s))
+        } else {
+            Err(EncodingError::UnknownScriptType)
+        }
     }
 }
 
@@ -132,3 +145,25 @@ pub type TestnetEncoder = BitcoinEncoder<Test>;
 
 /// An encoder for Bitcoin Signet
 pub type SignetEncoder = BitcoinEncoder<Sig>;
+
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn it_wraps_address_strings() {
+        let cases = [
+            ("bc1qza7dfgl2q83cf68fqkkdd754qx546h4u9vd9tg".to_owned(), Address::WPKH("bc1qza7dfgl2q83cf68fqkkdd754qx546h4u9vd9tg".to_owned())),
+            ("bc1qwqdg6squsna38e46795at95yu9atm8azzmyvckulcc7kytlcckxswvvzej".to_owned(), Address::WSH("bc1qwqdg6squsna38e46795at95yu9atm8azzmyvckulcc7kytlcckxswvvzej".to_owned())),
+            ("1AqE7oGF1EUoJviX1uuYrwpRBdEBTuGhES".to_owned(), Address::PKH("1AqE7oGF1EUoJviX1uuYrwpRBdEBTuGhES".to_owned())),
+            ("3HXNFmJpxjgTVFN35Y9f6Waje5YFsLEQZ2".to_owned(), Address::SH("3HXNFmJpxjgTVFN35Y9f6Waje5YFsLEQZ2".to_owned())),
+        ];
+        for case in cases.iter() {
+            assert_eq!(
+                MainnetEncoder::wrap_string(case.0.clone()).unwrap(),
+                case.1
+            );
+        }
+    }
+}

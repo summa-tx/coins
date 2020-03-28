@@ -147,8 +147,8 @@ where
         self
     }
 
-    fn pay(mut self, value: u64, address: Address) -> EncodingResult<Self> {
-        let output = TxOut::new(value, T::decode_address(address)?);
+    fn pay(mut self, value: u64, address: &Address) -> EncodingResult<Self> {
+        let output = TxOut::new(value, T::decode_address(&address)?);
         self.vout.push(output);
         Ok(self)
     }
@@ -222,8 +222,8 @@ where
         self
     }
 
-    fn pay(mut self, value: u64, address: Address) -> EncodingResult<Self> {
-        let output = TxOut::new(value, T::decode_address(address)?);
+    fn pay(mut self, value: u64, address: &Address) -> EncodingResult<Self> {
+        let output = TxOut::new(value, T::decode_address(&address)?);
         self.builder.vout.push(output);
         Ok(self)
     }

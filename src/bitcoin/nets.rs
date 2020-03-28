@@ -4,14 +4,25 @@
 //! Expected user flow is to import the network and access the transaction builder through it.
 //! This gives the user immediate access to the full bitcoin toolchain via a single import.
 //!
-//! ```compile_fail
+//! ```
+//! # use riemann::bitcoin::{BitcoinMainnet, Address, Outpoint};
+//! # use riemann::nets::Network;
+//! # use riemann::builder::TxBuilder;
+//! # use riemann::ser::Ser;
+//!
+//! let address = Address::WPKH("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned());
+//!
 //! let b = BitcoinMainnet::tx_builder();
 //! b.version(2)
 //!  .spend(Outpoint::default(), 0xaabbccdd)
-//!  .pay(0x8888_8888_8888_8888, Address::WPKH("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned()))
-//!  .pay(0x7777_7777_7777_7777, Address::SH("377mKFYsaJPsxYSB5aFfx8SW3RaN5BzZVh".to_owned()))?
+//!  .pay(0x8888_8888_8888_8888, &address).unwrap()
+//!  .pay(0x7777_7777_7777_7777, &Address::SH("377mKFYsaJPsxYSB5aFfx8SW3RaN5BzZVh".to_owned())).unwrap()
 //!  .build()
 //!  .serialize_hex();
+//!
+//! let script = BitcoinMainnet::decode_address(&address).unwrap();
+//! let re_encoded = BitcoinMainnet::encode_address(&script).unwrap();
+//! assert_eq!(address, re_encoded);
 //! ```
 use std::marker::{PhantomData};
 
@@ -96,8 +107,8 @@ mod test {
         let b = BitcoinMainnet::tx_builder()
             .version(2)
             .spend(BitcoinOutpoint::default(), 0xaabbccdd)
-            .pay(0x8888_8888_8888_8888, Address::WPKH("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned())).unwrap()
-            .pay(0x7777_7777_7777_7777, Address::SH("377mKFYsaJPsxYSB5aFfx8SW3RaN5BzZVh".to_owned())).unwrap()
+            .pay(0x8888_8888_8888_8888, &Address::WPKH("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned())).unwrap()
+            .pay(0x7777_7777_7777_7777, &Address::SH("377mKFYsaJPsxYSB5aFfx8SW3RaN5BzZVh".to_owned())).unwrap()
             .build()
             .serialize_hex();
         println!("{:?}", b);

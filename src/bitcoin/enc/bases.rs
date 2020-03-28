@@ -85,7 +85,7 @@ pub fn decode_bech32(expected_hrp: &str, s: &str) -> EncodingResult<Vec<u8>> {
     let (v, p) = data.split_at(1);
     let payload = Vec::from_base32(&p)?;
 
-    // Encode as witness program: witness version, then len(payload), then payload.
+    // Encode as witness program: witness version 0, then len(payload), then payload.
     let mut s: Vec<u8> = vec![v[0].to_u8(), payload.len() as u8];
     s.extend(&payload);
 

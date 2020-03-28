@@ -24,3 +24,4 @@ pub use ser::*;
 // pub use hashes::*;
 // pub use builder::*;
 pub use bitcoin::*;
+pub use bitcoin::nets::{BitcoinMainnet, BitcoinTestnet, BitcoinSignet};

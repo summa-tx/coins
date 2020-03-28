@@ -37,7 +37,7 @@ pub trait TxBuilder<'a>: std::marker::Sized {
     fn pay(
         self,
         value: <<Self::Transaction as Transaction<'a>>::TxOut as Output>::Value,
-        address: <Self::Encoder as AddressEncoder>::Address
+        address: &<Self::Encoder as AddressEncoder>::Address
     ) -> Result<Self, <Self::Encoder as AddressEncoder>::Error>;
 
     /// Add a set of inputs to the transaction.
