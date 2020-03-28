@@ -31,21 +31,23 @@
 
 use std::marker::{PhantomData};
 
-use crate::{
-    bitcoin::{
-        bases::{EncodingError, EncodingResult},
-        encoder::{Address},
-        script::{ScriptSig, ScriptPubkey, Witness},
-        transactions::{WitnessTransaction, LegacyTx, WitnessTx},
-        txin::{BitcoinOutpoint, BitcoinTxIn},
-        txout::{TxOut},
-    },
+use riemann_core::{
     builder::{TxBuilder},
     enc::{AddressEncoder},
     types::{
         tx::{Transaction},
     },
 };
+
+use crate::{
+    bases::{EncodingError, EncodingResult},
+    encoder::{Address},
+    script::{ScriptSig, ScriptPubkey, Witness},
+    transactions::{WitnessTransaction, LegacyTx, WitnessTx},
+    txin::{BitcoinOutpoint, BitcoinTxIn},
+    txout::{TxOut},
+};
+
 
 /// A `TxBuilder` that builds Bitcoin transactions. This trait extends `TxBuilder` to provide
 /// easy conversion between Legacy and Witness bitcoin builders.

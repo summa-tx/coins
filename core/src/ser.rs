@@ -92,9 +92,9 @@ pub trait Ser {
     /// number of instances of the underlying type to read.
     ///
     /// ```
-    /// # use std::io::Read;
-    /// # use riemann::ser::*;
-    /// # use bitcoin_spv::types::Hash256Digest;
+    /// use std::io::Read;
+    /// use riemann_core::ser::*;
+    /// use bitcoin_spv::types::Hash256Digest;
     ///
     /// let mut a = [0u8; 32];
     /// let result = Hash256Digest::deserialize(&mut a.as_ref(), 0).unwrap();
@@ -125,9 +125,9 @@ pub trait Ser {
     /// type is a `usize` denoting the number of bytes written.
     ///
     /// ```
-    /// # use std::io::Write;
-    /// # use riemann::ser::*;
-    /// # use bitcoin_spv::types::Hash256Digest;
+    /// use std::io::Write;
+    /// use riemann_core::ser::*;
+    /// use bitcoin_spv::types::Hash256Digest;
     ///
     /// let mut buf: Vec<u8> = vec![];
     /// let written = Hash256Digest::default().serialize(&mut buf).unwrap();

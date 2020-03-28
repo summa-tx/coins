@@ -2,8 +2,7 @@
 
 use std::io::{Read, Write};
 
-use crate::{
-    bitcoin::script::{ScriptPubkey},
+use riemann_core::{
     ser::{Ser, SerResult},
     types::{
         primitives::{
@@ -13,6 +12,8 @@ use crate::{
         tx::{Output},
     },
 };
+
+use crate::script::{ScriptPubkey};
 
 /// An Output. This describes a new UTXO to be created. The value is encoded as an LE u64. The
 /// script pubkey encodes the spending constraints.
@@ -96,9 +97,8 @@ pub type Vout = ConcretePrefixVec<TxOut>;
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{
-        ser::{Ser},
-    };
+    use riemann_core::ser::{Ser};
+    
     #[test]
     fn it_serializes_and_derializes_outputs() {
         let cases = [

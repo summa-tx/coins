@@ -1,3 +1,8 @@
+## TODOs:
+
+- clean up docs everywhere
+- Write readmes and library intros
+
 # Builder Interface Notes
 
 Library Usage:

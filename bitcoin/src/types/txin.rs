@@ -2,11 +2,7 @@
 
 use std::io::{Read, Write};
 
-use crate::{
-    bitcoin::{
-        script::{ScriptSig},
-        hashes::TXID,
-    },
+use riemann_core::{
     hashes::marked::{MarkedDigest},
     ser::{Ser, SerResult},
     types::{
@@ -15,6 +11,10 @@ use crate::{
     },
 };
 
+use crate::{
+    script::{ScriptSig},
+    hashes::TXID,
+};
 /// An Outpoint. This is a unique identifier for a UTXO, and is composed of a transaction ID (in
 /// Bitcoin-style LE format), and the index of the output being spent within that transactions
 /// output vectour (vout).
@@ -181,7 +181,7 @@ pub type Vin = ConcretePrefixVec<BitcoinTxIn>;
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{
+    use riemann_core::{
         ser::{Ser},
         types::primitives::{PrefixVec},
     };

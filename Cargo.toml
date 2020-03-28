@@ -1,13 +1,5 @@
-[package]
-name = "riemann"
-version = "0.1.0"
-authors = ["James Prestwich <james@prestwi.ch>"]
-edition = "2018"
-
-[dependencies]
-bitcoin-spv = "1.0.0"
-hex = "0.4.2"
-bech32 = "0.7.2"
-base58check = "0.1.0"
-thiserror = "1.0"
-sha2 = "0.8.0"
+[workspace]
+members = [
+    "core",
+    "bitcoin",
+]

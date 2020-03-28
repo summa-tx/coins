@@ -23,7 +23,7 @@
 
 use std::ops::{Index, IndexMut};
 
-use crate::{
+use riemann_core::{
     ser::{SerResult},
     types::{
         tx::{RecipientIdentifier},
@@ -250,7 +250,7 @@ impl ScriptPubkey {
 #[cfg(test)]
 mod test{
     use super::*;
-    use crate::{
+    use riemann_core::{
         ser::{Ser},
         types::primitives::{PrefixVec}
     };

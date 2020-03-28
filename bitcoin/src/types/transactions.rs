@@ -3,13 +3,7 @@
 use std::io::{Read, Write, Error as IOError};
 use bitcoin_spv::types::{Hash256Digest};
 
-use crate::{
-    bitcoin::{
-        hashes::{TXID, WTXID},
-        script::{Script, ScriptSig, Witness},
-        txin::{BitcoinTxIn, Vin},
-        txout::{TxOut, Vout},
-    },
+use riemann_core::{
     hashes::{
         hash256::{Hash256Writer},
         marked::{MarkedDigest, MarkedDigestWriter},
@@ -19,6 +13,13 @@ use crate::{
         primitives::{PrefixVec},
         tx::{Transaction},
     },
+};
+
+use crate::{
+    hashes::{TXID, WTXID},
+    script::{Script, ScriptSig, Witness},
+    txin::{BitcoinTxIn, Vin},
+    txout::{TxOut, Vout},
 };
 
 use thiserror::Error;

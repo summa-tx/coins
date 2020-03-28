@@ -11,8 +11,9 @@ use crate::hashes::{
 /// instance.
 ///
 /// ```
-/// use std::io::{Write, Result};
-/// use riemann::{hashes::{Hash256Writer, MarkedDigestWriter}};
+/// # use std::io::{Result};
+/// use std::io::Write;
+/// use riemann_core::hashes::{Hash256Writer, MarkedDigestWriter};
 ///
 /// # fn main() -> Result<()> {
 /// let mut w = Hash256Writer::default();

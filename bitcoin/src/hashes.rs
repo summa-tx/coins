@@ -4,7 +4,7 @@
 use std::io::{Read, Write};
 use bitcoin_spv::types::{Hash256Digest};
 
-use crate::{
+use riemann_core::{
     hashes::marked::{MarkedDigest},
     ser::{Ser, SerResult}
 };

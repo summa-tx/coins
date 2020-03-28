@@ -5,10 +5,12 @@
 //! This gives the user immediate access to the full bitcoin toolchain via a single import.
 //!
 //! ```
-//! # use riemann::bitcoin::{BitcoinMainnet, Address, Outpoint};
-//! # use riemann::nets::Network;
-//! # use riemann::builder::TxBuilder;
-//! # use riemann::ser::Ser;
+//! use riemann_bitcoin::{BitcoinMainnet, Address, Outpoint};
+//! use riemann_core::{
+//!     nets::Network,
+//!     builder::TxBuilder,
+//!     ser::Ser,
+//! };
 //!
 //! let address = Address::WPKH("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned());
 //!
@@ -26,29 +28,30 @@
 //! ```
 use std::marker::{PhantomData};
 
-use crate::{
-    bitcoin::{
-        bases::{
-            EncodingError,
-        },
-        builder::{LegacyBuilder},
-        encoder::{
-            Address,
-            MainnetEncoder,
-            TestnetEncoder,
-            SignetEncoder,
-        },
-        script::{ScriptPubkey},
-        transactions::{
-            LegacyTx,
-            WitnessTx,
-            WitnessTransaction,
-        },
-        txin::{BitcoinTxIn},
-        txout::{TxOut},
-    },
+use riemann_core::{
     nets::{Network},
     enc::{AddressEncoder},
+};
+
+use crate::{
+    bases::{
+        EncodingError,
+    },
+    builder::{LegacyBuilder},
+    encoder::{
+        Address,
+        MainnetEncoder,
+        TestnetEncoder,
+        SignetEncoder,
+    },
+    script::{ScriptPubkey},
+    transactions::{
+        LegacyTx,
+        WitnessTx,
+        WitnessTransaction,
+    },
+    txin::{BitcoinTxIn},
+    txout::{TxOut},
 };
 
 /// A trait for a Bitcoin network. Specifies that Witness Txns must use the same Input and Output
@@ -96,11 +99,11 @@ pub type BitcoinSignet<'a> = Bitcoin<SignetEncoder>;
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{
-        bitcoin::{BitcoinOutpoint},
+    use riemann_core::{
         builder::{TxBuilder},
         ser::{Ser},
     };
+    use crate::{BitcoinOutpoint};
 
     #[test]
     fn it_has_sensible_syntax() {
