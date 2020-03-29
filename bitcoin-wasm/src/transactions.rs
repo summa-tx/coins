@@ -18,6 +18,7 @@ use crate::{
     errors::{WasmError},
     txin::{Vin, BitcoinTxIn},
     txout::{Vout, TxOut},
+    script::{TxWitness, Witness},
 };
 
 wrap_struct!(transactions::LegacyTx);
@@ -78,15 +79,23 @@ impl LegacyTx {
 
 #[wasm_bindgen]
 impl WitnessTx {
-    // #[wasm_bindgen(constructor)]
-    // pub fn new(version: u32, vin: Vin, vout: Vout, locktime: u32) -> Self {
-    //     transactions::WitnessTx::new(
-    //         version,
-    //         vin.inner().items(),
-    //         vout.inner().items(),
-    //         locktime
-    //     ).into()
-    // }
+    #[wasm_bindgen(constructor)]
+    pub fn new(
+        version: u32,
+        vin: Vin,
+        vout: Vout,
+        witnesses: TxWitness,
+        locktime: u32
+    ) -> Self {
+        // disambiguate `new`
+        <transactions::WitnessTx as transactions::WitnessTransaction>::new(
+            version,
+            vin.inner().items(),
+            vout.inner().items(),
+            witnesses,
+            locktime
+        ).into()
+    }
 
     #[wasm_bindgen]
     pub fn inputs(&self) -> js_sys::Array {
@@ -106,14 +115,14 @@ impl WitnessTx {
             .collect()
     }
 
-    // #[wasm_bindgen]
-    // pub fn witnesses(&self) -> js_sys::Array {
-    //     self.0.witnesses()
-    //         .into_iter()
-    //         .map(|v| Witness::from(v.clone()))
-    //         .map(JsValue::from)
-    //         .collect()
-    // }
+    #[wasm_bindgen]
+    pub fn witnesses(&self) -> js_sys::Array {
+        self.0.witnesses()
+            .into_iter()
+            .map(|v| Witness::from(v.clone()))
+            .map(JsValue::from)
+            .collect()
+    }
 
     #[wasm_bindgen]
     pub fn sighash(

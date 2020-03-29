@@ -191,6 +191,9 @@ impl RecipientIdentifier for ScriptPubkey {}
 /// The transaction's witness is composed of many of these `Witness`es in an UNPREFIXED vector.
 pub type Witness = ConcretePrefixVec<WitnessStackItem>;
 
+/// A TxWitness is the UNPREFIXED vector of witnesses
+pub type TxWitness = Vec<Witness>;
+
 /// Standard script types, and a non-standard type for all other scripts.
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum ScriptType {

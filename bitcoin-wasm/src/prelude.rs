@@ -3,6 +3,7 @@
 macro_rules! wrap_struct {
     ($module:ident::$name:ident) => {
         #[wasm_bindgen(inspectable)]
+        #[derive(Clone, Debug)]
         pub struct $name($module::$name);
 
         impl $name {
