@@ -15,6 +15,7 @@ wrap_struct!(txout::TxOut);
 wrap_struct!(txout::Vout);
 
 impl_simple_getter!(TxOut, value, u64);
+impl_prefix_vec_access!(txout::Vout, txout::TxOut);
 
 #[wasm_bindgen]
 impl TxOut {
@@ -46,26 +47,5 @@ impl TxOut {
     #[wasm_bindgen(method, getter)]
     pub fn script_pubkey(&self) -> js_sys::Uint8Array {
         js_sys::Uint8Array::from(self.0.script_pubkey.items())
-    }
-}
-
-#[wasm_bindgen]
-impl Vout {
-    #[wasm_bindgen(constructor)]
-    pub fn new() -> Self {
-        Self(txout::Vout::new(vec![]))
-    }
-
-    pub fn push(&mut self, input: &TxOut) {
-         self.0.push(input.0.clone())
-    }
-
-    #[wasm_bindgen(method, getter)]
-    pub fn items(&self) -> js_sys::Array {
-        self.0.items()
-            .into_iter()
-            .map(|v| TxOut::from(v.clone()))
-            .map(JsValue::from)
-            .collect()
     }
 }

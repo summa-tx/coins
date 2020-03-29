@@ -105,7 +105,7 @@ where
 ///
 /// Sequence encoding is complex and the field also encodes information about locktimes and RBF.
 /// See [my blogpost on the subject](https://prestwi.ch/bitcoin-time-locks/).
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct TxInput<M>
 where
     M: MarkedDigest

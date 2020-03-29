@@ -10,6 +10,7 @@ pub mod script;
 pub mod txin;
 pub mod txout;
 pub mod transactions;
+pub mod builder;
 
 pub use enc::*;
 pub use errors::*;
@@ -18,3 +19,4 @@ pub use script::*;
 pub use txin::*;
 pub use txout::*;
 pub use transactions::*;
+pub use builder::*;
