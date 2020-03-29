@@ -1,6 +1,11 @@
 //! Holds concrete type implementations for Bitcoin networks. This includes Mainnet, Testnet, and
 //! Signet.
 
+#![forbid(unsafe_code)]
+
+#![warn(missing_docs)]
+#![warn(unused_extern_crates)]
+
 pub mod builder;
 pub mod enc;
 pub mod hashes;

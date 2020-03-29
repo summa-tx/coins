@@ -2,4 +2,5 @@
 members = [
     "core",
     "bitcoin",
+    "bitcoin-wasm"
 ]

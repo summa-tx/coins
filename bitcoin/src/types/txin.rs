@@ -40,7 +40,15 @@ where
 impl<M> Outpoint<M>
 where
     M: MarkedDigest
- {
+{
+    /// Returns a new Outpoint from a digest
+    pub fn new(txid: M, idx: u32) -> Self {
+        Self{
+            txid,
+            idx
+        }
+    }
+
     /// Returns the `default`, or `null` Outpoint. This is used in the coinbase input.
     pub fn null() -> Self {
         Outpoint{
