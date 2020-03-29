@@ -72,7 +72,8 @@ impl LegacyTx {
         prevout_script: &[u8]
     ) -> Result<js_sys::Uint8Array, JsValue> {
         let sighash_flag = transactions::sighash_from_u8(flag)
-            .map_err(|e| JsValue::from(WasmError::from(e)))?;
+            .map_err(WasmError::from)
+            .map_err(JsValue::from)?;
         let args = transactions::LegacySighashArgs{
             index,
             sighash_flag,
@@ -80,7 +81,8 @@ impl LegacyTx {
         };
         self.0.sighash(&args)
             .map(|v| js_sys::Uint8Array::from(&v[..]))
-            .map_err(|e| JsValue::from(WasmError::from(e)))
+            .map_err(WasmError::from)
+            .map_err(JsValue::from)
     }
 }
 
@@ -140,7 +142,8 @@ impl WitnessTx {
         prevout_value: u64
     ) -> Result<js_sys::Uint8Array, JsValue> {
         let sighash_flag = transactions::sighash_from_u8(flag)
-            .map_err(|e| JsValue::from(WasmError::from(e)))?;
+            .map_err(WasmError::from)
+            .map_err(JsValue::from)?;
         let args = transactions::WitnessSighashArgs{
             index,
             sighash_flag,
@@ -149,6 +152,7 @@ impl WitnessTx {
         };
         self.0.sighash(&args)
             .map(|v| js_sys::Uint8Array::from(&v[..]))
-            .map_err(|e| JsValue::from(WasmError::from(e)))
+            .map_err(WasmError::from)
+            .map_err(JsValue::from)
     }
 }

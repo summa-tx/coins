@@ -198,3 +198,141 @@ macro_rules! impl_prefix_vec_access {
         }
     }
 }
+
+macro_rules! impl_builders {
+    ($leg:ident, $wit:ident, $enc:ident) => {
+        #[wasm_bindgen(inspectable)]
+        #[derive(Debug, Clone)]
+        pub struct $leg(builder::LegacyBuilder<enc::$enc>);
+
+        #[wasm_bindgen(inspectable)]
+        #[derive(Debug, Clone)]
+        pub struct $wit(builder::WitnessBuilder<enc::$enc>);
+
+        impl From<builder::LegacyBuilder<enc::$enc>> for $leg {
+            fn from(b: builder::LegacyBuilder<enc::$enc>) -> $leg {
+                Self(b)
+            }
+        }
+
+        impl From<builder::WitnessBuilder<enc::$enc>> for $wit {
+            fn from(b: builder::WitnessBuilder<enc::$enc>) -> $wit {
+                Self(b)
+            }
+        }
+
+        impl Default for $leg {
+            fn default() -> $leg {
+                $leg::new()
+            }
+        }
+
+        impl Default for $wit {
+            fn default() -> $wit {
+                $wit::new()
+            }
+        }
+
+        #[wasm_bindgen]
+        impl $leg {
+            #[wasm_bindgen(constructor)]
+            pub fn new() -> $leg {
+                builder::LegacyBuilder::new().into()
+            }
+
+            pub fn version(self, version: u32) -> $leg {
+                self.0.version(version).into()
+            }
+
+            pub fn spend(self, outpoint: BitcoinOutpoint, sequence: u32) -> $leg {
+                self.0.spend(outpoint, sequence).into()
+            }
+
+            pub fn pay(self, value: u64, address: String) -> Result<$leg, JsValue> {
+                let addr = enc::$enc::wrap_string(address)
+                    .map_err(WasmError::from)
+                    .map_err(JsValue::from)?;
+                self.0.pay(value, &addr)
+                    .map($leg::from)
+                    .map_err(WasmError::from)
+                    .map_err(JsValue::from)
+            }
+
+            pub fn extend_inputs(self, inputs: Vin) -> $leg {
+                self.0.extend_inputs(txin::Vin::from(inputs)).into()
+            }
+
+            pub fn extend_outputs(self, outputs: Vout) -> $leg {
+                self.0.extend_outputs(txout::Vout::from(outputs)).into()
+            }
+
+            pub fn locktime(self, locktime: u32) -> $leg {
+                self.0.locktime(locktime).into()
+            }
+
+            pub fn extend_witnesses(self, witnesses: TxWitness) -> $wit {
+                self.0.extend_witnesses(Vec::<script::Witness>::from(witnesses)).into()
+            }
+
+            #[allow(clippy::wrong_self_convention)]
+            pub fn as_witness(self) -> $wit {
+                self.0.as_witness().into()
+            }
+
+            pub fn build(self) -> LegacyTx {
+                self.0.build().into()
+            }
+        }
+
+        #[wasm_bindgen]
+        impl $wit {
+            #[wasm_bindgen(constructor)]
+            pub fn new() -> $wit {
+                builder::WitnessBuilder::new().into()
+            }
+
+            pub fn version(self, version: u32) -> $wit {
+                self.0.version(version).into()
+            }
+
+            pub fn spend(self, outpoint: BitcoinOutpoint, sequence: u32) -> $wit {
+                self.0.spend(outpoint, sequence).into()
+            }
+
+            pub fn pay(self, value: u64, address: String) -> Result<$wit, JsValue> {
+                let addr = enc::$enc::wrap_string(address)
+                    .map_err(WasmError::from)
+                    .map_err(JsValue::from)?;
+                self.0.pay(value, &addr)
+                    .map($wit::from)
+                    .map_err(WasmError::from)
+                    .map_err(JsValue::from)
+            }
+
+            pub fn extend_inputs(self, inputs: Vin) -> $wit {
+                self.0.extend_inputs(txin::Vin::from(inputs)).into()
+            }
+
+            pub fn extend_outputs(self, outputs: Vout) -> $wit {
+                self.0.extend_outputs(txout::Vout::from(outputs)).into()
+            }
+
+            pub fn locktime(self, locktime: u32) -> $wit {
+                self.0.locktime(locktime).into()
+            }
+
+            pub fn extend_witnesses(self, witnesses: TxWitness) -> $wit {
+                self.0.extend_witnesses(Vec::<script::Witness>::from(witnesses)).into()
+            }
+
+            #[allow(clippy::wrong_self_convention)]
+            pub fn as_legacy(self) -> $leg {
+                self.0.as_legacy().into()
+            }
+
+            pub fn build(self) -> WitnessTx {
+                self.0.build().into()
+            }
+        }
+    }
+}

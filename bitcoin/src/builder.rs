@@ -86,6 +86,7 @@ pub trait WitTxBuilder<'a>: BitcoinBuilder<'a> {
 /// Transactions. Its associated types are the standard Bitcoin `LegacyTx`, and `WitnessTx`, and
 /// the WitnessBuilder. It is parameterized with an address encoder, so that the same struct and
 /// logic can be used on mainnet and testnet.
+#[derive(Debug, Clone)]
 pub struct LegacyBuilder<T: AddressEncoder> {
     version: u32,
     vin: Vec<BitcoinTxIn>,
@@ -98,6 +99,7 @@ pub struct LegacyBuilder<T: AddressEncoder> {
 /// `WitnessBuilder` and `LegacyBuilder` is that `WitnessBuilder` builds Witness transactions.
 /// This is implemented by having `WitnessBuilder` contain an internal `LegacyBuilder` which all
 /// non-witness updates are applied to.
+#[derive(Debug, Clone)]
 pub struct WitnessBuilder<T: AddressEncoder> {
     builder: LegacyBuilder<T>,
     witnesses: Vec<Witness>,

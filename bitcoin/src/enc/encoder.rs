@@ -51,6 +51,7 @@ pub trait NetworkParams {
 
 
 /// The standard encoder for Bitcoin networks. Parameterized by a `NetworkParams` type.
+#[derive(Debug, Clone)]
 pub struct BitcoinEncoder<P: NetworkParams>(PhantomData<P>);
 
 impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
@@ -113,6 +114,7 @@ impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
 }
 
 /// A param struct for Bitcoin Mainnet
+#[derive(Debug, Clone)]
 pub struct Main;
 
 impl NetworkParams for Main {
@@ -122,6 +124,7 @@ impl NetworkParams for Main {
 }
 
 /// A param struct for Bitcoin Tesnet
+#[derive(Debug, Clone)]
 pub struct Test;
 
 impl NetworkParams for Test {
@@ -131,6 +134,7 @@ impl NetworkParams for Test {
 }
 
 /// A param struct for Bitcoin Signet
+#[derive(Debug, Clone)]
 pub struct Sig;
 
 impl NetworkParams for Sig {

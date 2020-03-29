@@ -1,7 +1,10 @@
 use wasm_bindgen::prelude::*;
 
-use riemann_core::ser::SerError;
-use riemann_bitcoin::transactions::TxError;
+use riemann_core::ser::{SerError};
+use riemann_bitcoin::{
+    bases::{EncodingError},
+    transactions::{TxError},
+};
 
 use thiserror::Error;
 
@@ -12,7 +15,9 @@ pub enum WasmError {
     #[error("SerError: {}", .0)]
     SerError(#[from] SerError),
     #[error("TxError: {}", .0)]
-    TxError(#[from] TxError)
+    TxError(#[from] TxError),
+    #[error("EncodingError: {}", .0)]
+    EncodingError(#[from] EncodingError),
 }
 
 impl From<WasmError> for JsValue {
