@@ -1,21 +1,18 @@
-## TODOs:
+# riemann-rs
 
-- clean up docs everywhere
-- Write readmes and library intros
+`riemann-rs` is a set of transaction construction libraries for UTXO-based
+chains. It aims to provide high-quality Rust tooling for constructing
+transactions, and to enable wasm bindings for use in the browser.
 
-# Builder Interface Notes
+The project is built around the `riemann-core` crate which defines high-level
+traits and interfaces. Chain-specific libraries use these traits to provide
+a consistent developer experience across chains.
 
-Library Usage:
-```rust
-use riemann::{BitcoinMainnet};
+We have provided a `riemann_bitcoin` crate with a Bitcoin-targeted
+implementation. See its documentation for usage instruction and details.
 
-let b = BitcoinMainnet::tx_builder()
-    .version(2)
-    .spend(Outpoint::default(), 0xaabbccdd)
-    .pay(0x8888_8888_8888_8888, Address::WPKH("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned()))
-    .pay(0x7777_7777_7777_7777, Address::SH("377mKFYsaJPsxYSB5aFfx8SW3RaN5BzZVh".to_owned()))
-    .build()
-    .serialize_hex();
+## Building & running tests
 
-println!("{:?}", b);
-```
+- install [rustup](https://rustup.rs/)
+- `$ cargo build`
+- `$ cargo test`

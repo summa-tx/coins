@@ -40,11 +40,11 @@ pub trait Transaction<'a>: Ser {
     /// An associated error type, using in Results returned by the Transaction.
     type Error;
     /// A Digest type that underlies the associated marked hash, and is returned by `sighash()`.
-    type Digest: Digest + Ser;
+    type Digest: Digest;
     /// The Input type for the transaction
-    type TxIn: Input + Ser;
+    type TxIn: Input;
     /// The Output type for the transaction
-    type TxOut: Output + Ser;
+    type TxOut: Output;
     /// A type describing arguments for the sighash function for this transaction.
     type SighashArgs;
     /// A marked hash (see crate::hashes::marked) to be used as the transaction ID type.
