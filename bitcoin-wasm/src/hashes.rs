@@ -26,6 +26,7 @@ impl TXID {
         hashes::TXID::from(h).into()
     }
 
+    #[wasm_bindgen(method, getter)]
     pub fn internal(&self) -> js_sys::Uint8Array {
         js_sys::Uint8Array::from(&self.0.internal()[..])
     }
@@ -40,6 +41,7 @@ impl WTXID {
         hashes::WTXID::from(h).into()
     }
 
+    #[wasm_bindgen(method, getter)]
     pub fn internal(&self) -> js_sys::Uint8Array {
         js_sys::Uint8Array::from(&self.0.internal()[..])
     }

@@ -164,6 +164,7 @@ macro_rules! impl_prefix_vec_access {
                     .map_err(JsValue::from)
             }
 
+            #[wasm_bindgen(constructor)]
             pub fn len_prefix(&self) -> u8 {
                 self.0.len_prefix()
             }
