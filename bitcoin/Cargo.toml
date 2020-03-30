@@ -3,6 +3,9 @@ name = "riemann-bitcoin"
 version = "0.1.0"
 authors = ["James Prestwich <james@prestwi.ch>"]
 edition = "2018"
+description = "Bitcoin transaction construction in Rust"
+repository = "https://github.com/summa-tx/riemann-rs"
+license = "LGPL-3.0-or-later"
 
 [dependencies]
 bitcoin-spv = "2.0.0"
