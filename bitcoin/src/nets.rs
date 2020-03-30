@@ -12,7 +12,7 @@
 //!     ser::Ser,
 //! };
 //!
-//! let address = Address::WPKH("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned());
+//! let address = BitcoinMainnet::string_to_address("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy").unwrap();
 //!
 //! let b = BitcoinMainnet::tx_builder();
 //! b.version(2)

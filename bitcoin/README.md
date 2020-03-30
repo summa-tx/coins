@@ -13,7 +13,7 @@ use riemann_core::{
     ser::Ser,
 };
 //!
-let address = BitcoinMainnet::wrap_string("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned());
+let address = BitcoinMainnet::string_to_address("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned());
 //!
 let b = BitcoinMainnet::tx_builder();
 b.version(2)

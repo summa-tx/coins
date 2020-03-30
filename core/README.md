@@ -51,7 +51,7 @@ Particularly between addresses and `RecipientIdentifier`s
 - `Address` is a type that describes the network's address semantics. For
     Bitcoin this is an enum whose members wrap a `String`.
 - `AddressEncoder` has associated `Address` and `RecipientIdentifier` types. It
-    exposes `encode_address`, `decode_address`, and `wrap_string` it order to
+    exposes `encode_address`, `decode_address`, and `string_to_address` it order to
     enable conversion between them.
 
 #### Builder type

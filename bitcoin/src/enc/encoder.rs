@@ -107,7 +107,7 @@ impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
         }
     }
 
-    fn wrap_string(string: &str) -> EncodingResult<Address> {
+    fn string_to_address(string: &str) -> EncodingResult<Address> {
         let s = string.to_owned();
         if s.starts_with(P::HRP) {
             let result = decode_bech32(P::HRP, &s)?;
@@ -180,7 +180,7 @@ mod test {
         ];
         for case in cases.iter() {
             assert_eq!(
-                MainnetEncoder::wrap_string(&case.0).unwrap(),
+                MainnetEncoder::string_to_address(&case.0).unwrap(),
                 case.1
             );
         }

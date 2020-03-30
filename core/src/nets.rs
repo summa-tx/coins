@@ -71,7 +71,7 @@ pub trait Network<'a> {
     }
 
     /// Attempt to convert a string into an `Address`.
-    fn wrap_string(s: &str) -> Result<Self::Address, Self::Error> {
-        Self::Encoder::wrap_string(s)
+    fn string_to_address(s: &str) -> Result<Self::Address, Self::Error> {
+        Self::Encoder::string_to_address(s)
     }
 }
