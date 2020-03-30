@@ -37,6 +37,18 @@ pub enum Address {
     WSH(String),
 }
 
+impl Address {
+    /// Get a clone of the string underlying the address type.
+    pub fn as_string(&self) -> String {
+        match &self {
+            Address::PKH(s) => s.clone(),
+            Address::SH(s) => s.clone(),
+            Address::WPKH(s) => s.clone(),
+            Address::WSH(s) => s.clone(),
+        }
+    }
+}
+
 /// NetworkParams holds the encoding paramteres for a bitcoin-like network. Currently this is
 /// composed of the address version bytes for Legacy PKH and SH addresses, and the bech32
 /// human-readable prefix for witness addresses.

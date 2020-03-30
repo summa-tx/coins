@@ -1,6 +1,6 @@
 //! The `nets` module defines an abstract `Network.` The `Network` trait is a highly-abstracted
 //! representation of the relationships between types in a UTXO network. Concrete implementations
-//! for various Bitcoin networks are found in the `bitcoin` module.
+//! for various Bitcoin networks are found in the `bitcoin` crate.
 
 use crate::{
     builder::{TxBuilder},
@@ -68,5 +68,10 @@ pub trait Network<'a> {
     /// Encode an address using the network's `Address` semantics
     fn decode_address(addr: &Self::Address) -> Result<Self::RecipientIdentifier, Self::Error> {
         Self::Encoder::decode_address(&addr)
+    }
+
+    /// Attempt to convert a string into an `Address`.
+    fn wrap_string(s: String) -> Result<Self::Address, Self::Error> {
+        Self::Encoder::wrap_string(s)
     }
 }

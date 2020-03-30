@@ -13,7 +13,7 @@ use crate::{
 /// This trait exists to maintain conceptual separation between the user-facing `Address` and the
 /// protocol-facing `RecipientIdentifier`.
 ///
-/// A Bitcoin encoder can be found in the `bitcoin` module.
+/// A Bitcoin encoder can be found in the `bitcoin` crate.
 pub trait AddressEncoder {
     /// A type representing the user-facing address, with any disambiguating information.
     type Address;

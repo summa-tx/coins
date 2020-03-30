@@ -1,5 +1,5 @@
 //! The `builder` module defines an abstract `TxBuilder` trait. A concrete implementation for
-//! Bitcoin can be found in the `bitcoin` module
+//! Bitcoin can be found in the `bitcoin` crate
 
 use crate::{
     enc::{AddressEncoder},

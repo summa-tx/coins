@@ -11,6 +11,7 @@ pub mod txin;
 pub mod txout;
 pub mod transactions;
 pub mod builder;
+pub mod nets;
 
 pub use enc::*;
 pub use errors::*;
@@ -20,3 +21,4 @@ pub use txin::*;
 pub use txout::*;
 pub use transactions::*;
 pub use builder::*;
+pub use nets::*;

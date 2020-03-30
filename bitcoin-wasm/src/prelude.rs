@@ -331,3 +331,37 @@ macro_rules! impl_builders {
         }
     }
 }
+
+macro_rules! impl_encoder {
+    ($module:ident::$enc_name:ident) => {
+        #[wasm_bindgen]
+        pub struct $enc_name;
+
+        #[wasm_bindgen]
+        impl $enc_name {
+            /// Attempt to encode a `RecipientIdentifier` as an `Address`.
+            pub fn encode_address(s: &[u8]) -> Result<Address, JsValue> {
+                $module::$enc_name::encode_address(&script::ScriptPubkey::from(s))
+                    .map(Address::from)
+                    .map_err(WasmError::from)
+                    .map_err(JsValue::from)
+            }
+
+            /// Attempt to decode a `RecipientIdentifier` from an `Address`.
+            pub fn decode_address(addr: Address) -> Result<js_sys::Uint8Array, JsValue> {
+                let decoded = $module::$enc_name::decode_address(&addr.into())
+                    .map_err(WasmError::from)
+                    .map_err(JsValue::from)?;
+                Ok(js_sys::Uint8Array::from(decoded.items()))
+            }
+
+            /// Attempt to convert a string into an `Address`.
+            pub fn wrap_string(s: String) -> Result<Address, JsValue> {
+                $module::$enc_name::wrap_string(s)
+                    .map(Address::from)
+                    .map_err(WasmError::from)
+                    .map_err(JsValue::from)
+            }
+        }
+    }
+}

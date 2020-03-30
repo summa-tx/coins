@@ -5,7 +5,7 @@
 //! The `Ser` trait describes a simple `Read'/'Write`-based interface for binary serialization. We
 //! provide implementations for several primitives (i.e `Vec<T: Ser>` and `u8`, `u32`, and 'u64`).
 //!
-//! A Bitcoin implementation of all types is provided in the `bitcoin` module.
+//! A Bitcoin implementation of all types is provided in the `bitcoin` crate.
 
 /// Contains a set of traits useful for representing and serializing transactions.
 pub mod primitives;
