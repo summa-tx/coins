@@ -47,7 +47,7 @@ impl LegacyTx {
         ).into()
     }
 
-    #[wasm_bindgen]
+    #[wasm_bindgen(method, getter)]
     pub fn inputs(&self) -> js_sys::Array {
         self.0.inputs()
             .iter()
@@ -56,7 +56,7 @@ impl LegacyTx {
             .collect()
     }
 
-    #[wasm_bindgen]
+    #[wasm_bindgen(method, getter)]
     pub fn outputs(&self) -> js_sys::Array {
         self.0.outputs()
             .iter()
@@ -107,7 +107,7 @@ impl WitnessTx {
         ).into()
     }
 
-    #[wasm_bindgen]
+    #[wasm_bindgen(method, getter)]
     pub fn inputs(&self) -> js_sys::Array {
         self.0.inputs()
             .iter()
@@ -116,7 +116,7 @@ impl WitnessTx {
             .collect()
     }
 
-    #[wasm_bindgen]
+    #[wasm_bindgen(method, getter)]
     pub fn outputs(&self) -> js_sys::Array {
         self.0.outputs()
             .iter()
@@ -125,7 +125,7 @@ impl WitnessTx {
             .collect()
     }
 
-    #[wasm_bindgen]
+    #[wasm_bindgen(method, getter)]
     pub fn witnesses(&self) -> js_sys::Array {
         self.0.witnesses()
             .iter()
