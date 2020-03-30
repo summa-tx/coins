@@ -1,17 +1,18 @@
 [package]
-name = "bitcoin-wasm"
+name = "rmn-btc-wasm"
 version = "0.1.0"
 authors = ["James Prestwich <james@prestwi.ch>"]
 edition = "2018"
 description = "Bitcoin transaction construction in JS using wasm-bindgen"
 repository = "https://github.com/summa-tx/riemann-rs"
 license = "LGPL-3.0-or-later"
+publish = false
 
 [lib]
 crate-type = ["cdylib"]
 
 [dependencies]
-riemann-bitcoin = {path = "../bitcoin"}
+rmn-btc = {path = "../bitcoin"}
 riemann-core = {path = "../core"}
 wasm-bindgen = "0.2.60"
 js-sys = "0.3.37"

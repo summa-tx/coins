@@ -1,7 +1,7 @@
 use wasm_bindgen::prelude::*;
 
 use riemann_core::ser::{SerError};
-use riemann_bitcoin::{
+use rmn_btc::{
     bases::{EncodingError},
     transactions::{TxError},
 };

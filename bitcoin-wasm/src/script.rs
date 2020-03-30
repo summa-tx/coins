@@ -6,7 +6,7 @@ use riemann_core::{
     types::primitives::{PrefixVec},
     ser::{Ser}
 };
-use riemann_bitcoin::{
+use rmn_btc::{
     types::{script},
 };
 

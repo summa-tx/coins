@@ -2,7 +2,7 @@ use js_sys;
 use wasm_bindgen::prelude::*;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 
-use riemann_bitcoin::{
+use rmn_btc::{
     script,
     transactions::{self, WitnessTransaction}
 };

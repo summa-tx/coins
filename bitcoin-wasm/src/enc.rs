@@ -7,7 +7,7 @@ use riemann_core::{
     primitives::{PrefixVec},
 };
 
-use riemann_bitcoin::{enc, script};
+use rmn_btc::{enc, script};
 
 use crate::errors::{WasmError};
 

@@ -243,7 +243,7 @@ macro_rules! impl_builders {
                 self.0.spend(outpoint, sequence).into()
             }
 
-            pub fn pay(self, value: u64, address: String) -> Result<$leg, JsValue> {
+            pub fn pay(self, value: u64, address: &str) -> Result<$leg, JsValue> {
                 let addr = enc::$enc::wrap_string(address)
                     .map_err(WasmError::from)
                     .map_err(JsValue::from)?;
@@ -294,7 +294,7 @@ macro_rules! impl_builders {
                 self.0.spend(outpoint, sequence).into()
             }
 
-            pub fn pay(self, value: u64, address: String) -> Result<$wit, JsValue> {
+            pub fn pay(self, value: u64, address: &str) -> Result<$wit, JsValue> {
                 let addr = enc::$enc::wrap_string(address)
                     .map_err(WasmError::from)
                     .map_err(JsValue::from)?;
@@ -356,7 +356,7 @@ macro_rules! impl_encoder {
             }
 
             /// Attempt to convert a string into an `Address`.
-            pub fn wrap_string(s: String) -> Result<Address, JsValue> {
+            pub fn wrap_string(s: &str) -> Result<Address, JsValue> {
                 $module::$enc_name::wrap_string(s)
                     .map(Address::from)
                     .map_err(WasmError::from)
@@ -389,7 +389,7 @@ macro_rules! impl_network {
             }
 
             /// Attempt to convert a string into an `Address`.
-            pub fn wrap_string(s: String) -> Result<Address, JsValue> {
+            pub fn wrap_string(s: &str) -> Result<Address, JsValue> {
                 $encoder_name::wrap_string(s)
             }
         }

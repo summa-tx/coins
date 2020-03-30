@@ -8,7 +8,7 @@ use riemann_core::{
     hashes::marked::{MarkedDigest},
     ser::{Ser},
 };
-use riemann_bitcoin::{
+use rmn_btc::{
     hashes,
 };
 

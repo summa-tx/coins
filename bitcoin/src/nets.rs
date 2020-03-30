@@ -5,7 +5,7 @@
 //! This gives the user immediate access to the full bitcoin toolchain via a single import.
 //!
 //! ```
-//! use riemann_bitcoin::{BitcoinMainnet, Address, Outpoint};
+//! use rmn_btc::{BitcoinMainnet, Address, Outpoint};
 //! use riemann_core::{
 //!     nets::Network,
 //!     builder::TxBuilder,

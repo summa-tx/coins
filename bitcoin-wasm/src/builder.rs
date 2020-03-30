@@ -5,7 +5,7 @@ use riemann_core::{
     enc::{AddressEncoder},
 };
 
-use riemann_bitcoin::{
+use rmn_btc::{
     builder::{self, BitcoinBuilder, WitTxBuilder},
     enc,
     types::{script, txin, txout},
