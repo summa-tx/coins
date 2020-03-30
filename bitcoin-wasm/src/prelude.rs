@@ -43,25 +43,19 @@ macro_rules! wrap_struct {
             }
         }
 
+        impl Serialize for $name {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: Serializer
+            {
+                let mut i = serializer.serialize_struct(stringify!($name), 1)?;
+                i.serialize_field(stringify!($name), &self.0.to_json())?;
+                i.end()
+            }
+        }
+
         #[wasm_bindgen]
         impl $name {
-
-            #[wasm_bindgen(js_name = toJSON)]
-            pub fn to_json(&self) -> String {
-                match self.0.serialize_hex() {
-                    Ok(s) => s,
-                    Err(_) => "ERROR DURING SERIALIZATION".to_owned()
-                }
-            }
-
-            #[wasm_bindgen(js_name = toString)]
-            pub fn as_string(&self) -> String {
-                match self.0.serialize_hex() {
-                    Ok(s) => format!("{}: {}", stringify!($name), s),
-                    Err(_) => "ERROR DURING SERIALIZATION".to_owned()
-                }
-            }
-
             #[allow(clippy::useless_asref)]
             pub fn deserialize(buf: &[u8]) -> Result<$name, JsValue> {
                 $module::$name::deserialize(&mut buf.as_ref(), 0)

@@ -1,5 +1,4 @@
 //! Bitcoin transaction types and associated sighash arguments.
-
 use std::io::{Read, Write, Error as IOError};
 use bitcoin_spv::types::{Hash256Digest};
 
@@ -343,6 +342,16 @@ impl<'a> Transaction<'a> for LegacyTx {
 impl<'a> BitcoinTransaction<'a> for LegacyTx {}
 
 impl Ser for LegacyTx {
+    fn to_json(&self) -> String {
+        format!(
+            "{{\"version\": {}, \"vin\": {}, \"vout\": {}, \"locktime\": {}}}",
+            self.version,
+            self.vin.to_json(),
+            self.vout.to_json(),
+            self.locktime
+        )
+    }
+
     fn serialized_length(&self) -> usize {
         let mut len = 4; // version
         len += self.vin.serialized_length();
@@ -649,6 +658,18 @@ impl<'a> WitnessTransaction<'a> for WitnessTx {
 }
 
 impl Ser for WitnessTx {
+    fn to_json(&self) -> String {
+        format!(
+            "{{\"version\": {}, \"vin\": {}, \"vout\": {}, \"witnesses\": {}, \"locktime\": {}}}",
+            self.version(),
+            self.legacy_tx.vin.to_json(),
+            self.legacy_tx.vout.to_json(),
+            self.witnesses.to_json(),
+            self.locktime()
+        )
+    }
+
+
     fn serialized_length(&self) -> usize {
         let mut len = 4; // version
         len += 2;  // Segwit Flag

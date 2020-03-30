@@ -15,6 +15,10 @@ macro_rules! mark_hash256 {
         #[derive(Copy, Clone, Default, Debug, Eq, PartialEq)]
         pub struct $hash_name(pub Hash256Digest);
         impl Ser for $hash_name {
+            fn to_json(&self) -> String {
+                format!("\"0x{}\"", self.serialize_hex().unwrap())
+            }
+
             fn serialized_length(&self) -> usize {
                 32
             }

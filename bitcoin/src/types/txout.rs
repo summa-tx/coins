@@ -62,6 +62,14 @@ impl TxOut{
 }
 
 impl Ser for TxOut {
+    fn to_json(&self) -> String {
+        format!(
+            "{{\"value\": \"0x{}\", \"script_pubkey\": {}}}",
+            hex::encode(self.value.to_le_bytes()),  // to avoid loosing fidelity to JS
+            self.script_pubkey.to_json(),
+        )
+    }
+
     fn serialized_length(&self) -> usize {
         let mut len = 8; // value
         len += self.script_pubkey.serialized_length();
@@ -98,7 +106,7 @@ pub type Vout = ConcretePrefixVec<TxOut>;
 mod test {
     use super::*;
     use riemann_core::ser::{Ser};
-    
+
     #[test]
     fn it_serializes_and_derializes_outputs() {
         let cases = [

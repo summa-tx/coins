@@ -71,6 +71,10 @@ impl<M> Ser for Outpoint<M>
 where
     M: MarkedDigest + Ser
 {
+    fn to_json(&self) -> String {
+        format!("{{\"txid\": {}, \"idx\": {}}}", self.txid.to_json(), self.idx)
+    }
+
     fn serialized_length(&self) -> usize {
         36
     }
@@ -146,6 +150,15 @@ impl<M> Ser for TxInput<M>
 where
     M: MarkedDigest + Ser
 {
+    fn to_json(&self) -> String {
+        format!(
+            "{{\"outpoint\": {}, \"script_sig\": {}, \"sequence\": {}}}",
+            self.outpoint.to_json(),
+            self.script_sig.to_json(),
+            self.sequence
+        )
+    }
+
     fn serialized_length(&self) -> usize {
         let mut len = self.outpoint.serialized_length();
         len += self.script_sig.serialized_length();

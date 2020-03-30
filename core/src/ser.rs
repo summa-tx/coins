@@ -48,6 +48,11 @@ pub type SerResult<T> = Result<T, SerError>;
 /// `Ser` is used extensively in Sighash calculation, txid calculations, and transaction
 /// serialization and deserialization.
 pub trait Ser {
+
+    /// Returns a JSON string with the serialized data structure. We do not yet implement
+    /// `from_json`.
+    fn to_json(&self) -> String;
+
     /// Returns the byte-length of the serialized data structure.
     fn serialized_length(&self) -> usize;
 
@@ -150,6 +155,12 @@ pub trait Ser {
 }
 
 impl<A: Ser> Ser for Vec<A> {
+
+    fn to_json(&self) -> String {
+        let items: Vec<String> = self.iter().map(Ser::to_json).collect();
+        format!("[{}]", &items[..].join(", "))
+    }
+
     fn serialized_length(&self) -> usize {
         self.iter().map(|v| v.serialized_length()).sum()
     }
@@ -175,6 +186,10 @@ impl<A: Ser> Ser for Vec<A> {
 }
 
 impl Ser for Hash256Digest {
+    fn to_json(&self) -> String {
+        format!("\"0x{}\"", self.serialize_hex().unwrap())
+    }
+
     fn serialized_length(&self) -> usize {
         32
     }

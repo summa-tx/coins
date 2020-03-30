@@ -121,6 +121,11 @@ where
     I: Ser,
     T: PrefixVec<Item = I>,
 {
+    fn to_json(&self) -> String {
+        let items: Vec<String> = self.items().iter().map(Ser::to_json).collect();
+        format!("{{\"prefix_bytes\": {}, \"items\": [{}]}}", self.len_prefix(), items.join(", "))
+    }
+
     fn serialized_length(&self) -> usize {
         let mut length = self.items().iter().map(|v| v.serialized_length()).sum();
         length += self.len_prefix() as usize;
@@ -295,6 +300,10 @@ impl<T> IntoIterator for ConcretePrefixVec<T> {
 }
 
 impl Ser for u8 {
+    fn to_json(&self) -> String {
+        format!("{}", self)
+    }
+
     fn serialized_length(&self) -> usize {
         1
     }

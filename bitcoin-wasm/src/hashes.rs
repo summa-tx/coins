@@ -1,5 +1,6 @@
 use js_sys;
 use wasm_bindgen::prelude::*;
+use serde::ser::{Serialize, SerializeStruct, Serializer};
 
 use bitcoin_spv::types::{Hash256Digest};
 
