@@ -12,6 +12,6 @@ riemann-bitcoin = {path = "../bitcoin"}
 riemann-core = {path = "../core"}
 wasm-bindgen = "0.2.60"
 js-sys = "0.3.37"
-bitcoin-spv = "1.0.0"
+bitcoin-spv = "2.0.0"
 thiserror = "1.0"
 serde = "1.0.105"
