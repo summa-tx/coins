@@ -2,7 +2,8 @@
 members = [
     "core",
     "bitcoin",
-    "bitcoin-wasm"
+    "bitcoin-wasm",
+    "litecoin"
 ]
 
 # # Recommended when packing the wasm for release

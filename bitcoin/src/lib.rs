@@ -1,5 +1,6 @@
-//! Holds concrete type implementations for Bitcoin networks. This includes Mainnet, Testnet, and
-//! Signet.
+//! This crate provides a simple interface for interacting with Bitcoin mainnet,
+//! testnet, and signet.
+
 
 #![forbid(unsafe_code)]
 
