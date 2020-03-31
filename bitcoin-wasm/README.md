@@ -5,6 +5,8 @@ This crate generates wrappers suitable for use with wasm-bindgen around the
 functionality, and the resulting wasm libraries can be run in a browser and in
 node.js.
 
+This crate is under active development, and the API may change.
+
 The interface aims to be as faithful to `riemann-bitcoin` as possible, however
 a few compromises have been made.
 
@@ -28,7 +30,7 @@ a few compromises have been made.
 You should use the standard network interface:
 
 ```js
-const btc = require('@summa-tx/rmn-btc');
+const btc = require('@summa-tx/rmn-btc-wasm');
 
 const addr = "bc1q....";
 

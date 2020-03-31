@@ -3,29 +3,36 @@
 This crate provides a simple interface for interacting with Bitcoin mainnet,
 testnet, and signet.
 
+This crate is under active development, and the API may change.
+
 ## Usage
 
+Typically, you'll want to use a pre-fabricated network as an entry point.
+
 ```rust
-use riemann_bitcoin::{BitcoinMainnet, Address, Outpoint};
 use riemann_core::{
     nets::Network,
     builder::TxBuilder,
     ser::Ser,
 };
-//!
-let address = BitcoinMainnet::string_to_address("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned());
-//!
-let b = BitcoinMainnet::tx_builder();
-b.version(2)
- .spend(Outpoint::default(), 0xaabbccdd)
- .pay(0x8888_8888_8888_8888, &address).unwrap()
- .pay(0x7777_7777_7777_7777, &Address::SH("377mKFYsaJPsxYSB5aFfx8SW3RaN5BzZVh".to_owned())).unwrap()
- .build()
- .serialize_hex();
-//!
-let script = BitcoinMainnet::decode_address(&address).unwrap();
-let re_encoded = BitcoinMainnet::encode_address(&script).unwrap();
-assert_eq!(address, re_encoded);
+
+use riemann_bitcoin::{BitcoinMainnet, Outpoint};
+
+// We can convert a string to an address
+let address = BitcoinMainnet::string_to_address("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy").unwrap();
+
+// And set up a transaction builder with a simple interface
+let serialized_tx = BitcoinMainnet::tx_builder()
+  .version(2)
+  .spend(Outpoint::default(), 0xaabbccdd)
+  .pay(0x8888_8888_8888_8888, &address).unwrap()
+  .build()
+  .serialize_hex();
 ```
 
-See the documentation for more details. TODO: link
+See the documentation for more details. TODO: link the docs.
+
+## Building & Running Tests
+
+- `cargo build`
+- `cargo test`
