@@ -47,3 +47,4 @@ let tx = btc.BitcoinMainnet.tx_builder()
 - install [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/)
 - `wasm-pack build`
   - specify `--target nodejs` for use in node.
+- build the docs: `$ cargo rustdoc`

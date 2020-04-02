@@ -36,3 +36,4 @@ See the documentation for more details. TODO: link the docs.
 
 - `cargo build`
 - `cargo test`
+- build the docs: `$ cargo rustdoc`
