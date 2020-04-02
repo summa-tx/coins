@@ -41,7 +41,7 @@ impl<M> Outpoint<M>
 where
     M: MarkedDigest
 {
-    /// Returns a new Outpoint from a digest
+    /// Returns a new Outpoint from a digest and index
     pub fn new(txid: M, idx: u32) -> Self {
         Self{
             txid,

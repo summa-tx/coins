@@ -16,16 +16,19 @@
 //! - `impl_prefix_vec_access` generates getters and setters for prefix vecs
 
 
-
 // This macro wraps and implements a wrapper around the `Ser` trait
-// TODO: figure out why inspectable prints indexed characters
 macro_rules! wrap_struct {
-    ($module:ident::$name:ident) => {
+    (
+        $(#[$outer:meta])*
+        $module:ident::$name:ident
+    ) => {
+        $(#[$outer])*
         #[wasm_bindgen(inspectable)]
         #[derive(Clone, Debug, Default)]
         pub struct $name($module::$name);
 
         impl $name {
+            /// Return a clone of the underlying object.
             pub fn inner(&self) -> $module::$name {
                 self.0.clone()
             }
@@ -56,6 +59,7 @@ macro_rules! wrap_struct {
 
         #[wasm_bindgen]
         impl $name {
+            /// Deserialize from a `Uint8Array`
             #[allow(clippy::useless_asref)]
             pub fn deserialize(buf: &[u8]) -> Result<$name, JsValue> {
                 $module::$name::deserialize(&mut buf.as_ref(), 0)
@@ -64,6 +68,7 @@ macro_rules! wrap_struct {
                     .map_err(JsValue::from)
             }
 
+            /// Serialize to a `Uint8Array`
             pub fn serialize(&self) -> Result<js_sys::Uint8Array, JsValue> {
                 let mut v = vec![];
                 self.0.serialize(&mut v)
@@ -72,6 +77,7 @@ macro_rules! wrap_struct {
                 Ok(js_sys::Uint8Array::from(&v[..]))
             }
 
+            /// Deserialize from hex.
             pub fn deserialize_hex(s: String) -> Result<$name, JsValue> {
                 $module::$name::deserialize_hex(s)
                     .map(Self::from)
@@ -79,6 +85,7 @@ macro_rules! wrap_struct {
                     .map_err(JsValue::from)
             }
 
+            /// Serialize to a hex string.
             pub fn serialize_hex(&self) -> Result<String, JsValue> {
                 self.0.serialize_hex()
                     .map_err(WasmError::from)
@@ -196,10 +203,22 @@ macro_rules! impl_prefix_vec_access {
 
 macro_rules! impl_builders {
     ($leg:ident, $wit:ident, $enc:ident) => {
+
+        /// LegacyBuilder provides a struct on which we implement `TxBuilder` for legacy Bitcoin
+        /// Transactions. Its associated types are the standard Bitcoin `LegacyTx`, and `WitnessTx`,
+        /// and the WitnessBuilder. It is parameterized with an address encoder, so that the same
+        /// struct and logic can be used on mainnet and testnet.
+        ///
+        /// It can be explicitly converted to a WitnessBuilder using `as_witness`, or implicitly
+        /// via `extend_witnesses`.
         #[wasm_bindgen(inspectable)]
         #[derive(Debug, Clone)]
         pub struct $leg(builder::LegacyBuilder<enc::$enc>);
 
+        /// WitnessBuilder implements `TxBuilder` and `WitTxBuilder`. The only difference between
+        /// `WitnessBuilder` and `LegacyBuilder` is that `WitnessBuilder` builds Witness transactions.
+        /// This is implemented by having `WitnessBuilder` contain an internal `LegacyBuilder` which all
+        /// non-witness updates are applied to.
         #[wasm_bindgen(inspectable)]
         #[derive(Debug, Clone)]
         pub struct $wit(builder::WitnessBuilder<enc::$enc>);
@@ -231,18 +250,22 @@ macro_rules! impl_builders {
         #[wasm_bindgen]
         impl $leg {
             #[wasm_bindgen(constructor)]
+            /// Instantiate a new builder
             pub fn new() -> $leg {
                 builder::LegacyBuilder::new().into()
             }
 
+            /// Set the builder version
             pub fn version(self, version: u32) -> $leg {
                 self.0.version(version).into()
             }
 
+            /// Spend an outpoint
             pub fn spend(self, outpoint: BitcoinOutpoint, sequence: u32) -> $leg {
                 self.0.spend(outpoint, sequence).into()
             }
 
+            /// Pay an address
             pub fn pay(self, value: u64, address: &str) -> Result<$leg, JsValue> {
                 let addr = enc::$enc::string_to_address(address)
                     .map_err(WasmError::from)
@@ -253,27 +276,33 @@ macro_rules! impl_builders {
                     .map_err(JsValue::from)
             }
 
+            /// Extend the vin with several inputs
             pub fn extend_inputs(self, inputs: Vin) -> $leg {
                 self.0.extend_inputs(txin::Vin::from(inputs)).into()
             }
 
+            /// Extend the vout with several outputs
             pub fn extend_outputs(self, outputs: Vout) -> $leg {
                 self.0.extend_outputs(txout::Vout::from(outputs)).into()
             }
 
+            /// Set the locktime
             pub fn locktime(self, locktime: u32) -> $leg {
                 self.0.locktime(locktime).into()
             }
 
+            /// Add witnesses and implicitly convert to a witness builder.
             pub fn extend_witnesses(self, witnesses: TxWitness) -> $wit {
                 self.0.extend_witnesses(Vec::<script::Witness>::from(witnesses)).into()
             }
 
+            /// Explicitly convert to a witness builder
             #[allow(clippy::wrong_self_convention)]
             pub fn as_witness(self) -> $wit {
                 self.0.as_witness().into()
             }
 
+            /// Consume the builder and produce a transaction
             pub fn build(self) -> LegacyTx {
                 self.0.build().into()
             }
@@ -281,19 +310,22 @@ macro_rules! impl_builders {
 
         #[wasm_bindgen]
         impl $wit {
-            #[wasm_bindgen(constructor)]
+            /// Instantiate a new builder#[wasm_bindgen(constructor)]
             pub fn new() -> $wit {
                 builder::WitnessBuilder::new().into()
             }
 
+            /// Set the builder version
             pub fn version(self, version: u32) -> $wit {
                 self.0.version(version).into()
             }
 
+            /// Spend an outpoint
             pub fn spend(self, outpoint: BitcoinOutpoint, sequence: u32) -> $wit {
                 self.0.spend(outpoint, sequence).into()
             }
 
+            /// Pay an address
             pub fn pay(self, value: u64, address: &str) -> Result<$wit, JsValue> {
                 let addr = enc::$enc::string_to_address(address)
                     .map_err(WasmError::from)
@@ -304,27 +336,33 @@ macro_rules! impl_builders {
                     .map_err(JsValue::from)
             }
 
+            /// Extend the vin with several inputs
             pub fn extend_inputs(self, inputs: Vin) -> $wit {
                 self.0.extend_inputs(txin::Vin::from(inputs)).into()
             }
 
+            /// Extend the vout with several outputs
             pub fn extend_outputs(self, outputs: Vout) -> $wit {
                 self.0.extend_outputs(txout::Vout::from(outputs)).into()
             }
 
+            /// Set the locktime
             pub fn locktime(self, locktime: u32) -> $wit {
                 self.0.locktime(locktime).into()
             }
 
+            /// Add witnesses
             pub fn extend_witnesses(self, witnesses: TxWitness) -> $wit {
                 self.0.extend_witnesses(Vec::<script::Witness>::from(witnesses)).into()
             }
 
+            /// Explicitly convert to a legacy builder
             #[allow(clippy::wrong_self_convention)]
             pub fn as_legacy(self) -> $leg {
                 self.0.as_legacy().into()
             }
 
+            /// Consume the builder and produce a transaction
             pub fn build(self) -> WitnessTx {
                 self.0.build().into()
             }
@@ -333,7 +371,11 @@ macro_rules! impl_builders {
 }
 
 macro_rules! impl_encoder {
-    ($module:ident::$enc_name:ident) => {
+    (
+        $(#[$outer:meta])*
+        $module:ident::$enc_name:ident
+    ) => {
+        $(#[$outer])*
         #[wasm_bindgen]
         pub struct $enc_name;
 
@@ -367,28 +409,35 @@ macro_rules! impl_encoder {
 }
 
 macro_rules! impl_network {
-    ($network_name:ident, $builder_name:ident, $encoder_name:ident)=> {
+    (
+        $(#[$outer:meta])*
+        $network_name:ident, $builder_name:ident, $encoder_name:ident
+    )=> {
         #[wasm_bindgen(inspectable)]
         #[derive(Debug)]
         pub struct $network_name;
 
         #[wasm_bindgen]
         impl $network_name {
+            /// Return a new transaction builder for this network.
             pub fn tx_builder() -> $builder_name {
                 $builder_name::new()
             }
 
+            /// Encode a Uint8Array as an address with this network's version info.
+            /// Throws for non-standard scripts
             pub fn encode_address(s: &[u8]) -> Result<Address, JsValue> {
                 $encoder_name::encode_address(s)
-
             }
 
             /// Attempt to decode a `RecipientIdentifier` from an `Address`.
+            /// Throws if the detected version info does not match this network.
             pub fn decode_address(addr: Address) -> Result<js_sys::Uint8Array, JsValue> {
                 $encoder_name::decode_address(addr)
             }
 
             /// Attempt to convert a string into an `Address`.
+            /// Throws if the string is not an address for this network.
             pub fn string_to_address(s: &str) -> Result<Address, JsValue> {
                 $encoder_name::string_to_address(s)
             }

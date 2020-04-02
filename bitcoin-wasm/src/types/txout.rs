@@ -1,3 +1,5 @@
+//! Transaction outputs, their components, and the output vector.
+
 use js_sys;
 use wasm_bindgen::prelude::*;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
@@ -12,8 +14,15 @@ use rmn_btc::{
 
 use crate::errors::WasmError;
 
-wrap_struct!(txout::TxOut);
-wrap_struct!(txout::Vout);
+wrap_struct!(
+    /// An Output. This describes a new UTXO to be created. The value is encoded as an LE u64. The
+    /// script pubkey encodes the spending constraints.
+    txout::TxOut
+);
+wrap_struct!(
+    /// A transaction's Vector of OUTputs.
+    txout::Vout
+);
 
 impl_simple_getter!(TxOut, value, u64);
 impl_prefix_vec_access!(txout::Vout, txout::TxOut);
@@ -45,6 +54,7 @@ impl TxOut {
         }.into()
     }
 
+    /// Return the script_pubkey as a `Uint8Array`
     #[wasm_bindgen(method, getter)]
     pub fn script_pubkey(&self) -> js_sys::Uint8Array {
         js_sys::Uint8Array::from(self.0.script_pubkey.items())

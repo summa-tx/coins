@@ -1,3 +1,5 @@
+//! Types used to construct bitcoin transactions.
+
 pub mod script;
 pub mod errors;
 pub mod txin;

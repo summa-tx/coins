@@ -7,7 +7,7 @@
 //!
 //! The builder can also be explicitly converted using the `as_witness` and `as_legacy` functions.
 //!
-//! The builder is best accessed via the preconstructed `BitcoinMainnet` objects in `nets.rs`.
+//! The builder is best accessed via the preconstructed network objects in `nets.rs`.
 //!
 //! ```compile_fail
 //! let legacy_builder = BitcoinMainnet::tx_builder();
@@ -82,7 +82,7 @@ pub trait WitTxBuilder<'a>: BitcoinBuilder<'a> {
     fn as_legacy(self) -> Self::LegacyBuilder;
 }
 
-/// BitcoinBuilder provides a struct on which we implement `TxBuilder` for legacy Bitcoin
+/// LegacyBuilder provides a struct on which we implement `TxBuilder` for legacy Bitcoin
 /// Transactions. Its associated types are the standard Bitcoin `LegacyTx`, and `WitnessTx`, and
 /// the WitnessBuilder. It is parameterized with an address encoder, so that the same struct and
 /// logic can be used on mainnet and testnet.

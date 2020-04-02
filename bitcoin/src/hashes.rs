@@ -10,8 +10,11 @@ use riemann_core::{
 };
 
 macro_rules! mark_hash256 {
-    ($hash_name:ident) => {
-        #[doc = "A Marked Hash256Digest that represents a $hash_name"]
+    (
+        $(#[$outer:meta])*
+        $hash_name:ident
+    ) => {
+        $(#[$outer])*
         #[derive(Copy, Clone, Default, Debug, Eq, PartialEq)]
         pub struct $hash_name(pub Hash256Digest);
         impl Ser for $hash_name {
@@ -63,8 +66,14 @@ macro_rules! mark_hash256 {
     }
 }
 
-mark_hash256!(TXID);
-mark_hash256!(WTXID);
+mark_hash256!(
+    /// A marked Hash256Digest representing transaction IDs
+    TXID
+);
+mark_hash256!(
+    /// A marked Hash256Digest representing witness transaction IDs
+    WTXID
+);
 
 #[cfg(test)]
 mod test {

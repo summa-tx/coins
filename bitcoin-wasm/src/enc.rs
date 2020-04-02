@@ -1,3 +1,5 @@
+//! Defines parameterized Bitcoin encoders for Mainnet, Testnet, and Signet.
+
 use js_sys;
 use wasm_bindgen::prelude::*;
 use serde::ser::{Serialize, Serializer};
@@ -11,6 +13,7 @@ use rmn_btc::{enc, script};
 
 use crate::errors::{WasmError};
 
+/// A wrapper type for Bitcoin addresses. Contains an instance of the address enum.
 #[wasm_bindgen]
 pub struct Address(enc::Address);
 
@@ -28,6 +31,7 @@ impl From<Address> for enc::Address {
 
 #[wasm_bindgen]
 impl Address {
+    /// Convert the address to a string.
     #[wasm_bindgen(method, getter)]
     pub fn as_string(&self) -> String {
         self.0.as_string()
@@ -43,6 +47,15 @@ impl Serialize for Address {
     }
 }
 
-impl_encoder!(enc::MainnetEncoder);
-impl_encoder!(enc::TestnetEncoder);
-impl_encoder!(enc::SignetEncoder);
+impl_encoder!(
+    /// An encoder for Bitcoin Mainnet
+    enc::MainnetEncoder
+);
+impl_encoder!(
+    /// An encoder for Bitcoin Tesnet
+    enc::TestnetEncoder
+);
+impl_encoder!(
+    /// An encoder for Bitcoin Signet
+    enc::SignetEncoder
+);

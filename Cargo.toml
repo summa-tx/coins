@@ -2,11 +2,8 @@
 members = [
     "core",
     "bitcoin",
-    "bitcoin-wasm",
     "litecoin"
 ]
-
-# # Recommended when packing the wasm for release
-# [profile.release]
-# lto = true
-# opt-level = 'z'
+exclude = [
+  "bitcoin-wasm"
+]

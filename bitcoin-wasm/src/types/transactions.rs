@@ -1,3 +1,5 @@
+//! Transaction types.
+
 use js_sys;
 use wasm_bindgen::prelude::*;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
@@ -23,8 +25,14 @@ use crate::{
     script::{TxWitness, Witness},
 };
 
-wrap_struct!(transactions::LegacyTx);
-wrap_struct!(transactions::WitnessTx);
+wrap_struct!(
+    /// A legacy bitcoin transaction object.
+    transactions::LegacyTx
+);
+wrap_struct!(
+    /// A witness bitcoin transaction object.
+    transactions::WitnessTx
+);
 
 impl_getter_passthrough!(LegacyTx, version, u32);
 impl_getter_passthrough!(LegacyTx, locktime, u32);
@@ -37,6 +45,7 @@ impl_wrapped_getter_passthrough!(WitnessTx, wtxid, WTXID);
 
 #[wasm_bindgen]
 impl LegacyTx {
+    /// Instantiate a new Legacy Tx.
     #[wasm_bindgen(constructor)]
     pub fn new(version: u32, vin: Vin, vout: Vout, locktime: u32) -> Self {
         transactions::LegacyTx::new(
@@ -47,24 +56,29 @@ impl LegacyTx {
         ).into()
     }
 
+    /// Return a clone of the transaction input vector
     #[wasm_bindgen(method, getter)]
     pub fn inputs(&self) -> js_sys::Array {
         self.0.inputs()
             .iter()
-            .map(|v| BitcoinTxIn::from(v.clone()))
+            .map(Clone::clone)
+            .map(BitcoinTxIn::from)
             .map(JsValue::from)
             .collect()
     }
 
+    /// Return a clone of the transaction output vector
     #[wasm_bindgen(method, getter)]
     pub fn outputs(&self) -> js_sys::Array {
         self.0.outputs()
             .iter()
-            .map(|v| TxOut::from(v.clone()))
+            .map(Clone::clone)
+            .map(TxOut::from)
             .map(JsValue::from)
             .collect()
     }
 
+    /// Calculate the sighash digest of an input in the vin.
     #[wasm_bindgen]
     pub fn sighash(
         &self,
@@ -89,6 +103,7 @@ impl LegacyTx {
 
 #[wasm_bindgen]
 impl WitnessTx {
+    /// Instantiate a new Legacy Tx.zs
     #[wasm_bindgen(constructor)]
     pub fn new(
         version: u32,
@@ -107,33 +122,40 @@ impl WitnessTx {
         ).into()
     }
 
+    /// Return a clone of the transaction input vector
     #[wasm_bindgen(method, getter)]
     pub fn inputs(&self) -> js_sys::Array {
         self.0.inputs()
             .iter()
-            .map(|v| BitcoinTxIn::from(v.clone()))
+            .map(Clone::clone)
+            .map(BitcoinTxIn::from)
             .map(JsValue::from)
             .collect()
     }
 
+    /// Return a clone of the transaction output vector
     #[wasm_bindgen(method, getter)]
     pub fn outputs(&self) -> js_sys::Array {
         self.0.outputs()
             .iter()
-            .map(|v| TxOut::from(v.clone()))
+            .map(Clone::clone)
+            .map(TxOut::from)
             .map(JsValue::from)
             .collect()
     }
 
+    /// Return a clone of the transaction witness vector
     #[wasm_bindgen(method, getter)]
     pub fn witnesses(&self) -> js_sys::Array {
         self.0.witnesses()
             .iter()
-            .map(|v| Witness::from(v.clone()))
+            .map(Clone::clone)
+            .map(Witness::from)
             .map(JsValue::from)
             .collect()
     }
 
+    /// Calculate the sighash digest of an input in the vin.
     #[wasm_bindgen]
     pub fn sighash(
         &self,
