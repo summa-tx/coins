@@ -138,6 +138,17 @@ where
         }
     }
 
+    fn from_tx(tx: &Self::Transaction) -> Self {
+        Self {
+            version: tx.version(),
+            vin: tx.inputs().to_vec(),
+            vout: tx.outputs().to_vec(),
+            locktime: tx.locktime(),
+            encoder: PhantomData,
+        }
+    }
+
+
     fn version(mut self, version: u32) -> Self {
         self.version = version;
         self
@@ -210,6 +221,19 @@ where
         Self{
             builder: LegacyBuilder::<T>::new(),
             witnesses: vec![],
+        }
+    }
+
+    fn from_tx(tx: &Self::Transaction) -> Self {
+        Self {
+            builder: LegacyBuilder {
+                version: tx.version(),
+                vin: tx.inputs().to_vec(),
+                vout: tx.outputs().to_vec(),
+                locktime: tx.locktime(),
+                encoder: PhantomData,
+            },
+            witnesses: tx.witnesses().to_vec(),
         }
     }
 

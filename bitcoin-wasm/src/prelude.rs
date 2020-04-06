@@ -255,6 +255,14 @@ macro_rules! impl_builders {
                 builder::LegacyBuilder::new().into()
             }
 
+            pub fn from_tx(tx: &LegacyTx) -> $leg {
+                builder::LegacyBuilder::from_tx(&tx.inner()).into()
+            }
+
+            pub fn from_hex_tx(hex: String) -> $leg {
+                builder::LegacyBuilder::from_hex_tx(hex).unwrap().into()
+            }
+
             /// Set the builder version
             pub fn version(self, version: u32) -> $leg {
                 self.0.version(version).into()
@@ -313,6 +321,14 @@ macro_rules! impl_builders {
             /// Instantiate a new builder#[wasm_bindgen(constructor)]
             pub fn new() -> $wit {
                 builder::WitnessBuilder::new().into()
+            }
+
+            pub fn from_tx(tx: &WitnessTx) -> $wit {
+                builder::WitnessBuilder::from_tx(&tx.inner()).into()
+            }
+
+            pub fn from_hex_tx(hex: String) -> $wit {
+                builder::WitnessBuilder::from_hex_tx(hex).unwrap().into()
             }
 
             /// Set the builder version

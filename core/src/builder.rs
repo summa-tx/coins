@@ -1,8 +1,10 @@
 //! The `builder` module defines an abstract `TxBuilder` trait. A concrete implementation for
 //! Bitcoin can be found in the `bitcoin` crate
 
+use std::io::Read;
 use crate::{
     enc::{AddressEncoder},
+    ser::{Ser},
     types::{
         tx::{Transaction, Input, Output},
     },
@@ -21,6 +23,24 @@ pub trait TxBuilder<'a>: std::marker::Sized {
 
     /// Instantiate a new builder
     fn new() -> Self;
+
+    /// Instantiate a new builder from a transaction
+    fn from_tx(tx: &Self::Transaction) -> Self;
+
+    /// Instantiate a new builder from a `std::io::Read` that contains a serialized tx
+    fn from_serialized_tx<R>(reader: &mut R) -> Result<Self, <Self::Transaction as Transaction<'a>>::Error>
+    where
+        R: Read
+    {
+        let tx = Self::Transaction::deserialize(reader, 0)?;
+        Ok(Self::from_tx(&tx))
+    }
+
+    /// Instantiate a new builder from transaction hex
+    fn from_hex_tx(hex_str: String) -> Result<Self, <Self::Transaction as Transaction<'a>>::Error> {
+        let tx = Self::Transaction::deserialize_hex(hex_str)?;
+        Ok(Self::from_tx(&tx))
+    }
 
     /// Set or overwrite the transaction version.
     ///

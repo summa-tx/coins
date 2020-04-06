@@ -4,7 +4,7 @@ use crate::{
     hashes::{
         marked::{Digest, MarkedDigest, MarkedDigestWriter},
     },
-    ser::{Ser}
+    ser::{Ser, SerError}
 };
 
 /// A `TXOIdentifier` represents the network's unique identifier an output. In Bitcoin this is an
@@ -38,7 +38,7 @@ pub trait Output {
 /// unique functionality.
 pub trait Transaction<'a>: Ser {
     /// An associated error type, using in Results returned by the Transaction.
-    type Error;
+    type Error: From<SerError>;
     /// A Digest type that underlies the associated marked hash, and is returned by `sighash()`.
     type Digest: Digest;
     /// The Input type for the transaction
