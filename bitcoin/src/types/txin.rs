@@ -234,18 +234,6 @@ mod test {
                 format!("{}{}{}", NULL_OUTPOINT, "00", "cdab3412")
             ),
             (
-                BitcoinTxIn{
-                    outpoint: Outpoint::null(),
-                    script_sig: ScriptSig::new_non_minimal(
-                        vec![0x00, 0x14, 0x11, 0x00, 0x33, 0x00, 0x55, 0x00, 0x77, 0x00, 0x99, 0x00, 0xbb, 0x00, 0xdd, 0x00, 0xff, 0x11, 0x00, 0x33, 0x00, 0x55],
-                        3
-                    ).unwrap(),
-                    sequence: 0x1234abcd
-
-                },
-                format!("{}{}{}", NULL_OUTPOINT, "fd1600001411003300550077009900bb00dd00ff1100330055", "cdab3412")
-            ),
-            (
                 BitcoinTxIn::new(
                     Outpoint::null(),
                     vec![],

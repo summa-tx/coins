@@ -1,7 +1,7 @@
 use std::ops::{Index, IndexMut};
 use std::io::{Read, Write};
 
-use crate::ser::{Ser, SerError, SerResult};
+use crate::ser::{Ser, SerResult};
 
 /// Calculates the minimum prefix length for a VarInt encoding `number`
 pub fn prefix_byte_len(number: u64) -> u8 {
@@ -52,11 +52,7 @@ pub trait PrefixVec: Ser {
 
     /// Set the underlying items vector. This must also either set the `prefix_len`, or error if
     /// the prefix_len is insufficient to encode the new item vector length.
-    fn set_items(&mut self, v: Vec<Self::Item>) -> SerResult<()>;
-
-    /// Set the prefix length. This shoumust error if the new length is insufficent to encode the
-    /// current item vector length.
-    fn set_prefix_len(&mut self, prefix_len: u8) -> SerResult<()>;
+    fn set_items(&mut self, v: Vec<Self::Item>);
 
     /// Push an item to the item vector.
     fn push(&mut self, i: Self::Item);
@@ -65,7 +61,9 @@ pub trait PrefixVec: Ser {
     fn len(&self) -> usize;
 
     /// Return the encoded length of the VarInt prefix.
-    fn len_prefix(&self) -> u8;
+    fn len_prefix(&self) -> u8 {
+        prefix_byte_len(self.len() as u64)
+    }
 
     /// Return a reference to the contents of the item vector.
     fn items(&self) -> &[Self::Item];
@@ -91,28 +89,8 @@ pub trait PrefixVec: Ser {
         Self: std::marker::Sized
      {
         let mut s = Self::null();
-        s.set_prefix_len(prefix_byte_len(v.len() as u64)).expect("Can't fail, as self is empty");
-        s.set_items(v).expect("Can't fail, as prefix is set high enough.");
+        s.set_items(v);
         s
-    }
-
-    /// Instantiate a new `PrefixVec` that contains `v` and has a non-minimal `VarInt` prefix.
-    fn new_non_minimal(v: Vec<Self::Item>, prefix_bytes: u8) -> SerResult<Self>
-    where
-        Self: Sized
-    {
-        if !sufficient_prefix(prefix_bytes, v.len()) {
-            return Err(SerError::VarIntTooShort{got: prefix_bytes, need: prefix_byte_len(v.len() as u64)});
-        }
-        match prefix_bytes {
-            1 | 3 | 5 | 9 => {
-                let mut s = Self::null();
-                s.set_prefix_len(prefix_bytes)?;
-                s.set_items(v).expect("");
-                Ok(s)
-            },
-            _ => Err(SerError::BadVarIntLen(prefix_bytes))
-        }
     }
 }
 
@@ -152,7 +130,7 @@ where
         };
 
         let vec = Vec::<<T as PrefixVec>::Item>::deserialize(reader, expected_vector_length as usize)?;
-        Ok(T::new_non_minimal(vec, prefix_len)?)
+        Ok(T::new(vec))
     }
 
     fn serialize<W>(&self, writer: &mut W) -> SerResult<usize>
@@ -196,62 +174,30 @@ where
 ///
 /// TODO: `impl<T> Into<Iter> for &ConcretePrefixVec<T>
 #[derive(PartialEq, Eq, Clone, Debug)]
-pub struct ConcretePrefixVec<T> {
-    prefix_bytes: u8,
-    items: Vec<T>
-}
+pub struct ConcretePrefixVec<T>(Vec<T>);
 
 impl<T: Ser> PrefixVec for ConcretePrefixVec<T>
 {
     type Item = T;
 
     fn null() -> Self {
-        Self{
-            prefix_bytes: 1,
-            items: vec![]
-        }
+        Self(vec![])
     }
 
-    fn set_items(&mut self, v: Vec<T>) -> SerResult<()> {
-        if !self.is_sufficient(v.len()) {
-            return Err(
-                SerError::VarIntTooShort{
-                    got: self.prefix_bytes,
-                    need: prefix_byte_len(v.len() as u64)
-                }
-            );
-        };
-        self.items = v;
-        Ok(())
-    }
-
-    fn set_prefix_len(&mut self, prefix_bytes: u8) -> SerResult<()> {
-        if !sufficient_prefix(prefix_bytes, self.len()) {
-            return Err(
-                SerError::VarIntTooShort{
-                    got: prefix_bytes,
-                    need: prefix_byte_len(self.len() as u64)
-                }
-            );
-        };
-        self.prefix_bytes = prefix_bytes;
-        Ok(())
+    fn set_items(&mut self, v: Vec<T>) {
+        self.0 = v
     }
 
     fn push(&mut self, i: Self::Item) {
-        self.items.push(i)
+        self.0.push(i)
     }
 
     fn len(&self) -> usize {
-        self.items.len()
-    }
-
-    fn len_prefix(&self) -> u8 {
-        self.prefix_bytes
+        self.0.len()
     }
 
     fn items(&self) -> &[T] {
-        &self.items
+        &self.0
     }
 }
 
@@ -265,13 +211,13 @@ impl<T> Index<usize> for ConcretePrefixVec<T> {
     type Output = T;
 
     fn index(&self, index: usize) -> &T {
-        &self.items[index]
+        &self.0[index]
     }
 }
 
 impl<T> IndexMut<usize> for ConcretePrefixVec<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-        &mut self.items[index]
+        &mut self.0[index]
     }
 }
 
@@ -286,7 +232,7 @@ where
 
 impl<T> Extend<T> for ConcretePrefixVec<T> {
     fn extend<I: IntoIterator<Item=T>>(&mut self, iter: I) {
-        self.items.extend(iter)
+        self.0.extend(iter)
     }
 }
 
@@ -295,7 +241,7 @@ impl<T> IntoIterator for ConcretePrefixVec<T> {
     type IntoIter = std::vec::IntoIter<Self::Item>;
 
     fn into_iter(self) -> Self::IntoIter {
-        self.items.into_iter()
+        self.0.into_iter()
     }
 }
 
