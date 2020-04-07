@@ -24,7 +24,6 @@
 use std::ops::{Index, IndexMut};
 
 use riemann_core::{
-    ser::{SerResult},
     types::{
         tx::{RecipientIdentifier},
         primitives::{ConcretePrefixVec, PrefixVec},
@@ -59,12 +58,8 @@ macro_rules! wrap_script_type {
                 Self(Default::default())
             }
 
-            fn set_items(&mut self, v: Vec<Self::Item>) -> SerResult<()> {
+            fn set_items(&mut self, v: Vec<Self::Item>) {
                 self.0.set_items(v)
-            }
-
-            fn set_prefix_len(&mut self, prefix_len: u8) -> SerResult<()> {
-                self.0.set_prefix_len(prefix_len)
             }
 
             fn push(&mut self, i: Self::Item) {
@@ -261,26 +256,21 @@ mod test{
     #[test]
     fn it_serializes_and_derializes_scripts() {
         let cases = [
-        (
-            Script::new(hex::decode("0014758ce550380d964051086798d6546bebdca27a73".to_owned()).unwrap()),
-            "160014758ce550380d964051086798d6546bebdca27a73",
-            22
-        ),
-        (
-            Script::new(vec![]),
-            "00",
-            0
-        ),
-        (
-            Script::null(),
-            "00",
-            0
-        ),
-        (
-            Script::new_non_minimal(vec![], 9).unwrap(),
-            "ff0000000000000000",
-            0
-        ),
+            (
+                Script::new(hex::decode("0014758ce550380d964051086798d6546bebdca27a73".to_owned()).unwrap()),
+                "160014758ce550380d964051086798d6546bebdca27a73",
+                22
+            ),
+            (
+                Script::new(vec![]),
+                "00",
+                0
+            ),
+            (
+                Script::null(),
+                "00",
+                0
+            ),
         ];
         for case in cases.iter() {
             let prevout_script = Script::deserialize_hex(case.1.to_owned()).unwrap();

@@ -156,19 +156,9 @@ macro_rules! impl_prefix_vec_access {
                 $class($module::$class::null())
             }
 
-            pub fn new_non_minimal(prefix_bytes: u8) -> Result<(), JsValue> {
-                $class::new().set_prefix_len(prefix_bytes)
-            }
-
             #[wasm_bindgen(method, getter)]
             pub fn length(&self) -> usize {
                 self.0.len()
-            }
-
-            pub fn set_prefix_len(&mut self, prefix_len: u8) -> Result<(), JsValue> {
-                self.0.set_prefix_len(prefix_len)
-                    .map_err(WasmError::from)
-                    .map_err(JsValue::from)
             }
 
             #[wasm_bindgen(method, getter)]
