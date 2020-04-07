@@ -14,6 +14,10 @@ pub enum SerError{
     #[error("Bad VarInt length. Must be 1,3,5, or 9. Got {:?}.", .0)]
     BadVarIntLen(u8),
 
+    /// VarInts must be minimal.
+    #[error("Attempted to deserialize non-minmal VarInt. Someone is doing something fishy.")]
+    NonMinimalVarInt,
+
     /// IOError bubbled up from a `Write` passed to a `Ser::serialize` implementation.
     #[error("Serialization error")]
     IOError(#[from] IOError),

@@ -1,7 +1,7 @@
 use std::ops::{Index, IndexMut};
 use std::io::{Read, Write};
 
-use crate::ser::{Ser, SerResult};
+use crate::ser::{Ser, SerError, SerResult};
 
 /// Calculates the minimum prefix length for a VarInt encoding `number`
 pub fn prefix_byte_len(number: u64) -> u8 {
@@ -33,12 +33,6 @@ pub fn prefix_len_from_first_byte(number: u8) -> u8 {
     }
 }
 
-/// Determines whether `prefix_bytes` bytes is sufficient to encode `number` in a VarInt
-pub fn sufficient_prefix(prefix_bytes: u8, number: usize) -> bool {
-    let req = prefix_byte_len(number as u64);
-    prefix_bytes >= req
-}
-
 /// A vector of items prefixed by a Bitcoin-style VarInt. The VarInt is encoded only as the length
 /// of the vector, and the serialized length of the VarInt.
 ///
@@ -50,8 +44,7 @@ pub trait PrefixVec: Ser {
     /// Construct an empty PrefixVec instance.
     fn null() -> Self;
 
-    /// Set the underlying items vector. This must also either set the `prefix_len`, or error if
-    /// the prefix_len is insufficient to encode the new item vector length.
+    /// Set the underlying items vector.
     fn set_items(&mut self, v: Vec<Self::Item>);
 
     /// Push an item to the item vector.
@@ -71,16 +64,6 @@ pub trait PrefixVec: Ser {
     /// Return true if the length of the item vector is 0.
     fn is_empty(&self) -> bool {
         self.len() == 0
-    }
-
-    /// Return false if the length of the item vector could be represented by a smaller VarInt.
-    fn is_minimal(&self) -> bool {
-        self.len_prefix() == prefix_byte_len(self.len() as u64)
-    }
-
-    /// Return true if the current `prefix_len` can encode `length`. False otherwise.
-    fn is_sufficient(&self, length: usize) -> bool {
-        sufficient_prefix(self.len_prefix(), length)
     }
 
     /// Instantiate a new `PrefixVec` that contains v.
@@ -119,8 +102,8 @@ where
         reader.read_exact(&mut prefix)?;  // read at most one byte
         let prefix_len = prefix_len_from_first_byte(prefix[0]);
 
-        // Get the bytes representing the vector length
-        let expected_vector_length = if prefix_len > 1{
+        // Get the byte(s) representing the vector length, as parse as u64
+        let expected_vector_length = if prefix_len > 1 {
             let mut buf = [0u8; 8];
             let mut body = reader.take(prefix_len as u64 - 1); // minus 1 to account for prefix
             let _ = body.read(&mut buf)?;
@@ -129,8 +112,13 @@ where
             prefix[0] as u64
         };
 
-        let vec = Vec::<<T as PrefixVec>::Item>::deserialize(reader, expected_vector_length as usize)?;
-        Ok(T::new(vec))
+        let expected_prefix_length = prefix_byte_len(expected_vector_length);
+        if expected_prefix_length < prefix_len {
+            Err(SerError::NonMinimalVarInt)
+        } else {
+            let vec = Vec::<I>::deserialize(reader, expected_vector_length as usize)?;
+            Ok(T::new(vec))
+        }
     }
 
     fn serialize<W>(&self, writer: &mut W) -> SerResult<usize>
@@ -154,7 +142,6 @@ where
             .collect();
         let vec_written: usize = writes?.iter().sum();
         Ok(written + vec_written)
-        // Ok(written)
     }
 }
 
@@ -167,12 +154,6 @@ where
 ///     PrefixVec.
 /// - `WitnessStackItems` are a newtype wrapping ConcretePrefixVec<u8>
 /// - `type Witness = ConcretePrefixVec<WitnessStackItem>`
-///
-/// ConcretePrefixVec tracks the expected serialized length of its prefix, and allows non-minimal
-/// VarInts. If the vector length can't be serialized in that number of bytes the current prefix,
-/// an error will be returned.
-///
-/// TODO: `impl<T> Into<Iter> for &ConcretePrefixVec<T>
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub struct ConcretePrefixVec<T>(Vec<T>);
 
