@@ -102,7 +102,7 @@ where
         reader.read_exact(&mut prefix)?;  // read at most one byte
         let prefix_len = prefix_len_from_first_byte(prefix[0]);
 
-        // Get the byte(s) representing the vector length, as parse as u64
+        // Get the byte(s) representing the vector length, and parse as u64
         let expected_vector_length = if prefix_len > 1 {
             let mut buf = [0u8; 8];
             let mut body = reader.take(prefix_len as u64 - 1); // minus 1 to account for prefix
