@@ -35,6 +35,36 @@ pub enum SerError{
 /// Type alias for serialization errors
 pub type SerResult<T> = Result<T, SerError>;
 
+/// Calculates the minimum prefix length for a VarInt encoding `number`
+pub fn prefix_byte_len(number: u64) -> u8 {
+    match number {
+        0..=0xfc => 1,
+        0xfd..=0xffff => 3,
+        0x10000..=0xffff_ffff => 5,
+        _ => 9
+    }
+}
+
+/// Matches the length of the VarInt to the 1-byte flag
+pub fn first_byte_from_len(number: u8) -> Option<u8> {
+    match number {
+         3 =>  Some(0xfd),
+         5 =>  Some(0xfe),
+         9 =>  Some(0xff),
+         _ => None
+    }
+}
+
+/// Matches the VarInt prefix flag to the serialized length
+pub fn prefix_len_from_first_byte(number: u8) -> u8 {
+    match number {
+        0..=0xfc => 1,
+        0xfd => 3,
+        0xfe => 5,
+        0xff => 9
+    }
+}
+
 /// A simple trait for deserializing from `std::io::Read` and serializing to `std::io::Write`.
 /// We have provided implementations for `u8` and `Vec<T: Ser>`
 ///
@@ -69,6 +99,33 @@ pub trait Ser {
         Ok(u64::from_le_bytes(buf))
     }
 
+    /// Convenience function for reading a Bitcoin-style VarInt
+    fn read_compact_int<R>(reader: &mut R) -> SerResult<u64>
+    where
+        R: Read
+    {
+        let mut prefix = [0u8; 1];
+        reader.read_exact(&mut prefix)?;  // read at most one byte
+        let prefix_len = prefix_len_from_first_byte(prefix[0]);
+
+        // Get the byte(s) representing the number, and parse as u64
+        let number = if prefix_len > 1 {
+            let mut buf = [0u8; 8];
+            let mut body = reader.take(prefix_len as u64 - 1); // minus 1 to account for prefix
+            let _ = body.read(&mut buf)?;
+            u64::from_le_bytes(buf)
+        } else {
+            prefix[0] as u64
+        };
+
+        let minimal_length = prefix_byte_len(number);
+        if minimal_length < prefix_len {
+            Err(SerError::NonMinimalVarInt)
+        } else {
+            Ok(number)
+        }
+    }
+
     /// Convenience function for writing a LE u32
     fn write_u32_le<W>(writer: &mut W, number: u32) -> SerResult<usize>
     where
@@ -83,6 +140,24 @@ pub trait Ser {
         W: Write
     {
         Ok(writer.write(&number.to_le_bytes())?)
+    }
+
+    /// Convenience function for writing a Bitcoin-style VarInt
+    fn write_comapct_int<W>(writer: &mut W, number: u64) -> SerResult<usize>
+    where
+        W: Write
+    {
+        let prefix_len = prefix_byte_len(number);
+        let written: usize = match first_byte_from_len(prefix_len) {
+            None => writer.write(&[number as u8])?,
+            Some(prefix) => {
+                let mut written = writer.write(&[prefix])?;
+                let body = (number as u64).to_le_bytes();
+                written += writer.write(&body[..prefix_len as usize - 1])?;
+                written
+            }
+        };
+        Ok(written)
     }
 
     /// Deserializes an instance of `Self` from a `std::io::Read`.
@@ -202,5 +277,50 @@ impl Ser for Hash256Digest {
         W: Write
     {
         Ok(writer.write(self)?)
+    }
+}
+
+impl Ser for u8 {
+    fn to_json(&self) -> String {
+        format!("{}", self)
+    }
+
+    fn serialized_length(&self) -> usize {
+        1
+    }
+
+    fn deserialize<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
+    where
+        R: Read,
+        Self: std::marker::Sized
+    {
+        let mut buf = [0u8; 1];
+        reader.read_exact(&mut buf)?;
+        Ok(u8::from_le_bytes(buf))
+    }
+
+    fn serialize<W>(&self, writer: &mut W) -> SerResult<usize>
+    where
+        W: Write
+    {
+        Ok(writer.write(&self.to_le_bytes())?)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn it_matches_byte_len_and_prefix() {
+        let cases = [
+            (1, 1, None),
+            (0xff, 3, Some(0xfd)),
+            (0xffff_ffff, 5, Some(0xfe)),
+            (0xffff_ffff_ffff_ffff, 9, Some(0xff))];
+        for case in cases.iter() {
+            assert_eq!(prefix_byte_len(case.0), case.1);
+            assert_eq!(first_byte_from_len(case.1), case.2);
+        }
     }
 }

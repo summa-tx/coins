@@ -1,37 +1,7 @@
 use std::ops::{Index, IndexMut};
 use std::io::{Read, Write};
 
-use crate::ser::{Ser, SerError, SerResult};
-
-/// Calculates the minimum prefix length for a VarInt encoding `number`
-pub fn prefix_byte_len(number: u64) -> u8 {
-    match number {
-        0..=0xfc => 1,
-        0xfd..=0xffff => 3,
-        0x10000..=0xffff_ffff => 5,
-        _ => 9
-    }
-}
-
-/// Matches the length of the VarInt to the 1-byte flag
-pub fn first_byte_from_len(number: u8) -> Option<u8> {
-    match number {
-         3 =>  Some(0xfd),
-         5 =>  Some(0xfe),
-         9 =>  Some(0xff),
-         _ => None
-    }
-}
-
-/// Matches the VarInt prefix flag to the serialized length
-pub fn prefix_len_from_first_byte(number: u8) -> u8 {
-    match number {
-        0..=0xfc => 1,
-        0xfd => 3,
-        0xfe => 5,
-        0xff => 9
-    }
-}
+use crate::ser::{self, Ser, SerResult};
 
 /// A vector of items prefixed by a Bitcoin-style VarInt. The VarInt is encoded only as the length
 /// of the vector, and the serialized length of the VarInt.
@@ -55,7 +25,7 @@ pub trait PrefixVec: Ser {
 
     /// Return the encoded length of the VarInt prefix.
     fn len_prefix(&self) -> u8 {
-        prefix_byte_len(self.len() as u64)
+        ser::prefix_byte_len(self.len() as u64)
     }
 
     /// Return a reference to the contents of the item vector.
@@ -98,50 +68,22 @@ where
         R: Read,
         Self: std::marker::Sized
     {
-        let mut prefix = [0u8; 1];
-        reader.read_exact(&mut prefix)?;  // read at most one byte
-        let prefix_len = prefix_len_from_first_byte(prefix[0]);
-
-        // Get the byte(s) representing the vector length, and parse as u64
-        let expected_vector_length = if prefix_len > 1 {
-            let mut buf = [0u8; 8];
-            let mut body = reader.take(prefix_len as u64 - 1); // minus 1 to account for prefix
-            let _ = body.read(&mut buf)?;
-            u64::from_le_bytes(buf)
-        } else {
-            prefix[0] as u64
-        };
-
-        let expected_prefix_length = prefix_byte_len(expected_vector_length);
-        if expected_prefix_length < prefix_len {
-            Err(SerError::NonMinimalVarInt)
-        } else {
-            let vec = Vec::<I>::deserialize(reader, expected_vector_length as usize)?;
-            Ok(T::new(vec))
-        }
+        let num_items = Self::read_compact_int(reader)?;
+        let vec = Vec::<I>::deserialize(reader, num_items as usize)?;
+        Ok(T::new(vec))
     }
 
     fn serialize<W>(&self, writer: &mut W) -> SerResult<usize>
     where
         W: Write
     {
-        // Write the VarInt prefix first
-        let prefix_len = self.len_prefix();
-        let written: usize = match first_byte_from_len(prefix_len) {
-            None => writer.write(&[self.items().len() as u8])?,
-            Some(prefix) => {
-                let body = (self.items().len() as u64).to_le_bytes();
-                let mut written = writer.write(&[prefix])?;
-                written += writer.write(&body[.. prefix_len as usize - 1])?;
-                written
-            }
-        };
+        let varint_written = Self::write_comapct_int(writer, self.len() as u64)?;
         let writes: SerResult<Vec<usize>> = self.items()
             .iter()
             .map(|v| v.serialize(writer))
             .collect();
         let vec_written: usize = writes?.iter().sum();
-        Ok(written + vec_written)
+        Ok(varint_written + vec_written)
     }
 }
 
@@ -182,9 +124,12 @@ impl<T: Ser> PrefixVec for ConcretePrefixVec<T>
     }
 }
 
-impl<T: Ser> Default for ConcretePrefixVec<T> {
+impl<T> Default for ConcretePrefixVec<T>
+where
+    T: Ser
+{
     fn default() -> Self {
-        PrefixVec::null()
+        Self::null()
     }
 }
 
@@ -202,8 +147,9 @@ impl<T> IndexMut<usize> for ConcretePrefixVec<T> {
     }
 }
 
-impl<T:Ser, U> From<U> for ConcretePrefixVec<T>
+impl<T, U> From<U> for ConcretePrefixVec<T>
 where
+    T: Ser,
     U: Into<Vec<T>>
 {
     fn from(v: U) -> Self {
@@ -223,50 +169,5 @@ impl<T> IntoIterator for ConcretePrefixVec<T> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
-    }
-}
-
-impl Ser for u8 {
-    fn to_json(&self) -> String {
-        format!("{}", self)
-    }
-
-    fn serialized_length(&self) -> usize {
-        1
-    }
-
-    fn deserialize<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
-    where
-        R: Read,
-        Self: std::marker::Sized
-    {
-        let mut buf = [0u8; 1];
-        reader.read_exact(&mut buf)?;
-        Ok(u8::from_le_bytes(buf))
-    }
-
-    fn serialize<W>(&self, writer: &mut W) -> SerResult<usize>
-    where
-        W: Write
-    {
-        Ok(writer.write(&self.to_le_bytes())?)
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use super::*;
-
-    #[test]
-    fn it_matches_byte_len_and_prefix() {
-        let cases = [
-            (1, 1, None),
-            (0xff, 3, Some(0xfd)),
-            (0xffff_ffff, 5, Some(0xfe)),
-            (0xffff_ffff_ffff_ffff, 9, Some(0xff))];
-        for case in cases.iter() {
-            assert_eq!(prefix_byte_len(case.0), case.1);
-            assert_eq!(first_byte_from_len(case.1), case.2);
-        }
     }
 }
