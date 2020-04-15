@@ -4,7 +4,7 @@ use std::io::{Read, Write};
 
 use riemann_core::{
     hashes::marked::{MarkedDigest},
-    ser::{Ser, SerResult},
+    ser::{Ser, SerError, SerResult},
     types::{
         primitives::{ConcretePrefixVec},
         tx::{Input, TXOIdentifier},
@@ -71,6 +71,8 @@ impl<M> Ser for Outpoint<M>
 where
     M: MarkedDigest + Ser
 {
+    type Error = SerError;
+
     fn to_json(&self) -> String {
         format!("{{\"txid\": {}, \"idx\": {}}}", self.txid.to_json(), self.idx)
     }
@@ -85,7 +87,8 @@ where
         Self: std::marker::Sized
     {
         Ok(Outpoint{
-            txid: M::deserialize(reader, 0)?,
+            txid: M::deserialize(reader, 0)
+                .map_err(|e| SerError::ComponentError(format!("{}", e)))?,
             idx: Self::read_u32_le(reader)?
         })
     }
@@ -94,7 +97,8 @@ where
     where
         T: Write
     {
-        let mut len = self.txid.serialize(writer)?;
+        let mut len = self.txid.serialize(writer)
+            .map_err(|e| SerError::ComponentError(format!("{}", e)))?;
         len += Self::write_u32_le(writer, self.idx)?;
         Ok(len)
     }
@@ -150,6 +154,8 @@ impl<M> Ser for TxInput<M>
 where
     M: MarkedDigest + Ser
 {
+    type Error = SerError;
+
     fn to_json(&self) -> String {
         format!(
             "{{\"outpoint\": {}, \"script_sig\": {}, \"sequence\": {}}}",

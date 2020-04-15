@@ -3,7 +3,7 @@
 use std::io::{Read, Write};
 
 use riemann_core::{
-    ser::{Ser, SerResult},
+    ser::{Ser, SerError, SerResult},
     types::{
         primitives::{
             ConcretePrefixVec,
@@ -62,6 +62,8 @@ impl TxOut{
 }
 
 impl Ser for TxOut {
+    type Error = SerError;
+
     fn to_json(&self) -> String {
         format!(
             "{{\"value\": \"0x{}\", \"script_pubkey\": {}}}",

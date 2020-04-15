@@ -1,7 +1,10 @@
-use std::ops::{Index, IndexMut};
-use std::io::{Read, Write};
+use std::{
+    fmt::{Debug},
+    io::{Read, Write, Error as IOError},
+    ops::{Index, IndexMut},
+};
 
-use crate::ser::{self, Ser, SerResult};
+use crate::ser::{self, Ser, SerError};
 
 /// A vector of items prefixed by a Bitcoin-style VarInt. The VarInt is encoded only as the length
 /// of the vector, and the serialized length of the VarInt.
@@ -47,11 +50,14 @@ pub trait PrefixVec: Ser {
     }
 }
 
-impl<T, I> Ser for T
+impl<E, I, T> Ser for T
 where
-    I: Ser,
+    E: From<SerError> + From<IOError> + std::error::Error,
+    I: Ser<Error = E>,
     T: PrefixVec<Item = I>,
 {
+        type Error = SerError;
+
     fn to_json(&self) -> String {
         let items: Vec<String> = self.items().iter().map(Ser::to_json).collect();
         format!("{{\"prefix_bytes\": {}, \"items\": [{}]}}", self.len_prefix(), items.join(", "))
@@ -63,24 +69,27 @@ where
         length
     }
 
-    fn deserialize<R>(reader: &mut R, _limit: usize) -> SerResult<T>
+    fn deserialize<R>(reader: &mut R, _limit: usize) -> Result<T, Self::Error>
     where
         R: Read,
         Self: std::marker::Sized
     {
         let num_items = Self::read_compact_int(reader)?;
-        let vec = Vec::<I>::deserialize(reader, num_items as usize)?;
+        let vec = Vec::<I>::deserialize(reader, num_items as usize)
+            .map_err(|e| SerError::ComponentError(format!("{}", e)))?;
         Ok(T::new(vec))
     }
 
-    fn serialize<W>(&self, writer: &mut W) -> SerResult<usize>
+    fn serialize<W>(&self, writer: &mut W) -> Result<usize, Self::Error>
     where
         W: Write
     {
         let varint_written = Self::write_comapct_int(writer, self.len() as u64)?;
-        let writes: SerResult<Vec<usize>> = self.items()
+        let writes: Result<Vec<usize>, _> = self.items()
             .iter()
-            .map(|v| v.serialize(writer))
+            .map(|v| v.serialize(writer)
+                .map_err(|e| SerError::ComponentError(format!("{}", e)))
+            )
             .collect();
         let vec_written: usize = writes?.iter().sum();
         Ok(varint_written + vec_written)
@@ -96,10 +105,13 @@ where
 ///     PrefixVec.
 /// - `WitnessStackItems` are a newtype wrapping ConcretePrefixVec<u8>
 /// - `type Witness = ConcretePrefixVec<WitnessStackItem>`
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug, Ord, PartialOrd)]
 pub struct ConcretePrefixVec<T>(Vec<T>);
 
-impl<T: Ser> PrefixVec for ConcretePrefixVec<T>
+impl<T, E> PrefixVec for ConcretePrefixVec<T>
+where
+    E: From<SerError> + From<IOError> + std::error::Error,
+    T: Ser<Error = E>
 {
     type Item = T;
 

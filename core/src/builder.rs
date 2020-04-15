@@ -28,7 +28,7 @@ pub trait TxBuilder<'a>: std::marker::Sized {
     fn from_tx(tx: &Self::Transaction) -> Self;
 
     /// Instantiate a new builder from a `std::io::Read` that contains a serialized tx
-    fn from_serialized_tx<R>(reader: &mut R) -> Result<Self, <Self::Transaction as Transaction<'a>>::Error>
+    fn from_serialized_tx<R>(reader: &mut R) -> Result<Self, <Self::Transaction as Transaction<'a>>::TxError>
     where
         R: Read
     {
@@ -37,7 +37,7 @@ pub trait TxBuilder<'a>: std::marker::Sized {
     }
 
     /// Instantiate a new builder from transaction hex
-    fn from_hex_tx(hex_str: String) -> Result<Self, <Self::Transaction as Transaction<'a>>::Error> {
+    fn from_hex_tx(hex_str: String) -> Result<Self, <Self::Transaction as Transaction<'a>>::TxError> {
         let tx = Self::Transaction::deserialize_hex(hex_str)?;
         Ok(Self::from_tx(&tx))
     }

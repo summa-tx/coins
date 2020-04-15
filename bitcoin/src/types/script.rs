@@ -36,106 +36,7 @@ pub trait BitcoinScript {
     fn from_script(v: ConcretePrefixVec<u8>) -> Self;
 }
 
-macro_rules! wrap_script_type {
-    (
-        $(#[$outer:meta])*
-        $wrapper_name:ident
-    ) => {
-        $(#[$outer])*
-        #[derive(Clone, Debug, Eq, PartialEq, Default)]
-        pub struct $wrapper_name(ConcretePrefixVec<u8>);
-
-        impl BitcoinScript for $wrapper_name {
-            fn from_script(s: ConcretePrefixVec<u8>) -> Self {
-                Self(s)
-            }
-        }
-
-        impl PrefixVec for $wrapper_name {
-            type Item = u8;
-
-            fn null() -> Self {
-                Self(Default::default())
-            }
-
-            fn set_items(&mut self, v: Vec<Self::Item>) {
-                self.0.set_items(v)
-            }
-
-            fn push(&mut self, i: Self::Item) {
-                self.0.push(i)
-            }
-
-            fn len(&self) -> usize {
-                self.0.len()
-            }
-
-            fn len_prefix(&self) -> u8 {
-                self.0.len_prefix()
-            }
-
-            fn items(&self) -> &[Self::Item] {
-                self.0.items()
-            }
-        }
-
-        impl<T> From<T> for $wrapper_name
-        where
-            T: Into<ConcretePrefixVec<u8>>
-        {
-            fn from(v: T) -> Self {
-                Self(v.into())
-            }
-        }
-
-        impl Index<usize> for $wrapper_name {
-            type Output = u8;
-
-            fn index(&self, index: usize) -> &Self::Output {
-                &self.0[index]
-            }
-        }
-
-        impl IndexMut<usize> for $wrapper_name {
-            fn index_mut(&mut self, index: usize) -> &mut Self::Output {
-                &mut self.0[index]
-            }
-        }
-
-        impl Extend<u8> for $wrapper_name {
-            fn extend<I: IntoIterator<Item=u8>>(&mut self, iter: I) {
-                self.0.extend(iter)
-            }
-        }
-
-        impl IntoIterator for $wrapper_name {
-            type Item = u8;
-            type IntoIter = std::vec::IntoIter<u8>;
-
-            fn into_iter(self) -> Self::IntoIter {
-                self.0.into_iter()
-            }
-        }
-    }
-}
-
-// TOOD: make this repeat properly
-macro_rules! impl_script_conversion {
-    ($t1:ty, $t2:ty) => {
-        impl From<$t2> for $t1 {
-            fn from(t: $t2) -> $t1 {
-                <$t1>::from_script(t.0)
-            }
-        }
-        impl From<$t1> for $t2 {
-            fn from(t: $t1) -> $t2 {
-                <$t2>::from_script(t.0)
-            }
-        }
-    }
-}
-
-wrap_script_type!(
+wrap_prefixed_byte_vector!(
     /// A Script is marked ConcretePrefixVec<u8> for use as an opaque `Script` in `SighashArgs`
     /// structs.
     ///
@@ -143,14 +44,14 @@ wrap_script_type!(
     /// prefix, which represents numerical 0, boolean `false`, or null bytestring.
     Script
 );
-wrap_script_type!(
+wrap_prefixed_byte_vector!(
     /// A ScriptSig is a marked ConcretePrefixVec<u8> for use in the script_sig.
     ///
     /// `ScriptSig::null()` and `ScriptSig::default()` return the empty byte vector with a 0
     /// prefix, which represents numerical 0, boolean `false`, or null bytestring.
     ScriptSig
 );
-wrap_script_type!(
+wrap_prefixed_byte_vector!(
     /// A WitnessStackItem is a marked `ConcretePrefixVec<u8>` intended for use in witnesses. Each
     /// Witness is a `PrefixVec<WitnessStackItem>`. The Transactions `witnesses` is a non-prefixed
     /// `Vec<Witness>.`
@@ -160,7 +61,7 @@ wrap_script_type!(
     ///
     WitnessStackItem
 );
-wrap_script_type!(
+wrap_prefixed_byte_vector!(
     /// A ScriptPubkey is a marked ConcretePrefixVec<u8> for use as a `RecipientIdentifier` in
     /// Bitcoin TxOuts.
     ///
@@ -169,13 +70,39 @@ wrap_script_type!(
     ScriptPubkey
 );
 
+
+impl BitcoinScript for Script {
+    fn from_script(s: ConcretePrefixVec<u8>) -> Self {
+        Self(s)
+    }
+}
+
+impl BitcoinScript for ScriptPubkey {
+    fn from_script(s: ConcretePrefixVec<u8>) -> Self {
+        Self(s)
+    }
+}
+
+
+impl BitcoinScript for ScriptSig {
+    fn from_script(s: ConcretePrefixVec<u8>) -> Self {
+        Self(s)
+    }
+}
+
+impl BitcoinScript for WitnessStackItem {
+    fn from_script(s: ConcretePrefixVec<u8>) -> Self {
+        Self(s)
+    }
+}
+
+
 impl_script_conversion!(Script, ScriptPubkey);
 impl_script_conversion!(Script, ScriptSig);
 impl_script_conversion!(Script, WitnessStackItem);
 impl_script_conversion!(ScriptPubkey, ScriptSig);
 impl_script_conversion!(ScriptPubkey, WitnessStackItem);
 impl_script_conversion!(ScriptSig, WitnessStackItem);
-
 
 impl RecipientIdentifier for ScriptPubkey {}
 
