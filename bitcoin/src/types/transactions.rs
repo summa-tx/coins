@@ -26,6 +26,14 @@ use thiserror::Error;
 /// An Error type for transaction objects
 #[derive(Debug, Error)]
 pub enum TxError{
+    /// Serialization-related errors
+    #[error("Serialization-related error: {}", .0)]
+    SerError(#[from] SerError),
+
+    /// IOError bubbled up from a `Write` passed to a `Ser::serialize` implementation.
+    #[error("IO-related error: {}", .0)]
+    IOError(#[from] IOError),
+    
     /// Sighash NONE is unsupported
     #[error("SIGHASH_NONE is unsupported")]
     NoneUnsupported,
@@ -42,14 +50,6 @@ pub enum TxError{
     /// transaction.
     #[error("Witness flag not as expected. Got {:?}. Expected {:?}.", .0, [0u8, 1u8])]
     BadWitnessFlag([u8; 2]),
-
-    /// Serialization-related errors
-    #[error("Serialization-related error: {}", .0)]
-    SerError(#[from] SerError),
-
-    /// IOError bubbled up from a `Write` passed to a `Ser::serialize` implementation.
-    #[error("IO-related error: {}", .0)]
-    IOError(#[from] IOError),
 
     // /// No inputs in vin
     // #[error("Vin may not be empty")]
