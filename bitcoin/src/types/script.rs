@@ -18,7 +18,7 @@
 //!
 //! ```compile_fail
 //! let script = bitcoin::Script::new(/* your script info */);
-//! let script = riemann::Script::from(script.into_bytes());
+//! let script = rmn_btc::types::Script::from(script.into_bytes());
 //! ```
 
 use std::ops::{Index, IndexMut};

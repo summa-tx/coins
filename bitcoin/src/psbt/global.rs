@@ -27,7 +27,7 @@ impl PSBTGlobal {
         let mut tx_bytes = self.must_get(&tx_key)?.items();
         Ok(LegacyTx::deserialize(&mut tx_bytes, 0)?)
     }
-    
+
     /// Get a range of XPUBs
     pub fn xpubs(&self) -> Range<PSBTKey, PSBTValue> {
         self.range_by_key_type(1)

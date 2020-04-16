@@ -8,26 +8,6 @@
 //! The builder can also be explicitly converted using the `as_witness` and `as_legacy` functions.
 //!
 //! The builder is best accessed via the preconstructed network objects in `nets.rs`.
-//!
-//! ```compile_fail
-//! let legacy_builder = BitcoinMainnet::tx_builder();
-//! let tx = legacy_builder
-//!  .version(2)
-//!  .spend(BitcoinOutpoint::default(), 0xaabbccdd)
-//!  .pay(0x8888_8888_8888_8888, Address::WPKH("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned()))
-//!  .pay(0x7777_7777_7777_7777, Address::SH("377mKFYsaJPsxYSB5aFfx8SW3RaN5BzZVh".to_owned()))
-//!  .build();  // Legacy Transaction output
-//!
-//! let new_legacy_builder = BitcoinMainnet::tx_builder();
-//! let tx = new_legacy_builder
-//!  .version(2)
-//!  .spend(Outpoint::default(), 0xaabbccdd)
-//!  .pay(0x8888_8888_8888_8888, Address::WPKH("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned()))
-//!  .pay(0x7777_7777_7777_7777, Address::SH("377mKFYsaJPsxYSB5aFfx8SW3RaN5BzZVh".to_owned()))
-//!  .locktime(300000)
-//!  .extend_witnesses(vec![/*...*/])   // Automatically converts to a `WitnessBuilder` as soon as you add a witness
-//!  .build();  // Witness Transaction output
-//! ```
 
 use std::marker::{PhantomData};
 

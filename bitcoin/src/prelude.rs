@@ -157,6 +157,7 @@ macro_rules! mark_hash256 {
 macro_rules! psbt_map {
     ($name:ident) => {
         /// A newtype wrapping a BTreeMap. Provides a simplified interface
+        #[derive(Debug, Clone)]
         pub struct $name{
             map: BTreeMap<PSBTKey, PSBTValue>,
         }
