@@ -91,6 +91,21 @@ macro_rules! wrap_struct {
                     .map_err(WasmError::from)
                     .map_err(JsValue::from)
             }
+
+            /// Deserialize from base64.
+            pub fn deserialize_base64(s: String) -> Result<$name, JsValue> {
+                $module::$name::deserialize_base64(s)
+                    .map(Self::from)
+                    .map_err(WasmError::from)
+                    .map_err(JsValue::from)
+            }
+
+            /// Serialize to a base64 string.
+            pub fn serialize_base64(&self) -> Result<String, JsValue> {
+                self.0.serialize_base64()
+                    .map_err(WasmError::from)
+                    .map_err(JsValue::from)
+            }
         }
     }
 }

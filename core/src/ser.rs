@@ -5,7 +5,7 @@ use std::{
     io::{Read, Write, Error as IOError, Cursor},
 };
 use hex::FromHexError;
-
+use base64::DecodeError;
 use thiserror::Error;
 use bitcoin_spv::types::Hash256Digest;
 
@@ -24,6 +24,10 @@ pub enum SerError{
     /// `deserialize_hex` encountered an error on its input.
     #[error(transparent)]
     FromHexError(#[from] FromHexError),
+
+    /// `deserialize_base64` encountered an error on its input.
+    #[error(transparent)]
+    DecodeError(#[from] DecodeError),
 
     /// An error by a component call in data structure (de)serialization
     #[error("Error in component (de)serialization: {0}")]
@@ -195,6 +199,16 @@ pub trait Ser {
         Self::deserialize(&mut cursor, 0)
     }
 
+    /// Serialize `self` to a base64 string, using standard RFC4648 non-url safe characters
+    fn deserialize_base64(s: String) -> Result<Self, Self::Error>
+    where
+        Self: std::marker::Sized
+    {
+        let v: Vec<u8> = base64::decode(s).map_err(SerError::from)?;
+        let mut cursor = Cursor::new(v);
+        Self::deserialize(&mut cursor, 0)
+    }
+
     /// Serializes `Self` to a `std::io::Write`. Following `Write` trait conventions, its `Ok`
     /// type is a `usize` denoting the number of bytes written.
     ///
@@ -220,6 +234,13 @@ pub trait Ser {
         let mut v: Vec<u8> = vec![];
         self.serialize(&mut v)?;
         Ok(hex::encode(v))
+    }
+
+    /// Serialize `self` to a base64 string, using standard RFC4648 non-url safe characters
+    fn serialize_base64(&self) -> Result<String, <Self as Ser>::Error> {
+        let mut v: Vec<u8> = vec![];
+        self.serialize(&mut v)?;
+        Ok(base64::encode(v))
     }
 }
 

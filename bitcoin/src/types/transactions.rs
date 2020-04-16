@@ -27,11 +27,11 @@ use crate::{
 #[derive(Debug, Error)]
 pub enum TxError{
     /// Serialization-related errors
-    #[error("Serialization-related error: {}", .0)]
+    #[error(transparent)]
     SerError(#[from] SerError),
 
     /// IOError bubbled up from a `Write` passed to a `Ser::serialize` implementation.
-    #[error("IO-related error: {}", .0)]
+    #[error(transparent)]
     IOError(#[from] IOError),
 
     /// Sighash NONE is unsupported
