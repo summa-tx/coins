@@ -1,6 +1,7 @@
 //! Bitcoin transaction types and associated sighash arguments.
 use std::io::{Read, Write, Error as IOError};
 use bitcoin_spv::types::{Hash256Digest};
+use thiserror::Error;
 
 use riemann_core::{
     hashes::{
@@ -21,7 +22,6 @@ use crate::{
     txout::{TxOut, Vout},
 };
 
-use thiserror::Error;
 
 /// An Error type for transaction objects
 #[derive(Debug, Error)]
@@ -33,7 +33,7 @@ pub enum TxError{
     /// IOError bubbled up from a `Write` passed to a `Ser::serialize` implementation.
     #[error("IO-related error: {}", .0)]
     IOError(#[from] IOError),
-    
+
     /// Sighash NONE is unsupported
     #[error("SIGHASH_NONE is unsupported")]
     NoneUnsupported,
@@ -384,9 +384,9 @@ impl Ser for LegacyTx {
         })
     }
 
-    fn serialize<T>(&self, writer: &mut T) -> Result<usize, Self::Error>
+    fn serialize<W>(&self, writer: &mut W) -> Result<usize, Self::Error>
     where
-        T: Write
+        W: Write
     {
         let mut len = Self::write_u32_le(writer, self.version())?;
         len += self.vin.serialize(writer)?;
