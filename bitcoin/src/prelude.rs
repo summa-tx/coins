@@ -168,6 +168,10 @@ macro_rules! psbt_map {
                 self.map.range(start..end)
             }
 
+            fn must_get(&self, key: &PSBTKey) -> Result<&PSBTValue, PSBTError> {
+                self.get(key).ok_or(PSBTError::InvalidPSBT)
+            }
+
             /// Return a range containing any proprietary KV pairs
             pub fn proprietary(&self) -> Range<PSBTKey, PSBTValue> {
                 self.range_by_key_type(0xfc)
