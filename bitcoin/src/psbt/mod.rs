@@ -14,16 +14,15 @@ pub use global::*;
 pub use input::*;
 pub use outputs::*;
 
-use std::io::{Read, Write, Error as IOError};
+use std::io::{Read, Write};
+
 use riemann_core::{
     primitives::{PrefixVec},
-    ser::{Ser, SerError},
+    ser::{Ser},
+    tx::{Transaction},
 };
-use thiserror::Error;
 
-use crate::{
-    types::{LegacyTx, TxError},
-};
+use crate::types::transactions::{LegacyTx};
 
 /// The magic PSBT version prefix
 static MAGIC_BYTES: [u8; 4] = *b"psbt";
@@ -31,35 +30,11 @@ static MAGIC_BYTES: [u8; 4] = *b"psbt";
 /// A BIP174 Partially Signed Bitcoin Transaction
 pub struct PSBT {
     tx: LegacyTx,
-    global: PSBTMap,
-    inputs: Vec<PSBTMap>,
-    outputs: Vec<PSBTMap>,
+    global: PSBTGlobal,
+    inputs: Vec<PSBTInput>,
+    outputs: Vec<PSBTOutput>,
 }
 
-/// An Error type for PSBT objects
-#[derive(Debug, Error)]
-pub enum PSBTError{
-    /// Serialization-related errors
-    #[error("Serialization-related error: {0}")]
-    SerError(#[from] SerError),
-
-    /// IOError bubbled up from a `Write` passed to a `Ser::serialize` implementation.
-    #[error("IO-related error: {0}")]
-    IOError(#[from] IOError),
-
-    /// PSBT Prefix does not match the expected value
-    #[error("Bad PSBT Prefix. Expected psbt with 0xff separator.")]
-    BadPrefix,
-
-    /// PSBT Global map tx value is not a valid legacy transaction.
-    #[error("Global map contains invalid transaction")]
-    InvalidTx(#[from] TxError),
-
-
-    /// Placeholder. TODO: Differentiate later
-    #[error("Invalid PSBT. Unknown cause.")]
-    InvalidPSBT,
-}
 
 impl Ser for PSBT {
     type Error = PSBTError;
@@ -87,12 +62,15 @@ impl Ser for PSBT {
             return Err(PSBTError::BadPrefix);
         }
 
-        let global = PSBTMap::deserialize(reader, 0)?;
+        let global = PSBTGlobal::deserialize(reader, 0)?;
+
         let tx_key: PSBTKey = vec![1u8, 0u8].into();
         let mut tx_bytes = global.get(&tx_key).ok_or(PSBTError::InvalidPSBT)?.items();
         let tx = LegacyTx::deserialize(&mut tx_bytes, 0)?;
-        let inputs = vec![];
-        let outputs = vec![];
+
+        let inputs = Vec::<PSBTInput>::deserialize(reader, tx.inputs().len())?;
+        let outputs = Vec::<PSBTOutput>::deserialize(reader, tx.outputs().len())?;
+
         Ok(PSBT{
             tx,
             global,
