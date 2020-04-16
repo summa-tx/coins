@@ -1,7 +1,7 @@
 use std::{
     collections::{
         BTreeMap,
-        btree_map::{Iter, IterMut},
+        btree_map::{Iter, IterMut, Range},
     },
     io::{Read, Write},
 };
@@ -11,8 +11,7 @@ use riemann_core::{
     ser::{Ser},
 };
 
-use crate::
-{
+use crate::{
     psbt::common::{PSBTError, PSBTKey, PSBTValue},
 };
 

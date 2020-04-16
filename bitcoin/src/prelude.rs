@@ -162,6 +162,17 @@ macro_rules! psbt_map {
         }
 
         impl $name {
+            fn range_by_key_type(&self, key_type: u8) -> Range<PSBTKey, PSBTValue> {
+                let start: PSBTKey = vec![key_type].into();
+                let end: PSBTKey = vec![key_type + 1].into();
+                self.map.range(start..end)
+            }
+
+            /// Return a range containing any proprietary KV pairs
+            pub fn proprietary(&self) -> Range<PSBTKey, PSBTValue> {
+                self.range_by_key_type(0xfc)
+            }
+
             /// Returns a reference to the value corresponding to the key.
             pub fn get(&self, key: &PSBTKey) -> Option<&PSBTValue> {
                 self.map.get(key)

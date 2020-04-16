@@ -31,13 +31,14 @@ pub enum PSBTError{
     #[error("Global map contains invalid transaction")]
     InvalidTx(#[from] TxError),
 
+    /// Returned by convenience functions that attempt to read a non-existant key
+    #[error("Non-existant key")]
+    MissingKey,
 
     /// Placeholder. TODO: Differentiate later
     #[error("Invalid PSBT. Unknown cause.")]
     InvalidPSBT,
 }
-
-
 
 wrap_prefixed_byte_vector!(
     /// A PSBT Key
