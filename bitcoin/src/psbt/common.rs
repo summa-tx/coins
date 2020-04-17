@@ -32,12 +32,16 @@ pub enum PSBTError{
     InvalidTx(#[from] TxError),
 
     /// Returned by convenience functions that attempt to read a non-existant key
-    #[error("Non-existant key")]
+    #[error("Attempted to get missing singleton key {0}")]
     MissingKey(u8),
 
     /// Placeholder. TODO: Differentiate later
     #[error("Invalid PSBT. Unknown cause.")]
     InvalidPSBT,
+
+    /// Returned when a key fails to pass a schema validation
+    #[error("Key failed schema validation")]
+    InvalidKeyFormat(PSBTKey),
 }
 
 wrap_prefixed_byte_vector!(
@@ -56,3 +60,10 @@ impl PSBTKey {
         self[0]
     }
 }
+
+/// A PSBT key/value validation function. Returns `Ok(())` if the KV pair is valid, otherwise an
+/// error.
+pub type KVPredicate<'a> = &'a dyn Fn((&PSBTKey, &PSBTValue)) -> Result<(), PSBTError>;
+
+/// The first item is the key-type that it operates on. The second item is a KVPredicate
+pub type KVTypeSchema<'a> = (u8, KVPredicate<'a>);

@@ -173,6 +173,23 @@ macro_rules! psbt_map {
                 self.get(key).ok_or(PSBTError::MissingKey(key.key_type()))
             }
 
+            /// Perform validation checks on the input
+            pub fn validate(&self, schema: &[&KVTypeSchema]) -> Result<(), PSBTError> {
+                // TODO:
+                // Check that EITHER non_witness_utxo OR witness_utxo is present.
+                // BOTH is NOT acceptable
+                // NEITHER is acceptable
+                for schema in schema.iter() {
+                    let key_type = schema.0;
+                    let result: Result<Vec<_>, PSBTError> = self.range_by_key_type(key_type)
+                        .into_iter()
+                        .map(|t| schema.1(t))
+                        .collect();
+                    result?;
+                }
+                Ok(())
+            }
+
             /// Return a range containing any proprietary KV pairs
             pub fn proprietary(&self) -> Range<PSBTKey, PSBTValue> {
                 self.range_by_key_type(0xfc)
@@ -224,7 +241,7 @@ macro_rules! psbt_map {
                 Self: std::marker::Sized
             {
                 let mut map = Self{
-                    map: BTreeMap::default()
+                    map: BTreeMap::default(),
                 };
 
                 loop {

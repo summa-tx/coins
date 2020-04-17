@@ -29,9 +29,68 @@ trait PST {
 /// A BIP174 Partially Signed Bitcoin Transaction
 #[derive(Debug, Clone)]
 pub struct PSBT {
+    /// Global attributes
     global: PSBTGlobal,
+    /// Per-input attribute maps
     inputs: Vec<PSBTInput>,
+    /// Per-output attribute maps
     outputs: Vec<PSBTOutput>,
+}
+
+impl PSBT {
+    /// Run validation checks on the PSBT to ensure it's in a consistent state. This function is
+    /// called while serializing the PSBT, to prevent invalid PSBTs from being saved or sent over
+    /// a wire
+    pub fn validate(&self) -> Result<(), PSBTError> {
+        // TODO:
+        // - global checks
+        //     - Check that a TX is in the global map
+        //     - Check that a version is present
+        // - per-input checks?
+        // - per-output checks?
+        // - PSBT-level checks
+        //     - Check that TX vin and vout match input/output vec lengths
+        //
+        self.global.validate_standard()?;
+
+        // for input in self.inputs.iter() {
+        //  input.validate_standard()?;
+        // }
+        // for output in self.outputs.iter() {
+        //  output.validate_standard()?;
+        // }
+        Ok(())
+    }
+
+    /// Return a reference to the global attributes
+    pub fn global_map(&self) -> &PSBTGlobal {
+        &self.global
+    }
+
+    /// Return a mutable reference to the global attributes
+    pub fn global_map_mut(&mut self) -> &mut PSBTGlobal {
+        &mut self.global
+    }
+
+    /// Return a reference to the vector of input maps
+    pub fn input_maps(&self) -> &Vec<PSBTInput> {
+        &self.inputs
+    }
+
+    /// Return a mutable reference to the vector of input maps
+    pub fn input_maps_mut(&mut self) -> &mut Vec<PSBTInput> {
+        &mut self.inputs
+    }
+
+    /// Return a reference to the vector of output maps
+    pub fn output_maps(&self) -> &Vec<PSBTOutput> {
+        &self.outputs
+    }
+
+    /// Return a mutable reference to the vector of output maps
+    pub fn output_maps_mut(&mut self) -> &mut Vec<PSBTOutput> {
+        &mut self.outputs
+    }
 }
 
 impl PST for PSBT {
@@ -82,6 +141,7 @@ impl Ser for PSBT {
     where
         W: Write
     {
+        self.validate()?;
         let mut len = writer.write(&PSBT::MAGIC_BYTES)?;
         len += writer.write(&[0xffu8])?;
         len += self.global.serialize(writer)?;
@@ -105,6 +165,9 @@ mod test {
         ];
         for case in &valid_cases {
             let p = PSBT::deserialize_hex(case.to_owned().to_string()).unwrap();
+
+            // Check for non-modification
+            assert_eq!(p.serialize_hex().unwrap(), case.to_owned().to_string());
             println!("{:?}", p);
         }
     }

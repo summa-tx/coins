@@ -12,13 +12,25 @@ use riemann_core::{
 };
 
 use crate::{
-    psbt::common::{PSBTError, PSBTKey, PSBTValue},
+    psbt::common::{PSBTError, PSBTKey, PSBTValue, KVTypeSchema},
     types::script::{Script},
 };
 
 psbt_map!(PSBTOutput);
 
 impl PSBTOutput {
+    /// Return a vector of the standard validation Schemas
+    pub fn standard_schema<'a>() -> Vec<&'a KVTypeSchema<'a>> {
+        // TODO: more
+        let mut schema: Vec<&'a KVTypeSchema<'a>> = vec![];
+        schema
+    }
+
+    /// Run standard validation on the map
+    pub fn validate_standard(&self) -> Result<(), PSBTError> {
+        self.validate(&Self::standard_schema())
+    }
+
     /// Returns the BIP174 PSBT_OUT_REDEEM_SCRIPT transaction if present and valid.
     ///
     /// ## Errors
