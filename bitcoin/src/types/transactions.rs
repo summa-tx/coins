@@ -7,7 +7,7 @@ use riemann_core::{
         hash256::{Hash256Writer},
         marked::{MarkedDigest, MarkedDigestWriter},
     },
-    ser::{Ser, SerError, SerResult},
+    ser::{Ser, SerError},
     types::{
         primitives::{PrefixVec},
         tx::{Transaction},
@@ -26,6 +26,14 @@ use thiserror::Error;
 /// An Error type for transaction objects
 #[derive(Debug, Error)]
 pub enum TxError{
+    /// Serialization-related errors
+    #[error("Serialization-related error: {}", .0)]
+    SerError(#[from] SerError),
+
+    /// IOError bubbled up from a `Write` passed to a `Ser::serialize` implementation.
+    #[error("IO-related error: {}", .0)]
+    IOError(#[from] IOError),
+    
     /// Sighash NONE is unsupported
     #[error("SIGHASH_NONE is unsupported")]
     NoneUnsupported,
@@ -38,13 +46,10 @@ pub enum TxError{
     #[error("Unknown Sighash: {}", .0)]
     UnknownSighash(u8),
 
-    /// Serialization-related errors
-    #[error("Serialization-related error: {}", .0)]
-    SerError(#[from] SerError),
-
-    /// IOError bubbled up from a `Write` passed to a `Ser::serialize` implementation.
-    #[error("IO-related error: {}", .0)]
-    IOError(#[from] IOError),
+    /// Got an unknown flag where we expected a witness flag. May indicate a non-witness
+    /// transaction.
+    #[error("Witness flag not as expected. Got {:?}. Expected {:?}.", .0, [0u8, 1u8])]
+    BadWitnessFlag([u8; 2]),
 
     // /// No inputs in vin
     // #[error("Vin may not be empty")]
@@ -92,10 +97,10 @@ pub trait WitnessTransaction<'a>: BitcoinTransaction<'a> {
     fn wtxid(&self) -> Self::WTXID;
 
     /// Writes the Legacy sighash preimage to the provider writer.
-    fn write_legacy_sighash_preimage<W: Write>(&self, writer: &mut W, args: &LegacySighashArgs) -> Result<(), Self::Error>;
+    fn write_legacy_sighash_preimage<W: Write>(&self, writer: &mut W, args: &LegacySighashArgs) -> Result<(), Self::TxError>;
 
     /// Calculates the Legacy sighash preimage given the sighash args.
-    fn legacy_sighash(&self, args: &LegacySighashArgs) -> Result<Self::Digest, Self::Error> {
+    fn legacy_sighash(&self, args: &LegacySighashArgs) -> Result<Self::Digest, Self::TxError> {
         let mut w = Self::HashWriter::default();
         self.write_legacy_sighash_preimage(&mut w, args)?;
         Ok(w.finish())
@@ -103,11 +108,11 @@ pub trait WitnessTransaction<'a>: BitcoinTransaction<'a> {
 
     /// Writes the BIP143 sighash preimage to the provided `writer`. See the
     /// `WitnessSighashArgsSigh` documentation for more in-depth discussion of sighash.
-    fn write_witness_sighash_preimage<W: Write>(&self, writer: &mut W, args: &Self::WitnessSighashArgs) -> Result<(), Self::Error>;
+    fn write_witness_sighash_preimage<W: Write>(&self, writer: &mut W, args: &Self::WitnessSighashArgs) -> Result<(), Self::TxError>;
 
     /// Calculates the BIP143 sighash given the sighash args. See the
     /// `WitnessSighashArgsSigh` documentation for more in-depth discussion of sighash.
-    fn witness_sighash(&self, args: &Self::WitnessSighashArgs) -> Result<Self::Digest, Self::Error> {
+    fn witness_sighash(&self, args: &Self::WitnessSighashArgs) -> Result<Self::Digest, Self::TxError> {
         let mut w = Self::HashWriter::default();
         self.write_witness_sighash_preimage(&mut w, args)?;
         Ok(w.finish())
@@ -268,7 +273,7 @@ impl LegacyTx {
 }
 
 impl<'a> Transaction<'a> for LegacyTx {
-    type Error = TxError;
+    type TxError = TxError;
     type Digest = Hash256Digest;
     type TxIn = BitcoinTxIn;
     type TxOut = TxOut;
@@ -342,6 +347,8 @@ impl<'a> Transaction<'a> for LegacyTx {
 impl<'a> BitcoinTransaction<'a> for LegacyTx {}
 
 impl Ser for LegacyTx {
+    type Error = TxError;
+
     fn to_json(&self) -> String {
         format!(
             "{{\"version\": {}, \"vin\": {}, \"vout\": {}, \"locktime\": {}}}",
@@ -360,7 +367,7 @@ impl Ser for LegacyTx {
         len
     }
 
-    fn deserialize<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
+    fn deserialize<R>(reader: &mut R, _limit: usize) -> Result<Self, Self::Error>
     where
         R: Read,
         Self: std::marker::Sized
@@ -377,7 +384,7 @@ impl Ser for LegacyTx {
         })
     }
 
-    fn serialize<T>(&self, writer: &mut T) -> SerResult<usize>
+    fn serialize<T>(&self, writer: &mut T) -> Result<usize, Self::Error>
     where
         T: Write
     {
@@ -516,7 +523,7 @@ impl WitnessTx {
 }
 
 impl<'a> Transaction<'a> for WitnessTx {
-    type Error = TxError;
+    type TxError = TxError;
     type Digest = Hash256Digest;
     type TxIn = BitcoinTxIn;
     type TxOut = TxOut;
@@ -616,7 +623,7 @@ impl<'a> WitnessTransaction<'a> for WitnessTx {
         w.finish_marked()
     }
 
-    fn write_legacy_sighash_preimage<W: Write>(&self, writer: &mut W, args: &LegacySighashArgs) -> Result<(), Self::Error> {
+    fn write_legacy_sighash_preimage<W: Write>(&self, writer: &mut W, args: &LegacySighashArgs) -> Result<(), Self::TxError> {
         self.legacy_tx.write_sighash_preimage(writer, args)
     }
 
@@ -658,6 +665,8 @@ impl<'a> WitnessTransaction<'a> for WitnessTx {
 }
 
 impl Ser for WitnessTx {
+    type Error = TxError;
+
     fn to_json(&self) -> String {
         format!(
             "{{\"version\": {}, \"vin\": {}, \"vout\": {}, \"witnesses\": {}, \"locktime\": {}}}",
@@ -680,7 +689,7 @@ impl Ser for WitnessTx {
         len
     }
 
-    fn deserialize<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
+    fn deserialize<R>(reader: &mut R, _limit: usize) -> Result<Self, Self::Error>
     where
         R: Read,
         Self: std::marker::Sized
@@ -688,7 +697,7 @@ impl Ser for WitnessTx {
         let version = Self::read_u32_le(reader)?;
         let mut flag = [0u8; 2];
         reader.read_exact(&mut flag)?;
-        if flag != [0u8, 1u8] { return Err(SerError::BadWitnessFlag(flag)); };
+        if flag != [0u8, 1u8] { return Err(TxError::BadWitnessFlag(flag)); };
         let vin = Vin::deserialize(reader, 0)?;
         let vout = Vout::deserialize(reader, 0)?;
         let witnesses = Vec::<Witness>::deserialize(reader, vin.len())?;
@@ -707,7 +716,7 @@ impl Ser for WitnessTx {
         })
     }
 
-    fn serialize<W>(&self, writer: &mut W) -> SerResult<usize>
+    fn serialize<W>(&self, writer: &mut W) -> Result<usize, Self::Error>
     where
         W: Write
     {

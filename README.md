@@ -96,6 +96,8 @@ its properties, as well as calculate its signature hash.
     of your transaction that is signed.
 1. Define a `Transaction` struct.
 1. `impl riemann_core::ser::Ser` on your `Transaction`.
+  1. If necessary, create a new `Error` type (see an example in
+      `bitcoin/types/transaction.rs`)
   1. This ensures that your tx can be serialized easily.
   1. It is used in the default txid implementation.
 1. `impl riemann_core::types::tx::Transaction` on your `Transaction`

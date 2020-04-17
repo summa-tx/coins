@@ -6,65 +6,8 @@ use bitcoin_spv::types::{Hash256Digest};
 
 use riemann_core::{
     hashes::marked::{MarkedDigest},
-    ser::{Ser, SerResult}
+    ser::{Ser, SerError, SerResult},
 };
-
-macro_rules! mark_hash256 {
-    (
-        $(#[$outer:meta])*
-        $hash_name:ident
-    ) => {
-        $(#[$outer])*
-        #[derive(Copy, Clone, Default, Debug, Eq, PartialEq)]
-        pub struct $hash_name(pub Hash256Digest);
-        impl Ser for $hash_name {
-            fn to_json(&self) -> String {
-                format!("\"0x{}\"", self.serialize_hex().unwrap())
-            }
-
-            fn serialized_length(&self) -> usize {
-                32
-            }
-
-            fn deserialize<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
-            where
-            R: Read,
-            Self: std::marker::Sized
-            {
-                let mut buf = <Hash256Digest>::default();
-                reader.read_exact(&mut buf)?;
-                Ok(Self(buf))
-            }
-
-            fn serialize<W>(&self, writer: &mut W) -> SerResult<usize>
-            where
-            W: Write
-            {
-                Ok(writer.write(&self.0)?)
-            }
-        }
-        impl MarkedDigest for $hash_name {
-            type Digest = Hash256Digest;
-            fn new(hash: Hash256Digest) -> Self {
-                Self(hash)
-            }
-
-            fn internal(&self) -> Hash256Digest {
-                self.0
-            }
-        }
-        impl From<Hash256Digest> for $hash_name {
-            fn from(h: Hash256Digest) -> Self {
-                Self::new(h)
-            }
-        }
-        impl Into<Hash256Digest> for $hash_name {
-            fn into(self) -> Hash256Digest {
-                self.internal()
-            }
-        }
-    }
-}
 
 mark_hash256!(
     /// A marked Hash256Digest representing transaction IDs

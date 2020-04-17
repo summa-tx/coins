@@ -1,6 +1,9 @@
 //! A simple trait for binary (de)Serialization using std `Read` and `Write` traits.
 
-use std::io::{Read, Write, Error as IOError, Cursor};
+use std::{
+    fmt::{Debug},
+    io::{Read, Write, Error as IOError, Cursor},
+};
 use hex::FromHexError;
 
 use thiserror::Error;
@@ -10,26 +13,21 @@ use bitcoin_spv::types::Hash256Digest;
 /// Erros related to serialization of types.
 #[derive(Debug, Error)]
 pub enum SerError{
-    /// VarInts must be 1, 3, 5, or 9 bytes long
-    #[error("Bad VarInt length. Must be 1,3,5, or 9. Got {:?}.", .0)]
-    BadVarIntLen(u8),
-
     /// VarInts must be minimal.
     #[error("Attempted to deserialize non-minmal VarInt. Someone is doing something fishy.")]
     NonMinimalVarInt,
 
     /// IOError bubbled up from a `Write` passed to a `Ser::serialize` implementation.
-    #[error("Serialization error")]
+    #[error(transparent)]
     IOError(#[from] IOError),
 
-    /// Got an unknown flag where we expected a witness flag. May indicate a non-witness
-    /// transaction.
-    #[error("Witness flag not as expected. Got {:?}. Expected {:?}.", .0, [0u8, 1u8])]
-    BadWitnessFlag([u8; 2]),
-
     /// `deserialize_hex` encountered an error on its input.
-    #[error("Error deserializing hex string")]
+    #[error(transparent)]
     FromHexError(#[from] FromHexError),
+
+    /// An error by a component call in data structure (de)serialization
+    #[error("Error in component (de)serialization: {0}")]
+    ComponentError(String)
 }
 
 /// Type alias for serialization errors
@@ -72,6 +70,9 @@ pub fn prefix_len_from_first_byte(number: u8) -> u8 {
 /// serialization and deserialization.
 pub trait Ser {
 
+    /// An associated error type
+    type Error: From<SerError> + From<IOError> + std::error::Error;
+
     /// Returns a JSON string with the serialized data structure. We do not yet implement
     /// `from_json`.
     fn to_json(&self) -> String;
@@ -80,7 +81,7 @@ pub trait Ser {
     fn serialized_length(&self) -> usize;
 
     /// Convenience function for reading a LE u32
-    fn read_u32_le<R>(reader: &mut R) -> SerResult<u32>
+    fn read_u32_le<R>(reader: &mut R) -> Result<u32, Self::Error>
     where
         R: Read
     {
@@ -90,7 +91,7 @@ pub trait Ser {
     }
 
     /// Convenience function for reading a LE u64
-    fn read_u64_le<R>(reader: &mut R) -> SerResult<u64>
+    fn read_u64_le<R>(reader: &mut R) -> Result<u64, Self::Error>
     where
         R: Read
     {
@@ -100,7 +101,7 @@ pub trait Ser {
     }
 
     /// Convenience function for reading a Bitcoin-style VarInt
-    fn read_compact_int<R>(reader: &mut R) -> SerResult<u64>
+    fn read_compact_int<R>(reader: &mut R) -> Result<u64, <Self as Ser>::Error>
     where
         R: Read
     {
@@ -120,14 +121,14 @@ pub trait Ser {
 
         let minimal_length = prefix_byte_len(number);
         if minimal_length < prefix_len {
-            Err(SerError::NonMinimalVarInt)
+            Err(SerError::NonMinimalVarInt.into())
         } else {
             Ok(number)
         }
     }
 
     /// Convenience function for writing a LE u32
-    fn write_u32_le<W>(writer: &mut W, number: u32) -> SerResult<usize>
+    fn write_u32_le<W>(writer: &mut W, number: u32) -> Result<usize, <Self as Ser>::Error>
     where
         W: Write
     {
@@ -135,7 +136,7 @@ pub trait Ser {
     }
 
     /// Convenience function for writing a LE u64
-    fn write_u64_le<W>(writer: &mut W, number: u64) -> SerResult<usize>
+    fn write_u64_le<W>(writer: &mut W, number: u64) -> Result<usize, <Self as Ser>::Error>
     where
         W: Write
     {
@@ -143,7 +144,7 @@ pub trait Ser {
     }
 
     /// Convenience function for writing a Bitcoin-style VarInt
-    fn write_comapct_int<W>(writer: &mut W, number: u64) -> SerResult<usize>
+    fn write_comapct_int<W>(writer: &mut W, number: u64) -> Result<usize, <Self as Ser>::Error>
     where
         W: Write
     {
@@ -179,17 +180,17 @@ pub trait Ser {
     ///
     /// assert_eq!(result, vec![0u8; 16]);
     /// ```
-    fn deserialize<R>(reader: &mut R, limit: usize) -> SerResult<Self>
+    fn deserialize<R>(reader: &mut R, limit: usize) -> Result<Self, Self::Error>
     where
         R: Read,
         Self: std::marker::Sized;
 
     /// Decodes a hex string to a `Vec<u8>`, deserializes an instance of `Self` from that vector.
-    fn deserialize_hex(s: String) -> SerResult<Self>
+    fn deserialize_hex(s: String) -> Result<Self, Self::Error>
     where
         Self: std::marker::Sized
     {
-        let v: Vec<u8> = hex::decode(s)?;
+        let v: Vec<u8> = hex::decode(s).map_err(SerError::from)?;
         let mut cursor = Cursor::new(v);
         Self::deserialize(&mut cursor, 0)
     }
@@ -210,19 +211,24 @@ pub trait Ser {
     ///    vec![0u8; 32]
     /// );
     /// ```
-    fn serialize<W>(&self, writer: &mut W) -> SerResult<usize>
+    fn serialize<W>(&self, writer: &mut W) -> Result<usize, <Self as Ser>::Error>
     where
         W: Write;
 
     /// Serializes `self` to a vector, returns the hex-encoded vector
-    fn serialize_hex(&self) -> SerResult<String> {
+    fn serialize_hex(&self) -> Result<String, <Self as Ser>::Error> {
         let mut v: Vec<u8> = vec![];
         self.serialize(&mut v)?;
         Ok(hex::encode(v))
     }
 }
 
-impl<A: Ser> Ser for Vec<A> {
+impl<E, I> Ser for Vec<I>
+where
+    E: From<SerError> + From<IOError> + std::error::Error,
+    I: Ser<Error = E>
+{
+    type Error = E;
 
     fn to_json(&self) -> String {
         let items: Vec<String> = self.iter().map(Ser::to_json).collect();
@@ -233,19 +239,19 @@ impl<A: Ser> Ser for Vec<A> {
         self.iter().map(|v| v.serialized_length()).sum()
     }
 
-    fn deserialize<T>(reader: &mut T, limit: usize) -> SerResult<Self>
+    fn deserialize<T>(reader: &mut T, limit: usize) -> Result<Self, Self::Error>
     where
         T: Read,
         Self: std::marker::Sized
     {
         let mut v = vec![];
         for _ in 0..limit {
-            v.push(A::deserialize(reader, 0)?);
+            v.push(I::deserialize(reader, 0)?);
         }
         Ok(v)
     }
 
-    fn serialize<W>(&self, writer: &mut W) -> SerResult<usize>
+    fn serialize<W>(&self, writer: &mut W) -> Result<usize, Self::Error>
     where
         W: Write
     {
@@ -254,6 +260,8 @@ impl<A: Ser> Ser for Vec<A> {
 }
 
 impl Ser for Hash256Digest {
+    type Error = SerError;
+
     fn to_json(&self) -> String {
         format!("\"0x{}\"", self.serialize_hex().unwrap())
     }
@@ -281,6 +289,8 @@ impl Ser for Hash256Digest {
 }
 
 impl Ser for u8 {
+    type Error = SerError;
+
     fn to_json(&self) -> String {
         format!("{}", self)
     }

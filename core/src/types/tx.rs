@@ -38,7 +38,7 @@ pub trait Output {
 /// unique functionality.
 pub trait Transaction<'a>: Ser {
     /// An associated error type, using in Results returned by the Transaction.
-    type Error: From<SerError>;
+    type TxError: From<SerError> + From<<Self as Ser>::Error>;
     /// A Digest type that underlies the associated marked hash, and is returned by `sighash()`.
     type Digest: Digest;
     /// The Input type for the transaction
@@ -95,11 +95,11 @@ pub trait Transaction<'a>: Ser {
         &self,
         writer: &mut W,
         _args: &Self::SighashArgs
-    ) -> Result<(), Self::Error>;
+    ) -> Result<(), Self::TxError>;
 
     /// Calls `write_sighash_preimage` with the provided arguments and a new HashWriter.
     /// Returns the sighash digest which should be signed.
-    fn sighash(&self, args: &Self::SighashArgs) -> Result<Self::Digest, Self::Error> {
+    fn sighash(&self, args: &Self::SighashArgs) -> Result<Self::Digest, Self::TxError> {
         let mut w = Self::HashWriter::default();
         self.write_sighash_preimage(&mut w, args)?;
         Ok(w.finish())
