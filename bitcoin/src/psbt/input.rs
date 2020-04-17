@@ -11,9 +11,11 @@ use riemann_core::{
     ser::{Ser},
 };
 
-
 use crate::{
-    psbt::common::{PSBTError, PSBTKey, PSBTValue, KVTypeSchema},
+    psbt::{
+        common::{PSBTError, PSBTKey, PSBTValue},
+        schema,
+    },
     types::{
         script::{Script, ScriptSig, Witness},
         txout::{TxOut},
@@ -23,17 +25,21 @@ use crate::{
 
 psbt_map!(PSBTInput);
 
+
 impl PSBTInput {
-    /// Return a vector of the standard validation Schemas
-    pub fn standard_schema<'a>() -> Vec<&'a KVTypeSchema<'a>> {
+    /// Return a vector of the standard validation Schemas for a PSBTGlobal map. This enforces KV
+    /// descriptions found in BIP174. Further KV pairs can be validated using the `validate`
+    /// function
+    pub fn standard_schema<'a>() -> Vec<&'a schema::KVTypeSchema<'a>> {
         // TODO: more
-        let mut schema: Vec<&'a KVTypeSchema<'a>> = vec![];
+        let mut schema: Vec<&'a schema::KVTypeSchema<'a>> = vec![];
+        schema.push(&(6, &move |k, v| (schema::validate_in_bip32_derivations(k, v))));
         schema
     }
 
     /// Run standard validation on the map
-    pub fn validate_standard(&self) -> Result<(), PSBTError> {
-        self.validate(&Self::standard_schema())
+    pub fn validate(&self) -> Result<(), PSBTError> {
+        self.validate_schema(&Self::standard_schema())
     }
 
     /// Input finalization routine, as described in BIP174. This should only be called by a

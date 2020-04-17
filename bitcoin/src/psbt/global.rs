@@ -13,34 +13,32 @@ use riemann_core::{
 };
 
 use crate::{
-    psbt::common::{PSBTError, PSBTKey, PSBTValue, KVTypeSchema},
+    psbt::{
+        common::{PSBTError, PSBTKey, PSBTValue},
+        schema,
+    },
     types::transactions::{LegacyTx},
 };
 
 psbt_map!(PSBTGlobal);
 
-/// Validate a `PSBT_GLOBAL_UNSIGNED_TX` key-value pair in a global map
-pub fn validate_tx(t: (&PSBTKey, &PSBTValue)) -> Result<(), PSBTError> {
-    let (key, val) = t;
-    if !(key.len() == 1 && key[0] == 0) {
-        return Err(PSBTError::InvalidKeyFormat(key.clone()))
-    }
-    let mut tx_bytes = val.items();
-    Ok(LegacyTx::deserialize(&mut tx_bytes, 0).map(|_| ())?)
-}
 
 impl PSBTGlobal {
-    /// Return a vector of the standard validation Schemas
-    pub fn standard_schema<'a>() -> Vec<&'a KVTypeSchema<'a>> {
+    /// Return a vector of the standard validation Schemas for a PSBTGlobal map. This enforces KV
+    /// descriptions found in BIP174. Further KV pairs can be validated using the `validate`
+    /// function
+    pub fn standard_schema<'a>() -> Vec<&'a schema::KVTypeSchema<'a>> {
         // TODO: more
-        let mut schema: Vec<&'a KVTypeSchema<'a>> = vec![];
-        schema.push(&(0, &move |v| (validate_tx(v))));
+        let mut schema: Vec<&'a schema::KVTypeSchema<'a>> = vec![];
+        schema.push(&(0, &move |k, v| (schema::validate_tx(k, v))));
+        schema.push(&(1, &move |k, v| (schema::validate_xpub(k, v))));
+        schema.push(&(0xfb, &move |k, v| (schema::validate_version(k, v))));
         schema
     }
 
     /// Run standard validation on the map
-    pub fn validate_standard(&self) -> Result<(), PSBTError> {
-        self.validate(&Self::standard_schema())
+    pub fn validate(&self) -> Result<(), PSBTError> {
+        self.validate_schema(&Self::standard_schema())
     }
 
     /// Get the global TX value as a deserialzed txn. Errors if the TX fails to deserialize or if

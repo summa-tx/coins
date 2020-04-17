@@ -8,11 +8,14 @@ pub mod global;
 pub mod input;
 /// Per-Output KV store
 pub mod outputs;
+/// BIP174 schema validation functions
+pub mod schema;
 
 pub use common::*;
 pub use global::*;
 pub use input::*;
 pub use outputs::*;
+pub use schema::*;
 
 use std::io::{Read, Write};
 
@@ -51,13 +54,13 @@ impl PSBT {
         // - PSBT-level checks
         //     - Check that TX vin and vout match input/output vec lengths
         //
-        self.global.validate_standard()?;
+        self.global.validate()?;
 
         // for input in self.inputs.iter() {
-        //  input.validate_standard()?;
+        //  input.validate()?;
         // }
         // for output in self.outputs.iter() {
-        //  output.validate_standard()?;
+        //  output.validate()?;
         // }
         Ok(())
     }

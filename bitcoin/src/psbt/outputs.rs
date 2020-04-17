@@ -12,23 +12,29 @@ use riemann_core::{
 };
 
 use crate::{
-    psbt::common::{PSBTError, PSBTKey, PSBTValue, KVTypeSchema},
+    psbt::{
+        common::{PSBTError, PSBTKey, PSBTValue},
+        schema,
+    },
     types::script::{Script},
 };
 
 psbt_map!(PSBTOutput);
 
 impl PSBTOutput {
-    /// Return a vector of the standard validation Schemas
-    pub fn standard_schema<'a>() -> Vec<&'a KVTypeSchema<'a>> {
+    /// Return a vector of the standard validation Schemas for a PSBTGlobal map. This enforces KV
+    /// descriptions found in BIP174. Further KV pairs can be validated using the `validate`
+    /// function
+    pub fn standard_schema<'a>() -> Vec<&'a schema::KVTypeSchema<'a>> {
         // TODO: more
-        let mut schema: Vec<&'a KVTypeSchema<'a>> = vec![];
+        let mut schema: Vec<&'a schema::KVTypeSchema<'a>> = vec![];
+        schema.push(&(2, &move |k, v| (schema::validate_out_bip32_derivations(k, v))));
         schema
     }
 
     /// Run standard validation on the map
-    pub fn validate_standard(&self) -> Result<(), PSBTError> {
-        self.validate(&Self::standard_schema())
+    pub fn validate(&self) -> Result<(), PSBTError> {
+        self.validate_schema(&Self::standard_schema())
     }
 
     /// Returns the BIP174 PSBT_OUT_REDEEM_SCRIPT transaction if present and valid.

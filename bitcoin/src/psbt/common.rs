@@ -42,6 +42,41 @@ pub enum PSBTError{
     /// Returned when a key fails to pass a schema validation
     #[error("Key failed schema validation")]
     InvalidKeyFormat(PSBTKey),
+
+    /// Returned when a value fails to pass a schema validation
+    #[error("Value failed schema validation")]
+    InvalidValueFormat(PSBTKey, PSBTValue),
+
+    /// Returned from schema validation when the key size is unexpected
+    #[error("Key failed validation. Wrong length. Expected {expected} bytes. Got {got} bytes")]
+    WrongKeyLength{
+        /// The expected key length
+        expected: usize,
+        /// The actual key length
+        got: usize
+    },
+
+    /// Returned from schema validation when the value size is unexpected
+    #[error("Value failed validation. Wrong length. Expected {expected} bytes. Got {got} bytes")]
+    WrongValueLength{
+        /// The expected value length
+        expected: usize,
+        /// The actual value length
+        got: usize
+    },
+
+    /// Returned from schema validation when the key size is unexpected
+    #[error("Key failed validation. Wrong type. Expected {expected}. Got {got}")]
+    WrongKeyType{
+        /// The expected key length
+        expected: u8,
+        /// The actual key length
+        got: u8
+    },
+
+    /// Returned when a serialized bip32 derivation is invalid. This
+    #[error("Invalid bip32 derivation.")]
+    InvalidBIP32Path,
 }
 
 wrap_prefixed_byte_vector!(
@@ -60,10 +95,3 @@ impl PSBTKey {
         self[0]
     }
 }
-
-/// A PSBT key/value validation function. Returns `Ok(())` if the KV pair is valid, otherwise an
-/// error.
-pub type KVPredicate<'a> = &'a dyn Fn((&PSBTKey, &PSBTValue)) -> Result<(), PSBTError>;
-
-/// The first item is the key-type that it operates on. The second item is a KVPredicate
-pub type KVTypeSchema<'a> = (u8, KVPredicate<'a>);
