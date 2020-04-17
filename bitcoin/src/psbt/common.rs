@@ -33,7 +33,7 @@ pub enum PSBTError{
 
     /// Returned by convenience functions that attempt to read a non-existant key
     #[error("Non-existant key")]
-    MissingKey,
+    MissingKey(u8),
 
     /// Placeholder. TODO: Differentiate later
     #[error("Invalid PSBT. Unknown cause.")]

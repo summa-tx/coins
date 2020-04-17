@@ -170,7 +170,7 @@ macro_rules! psbt_map {
             }
 
             fn must_get(&self, key: &PSBTKey) -> Result<&PSBTValue, PSBTError> {
-                self.get(key).ok_or(PSBTError::InvalidPSBT)
+                self.get(key).ok_or(PSBTError::MissingKey(key.key_type()))
             }
 
             /// Return a range containing any proprietary KV pairs
