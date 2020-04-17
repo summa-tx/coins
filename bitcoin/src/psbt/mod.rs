@@ -21,20 +21,22 @@ use riemann_core::{
     tx::{Transaction},
 };
 
-use crate::types::transactions::{LegacyTx};
-
-/// The magic PSBT version prefix
-static MAGIC_BYTES: [u8; 4] = *b"psbt";
+trait PST {
+    /// A 4-byte prefix used to identify partially signed transactions. May vary by network.
+    const MAGIC_BYTES: [u8; 4];
+}
 
 /// A BIP174 Partially Signed Bitcoin Transaction
 #[derive(Debug, Clone)]
 pub struct PSBT {
-    tx: LegacyTx,
     global: PSBTGlobal,
     inputs: Vec<PSBTInput>,
     outputs: Vec<PSBTOutput>,
 }
 
+impl PST for PSBT {
+    const MAGIC_BYTES: [u8; 4] = *b"psbt";
+}
 
 impl Ser for PSBT {
     type Error = PSBTError;
@@ -58,7 +60,7 @@ impl Ser for PSBT {
     {
         let mut prefix = [0u8; 5];
         reader.read_exact(&mut prefix)?;
-        if prefix[..4] != MAGIC_BYTES || prefix[4] != 0xff {
+        if prefix[..4] != PSBT::MAGIC_BYTES || prefix[4] != 0xff {
             return Err(PSBTError::BadPrefix);
         }
 
@@ -70,7 +72,6 @@ impl Ser for PSBT {
         let outputs = Vec::<PSBTOutput>::deserialize(reader, tx.outputs().len())?;
 
         Ok(PSBT{
-            tx,
             global,
             inputs,
             outputs,
@@ -81,7 +82,7 @@ impl Ser for PSBT {
     where
         W: Write
     {
-        let mut len = writer.write(&MAGIC_BYTES)?;
+        let mut len = writer.write(&PSBT::MAGIC_BYTES)?;
         len += writer.write(&[0xffu8])?;
         len += self.global.serialize(writer)?;
         len += self.inputs.serialize(writer)?;
