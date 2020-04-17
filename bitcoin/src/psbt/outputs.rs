@@ -22,19 +22,21 @@ use crate::{
 psbt_map!(PSBTOutput);
 
 impl PSBTOutput {
-    /// Return a vector of the standard validation Schemas for a PSBTGlobal map. This enforces KV
+    /// Return a vector of the standard validation Schemas for a PSBTOutput map. This enforces KV
     /// descriptions found in BIP174. Further KV pairs can be validated using the `validate`
-    /// function
-    pub fn standard_schema<'a>() -> Vec<&'a schema::KVTypeSchema<'a>> {
+    /// function, or by inserting into the map
+    pub fn standard_schema() -> schema::KVTypeSchema {
         // TODO: more
-        let mut schema: Vec<&'a schema::KVTypeSchema<'a>> = vec![];
-        schema.push(&(2, &move |k, v| (schema::validate_out_bip32_derivations(k, v))));
-        schema
+        let mut s: schema::KVTypeSchema = Default::default();
+        //
+        s.insert(2, Box::new(move |k, v| (schema::output::validate_bip32_derivations(k, v))));
+        //
+        s
     }
 
     /// Run standard validation on the map
     pub fn validate(&self) -> Result<(), PSBTError> {
-        self.validate_schema(&Self::standard_schema())
+        self.validate_schema(Self::standard_schema())
     }
 
     /// Returns the BIP174 PSBT_OUT_REDEEM_SCRIPT transaction if present and valid.

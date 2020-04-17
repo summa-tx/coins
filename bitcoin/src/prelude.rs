@@ -174,16 +174,15 @@ macro_rules! psbt_map {
             }
 
             /// Perform validation checks on the input
-            pub fn validate_schema(&self, schema: &[&schema::KVTypeSchema]) -> Result<(), PSBTError> {
+            pub fn validate_schema(&self, schema: schema::KVTypeSchema) -> Result<(), PSBTError> {
                 // TODO:
                 // Check that EITHER non_witness_utxo OR witness_utxo is present.
                 // BOTH is NOT acceptable
                 // NEITHER is acceptable
-                for schema in schema.iter() {
-                    let key_type = schema.0;
-                    let result: Result<Vec<_>, PSBTError> = self.range_by_key_type(key_type)
+                for (key_type, predicate) in schema.0.iter() {
+                    let result: Result<Vec<_>, PSBTError> = self.range_by_key_type(*key_type)
                         .into_iter()
-                        .map(|(k, v)| schema.1(k, v))
+                        .map(|(k, v)| predicate(k, v))
                         .collect();
                     result?;
                 }

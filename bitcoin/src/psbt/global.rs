@@ -26,19 +26,19 @@ psbt_map!(PSBTGlobal);
 impl PSBTGlobal {
     /// Return a vector of the standard validation Schemas for a PSBTGlobal map. This enforces KV
     /// descriptions found in BIP174. Further KV pairs can be validated using the `validate`
-    /// function
-    pub fn standard_schema<'a>() -> Vec<&'a schema::KVTypeSchema<'a>> {
+    /// function, or by inserting into the map
+    pub fn standard_schema() -> schema::KVTypeSchema {
         // TODO: more
-        let mut schema: Vec<&'a schema::KVTypeSchema<'a>> = vec![];
-        schema.push(&(0, &move |k, v| (schema::validate_tx(k, v))));
-        schema.push(&(1, &move |k, v| (schema::validate_xpub(k, v))));
-        schema.push(&(0xfb, &move |k, v| (schema::validate_version(k, v))));
-        schema
+        let mut s: schema::KVTypeSchema = Default::default();
+        s.insert(0, Box::new(move |k, v| (schema::global::validate_tx(k, v))));
+        s.insert(1, Box::new(move |k, v| (schema::global::validate_xpub(k, v))));
+        s.insert(0xfb, Box::new(move |k, v| (schema::global::validate_version(k, v))));
+        s
     }
 
     /// Run standard validation on the map
     pub fn validate(&self) -> Result<(), PSBTError> {
-        self.validate_schema(&Self::standard_schema())
+        self.validate_schema(Self::standard_schema())
     }
 
     /// Get the global TX value as a deserialzed txn. Errors if the TX fails to deserialize or if

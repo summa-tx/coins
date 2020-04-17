@@ -27,21 +27,22 @@ psbt_map!(PSBTInput);
 
 
 impl PSBTInput {
-    /// Return a vector of the standard validation Schemas for a PSBTGlobal map. This enforces KV
+    /// Return a vector of the standard validation Schemas for a PSBTInput map. This enforces KV
     /// descriptions found in BIP174. Further KV pairs can be validated using the `validate`
-    /// function
-    pub fn standard_schema<'a>() -> Vec<&'a schema::KVTypeSchema<'a>> {
+    /// function, or by inserting into the map
+    pub fn standard_schema() -> schema::KVTypeSchema {
         // TODO: more
-        let mut schema: Vec<&'a schema::KVTypeSchema<'a>> = vec![];
-        schema.push(&(6, &move |k, v| (schema::validate_in_bip32_derivations(k, v))));
-        schema
+        let mut s: schema::KVTypeSchema = Default::default();
+        //
+        s.insert(6, Box::new(move |k, v| (schema::input::validate_bip32_derivations(k, v))));
+        //
+        s
     }
 
     /// Run standard validation on the map
     pub fn validate(&self) -> Result<(), PSBTError> {
-        self.validate_schema(&Self::standard_schema())
+        self.validate_schema(Self::standard_schema())
     }
-
     /// Input finalization routine, as described in BIP174. This should only be called by a
     /// finalizer.
     pub fn finalize(&mut self) -> Result<(), PSBTError> {
