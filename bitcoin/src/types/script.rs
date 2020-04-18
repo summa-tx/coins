@@ -20,9 +20,6 @@
 //! let script = bitcoin::Script::new(/* your script info */);
 //! let script = rmn_btc::types::Script::from(script.into_bytes());
 //! ```
-
-use std::ops::{Index, IndexMut};
-
 use riemann_core::{
     types::{
         tx::{RecipientIdentifier},

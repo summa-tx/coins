@@ -1,9 +1,8 @@
 use std::{
     collections::{
         BTreeMap,
-        btree_map::{Iter, IterMut, Range},
+        btree_map
     },
-    io::{Read, Write},
 };
 
 use riemann_core::{
@@ -13,7 +12,7 @@ use riemann_core::{
 
 use crate::{
     psbt::{
-        common::{PSBTError, PSBTKey, PSBTValue},
+        common::{PSBTError, PSBTMap, PSBTKey, PSBTValidate, PSBTValue},
         schema,
     },
     types::{
@@ -25,24 +24,67 @@ use crate::{
 
 psbt_map!(PSBTInput);
 
+/// PSBT Input Key Types
+#[repr(u8)]
+#[allow(non_camel_case_types)]
+pub enum InputKey {
+    /// Input key type for PSBT_IN_NON_WITNESS_UTXO as defined in BIP174
+    NON_WITNESS_UTXO = 0,
+    /// Input key type for PSBT_IN_WITNESS_UTXO as defined in BIP174
+    WITNESS_UTXO = 1,
+    /// Input key type for PSBT_IN_PARTIAL_SIG as defined in BIP174
+    PARTIAL_SIG = 2,
+    /// Input key type for PSBT_IN_SIGHASH_TYPE as defined in BIP174
+    SIGHASH_TYPE = 3,
+    /// Input key type for PSBT_IN_REDEEM_SCRIPT as defined in BIP174
+    REDEEM_SCRIPT = 4,
+    /// Input key type for PSBT_IN_WITNESS_SCRIPT as defined in BIP174
+    WITNESS_SCRIPT = 5,
+    /// Input key type for PSBT_IN_BIP32_DERIVATION as defined in BIP174
+    BIP32_DERIVATION = 6,
+    /// Input key type for PSBT_IN_FINAL_SCRIPTSIG as defined in BIP174
+    FINAL_SCRIPTSIG = 7,
+    /// Input key type for PSBT_IN_FINAL_SCRIPTWITNESS as defined in BIP174
+    FINAL_SCRIPTWITNESS = 8,
+    /// Input key type for PSBT_IN_POR_COMMITMENT as defined in BIP174
+    POR_COMMITMENT = 9,
+    /// Input key type for PSBT_IN_PROPRIETARY as defined in BIP174
+    PROPRIETARY = 0xfc,
+}
 
-impl PSBTInput {
-    /// Return a vector of the standard validation Schemas for a PSBTInput map. This enforces KV
-    /// descriptions found in BIP174. Further KV pairs can be validated using the `validate`
-    /// function, or by inserting into the map
-    pub fn standard_schema() -> schema::KVTypeSchema {
-        // TODO: more
+impl From<InputKey> for PSBTKey {
+    fn from(k: InputKey) -> PSBTKey {
+        vec![k as u8].into()
+    }
+}
+
+impl PSBTValidate for PSBTInput {
+    fn consistency_checks(&self) -> Result<(), PSBTError> {
+        // Can't contain both witness and non-witness input info
+        if self.contains_key(&InputKey::NON_WITNESS_UTXO.into()) && self.contains_key(&InputKey::WITNESS_UTXO.into()) {
+            return Err(PSBTError::InvalidPSBT)
+        }
+        // TODO
+        Ok(())
+    }
+
+    fn standard_schema() -> schema::KVTypeSchema {
         let mut s: schema::KVTypeSchema = Default::default();
-        //
-        s.insert(6, Box::new(|k, v| (schema::input::validate_bip32_derivations(k, v))));
-        //
+        s.insert(InputKey::NON_WITNESS_UTXO as u8, Box::new(|k, v| (schema::input::validate_in_non_witness(k, v))));
+        s.insert(InputKey::WITNESS_UTXO as u8, Box::new(|k, v| (schema::input::validate_in_witness(k, v))));
+        s.insert(InputKey::PARTIAL_SIG as u8, Box::new(|k, v| (schema::input::validate_in_partial_sig(k, v))));
+        s.insert(InputKey::SIGHASH_TYPE as u8, Box::new(|k, v| (schema::input::validate_sighash_type(k, v))));
+        s.insert(InputKey::REDEEM_SCRIPT as u8, Box::new(|k, v| (schema::input::validate_redeem_script(k, v))));
+        s.insert(InputKey::WITNESS_SCRIPT as u8, Box::new(|k, v| (schema::input::validate_witness_script(k, v))));
+        s.insert(InputKey::BIP32_DERIVATION as u8, Box::new(|k, v| (schema::input::validate_bip32_derivations(k, v))));
+        s.insert(InputKey::FINAL_SCRIPTSIG as u8, Box::new(|k, v| (schema::input::validate_finalized_script_sig(k, v))));
+        s.insert(InputKey::FINAL_SCRIPTWITNESS as u8, Box::new(|k, v| (schema::input::validate_finalized_script_witness(k, v))));
+        s.insert(InputKey::POR_COMMITMENT as u8, Box::new(|k, v| (schema::input::validate_por_commitment(k, v))));
         s
     }
+}
 
-    /// Run standard validation on the map
-    pub fn validate(&self) -> Result<(), PSBTError> {
-        self.validate_schema(Self::standard_schema())
-    }
+impl PSBTInput {
     /// Input finalization routine, as described in BIP174. This should only be called by a
     /// finalizer.
     pub fn finalize(&mut self) -> Result<(), PSBTError> {
@@ -64,9 +106,8 @@ impl PSBTInput {
     /// - Returns a `PSBTError::MissingKey` error if no value at that key.
     /// - Returns a `PSBTError::InvalidTx` error if the value at that key is not a valid TX.
     pub fn non_witness_utxo(&self) -> Result<LegacyTx, PSBTError> {
-        let tx_key: PSBTKey = vec![0].into();
-        let mut tx_bytes = self.must_get(&tx_key)?.items();
-        Ok(LegacyTx::deserialize(&mut tx_bytes, 0)?)
+        let tx_val = self.must_get(&InputKey::NON_WITNESS_UTXO.into())?;
+        schema::try_val_as_tx(tx_val)
     }
 
     /// Returns the BIP174 PSBT_IN_WITNESS_UTXO TxOut if present and valid.
@@ -76,14 +117,13 @@ impl PSBTInput {
     /// - Returns a `PSBTError::MissingKey` error if no value at that key.
     /// - Returns a `PSBTError::SerError` if the value at that key is not a valid tx out.
     pub fn witness_utxo(&self) -> Result<TxOut, PSBTError> {
-        let out_key: PSBTKey = vec![1].into();
-        let mut out_bytes = self.must_get(&out_key)?.items();
-        Ok(TxOut::deserialize(&mut out_bytes, 0)?)
+        let out_val = self.must_get(&InputKey::WITNESS_UTXO.into())?;
+        schema::try_val_as_tx_out(out_val)
     }
 
     /// Returns a range containing any PSBT_IN_PARTIAL_SIG
-    pub fn partial_sigs(&self) -> Range<PSBTKey, PSBTValue> {
-        self.range_by_key_type(2)
+    pub fn partial_sigs(&self) -> btree_map::Range<PSBTKey, PSBTValue> {
+        self.range_by_key_type(InputKey::PARTIAL_SIG as u8)
     }
 
     /// Returns the BIP174 PSBT_IN_SIGHASH_TYPE if present and valid.
@@ -93,8 +133,7 @@ impl PSBTInput {
     /// - Returns a `PSBTError::MissingKey` error if no value at that key.
     /// - Returns a `PSBTError::TxError(TxError::UnknownSighash)` if the sighash is abnormal
     pub fn sighash(&self) -> Result<Sighash, PSBTError> {
-        let sighash_key: PSBTKey = vec![3].into();
-        let val = self.must_get(&sighash_key)?;
+        let val = self.must_get(&InputKey::SIGHASH_TYPE.into())?;
         schema::try_val_as_sighash(&val)
     }
 
@@ -104,8 +143,7 @@ impl PSBTInput {
     ///
     /// - Returns a `PSBTError::MissingKey` error if no value at that key.
     pub fn redeem_script(&self) -> Result<Script, PSBTError> {
-        let script_key: PSBTKey = vec![4].into();
-        let script_bytes = self.must_get(&script_key)?.items();
+        let script_bytes = self.must_get(&InputKey::REDEEM_SCRIPT.into())?.items();
         Ok(script_bytes.into())
     }
 
@@ -115,14 +153,13 @@ impl PSBTInput {
     ///
     /// - Returns a `PSBTError::MissingKey` error if no value at that key.
     pub fn witness_script(&self) -> Result<Script, PSBTError> {
-        let script_key: PSBTKey = vec![5].into();
-        let script_bytes = self.must_get(&script_key)?.items();
+        let script_bytes = self.must_get(&InputKey::WITNESS_SCRIPT.into())?.items();
         Ok(script_bytes.into())
     }
 
     /// Returns a range containing any PSBT_IN_BIP32_DERIVATION.
-    pub fn bip_32_derivations(&self) -> Range<PSBTKey, PSBTValue> {
-        self.range_by_key_type(6)
+    pub fn bip_32_derivations(&self) -> btree_map::Range<PSBTKey, PSBTValue> {
+        self.range_by_key_type(InputKey::BIP32_DERIVATION as u8)
     }
 
     /// Returns the BIP174 PSBT_IN_FINAL_SCRIPTSIG if present and valid.
@@ -131,8 +168,7 @@ impl PSBTInput {
     ///
     /// - Returns a `PSBTError::MissingKey` error if no value at that key.
     pub fn finalized_script_sig(&self) -> Result<ScriptSig, PSBTError> {
-        let script_key: PSBTKey = vec![7].into();
-        let script_bytes = self.must_get(&script_key)?.items();
+        let script_bytes = self.must_get(&InputKey::FINAL_SCRIPTSIG.into())?.items();
         Ok(script_bytes.into())
     }
 
@@ -143,9 +179,8 @@ impl PSBTInput {
     /// - Returns a `PSBTError::MissingKey` error if no value at that key.
     /// - Returns a `PSBTError::SerError` if the witness fails to deserialize properly
     pub fn finalized_script_witness(&self) -> Result<Witness, PSBTError> {
-        let wit_key: PSBTKey = vec![8].into();
-        let mut wit_bytes = self.must_get(&wit_key)?.items();
-        Ok(Witness::deserialize(&mut wit_bytes, 0)?)
+        let wit_val = self.must_get(&InputKey::FINAL_SCRIPTWITNESS.into())?;
+        schema::try_val_as_witness(&wit_val)
     }
 
     /// Returns the BIP174 PSBT_IN_POR_COMMITMENT if present and valid.
@@ -155,8 +190,7 @@ impl PSBTInput {
     /// - Returns a `PSBTError::MissingKey` error if no value at that key.
     /// - Returns a ``PSBTError::SerError`` if deserialization fails
     pub fn por_commitment(&self) -> Result<Vec<u8>, PSBTError> {
-        let por_key: PSBTKey = vec![9].into();
-        let por_bytes = self.must_get(&por_key)?.items();
+        let por_bytes = self.must_get(&InputKey::POR_COMMITMENT.into())?.items();
         Ok(por_bytes.into())
     }
 }

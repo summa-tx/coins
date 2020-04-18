@@ -8,6 +8,7 @@ use riemann_core::{
 use crate::{
     psbt::common::{PSBTError, PSBTKey, PSBTValue},
     types::{
+        script::{Witness},
         transactions::{LegacyTx, sighash_from_u8, Sighash, TxError},
         txout::{TxOut},
     },
@@ -17,13 +18,18 @@ use crate::{
 /// error.
 pub type KVPredicate = Box<dyn Fn(&PSBTKey, &PSBTValue) -> Result<(), PSBTError>>;
 
-/// The first item is the key-type that it operates on. The second item is a KVPredicate
+/// The map key is the PSBT key-type to be validated. The value is a boxed function that performs
+/// validation.
 #[derive(Default)]
 pub struct KVTypeSchema(pub HashMap<u8, KVPredicate>);
 
 impl KVTypeSchema {
     /// Insert a predicate into the map. This creates a composition with any predicate already in
-    /// the map
+    /// the map. Which is to say, multiple inserts at the same key additive. They are ALL
+    /// enforced.
+    ///
+    /// Custom schemas can be built manually, or made by getting the standard schema for a type
+    /// and then updating it.
     pub fn insert(&mut self, key_type: u8, new: KVPredicate) {
         let existing = self.0.remove(&key_type);
         let updated: KVPredicate = match existing {
@@ -85,19 +91,19 @@ pub fn validate_expected_key_type(key: &PSBTKey, key_type: u8) ->  Result<(), PS
     }
 }
 
-/// Ensure that a value can be deserialzed as a transaction
-pub fn validate_val_is_tx(val: &PSBTValue) -> Result<(), PSBTError> {
+/// Attempt to deserialize a value as a as transaction
+pub fn try_val_as_tx(val: &PSBTValue) -> Result<LegacyTx, PSBTError> {
     let mut tx_bytes = val.items();
-    Ok(LegacyTx::deserialize(&mut tx_bytes, 0).map(|_| ())?)
+    Ok(LegacyTx::deserialize(&mut tx_bytes, 0)?)
 }
 
-/// Ensure that a value is a valid Bitcoin Output
-pub fn validate_val_is_tx_out(val: &PSBTValue) -> Result<(), PSBTError> {
+/// Attempt to deserialize a value as a Bitcoin Output
+pub fn try_val_as_tx_out(val: &PSBTValue) -> Result<TxOut, PSBTError> {
     let mut out_bytes = val.items();
-    Ok(TxOut::deserialize(&mut out_bytes, 0).map(|_| ())?)
+    Ok(TxOut::deserialize(&mut out_bytes, 0)?)
 }
 
-/// Ensure that a value is a valid sighash flag, formatted as an LE u32
+/// Attempt to deserialize a value as a sighash flag
 pub fn try_val_as_sighash(val: &PSBTValue) -> Result<Sighash, PSBTError> {
     let mut buf = [0u8; 4];
     buf.copy_from_slice(&val.items()[..4]);
@@ -108,6 +114,12 @@ pub fn try_val_as_sighash(val: &PSBTValue) -> Result<Sighash, PSBTError> {
     Ok(sighash_from_u8(sighash as u8)?)
 }
 
+/// Attempt to deserialize a value as a script Witness
+pub fn try_val_as_witness(val: &PSBTValue) -> Result<Witness, PSBTError> {
+    let mut wit_bytes = val.items();
+    Ok(Witness::deserialize(&mut wit_bytes, 0)?)
+}
+
 /// Validation functions for PSBT Global maps
 pub mod global {
     use super::*;
@@ -115,7 +127,7 @@ pub mod global {
     pub fn validate_tx(key: &PSBTKey, val: &PSBTValue) -> Result<(), PSBTError> {
         validate_expected_key_type(key, 0)?;
         validate_single_byte_key_type(key)?;
-        validate_val_is_tx(val)
+        try_val_as_tx(val).map(|_| ())
     }
 
     /// Validate PSBT_GLOBAL_XPUB kv pairs. Checks that the xpub is 78 bytes long, and that the value
@@ -141,12 +153,14 @@ pub mod output {
     pub fn validate_redeem_script(key: &PSBTKey, _val: &PSBTValue) -> Result<(), PSBTError> {
         validate_expected_key_type(key, 0)?;
         validate_single_byte_key_type(key)
+        // TODO: Script isn't nonsense
     }
 
     /// Validate PSBT_OUT_WITNESS_SCRIPT kv pair.
     pub fn validate_witness_script(key: &PSBTKey, _val: &PSBTValue) -> Result<(), PSBTError> {
         validate_expected_key_type(key, 1)?;
         validate_single_byte_key_type(key)
+        // TODO: Script isn't nonsense
     }
 
     /// Validate PSBT_OUT_BIP32_DERIVATION kv pairs. Checks that the
@@ -168,14 +182,14 @@ pub mod input {
     pub fn validate_in_non_witness(key: &PSBTKey, val: &PSBTValue) -> Result<(), PSBTError> {
         validate_expected_key_type(key, 0)?;
         validate_single_byte_key_type(key)?;
-        validate_val_is_tx(val)
+        try_val_as_tx(val).map(|_| ())
     }
 
     /// Validate a PSBT_IN_WITNESS_UTXO key-value pair in an input map
     pub fn validate_in_witness(key: &PSBTKey, val: &PSBTValue) -> Result<(), PSBTError> {
         validate_expected_key_type(key, 1)?;
         validate_single_byte_key_type(key)?;
-        validate_val_is_tx_out(val)
+        try_val_as_tx_out(val).map(|_| ())
     }
 
     /// Validate a PSBT_IN_PARTIAL_SIG key-value pair in an input map
@@ -190,7 +204,22 @@ pub mod input {
     pub fn validate_sighash_type(key: &PSBTKey, val: &PSBTValue) -> Result<(), PSBTError> {
         validate_expected_key_type(key, 3)?;
         validate_single_byte_key_type(key)?;
+        validate_fixed_val_length(val, 4)?;
         try_val_as_sighash(val).map(|_| ())
+    }
+
+    /// Validate PSBT_IN_REDEEM_SCRIPT kv pair.
+    pub fn validate_redeem_script(key: &PSBTKey, _val: &PSBTValue) -> Result<(), PSBTError> {
+        validate_expected_key_type(key, 4)?;
+        validate_single_byte_key_type(key)
+        // TODO: Script isn't nonsense
+    }
+
+    /// Validate PSBT_IN_WITNESS_SCRIPT kv pair.
+    pub fn validate_witness_script(key: &PSBTKey, _val: &PSBTValue) -> Result<(), PSBTError> {
+        validate_expected_key_type(key, 5)?;
+        validate_single_byte_key_type(key)
+        // TODO: Script isn't nonsense
     }
 
     /// Validate PSBT_IN_BIP32_DERIVATION kv pairs. Checks that the
@@ -201,5 +230,26 @@ pub mod input {
         validate_expected_key_type(key, 6)?;
         validate_fixed_key_length(key, 34)?;
         validate_bip32_value(val)
+    }
+
+    /// Validate PSBT_IN_FINAL_SCRIPTSIG kv pair.
+    pub fn validate_finalized_script_sig(key: &PSBTKey, _val: &PSBTValue) -> Result<(), PSBTError> {
+        validate_expected_key_type(key, 7)?;
+        validate_single_byte_key_type(key)
+        // TODO: Script isn't nonsense
+    }
+
+    /// Validate PSBT_IN_FINAL_SCRIPTWITNESS kv pair.
+    pub fn validate_finalized_script_witness(key: &PSBTKey, _val: &PSBTValue) -> Result<(), PSBTError> {
+        validate_expected_key_type(key, 8)?;
+        validate_single_byte_key_type(key)
+        // TODO: Script isn't nonsense
+    }
+
+    /// Validate PSBT_IN_POR_COMMITMENT kv pair.
+    pub fn validate_por_commitment(key: &PSBTKey, _val: &PSBTValue) -> Result<(), PSBTError> {
+        validate_expected_key_type(key, 9)?;
+        validate_single_byte_key_type(key)
+        // TODO: Bip 127?
     }
 }

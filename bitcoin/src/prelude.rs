@@ -40,14 +40,14 @@ macro_rules! wrap_prefixed_byte_vector {
 
         impl<T> From<T> for $wrapper_name
         where
-            T: Into<ConcretePrefixVec<u8>>
+            T: Into<riemann_core::types::primitives::ConcretePrefixVec<u8>>
         {
             fn from(v: T) -> Self {
                 Self(v.into())
             }
         }
 
-        impl Index<usize> for $wrapper_name {
+        impl std::ops::Index<usize> for $wrapper_name {
             type Output = u8;
 
             fn index(&self, index: usize) -> &Self::Output {
@@ -55,19 +55,19 @@ macro_rules! wrap_prefixed_byte_vector {
             }
         }
 
-        impl IndexMut<usize> for $wrapper_name {
+        impl std::ops::IndexMut<usize> for $wrapper_name {
             fn index_mut(&mut self, index: usize) -> &mut Self::Output {
                 &mut self.0[index]
             }
         }
 
-        impl Extend<u8> for $wrapper_name {
-            fn extend<I: IntoIterator<Item=u8>>(&mut self, iter: I) {
+        impl std::iter::Extend<u8> for $wrapper_name {
+            fn extend<I: std::iter::IntoIterator<Item=u8>>(&mut self, iter: I) {
                 self.0.extend(iter)
             }
         }
 
-        impl IntoIterator for $wrapper_name {
+        impl std::iter::IntoIterator for $wrapper_name {
             type Item = u8;
             type IntoIter = std::vec::IntoIter<u8>;
 
@@ -116,8 +116,8 @@ macro_rules! mark_hash256 {
 
             fn deserialize<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
             where
-            R: Read,
-            Self: std::marker::Sized
+                R: std::io::Read,
+                Self: std::marker::Sized
             {
                 let mut buf = <Hash256Digest>::default();
                 reader.read_exact(&mut buf)?;
@@ -126,7 +126,7 @@ macro_rules! mark_hash256 {
 
             fn serialize<W>(&self, writer: &mut W) -> SerResult<usize>
             where
-            W: Write
+                W: std::io::Write
             {
                 Ok(writer.write(&self.0)?)
             }
@@ -159,63 +159,43 @@ macro_rules! psbt_map {
         /// A newtype wrapping a BTreeMap. Provides a simplified interface
         #[derive(Debug, Clone)]
         pub struct $name{
-            map: BTreeMap<PSBTKey, PSBTValue>,
+            map: std::collections::BTreeMap<PSBTKey, PSBTValue>,
         }
 
-        impl $name {
-            fn range_by_key_type(&self, key_type: u8) -> Range<PSBTKey, PSBTValue> {
-                let start: PSBTKey = vec![key_type].into();
-                let end: PSBTKey = vec![key_type + 1].into();
-                self.map.range(start..end)
-            }
-
-            fn must_get(&self, key: &PSBTKey) -> Result<&PSBTValue, PSBTError> {
-                self.get(key).ok_or(PSBTError::MissingKey(key.key_type()))
-            }
-
-            /// Perform validation checks on the input
-            pub fn validate_schema(&self, schema: schema::KVTypeSchema) -> Result<(), PSBTError> {
-                // TODO:
-                // Check that EITHER non_witness_utxo OR witness_utxo is present.
-                // BOTH is NOT acceptable
-                // NEITHER is acceptable
-                for (key_type, predicate) in schema.0.iter() {
-                    let result: Result<Vec<_>, PSBTError> = self.range_by_key_type(*key_type)
-                        .into_iter()
-                        .map(|(k, v)| predicate(k, v))
-                        .collect();
-                    result?;
-                }
-                Ok(())
-            }
-
-            /// Return a range containing any proprietary KV pairs
-            pub fn proprietary(&self) -> Range<PSBTKey, PSBTValue> {
-                self.range_by_key_type(0xfc)
-            }
-
+        impl PSBTMap for $name {
             /// Returns a reference to the value corresponding to the key.
-            pub fn get(&self, key: &PSBTKey) -> Option<&PSBTValue> {
+            fn get(&self, key: &PSBTKey) -> Option<&PSBTValue> {
                 self.map.get(key)
             }
 
+            fn contains_key(&self, key: &PSBTKey) -> bool {
+                self.map.contains_key(key)
+            }
+
+            fn range<R>(&self, range: R) -> std::collections::btree_map::Range<PSBTKey, PSBTValue>
+            where
+                R: std::ops::RangeBounds<PSBTKey>
+            {
+                self.map.range(range)
+            }
+
             /// Returns a mutable reference to the value corresponding to the key.
-            pub fn get_mut(&mut self, key: &PSBTKey) -> Option<&mut PSBTValue> {
+            fn get_mut(&mut self, key: &PSBTKey) -> Option<&mut PSBTValue> {
                 self.map.get_mut(key)
             }
 
             /// Gets an iterator over the entries of the map, sorted by key.
-            pub fn iter(&self) -> Iter<PSBTKey, PSBTValue> {
+            fn iter(&self) -> std::collections::btree_map::Iter<PSBTKey, PSBTValue> {
                 self.map.iter()
             }
 
             /// Gets a mutable iterator over the entries of the map, sorted by key
-            pub fn iter_mut(&mut self) -> IterMut<PSBTKey, PSBTValue> {
+            fn iter_mut(&mut self) -> std::collections::btree_map::IterMut<PSBTKey, PSBTValue> {
                 self.map.iter_mut()
             }
 
             /// Gets an iterator over the entries of the map, sorted by key.
-            pub fn insert(&mut self, key: PSBTKey, value: PSBTValue) -> Option<PSBTValue> {
+            fn insert(&mut self, key: PSBTKey, value: PSBTValue) -> Option<PSBTValue> {
                 self.map.insert(key, value)
             }
         }
@@ -236,7 +216,7 @@ macro_rules! psbt_map {
 
             fn deserialize<R>(reader: &mut R, _limit: usize) -> Result<Self, PSBTError>
             where
-                R: Read,
+                R: std::io::Read,
                 Self: std::marker::Sized
             {
                 let mut map = Self{
@@ -256,7 +236,7 @@ macro_rules! psbt_map {
 
             fn serialize<W>(&self, writer: &mut W) -> Result<usize, PSBTError>
             where
-                W: Write
+                W: std::io::Write
             {
                 let mut length: usize = 0;
                 for (k, v) in self.iter() {

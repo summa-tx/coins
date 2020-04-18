@@ -1,9 +1,8 @@
 use std::{
     collections::{
         BTreeMap,
-        btree_map::{Iter, IterMut, Range},
+        btree_map
     },
-    io::{Read, Write},
 };
 
 use riemann_core::{
@@ -13,7 +12,7 @@ use riemann_core::{
 
 use crate::{
     psbt::{
-        common::{PSBTError, PSBTKey, PSBTValue},
+        common::{PSBTError, PSBTMap, PSBTKey, PSBTValidate, PSBTValue},
         schema,
     },
     types::script::{Script},
@@ -21,26 +20,42 @@ use crate::{
 
 psbt_map!(PSBTOutput);
 
-impl PSBTOutput {
-    /// Return a vector of the standard validation Schemas for a PSBTOutput map. This enforces KV
-    /// descriptions found in BIP174. Further KV pairs can be validated using the `validate`
-    /// function, or by inserting into the map
-    pub fn standard_schema() -> schema::KVTypeSchema {
-        // TODO: more
+/// PSBT Output Key Types
+#[repr(u8)]
+#[allow(non_camel_case_types)]
+pub enum OutputKey {
+    /// Output key type for PSBT_OUT_REDEEM_SCRIPT as defined in BIP174
+    REDEEM_SCRIPT = 0,
+    /// Output key type for PSBT_OUT_WITNESS_SCRIPT as defined in BIP174
+	WITNESS_SCRIPT = 1,
+    /// Output key type for PSBT_OUT_BIP32_DERIVATION as defined in BIP174
+	BIP32_DERIVATION = 2,
+    /// Output key type for PSBT_OUT_PROPRIETARY as defined in BIP174
+    PROPRIETARY = 0xfc,
+}
+
+impl From<OutputKey> for PSBTKey {
+    fn from(k: OutputKey) -> PSBTKey {
+        vec![k as u8].into()
+    }
+}
+
+impl PSBTValidate for PSBTOutput {
+    fn consistency_checks(&self) -> Result<(), PSBTError> {
+        // No current checks
+        Ok(())
+    }
+
+    fn standard_schema() -> schema::KVTypeSchema {
         let mut s: schema::KVTypeSchema = Default::default();
-        //
-        s.insert(0, Box::new(|k, v| (schema::output::validate_redeem_script(k, v))));
-        s.insert(1, Box::new(|k, v| (schema::output::validate_witness_script(k, v))));
-        s.insert(2, Box::new(|k, v| (schema::output::validate_bip32_derivations(k, v))));
-        //
+        s.insert(OutputKey::REDEEM_SCRIPT as u8, Box::new(|k, v| (schema::output::validate_redeem_script(k, v))));
+        s.insert(OutputKey::WITNESS_SCRIPT as u8, Box::new(|k, v| (schema::output::validate_witness_script(k, v))));
+        s.insert(OutputKey::BIP32_DERIVATION as u8, Box::new(|k, v| (schema::output::validate_bip32_derivations(k, v))));
         s
     }
+}
 
-    /// Run standard validation on the map
-    pub fn validate(&self) -> Result<(), PSBTError> {
-        self.validate_schema(Self::standard_schema())
-    }
-
+impl PSBTOutput {
     /// Returns the BIP174 PSBT_OUT_REDEEM_SCRIPT transaction if present and valid.
     ///
     /// ## Errors
@@ -48,8 +63,7 @@ impl PSBTOutput {
     /// - Returns a `PSBTError::MissingKey` error if no value at that key.
     /// - Returns a PSBTError::InvalidTx error if the value at that key is not a valid TX.
     pub fn out_redeem_script(&self) -> Result<Script, PSBTError> {
-        let script_key: PSBTKey = vec![0].into();
-        let script_bytes = self.must_get(&script_key)?.items();
+        let script_bytes = self.must_get(&OutputKey::REDEEM_SCRIPT.into())?.items();
         Ok(script_bytes.into())
     }
 
@@ -60,14 +74,13 @@ impl PSBTOutput {
     /// - Returns a `PSBTError::MissingKey` error if no value at that key.
     /// - Returns a PSBTError::InvalidTx error if the value at that key is not a valid TX.
     pub fn out_witness_script(&self) -> Result<Script, PSBTError> {
-        let script_key: PSBTKey = vec![1].into();
-        let script_bytes = self.must_get(&script_key)?.items();
+        let script_bytes = self.must_get(&OutputKey::WITNESS_SCRIPT.into())?.items();
         Ok(script_bytes.into())
     }
 
 
     /// Returns a range containing any PSBT_OUT_BIP32_DERIVATION.
-    pub fn bip_32_derivations(&self) -> Range<PSBTKey, PSBTValue> {
-        self.range_by_key_type(2)
+    pub fn bip_32_derivations(&self) -> btree_map::Range<PSBTKey, PSBTValue> {
+        self.range_by_key_type(OutputKey::BIP32_DERIVATION as u8)
     }
 }

@@ -24,6 +24,11 @@ use riemann_core::{
     tx::{Transaction},
 };
 
+use crate::{
+    types::transactions::{LegacyTx},
+    psbt::common::{PSBTError},
+};
+
 trait PST {
     /// A 4-byte prefix used to identify partially signed transactions. May vary by network.
     const MAGIC_BYTES: [u8; 4];
@@ -41,28 +46,32 @@ pub struct PSBT {
 }
 
 impl PSBT {
+    fn consistency_checks(&self) -> Result<(), PSBTError> {
+        // - PSBT-level checks
+        let tx = self.tx().expect("already performed global consistency_checks");
+        if tx.inputs().len() != self.inputs.len() { return Err(PSBTError::InvalidPSBT) }
+        if tx.outputs().len() != self.outputs.len() { return Err(PSBTError::InvalidPSBT) }
+        Ok(())
+    }
+
     /// Run validation checks on the PSBT to ensure it's in a consistent state. This function is
     /// called while serializing the PSBT, to prevent invalid PSBTs from being saved or sent over
     /// a wire
     pub fn validate(&self) -> Result<(), PSBTError> {
-        // TODO:
-        // - global checks
-        //     - Check that a TX is in the global map
-        //     - Check that a version is present
-        // - per-input checks?
-        // - per-output checks?
-        // - PSBT-level checks
-        //     - Check that TX vin and vout match input/output vec lengths
-        //
         self.global.validate()?;
-
-        // for input in self.inputs.iter() {
-        //  input.validate()?;
-        // }
-        // for output in self.outputs.iter() {
-        //  output.validate()?;
-        // }
+        for input in self.inputs.iter() {
+            input.validate()?;
+        }
+        for output in self.outputs.iter() {
+            output.validate()?;
+        }
+        self.consistency_checks()?;
         Ok(())
+    }
+
+    /// Get a copy of the transaction associated with this PSBT
+    pub fn tx(&self) -> Result<LegacyTx, PSBTError> {
+        self.global.tx()
     }
 
     /// Return a reference to the global attributes
@@ -133,11 +142,13 @@ impl Ser for PSBT {
         let inputs = Vec::<PSBTInput>::deserialize(reader, tx.inputs().len())?;
         let outputs = Vec::<PSBTOutput>::deserialize(reader, tx.outputs().len())?;
 
-        Ok(PSBT{
+        let result = PSBT{
             global,
             inputs,
             outputs,
-        })
+        };
+        result.validate()?;
+        Ok(result)
     }
 
     fn serialize<W>(&self, writer: &mut W) -> Result<usize, Self::Error>

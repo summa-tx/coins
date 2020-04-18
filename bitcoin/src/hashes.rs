@@ -1,7 +1,6 @@
 //! This module holds `MarkedDigest` types used by Bitcoin transactions. Currently we represent
 //! only `TXID`s and `WTXID`s. In the future we may also represent sighash digests this way.
 
-use std::io::{Read, Write};
 use bitcoin_spv::types::{Hash256Digest};
 
 use riemann_core::{
