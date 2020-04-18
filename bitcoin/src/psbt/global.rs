@@ -30,9 +30,9 @@ impl PSBTGlobal {
     pub fn standard_schema() -> schema::KVTypeSchema {
         // TODO: more
         let mut s: schema::KVTypeSchema = Default::default();
-        s.insert(0, Box::new(move |k, v| (schema::global::validate_tx(k, v))));
-        s.insert(1, Box::new(move |k, v| (schema::global::validate_xpub(k, v))));
-        s.insert(0xfb, Box::new(move |k, v| (schema::global::validate_version(k, v))));
+        s.insert(0, Box::new(|k, v| (schema::global::validate_tx(k, v))));
+        s.insert(1, Box::new(|k, v| (schema::global::validate_xpub(k, v))));
+        s.insert(0xfb, Box::new(|k, v| (schema::global::validate_version(k, v))));
         s
     }
 

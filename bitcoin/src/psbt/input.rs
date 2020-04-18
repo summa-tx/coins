@@ -19,7 +19,7 @@ use crate::{
     types::{
         script::{Script, ScriptSig, Witness},
         txout::{TxOut},
-        transactions::{LegacyTx, Sighash, sighash_from_u8, TxError},
+        transactions::{LegacyTx, Sighash},
     },
 };
 
@@ -34,7 +34,7 @@ impl PSBTInput {
         // TODO: more
         let mut s: schema::KVTypeSchema = Default::default();
         //
-        s.insert(6, Box::new(move |k, v| (schema::input::validate_bip32_derivations(k, v))));
+        s.insert(6, Box::new(|k, v| (schema::input::validate_bip32_derivations(k, v))));
         //
         s
     }
@@ -94,12 +94,8 @@ impl PSBTInput {
     /// - Returns a `PSBTError::TxError(TxError::UnknownSighash)` if the sighash is abnormal
     pub fn sighash(&self) -> Result<Sighash, PSBTError> {
         let sighash_key: PSBTKey = vec![3].into();
-        let mut sighash_bytes = self.must_get(&sighash_key)?.items();
-        let sighash = Self::read_u32_le(&mut sighash_bytes)?;
-        if sighash > 0xff {  // bits higher than the first byte should be empty
-            return Err(TxError::UnknownSighash(0xff).into())
-        }
-        sighash_from_u8(sighash as u8).map_err(|e| e.into())
+        let val = self.must_get(&sighash_key)?;
+        schema::try_val_as_sighash(&val)
     }
 
     /// Returns the BIP174 PSBT_IN_REDEEM_SCRIPT if present and valid.

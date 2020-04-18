@@ -8,7 +8,7 @@ use riemann_core::{
 use crate::{
     psbt::common::{PSBTError, PSBTKey, PSBTValue},
     types::{
-        transactions::{LegacyTx},
+        transactions::{LegacyTx, sighash_from_u8, Sighash, TxError},
         txout::{TxOut},
     },
 };
@@ -45,7 +45,7 @@ impl KVTypeSchema {
 }
 
 /// Check that a value can be interpreted as a bip32 fingerprint + derivation
-fn validate_bip32_value(val: &PSBTValue) -> Result<(), PSBTError> {
+pub fn validate_bip32_value(val: &PSBTValue) -> Result<(), PSBTError> {
     if !val.is_empty() && val.len() % 4 != 0  {
         Err(PSBTError::InvalidBIP32Path)
     } else {
@@ -54,7 +54,7 @@ fn validate_bip32_value(val: &PSBTValue) -> Result<(), PSBTError> {
 }
 
 /// Validate that a key is a fixed length
-fn validate_fixed_key_length(key: &PSBTKey, length: usize) -> Result<(), PSBTError> {
+pub fn validate_fixed_key_length(key: &PSBTKey, length: usize) -> Result<(), PSBTError> {
     if key.len() != length {
         Err(PSBTError::WrongKeyLength{expected: length, got: key.len()})
     } else {
@@ -63,7 +63,7 @@ fn validate_fixed_key_length(key: &PSBTKey, length: usize) -> Result<(), PSBTErr
 }
 
 /// Validate that a key is a fixed length
-fn validate_fixed_val_length(val: &PSBTValue, length: usize) -> Result<(), PSBTError> {
+pub fn validate_fixed_val_length(val: &PSBTValue, length: usize) -> Result<(), PSBTError> {
     if val.len() != length {
         Err(PSBTError::WrongValueLength{expected: length, got: val.len()})
     } else {
@@ -71,14 +71,13 @@ fn validate_fixed_val_length(val: &PSBTValue, length: usize) -> Result<(), PSBTE
     }
 }
 
-
 /// Ensure that a key is exactly 1 byte
-fn validate_single_byte_key_type(key: &PSBTKey) -> Result<(), PSBTError> {
+pub fn validate_single_byte_key_type(key: &PSBTKey) -> Result<(), PSBTError> {
     validate_fixed_key_length(key, 1)
 }
 
 /// Ensure that a key has the expected key type
-fn validate_expected_key_type(key: &PSBTKey, key_type: u8) ->  Result<(), PSBTError> {
+pub fn validate_expected_key_type(key: &PSBTKey, key_type: u8) ->  Result<(), PSBTError> {
     if key.key_type() != key_type {
         Err(PSBTError::WrongKeyType{expected: key_type, got: key.key_type()})
     } else {
@@ -87,15 +86,26 @@ fn validate_expected_key_type(key: &PSBTKey, key_type: u8) ->  Result<(), PSBTEr
 }
 
 /// Ensure that a value can be deserialzed as a transaction
-fn validate_val_is_tx(val: &PSBTValue) -> Result<(), PSBTError> {
+pub fn validate_val_is_tx(val: &PSBTValue) -> Result<(), PSBTError> {
     let mut tx_bytes = val.items();
     Ok(LegacyTx::deserialize(&mut tx_bytes, 0).map(|_| ())?)
 }
 
 /// Ensure that a value is a valid Bitcoin Output
-fn validate_val_is_tx_out(val: &PSBTValue) -> Result<(), PSBTError> {
+pub fn validate_val_is_tx_out(val: &PSBTValue) -> Result<(), PSBTError> {
     let mut out_bytes = val.items();
     Ok(TxOut::deserialize(&mut out_bytes, 0).map(|_| ())?)
+}
+
+/// Ensure that a value is a valid sighash flag, formatted as an LE u32
+pub fn try_val_as_sighash(val: &PSBTValue) -> Result<Sighash, PSBTError> {
+    let mut buf = [0u8; 4];
+    buf.copy_from_slice(&val.items()[..4]);
+    let sighash = u32::from_le_bytes(buf);
+    if sighash > 0xff {  // bits higher than the first byte should be empty
+        return Err(TxError::UnknownSighash(0xff).into())
+    }
+    Ok(sighash_from_u8(sighash as u8)?)
 }
 
 /// Validation functions for PSBT Global maps
@@ -127,6 +137,17 @@ pub mod global {
 /// Validation functions for PSBT Output maps
 pub mod output {
     use super::*;
+    /// Validate PSBT_OUT_REDEEM_SCRIPT kv pair.
+    pub fn validate_redeem_script(key: &PSBTKey, _val: &PSBTValue) -> Result<(), PSBTError> {
+        validate_expected_key_type(key, 0)?;
+        validate_single_byte_key_type(key)
+    }
+
+    /// Validate PSBT_OUT_WITNESS_SCRIPT kv pair.
+    pub fn validate_witness_script(key: &PSBTKey, _val: &PSBTValue) -> Result<(), PSBTError> {
+        validate_expected_key_type(key, 1)?;
+        validate_single_byte_key_type(key)
+    }
 
     /// Validate PSBT_OUT_BIP32_DERIVATION kv pairs. Checks that the
     /// pubkey is 33 bytes long, and that the value can be interpreted as a 4-byte fingerprint
@@ -142,6 +163,36 @@ pub mod output {
 /// Validation functions for PSBT Input maps
 pub mod input {
     use super::*;
+
+    /// Validate a PSBT_IN_NON_WITNESS_UTXO key-value pair in an input map
+    pub fn validate_in_non_witness(key: &PSBTKey, val: &PSBTValue) -> Result<(), PSBTError> {
+        validate_expected_key_type(key, 0)?;
+        validate_single_byte_key_type(key)?;
+        validate_val_is_tx(val)
+    }
+
+    /// Validate a PSBT_IN_WITNESS_UTXO key-value pair in an input map
+    pub fn validate_in_witness(key: &PSBTKey, val: &PSBTValue) -> Result<(), PSBTError> {
+        validate_expected_key_type(key, 1)?;
+        validate_single_byte_key_type(key)?;
+        validate_val_is_tx_out(val)
+    }
+
+    /// Validate a PSBT_IN_PARTIAL_SIG key-value pair in an input map
+    pub fn validate_in_partial_sig(key: &PSBTKey, _val: &PSBTValue) -> Result<(), PSBTError> {
+        // 34 = 33-byte pubkey + 1-byte type
+        validate_expected_key_type(key, 2)?;
+        validate_fixed_key_length(key, 34)
+        // TODO: validate val is signature
+    }
+
+    /// Validate a PSBT_IN_SIGHASH_TYPE key-value pair in an input map
+    pub fn validate_sighash_type(key: &PSBTKey, val: &PSBTValue) -> Result<(), PSBTError> {
+        validate_expected_key_type(key, 3)?;
+        validate_single_byte_key_type(key)?;
+        try_val_as_sighash(val).map(|_| ())
+    }
+
     /// Validate PSBT_IN_BIP32_DERIVATION kv pairs. Checks that the
     /// pubkey is 33 bytes long, and that the value can be interpreted as a 4-byte fingerprint
     /// with a list of 0-or-more 32-bit integers.

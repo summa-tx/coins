@@ -29,7 +29,9 @@ impl PSBTOutput {
         // TODO: more
         let mut s: schema::KVTypeSchema = Default::default();
         //
-        s.insert(2, Box::new(move |k, v| (schema::output::validate_bip32_derivations(k, v))));
+        s.insert(0, Box::new(|k, v| (schema::output::validate_redeem_script(k, v))));
+        s.insert(1, Box::new(|k, v| (schema::output::validate_witness_script(k, v))));
+        s.insert(2, Box::new(|k, v| (schema::output::validate_bip32_derivations(k, v))));
         //
         s
     }
