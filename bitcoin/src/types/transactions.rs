@@ -42,7 +42,7 @@ pub enum TxError{
     #[error("SIGHASH_SINGLE bug is unsupported")]
     SighashSingleBug,
 
-    /// Caller provided an unknown sighash type to `sighash_from_u8`
+    /// Caller provided an unknown sighash type to `Sighash::from_u8`
     #[error("Unknown Sighash: {}", .0)]
     UnknownSighash(u8),
 
@@ -140,16 +140,18 @@ pub enum Sighash{
     SingleACP = 0x83,
 }
 
-/// Convert a u8 into a Sighash flag or an error.
-pub fn sighash_from_u8(flag: u8) -> Result<Sighash, TxError> {
-    match flag {
-         0x01 => Ok(Sighash::All),
-         0x02 => Ok(Sighash::None),
-         0x3 => Ok(Sighash::Single),
-         0x81 => Ok(Sighash::AllACP),
-         0x82 => Ok(Sighash::NoneACP),
-         0x83 => Ok(Sighash::SingleACP),
-         _ => Err(TxError::UnknownSighash(flag))
+impl Sighash {
+    /// Convert a u8 into a Sighash flag or an error.
+    pub fn from_u8(flag: u8) -> Result<Sighash, TxError> {
+        match flag {
+            0x01 => Ok(Sighash::All),
+            0x02 => Ok(Sighash::None),
+            0x3 => Ok(Sighash::Single),
+            0x81 => Ok(Sighash::AllACP),
+            0x82 => Ok(Sighash::NoneACP),
+            0x83 => Ok(Sighash::SingleACP),
+            _ => Err(TxError::UnknownSighash(flag))
+        }
     }
 }
 

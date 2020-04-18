@@ -62,9 +62,12 @@ impl PSBTValidate for PSBTInput {
     fn consistency_checks(&self) -> Result<(), PSBTError> {
         // Can't contain both witness and non-witness input info
         if self.contains_key(&InputKey::NON_WITNESS_UTXO.into()) && self.contains_key(&InputKey::WITNESS_UTXO.into()) {
-            return Err(PSBTError::InvalidPSBT)
+            return Err(PSBTError::InvalidPSBT)  // TODO: differentiate error
         }
         // TODO
+        // - validate that all signatures use the sighash type
+        // - validate UTXO <> redeem_script <> witness_script consistency for this input
+
         Ok(())
     }
 
@@ -85,20 +88,6 @@ impl PSBTValidate for PSBTInput {
 }
 
 impl PSBTInput {
-    /// Input finalization routine, as described in BIP174. This should only be called by a
-    /// finalizer.
-    pub fn finalize(&mut self) -> Result<(), PSBTError> {
-        // The Input Finalizer must only accept a PSBT.
-        // For each input, the Input Finalizer determines if the input has enough data to pass
-        // validation. If it does, it must construct the scriptSig and scriptWitness and place
-        // them into the input key-value map. All other data except the UTXO and unknown fields
-        // in the input key-value map should be cleared from the PSBT. The UTXO should be kept
-        // to allow Transaction Extractors to verify the final network serialized transaction.
-
-        // TODO: delete specific keys
-        Ok(())
-    }
-
     /// Returns the BIP174 PSBT_IN_NON_WITNESS_UTXO transaction if present and valid.
     ///'
     /// ## Errors

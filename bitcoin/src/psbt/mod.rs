@@ -51,6 +51,8 @@ impl PSBT {
         let tx = self.tx().expect("already performed global consistency_checks");
         if tx.inputs().len() != self.inputs.len() { return Err(PSBTError::InvalidPSBT) }
         if tx.outputs().len() != self.outputs.len() { return Err(PSBTError::InvalidPSBT) }
+        // TODO:
+        // - validate that all non-witness inputs match the tx
         Ok(())
     }
 

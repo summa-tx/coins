@@ -9,7 +9,7 @@ use crate::{
     psbt::common::{PSBTError, PSBTKey, PSBTValue},
     types::{
         script::{Witness},
-        transactions::{LegacyTx, sighash_from_u8, Sighash, TxError},
+        transactions::{LegacyTx, Sighash, TxError},
         txout::{TxOut},
     },
 };
@@ -111,7 +111,7 @@ pub fn try_val_as_sighash(val: &PSBTValue) -> Result<Sighash, PSBTError> {
     if sighash > 0xff {  // bits higher than the first byte should be empty
         return Err(TxError::UnknownSighash(0xff).into())
     }
-    Ok(sighash_from_u8(sighash as u8)?)
+    Ok(Sighash::from_u8(sighash as u8)?)
 }
 
 /// Attempt to deserialize a value as a script Witness
@@ -135,6 +135,7 @@ pub mod global {
     pub fn validate_xpub(key: &PSBTKey, val: &PSBTValue) -> Result<(), PSBTError> {
         validate_expected_key_type(key, 1)?;
         validate_fixed_key_length(key, 79)?;
+        // TODO: check that xpub depth matches derivation path length
         validate_bip32_value(val)
     }
 

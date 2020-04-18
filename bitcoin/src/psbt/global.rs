@@ -45,11 +45,11 @@ impl PSBTValidate for PSBTGlobal {
     fn consistency_checks(&self) -> Result<(), PSBTError> {
         // A PSBT MUST have a transaction
         if !self.contains_key(&GlobalKey::UNSIGNED_TX.into()) {
-            return Err(PSBTError::InvalidPSBT)
+            return Err(PSBTError::InvalidPSBT)  // TODO: differentiate error
         }
         // A PSBT MUST have a version
         if !self.contains_key(&GlobalKey::VERSION.into()) {
-            return Err(PSBTError::InvalidPSBT)
+            return Err(PSBTError::InvalidPSBT)  // TODO: differentiate error
         }
         Ok(())
     }
