@@ -15,17 +15,17 @@ pub trait ScalarSerialize {
 /// A serializable curve point
 pub trait PointSerialize {
     /// Serialize the uncompressed pubkey
-    fn serialize_uncompressed(&self) -> [u8; 65];
+    fn to_array_uncompressed(&self) -> [u8; 65];
 
     /// Serialize the raw pubkey (useful for Ethereum)
-    fn serialize_raw(&self) -> [u8; 64] {
+    fn to_array_raw(&self) -> [u8; 64] {
         let mut buf: [u8; 64] = [0u8; 64];
-        buf.copy_from_slice(&self.serialize_uncompressed()[1..]);
+        buf.copy_from_slice(&self.to_array_uncompressed()[1..]);
         buf
     }
 
     /// Serialize the pubkey
-    fn serialize(&self) -> [u8; 33];
+    fn to_array(&self) -> [u8; 33];
 }
 
 /// A Serializable Signature
@@ -141,11 +141,11 @@ pub mod curve {
     }
 
     impl PointSerialize for Pubkey {
-        fn serialize_uncompressed(&self) -> [u8; 65] {
+        fn to_array_uncompressed(&self) -> [u8; 65] {
             self.0.serialize_uncompressed()
         }
 
-        fn serialize(&self) -> [u8; 33] {
+        fn to_array(&self) -> [u8; 33] {
             self.0.serialize()
         }
     }

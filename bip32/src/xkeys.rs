@@ -10,7 +10,6 @@ use crate::{
     },
 };
 
-
 type HmacSha512 = Hmac<Sha512>;
 
 const SEED: &[u8; 12] = b"Bitcoin seed";
@@ -147,7 +146,7 @@ impl<'a, T: Secp256k1Backend> XPriv<'a, T> {
             v
         } else {
             let mut v: Vec<u8> = vec![0];
-            v.extend(&self.pubkey().serialize().to_vec());
+            v.extend(&self.pubkey().to_array().to_vec());
             v.extend(&index.to_be_bytes());
             v
         };
@@ -170,7 +169,7 @@ impl<'a, T: Secp256k1Backend> XPriv<'a, T> {
 impl<'a, T: Secp256k1Backend> XKey for XPriv<'a, T> {
     fn fingerprint(&self) -> KeyFingerprint {
         let mut buf = [0u8; 4];
-        buf.copy_from_slice(&Sha256::digest(&self.pubkey().serialize())[..4]);
+        buf.copy_from_slice(&Sha256::digest(&self.pubkey().to_array())[..4]);
         KeyFingerprint(buf)
     }
 
@@ -308,11 +307,16 @@ impl<'a, T: Secp256k1Backend> XPub<'a, T> {
 
     /// Serialize the uncompressed pubkey
     pub fn uncompressed_pubkey(&self) -> [u8; 65] {
-        self.pubkey.serialize_uncompressed()
+        self.pubkey.to_array_uncompressed()
     }
 
     /// Serialize the compressed pubkey
     pub fn compressed_pubkey(&self) -> [u8; 33] {
-        self.pubkey.serialize()
+        self.pubkey.to_array()
+    }
+
+    /// Serialize the compressed pubkey
+    pub fn raw_pubkey(&self) -> [u8; 64] {
+        self.pubkey.to_array_raw()
     }
 }
