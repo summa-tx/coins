@@ -63,7 +63,7 @@ pub trait NetworkParams {
 
 /// The standard encoder for Bitcoin networks. Parameterized by a `NetworkParams` type.
 #[derive(Debug, Clone)]
-pub struct BitcoinEncoder<P: NetworkParams>(PhantomData<P>);
+pub struct BitcoinEncoder<P: NetworkParams>(PhantomData<*const P>);
 
 impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
     type Address = Address;

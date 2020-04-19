@@ -97,7 +97,7 @@ pub struct PSBT<T: AddressEncoder> {
     /// Per-output attribute maps
     outputs: Vec<PSBTOutput>,
     /// Sppoooopppy
-    encoder: PhantomData<T>
+    encoder: PhantomData<*const T>
 }
 
 impl<T> PSBT<T>
