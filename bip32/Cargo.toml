@@ -8,7 +8,12 @@ repository = "https://github.com/summa-tx/riemann-rs"
 license = "LGPL-3.0-or-later"
 
 [dependencies]
-secp256k1 = {version = "0.17.2", features = ["recovery"]}
+secp256k1 = {version = "0.17.2", features = ["recovery"], optional = true}
 thiserror = "1.0"
 hmac = "0.7.1"
 sha2 = "0.8.0"
+
+[features]
+default = ["libsecp"]
+libsecp = ["secp256k1"]
+rust_secp = []

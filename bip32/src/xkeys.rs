@@ -1,10 +1,34 @@
-use secp256k1::{self, Secp256k1};
+use sha2::{Digest, Sha256, Sha512};
+use hmac::{Hmac, Mac};
 
 use crate::{
     Bip32Error,
-    hd::{hmac_and_split},
-    keys::{Privkey, Pubkey, SigningKey, VerifyingKey}
+    backend::{
+        PointSerialize,
+        ScalarSerialize,
+        Secp256k1Backend,
+    },
 };
+
+
+type HmacSha512 = Hmac<Sha512>;
+
+const SEED: &[u8; 12] = b"Bitcoin seed";
+
+/// Perform `HmacSha512` and split the output into left and right segments
+pub fn hmac_and_split(seed: &[u8], data: &[u8]) -> ([u8; 32], ChainCode) {
+    let mut mac = HmacSha512::new_varkey(seed).expect("key length is ok");
+    mac.input(data);
+    let result = mac.result().code();
+
+    let mut left = [0u8; 32];
+    left.copy_from_slice(&result[..32]);
+
+    let mut right = [0u8; 32];
+    right.copy_from_slice(&result[32..]);
+
+    (left, ChainCode(right))
+}
 
 /// We treat the xpub/ypub/zpub convention as a hint
 #[derive(Eq, PartialEq, Debug, Clone, Copy)]
@@ -53,7 +77,7 @@ pub struct ChainCode(pub [u8; 32]);
 
 /// A BIP32 Extended privkey
 #[derive(Eq, PartialEq, Debug, Clone)]
-pub struct XPriv {
+pub struct XPriv<'a, T: Secp256k1Backend> {
     /// The key depth in the HD tree
     depth: u8,
     /// The 4-byte Fingerprint of the parent
@@ -62,16 +86,36 @@ pub struct XPriv {
     /// hardened
     index: u32,
     /// The associated secp256k1 key
-    privkey: Privkey,
+    privkey: T::Privkey,
     /// The 32-byte chain code used to generate child keys
     chain_code: ChainCode,
     /// The key's stanadard output type preference
     hint: Hint,
+    #[doc(hidden)]
+    backend: &'a T
 }
 
-impl XPriv {
+impl<'a, T: Secp256k1Backend> XPriv<'a, T> {
+    /// Generate a master node from a seed
+    ///
+    /// # Important:
+    ///
+    /// Use a seed of AT LEAST 128 bits.
+    pub fn generate_master_node(data: &[u8], hint: Option<Hint>, backend: &'a T) -> Result<XPriv<'a, T>, Bip32Error> {
+        if data.len() < 16 {
+            return Err(Bip32Error::SeedTooShort);
+        }
+        let parent = KeyFingerprint([0u8; 4]);
+        let (key, chain_code) = hmac_and_split(SEED, data);
+        if key == [0u8; 32] || key > secp256k1::constants::CURVE_ORDER {
+            return Err(Bip32Error::InvalidKey);
+        }
+        let privkey = T::Privkey::from_array(key);
+        Ok(XPriv::new(0, parent, 0, privkey, chain_code, hint.unwrap_or(Hint::SegWit), backend))
+    }
+
     /// Instantiate a new XPriv
-    pub fn new(depth: u8, parent: KeyFingerprint, index: u32, privkey: Privkey, chain_code: ChainCode, hint: Hint,) -> Self {
+    pub fn new(depth: u8, parent: KeyFingerprint, index: u32, privkey: T::Privkey, chain_code: ChainCode, hint: Hint, backend: &'a T) -> Self {
         Self{
             depth,
             parent,
@@ -79,32 +123,22 @@ impl XPriv {
             privkey,
             chain_code,
             hint,
+            backend,
         }
     }
 
     /// Return a `Pubkey` corresponding to the private key
-    pub fn pubkey<C>(&self, context: Option<&Secp256k1<C>>) -> Pubkey
-    where
-        C: secp256k1::Signing
-    {
-        Pubkey::from_signing_key(context, &self.privkey)
-    }
-
-    /// Return a clone of the underlying `Privkey`
-    pub fn privkey(&self) -> Privkey {
-        self.privkey.clone()
+    pub fn pubkey(&self) -> T::Pubkey {
+        self.backend.derive_pubkey(&self.privkey)
     }
 
     /// Return the secret key as an array
     pub fn secret_key(&self) -> [u8; 32] {
-        self.privkey.serialize()
+        self.privkey.to_array()
     }
 
     /// Derive a child `XPriv`
-    pub fn derive_child<C>(&self, context: Option<&Secp256k1<C>>, index: u32) -> Result<Self, Bip32Error>
-    where
-        C: secp256k1::Verification + secp256k1::Signing
-    {
+    pub fn derive_child(&self, index: u32) -> Result<XPriv<T>, Bip32Error>{
         let hardened = index >= 2_u32.pow(31);
         let data = if hardened {
             let mut v: Vec<u8> = vec![0];
@@ -113,13 +147,13 @@ impl XPriv {
             v
         } else {
             let mut v: Vec<u8> = vec![0];
-            v.extend(&self.pubkey(context).serialize().to_vec());
+            v.extend(&self.pubkey().serialize().to_vec());
             v.extend(&index.to_be_bytes());
             v
         };
 
         let (left, chain_code) = hmac_and_split(&self.chain_code().0, &data);
-        let privkey = self.privkey.tweak_add(left)?;
+        let privkey = self.backend.tweak_privkey(&self.privkey, left)?;
 
         Ok(XPriv{
             depth: self.depth() + 1,
@@ -128,33 +162,16 @@ impl XPriv {
             chain_code,
             privkey,
             hint: self.hint(),
+            backend: self.backend
         })
     }
 }
 
-impl SigningKey for XPriv {
-    fn tweak_add(&self, _other: [u8; 32]) -> Result<Self, Bip32Error> {
-        Err(Bip32Error::BadTweak)
-    }
-
-    fn sign_digest<C>(&self, context: Option<&Secp256k1<C>>, digest: [u8; 32]) -> secp256k1::Signature
-    where
-        C: secp256k1::Signing
-    {
-        self.privkey.sign_digest(context, digest)
-    }
-
-    fn sign_digest_recoverable<C>(&self, context: Option<&Secp256k1<C>>, digest: [u8; 32]) -> secp256k1::recovery::RecoverableSignature
-    where
-        C: secp256k1::Signing
-    {
-        self.privkey.sign_digest_recoverable(context, digest)
-    }
-}
-
-impl XKey for XPriv {
+impl<'a, T: Secp256k1Backend> XKey for XPriv<'a, T> {
     fn fingerprint(&self) -> KeyFingerprint {
-        unimplemented!()
+        let mut buf = [0u8; 4];
+        buf.copy_from_slice(&Sha256::digest(&self.pubkey().serialize())[..4]);
+        KeyFingerprint(buf)
     }
 
     fn depth(&self) -> u8 {
@@ -191,7 +208,7 @@ impl XKey for XPriv {
 
 /// A BIP32 Extended pubkey
 #[derive(Eq, PartialEq, Debug, Clone)]
-pub struct XPub {
+pub struct XPub<'a, T: Secp256k1Backend> {
     /// The key depth in the HD tree
     depth: u8,
     /// The 4-byte Fingerprint of the parent
@@ -200,15 +217,17 @@ pub struct XPub {
     /// hardened
     index: u32,
     /// The associated secp256k1 key
-    pubkey: Pubkey,
+    pubkey: T::Pubkey,
     /// The 32-byte chain code used to generate child keys
     chain_code: ChainCode,
     /// The key's stanadard output type preference
     hint: Hint,
+    #[doc(hidden)]
+    backend: &'a T
 }
 
 
-impl XKey for XPub {
+impl<'a, T: Secp256k1Backend> XKey for XPub<'a, T> {
     fn fingerprint(&self) -> KeyFingerprint {
         unimplemented!()
     }
@@ -246,9 +265,9 @@ impl XKey for XPub {
 }
 
 
-impl XPub {
+impl<'a, T: Secp256k1Backend> XPub<'a, T> {
     /// Instantiate a new XPub
-    pub fn new(depth: u8, parent: KeyFingerprint, index: u32, pubkey: Pubkey, chain_code: ChainCode, hint: Hint,) -> Self {
+    pub fn new(depth: u8, parent: KeyFingerprint, index: u32, pubkey: T::Pubkey, chain_code: ChainCode, hint: Hint, backend: &'a T) -> Self {
         Self{
             depth,
             parent,
@@ -256,14 +275,12 @@ impl XPub {
             pubkey,
             chain_code,
             hint,
+            backend,
         }
     }
 
     /// Derive a child `XPub`
-    pub fn derive_child<C>(&self, context: Option<&Secp256k1<C>>, index: u32) -> Result<XPub, Bip32Error>
-    where
-        C: secp256k1::Verification
-    {
+    pub fn derive_child(&self, index: u32) -> Result<XPub<T>, Bip32Error> {
         if index >= 2u32.pow(31) {
             return Err(Bip32Error::HardenedKey)
         }
@@ -273,10 +290,10 @@ impl XPub {
         let (offset, chain_code) = hmac_and_split(&self.chain_code().0, &data);
         // TODO: check for point at infinity
         if offset > secp256k1::constants::CURVE_ORDER {
-            return self.derive_child(context, index + 1);
+            return self.derive_child(index + 1);
         }
 
-        let pubkey = self.pubkey.tweak_add(context, offset)?;
+        let pubkey = self.backend.tweak_pubkey(&self.pubkey, offset)?;
 
         Ok(Self{
             depth: self.depth() + 1,
@@ -285,6 +302,7 @@ impl XPub {
             pubkey,
             chain_code,
             hint: self.hint(),
+            backend: self.backend,
         })
     }
 
@@ -296,37 +314,5 @@ impl XPub {
     /// Serialize the compressed pubkey
     pub fn compressed_pubkey(&self) -> [u8; 33] {
         self.pubkey.serialize()
-    }
-}
-
-impl VerifyingKey for XPub {
-    type SigningKey = XPriv;
-
-    fn tweak_add<C>(&self, _context: Option<&Secp256k1<C>>, _tweak: [u8; 32]) -> Result<Self, Bip32Error>
-    where
-        C: secp256k1::Verification
-    {
-        Err(Bip32Error::BadTweak)
-    }
-
-    fn from_signing_key<C>(context: Option<&Secp256k1<C>>, key: &Self::SigningKey) -> Self
-    where
-        C: secp256k1::Signing
-    {
-        Self{
-            depth: key.depth(),
-            parent: key.parent(),
-            index: key.index(),
-            pubkey: Pubkey::from_signing_key(context, &key.privkey()),
-            chain_code: key.chain_code(),
-            hint: key.hint(),
-        }
-    }
-
-    fn verify_digest<C>(&self, context: Option<&Secp256k1<C>>, digest: [u8; 32], sig: &secp256k1::Signature) -> Result<(), Bip32Error>
-    where
-        C: secp256k1::Verification
-    {
-        self.pubkey.verify_digest(context, digest, sig)
     }
 }

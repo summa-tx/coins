@@ -5,17 +5,17 @@
 #![warn(missing_docs)]
 #![warn(unused_extern_crates)]
 
-/// Keys and related functionality
-pub mod keys;
-
+// /// Keys and related functionality
+// pub mod keys;
+//
 /// Extended keys and related functionality
 pub mod xkeys;
 
-/// Network-differentiated encoders for xkeys
-pub mod enc;
+// /// Network-differentiated encoders for xkeys
+// pub mod enc;
 
-/// HD derivation routines
-pub mod hd;
+/// The curve-math backend, selected at compile time. Defaults to native libsecp256k1 bindings.
+pub mod backend;
 
 use secp256k1;
 use thiserror::{Error};
