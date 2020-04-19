@@ -60,10 +60,24 @@ pub trait TxBuilder<'a>: std::marker::Sized {
         address: &<Self::Encoder as AddressEncoder>::Address
     ) -> Result<Self, <Self::Encoder as AddressEncoder>::Error>;
 
+    /// Insert an input at the specified index. Inputs after that are shifted to later indices.
+    ///
+    /// ## Note
+    ///
+    /// This may invalidate signatures made using ANYONECANPAY.
+    fn insert_input(self, index: usize, input: <Self::Transaction as Transaction<'a>>::TxIn) -> Self;
+
     /// Add a set of inputs to the transaction.
     fn extend_inputs<I>(self, inputs: I) -> Self
     where
         I: IntoIterator<Item = <Self::Transaction as Transaction<'a>>::TxIn>;
+
+    /// Insert an output at the specified index. Outputs after that are shifted to later indices.
+    ///
+    /// ## Note
+    ///
+    /// This may invalidate signatures made using SINGLE.
+    fn insert_output(self, index: usize, output: <Self::Transaction as Transaction<'a>>::TxOut) -> Self;
 
     /// Add a set of outputs to the transaction.
     fn extend_outputs<I>(self, outputs: I) -> Self

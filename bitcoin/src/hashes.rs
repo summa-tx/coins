@@ -3,10 +3,7 @@
 
 use bitcoin_spv::types::{Hash256Digest};
 
-use riemann_core::{
-    hashes::marked::{MarkedDigest},
-    ser::{Ser, SerError, SerResult},
-};
+use riemann_core::hashes::marked::{MarkedDigest};
 
 mark_hash256!(
     /// A marked Hash256Digest representing transaction IDs
@@ -20,6 +17,7 @@ mark_hash256!(
 #[cfg(test)]
 mod test {
     use super::*;
+    use riemann_core::ser::{Ser};
 
     #[test]
     fn it_serializes_and_derializes_hash256digests() {

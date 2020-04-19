@@ -148,6 +148,11 @@ where
         Ok(self)
     }
 
+    fn insert_input(mut self, index: usize, input: <Self::Transaction as Transaction<'a>>::TxIn) -> Self {
+        self.vin.insert(index, input);
+        self
+    }
+
     fn extend_inputs<I>(mut self, inputs: I) -> Self
     where
         I: IntoIterator<Item = BitcoinTxIn>
@@ -156,7 +161,15 @@ where
         self
     }
 
-    fn extend_outputs<I: IntoIterator<Item=TxOut>>(mut self, outputs: I) -> Self  {
+    fn insert_output(mut self, index: usize, output: <Self::Transaction as Transaction<'a>>::TxOut) -> Self {
+        self.vout.insert(index, output);
+        self
+    }
+
+    fn extend_outputs<I>(mut self, outputs: I) -> Self
+    where
+        I: IntoIterator<Item=TxOut>
+    {
         self.vout.extend(outputs);
         self
     }
@@ -236,6 +249,11 @@ where
         Ok(self)
     }
 
+    fn insert_input(mut self, index: usize, input: <Self::Transaction as Transaction<'a>>::TxIn) -> Self {
+        self.builder.vin.insert(index, input);
+        self
+    }
+
     fn extend_inputs<I>(mut self, inputs: I) -> Self
     where
         I: IntoIterator<Item = BitcoinTxIn>
@@ -244,12 +262,15 @@ where
         self
     }
 
+    fn insert_output(mut self, index: usize, output: <Self::Transaction as Transaction<'a>>::TxOut) -> Self {
+        self.builder.vout.insert(index, output);
+        self
+    }
+
     fn extend_outputs<I: IntoIterator<Item=TxOut>>(mut self, outputs: I) -> Self  {
         self.builder.vout.extend(outputs);
         self
     }
-
-
 
     fn locktime(mut self, locktime: u32) -> Self {
         self.builder.locktime = locktime;

@@ -26,6 +26,9 @@ pub trait PrefixVec: Ser {
     /// Return the length of the item vector.
     fn len(&self) -> usize;
 
+    /// Insert an item at the specified index.
+    fn insert(&mut self, index: usize, i: Self::Item);
+
     /// Return the encoded length of the VarInt prefix.
     fn len_prefix(&self) -> u8 {
         ser::prefix_byte_len(self.len() as u64)
@@ -133,6 +136,10 @@ where
 
     fn items(&self) -> &[T] {
         &self.0
+    }
+
+    fn insert(&mut self, index: usize, i: Self::Item) {
+        self.0.insert(index, i)
     }
 }
 

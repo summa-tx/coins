@@ -23,7 +23,6 @@ use crate::{
     script::{ScriptPubkey, ScriptType},
 };
 
-
 /// The available Bitcoin Address types, implemented as a type enum around strings.
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum Address {

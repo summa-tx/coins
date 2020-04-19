@@ -13,7 +13,7 @@ use riemann_core::{
 
 use crate::{
     psbt::{
-        common::{PSBTError, PSBTMap, PSBTKey, PSBTValidate, PSBTValue},
+        common::{PSBTError, PSTMap, PSBTKey, PSBTValidate, PSBTValue},
         schema,
     },
     types::transactions::{LegacyTx},

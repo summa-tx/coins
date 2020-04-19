@@ -10,7 +10,7 @@ macro_rules! wrap_prefixed_byte_vector {
         #[derive(Clone, Debug, Eq, PartialEq, Default, Ord, PartialOrd)]
         pub struct $wrapper_name(ConcretePrefixVec<u8>);
 
-        impl PrefixVec for $wrapper_name {
+        impl riemann_core::primitives::PrefixVec for $wrapper_name {
             type Item = u8;
 
             fn null() -> Self {
@@ -35,6 +35,10 @@ macro_rules! wrap_prefixed_byte_vector {
 
             fn items(&self) -> &[Self::Item] {
                 self.0.items()
+            }
+
+            fn insert(&mut self, index: usize, i: Self::Item) {
+                self.0.insert(index, i)
             }
         }
 
@@ -103,8 +107,8 @@ macro_rules! mark_hash256 {
         $(#[$outer])*
         #[derive(Copy, Clone, Default, Debug, Eq, PartialEq)]
         pub struct $hash_name(pub Hash256Digest);
-        impl Ser for $hash_name {
-            type Error = SerError;
+        impl riemann_core::ser::Ser for $hash_name {
+            type Error = riemann_core::ser::SerError;
 
             fn to_json(&self) -> String {
                 format!("\"0x{}\"", self.serialize_hex().unwrap())
@@ -114,7 +118,7 @@ macro_rules! mark_hash256 {
                 32
             }
 
-            fn deserialize<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
+            fn deserialize<R>(reader: &mut R, _limit: usize) -> riemann_core::ser::SerResult<Self>
             where
                 R: std::io::Read,
                 Self: std::marker::Sized
@@ -124,14 +128,15 @@ macro_rules! mark_hash256 {
                 Ok(Self(buf))
             }
 
-            fn serialize<W>(&self, writer: &mut W) -> SerResult<usize>
+            fn serialize<W>(&self, writer: &mut W) -> riemann_core::ser::SerResult<usize>
             where
                 W: std::io::Write
             {
                 Ok(writer.write(&self.0)?)
             }
         }
-        impl MarkedDigest for $hash_name {
+
+        impl riemann_core::hashes::MarkedDigest for $hash_name {
             type Digest = Hash256Digest;
             fn new(hash: Hash256Digest) -> Self {
                 Self(hash)
@@ -157,12 +162,12 @@ macro_rules! mark_hash256 {
 macro_rules! psbt_map {
     ($name:ident) => {
         /// A newtype wrapping a BTreeMap. Provides a simplified interface
-        #[derive(Debug, Clone)]
+        #[derive(PartialEq, Eq, Clone, Default, Debug, Ord, PartialOrd)]
         pub struct $name{
             map: std::collections::BTreeMap<PSBTKey, PSBTValue>,
         }
 
-        impl PSBTMap for $name {
+        impl crate::psbt::common::PSTMap for $name {
             /// Returns a reference to the value corresponding to the key.
             fn get(&self, key: &PSBTKey) -> Option<&PSBTValue> {
                 self.map.get(key)

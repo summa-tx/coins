@@ -8,7 +8,7 @@ use thiserror::{Error};
 
 use riemann_core::{
     ser::{SerError},
-    types::primitives::{ConcretePrefixVec, PrefixVec},
+    types::primitives::{ConcretePrefixVec},
 };
 
 use crate::{
@@ -111,7 +111,7 @@ impl PSBTKey {
 }
 
 /// Common methods for our Global, Input, and Output maps
-pub trait PSBTMap {
+pub trait PSTMap {
     /// Returns a reference to the value corresponding to the key.
     fn get(&self, key: &PSBTKey) -> Option<&PSBTValue>;
 
@@ -154,7 +154,7 @@ pub trait PSBTMap {
 }
 
 /// Common methods for validating our PSBTMaps
-pub trait PSBTValidate: PSBTMap {
+pub trait PSBTValidate: PSTMap {
     /// Return a standard BIP174 KV-pair validation schema
     fn standard_schema() -> schema::KVTypeSchema;
 

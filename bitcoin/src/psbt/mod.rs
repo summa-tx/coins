@@ -17,53 +17,131 @@ pub use input::*;
 pub use outputs::*;
 pub use schema::*;
 
-use std::io::{Read, Write};
+use std::{
+    io::{Read, Write},
+    marker::{PhantomData},
+};
 
 use riemann_core::{
+    builder::{TxBuilder},
+    enc::{AddressEncoder},
     ser::{Ser},
     tx::{Transaction},
 };
 
 use crate::{
-    types::transactions::{LegacyTx},
+    bases::{EncodingError},
+    builder::{LegacyBuilder},
+    encoder::{Address},
+    script::{ScriptPubkey},
+    types::{
+        transactions::{LegacyTx},
+        txin::{BitcoinTxIn},
+        txout::{TxOut},
+    },
     psbt::common::{PSBTError},
 };
 
-trait PST {
+
+/// A generic Partially Signed Transaction.
+pub trait PST<'a, T: AddressEncoder> {
     /// A 4-byte prefix used to identify partially signed transactions. May vary by network.
     const MAGIC_BYTES: [u8; 4];
+
+    /// An associated Error type
+    type Error: std::error::Error;
+
+    /// An associated TxBuildertype, parameterized by the encoder
+    type TxBuilder: TxBuilder<'a, Encoder = T, Transaction = LegacyTx>;
+
+    /// An associated Global Map type
+    type Global: PSTMap;
+
+    /// An Associated Input type
+    type Input: PSTMap;
+
+    /// An associate Output type
+    type Output: PSTMap;
+
+    /// Run validation checks on the PST. This function SHOULD also run
+    /// `self.consistency_checks()`. This function MUST be called on serialization AND
+    /// deserialization.
+    fn validate(&self) -> Result<(), Self::Error>;
+
+    /// Run self-consistency validation on the PST
+    fn consistency_checks(&self) -> Result<(), Self::Error>;
+
+    /// Get a copy of the transaction associated with this PSBT
+    fn tx(&self) -> Result<LegacyTx, Self::Error>;
+    /// Return a reference to the global attributes
+    fn global_map(&self) -> &Self::Global;
+    /// Return a mutable reference to the global attributes
+    fn global_map_mut(&mut self) -> &mut Self::Global;
+    /// Return a reference to the vector of input maps
+    fn input_maps(&self) -> &Vec<Self::Input>;
+    /// Return a mutable reference to the vector of input maps
+    fn input_maps_mut(&mut self) -> &mut Vec<Self::Input>;
+    /// Return a reference to the vector of output maps
+    fn output_maps(&self) -> &Vec<Self::Output>;
+    /// Return a mutable reference to the vector of output maps
+    fn output_maps_mut(&mut self) -> &mut Vec<Self::Output>;
 }
 
 /// A BIP174 Partially Signed Bitcoin Transaction
 #[derive(Debug, Clone)]
-pub struct PSBT {
+pub struct PSBT<T: AddressEncoder> {
     /// Global attributes
     global: PSBTGlobal,
     /// Per-input attribute maps
     inputs: Vec<PSBTInput>,
     /// Per-output attribute maps
     outputs: Vec<PSBTOutput>,
+    /// Sppoooopppy
+    encoder: PhantomData<T>
 }
 
-impl PSBT {
-    fn consistency_checks(&self) -> Result<(), PSBTError> {
-        // - PSBT-level checks
-        let tx = self.tx().expect("already performed global consistency_checks");
-        if tx.inputs().len() != self.inputs.len() {
-            return Err(PSBTError::VinLengthMismatch{ tx_ins: tx.inputs().len(), maps: self.inputs.len() })
-        }
-        if tx.outputs().len() != self.outputs.len() {
-            return Err(PSBTError::VoutLengthMismatch{ tx_outs: tx.outputs().len(), maps: self.outputs.len() }) 
-        }
-        // TODO:
-        // - validate that all non-witness inputs match the tx
+impl<T> PSBT<T>
+where
+    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>
+{
+    /// Insert an input into the PSBT. Updates the TX in the global, and inserts an `Input` map at
+    /// the same index
+    pub fn insert_input(&mut self, index: usize, tx_in: BitcoinTxIn) -> Result<(), PSBTError> {
+        let b = <Self as PST<T>>::TxBuilder::from_tx(&self.tx()?);
+        let tx = b.insert_input(index, tx_in).build();
+        let mut buf = vec![];
+        tx.serialize(&mut buf)?;
+        self.global_map_mut().insert(GlobalKey::UNSIGNED_TX.into(), buf.into());
+        self.input_maps_mut().insert(index, Default::default());
         Ok(())
     }
 
-    /// Run validation checks on the PSBT to ensure it's in a consistent state. This function is
-    /// called while serializing the PSBT, to prevent invalid PSBTs from being saved or sent over
-    /// a wire
-    pub fn validate(&self) -> Result<(), PSBTError> {
+    /// Insert an output into the PSBT. Updates the TX in the global, and inserts an `Output` map
+    /// at the same index
+    pub fn insert_output(&mut self, index: usize, tx_out: TxOut) -> Result<(), PSBTError> {
+        let b = <Self as PST<T>>::TxBuilder::from_tx(&self.tx()?);
+        let tx = b.insert_output(index, tx_out).build();
+        let mut buf = vec![];
+        tx.serialize(&mut buf)?;
+        self.global_map_mut().insert(GlobalKey::UNSIGNED_TX.into(), buf.into());
+        self.output_maps_mut().insert(index, Default::default());
+        Ok(())
+    }
+}
+
+impl<'a, T> PST<'a, T> for PSBT<T>
+where
+    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>
+{
+    const MAGIC_BYTES: [u8; 4] = *b"psbt";
+
+    type Error = PSBTError;
+    type TxBuilder = LegacyBuilder<T>;
+    type Global = PSBTGlobal;
+    type Input = PSBTInput;
+    type Output = PSBTOutput;
+
+    fn validate(&self) -> Result<(), PSBTError> {
         self.global.validate()?;
         for input in self.inputs.iter() {
             input.validate()?;
@@ -75,47 +153,53 @@ impl PSBT {
         Ok(())
     }
 
-    /// Get a copy of the transaction associated with this PSBT
-    pub fn tx(&self) -> Result<LegacyTx, PSBTError> {
+    fn consistency_checks(&self) -> Result<(), PSBTError> {
+        // - PSBT-level checks
+        let tx = self.tx().expect("already performed global consistency_checks");
+        if tx.inputs().len() != self.inputs.len() {
+            return Err(PSBTError::VinLengthMismatch{ tx_ins: tx.inputs().len(), maps: self.inputs.len() })
+        }
+        if tx.outputs().len() != self.outputs.len() {
+            return Err(PSBTError::VoutLengthMismatch{ tx_outs: tx.outputs().len(), maps: self.outputs.len() })
+        }
+        // TODO:
+        // - validate that all non-witness inputs match the tx
+        Ok(())
+    }
+
+    fn tx(&self) -> Result<LegacyTx, PSBTError> {
         self.global.tx()
     }
 
-    /// Return a reference to the global attributes
-    pub fn global_map(&self) -> &PSBTGlobal {
+    fn global_map(&self) -> &PSBTGlobal {
         &self.global
     }
 
-    /// Return a mutable reference to the global attributes
-    pub fn global_map_mut(&mut self) -> &mut PSBTGlobal {
+    fn global_map_mut(&mut self) -> &mut PSBTGlobal {
         &mut self.global
     }
 
-    /// Return a reference to the vector of input maps
-    pub fn input_maps(&self) -> &Vec<PSBTInput> {
+    fn input_maps(&self) -> &Vec<PSBTInput> {
         &self.inputs
     }
 
-    /// Return a mutable reference to the vector of input maps
-    pub fn input_maps_mut(&mut self) -> &mut Vec<PSBTInput> {
+    fn input_maps_mut(&mut self) -> &mut Vec<PSBTInput> {
         &mut self.inputs
     }
 
-    /// Return a reference to the vector of output maps
-    pub fn output_maps(&self) -> &Vec<PSBTOutput> {
+    fn output_maps(&self) -> &Vec<PSBTOutput> {
         &self.outputs
     }
 
-    /// Return a mutable reference to the vector of output maps
-    pub fn output_maps_mut(&mut self) -> &mut Vec<PSBTOutput> {
+    fn output_maps_mut(&mut self) -> &mut Vec<PSBTOutput> {
         &mut self.outputs
     }
 }
 
-impl PST for PSBT {
-    const MAGIC_BYTES: [u8; 4] = *b"psbt";
-}
-
-impl Ser for PSBT {
+impl<'a, T> Ser for PSBT<T>
+where
+    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>
+{
     type Error = PSBTError;
 
     fn to_json(&self) -> String {
@@ -124,9 +208,9 @@ impl Ser for PSBT {
 
     fn serialized_length(&self) -> usize {
         let mut length: usize = 5;
-        length += self.global.serialized_length();
-        length += self.inputs.iter().map(|i| i.serialized_length()).sum::<usize>();
-        length += self.outputs.iter().map(|o| o.serialized_length()).sum::<usize>();
+        length += self.global_map().serialized_length();
+        length += self.input_maps().iter().map(|i| i.serialized_length()).sum::<usize>();
+        length += self.output_maps().iter().map(|o| o.serialized_length()).sum::<usize>();
         length
     }
 
@@ -137,7 +221,7 @@ impl Ser for PSBT {
     {
         let mut prefix = [0u8; 5];
         reader.read_exact(&mut prefix)?;
-        if prefix[..4] != PSBT::MAGIC_BYTES || prefix[4] != 0xff {
+        if prefix[..4] != <Self as PST<T>>::MAGIC_BYTES || prefix[4] != 0xff {
             return Err(PSBTError::BadPrefix);
         }
 
@@ -152,6 +236,7 @@ impl Ser for PSBT {
             global,
             inputs,
             outputs,
+            encoder: PhantomData,
         };
         result.validate()?;
         Ok(result)
@@ -162,11 +247,11 @@ impl Ser for PSBT {
         W: Write
     {
         self.validate()?;
-        let mut len = writer.write(&PSBT::MAGIC_BYTES)?;
+        let mut len = writer.write(&<PSBT<T> as PST<T>>::MAGIC_BYTES)?;
         len += writer.write(&[0xffu8])?;
-        len += self.global.serialize(writer)?;
-        len += self.inputs.serialize(writer)?;
-        len += self.outputs.serialize(writer)?;
+        len += self.global_map().serialize(writer)?;
+        len += self.input_maps().serialize(writer)?;
+        len += self.output_maps().serialize(writer)?;
         Ok(len)
     }
 }
@@ -174,6 +259,7 @@ impl Ser for PSBT {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::enc::MainnetEncoder;
 
     #[test]
     fn it_does_stuff() {
@@ -184,7 +270,7 @@ mod test {
             "70736274ff0100750200000001268171371edff285e937adeea4b37b78000c0566cbb3ad64641713ca42171bf60000000000feffffff02d3dff505000000001976a914d0c59903c5bac2868760e90fd521a4665aa7652088ac00e1f5050000000017a9143545e6e33b832c47050f24d3eeb93c9c03948bc787b32e1300000100fda5010100000000010289a3c71eab4d20e0371bbba4cc698fa295c9463afa2e397f8533ccb62f9567e50100000017160014be18d152a9b012039daf3da7de4f53349eecb985ffffffff86f8aa43a71dff1448893a530a7237ef6b4608bbb2dd2d0171e63aec6a4890b40100000017160014fe3e9ef1a745e974d902c4355943abcb34bd5353ffffffff0200c2eb0b000000001976a91485cff1097fd9e008bb34af709c62197b38978a4888ac72fef84e2c00000017a914339725ba21efd62ac753a9bcd067d6c7a6a39d05870247304402202712be22e0270f394f568311dc7ca9a68970b8025fdd3b240229f07f8a5f3a240220018b38d7dcd314e734c9276bd6fb40f673325bc4baa144c800d2f2f02db2765c012103d2e15674941bad4a996372cb87e1856d3652606d98562fe39c5e9e7e413f210502483045022100d12b852d85dcd961d2f5f4ab660654df6eedcc794c0c33ce5cc309ffb5fce58d022067338a8e0e1725c197fb1a88af59f51e44e4255b20167c8684031c05d1f2592a01210223b72beef0965d10be0778efecd61fcac6f79a4ea169393380734464f84f2ab30000000001030401000000000000",
         ];
         for case in &valid_cases {
-            let p = PSBT::deserialize_hex(case.to_owned().to_string()).unwrap();
+            let p = PSBT::<MainnetEncoder>::deserialize_hex(case.to_owned().to_string()).unwrap();
 
             // Check for non-modification
             assert_eq!(p.serialize_hex().unwrap(), case.to_owned().to_string());
