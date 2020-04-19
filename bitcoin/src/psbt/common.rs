@@ -73,6 +73,24 @@ pub enum PSBTError{
     /// Returned when a serialized bip32 derivation is invalid. This
     #[error("Invalid bip32 derivation.")]
     InvalidBIP32Path,
+
+    /// Returned when a PSBT's `Input` map vec length doesn't match its transaction's vin length
+    #[error("Vin length mismatch. Tx has {tx_ins} inputs. PSBT has {maps} input maps")]
+    VinLengthMismatch{
+        /// The number of inputs in the transaction.
+        tx_ins: usize,
+        /// The number of input maps in the PSBT
+        maps: usize,
+    },
+
+    /// Returned when a PSBT's `Output` map vec length doesn't match its transaction's vout length
+    #[error("Vout length mismatch. Tx has {tx_outs} outputs. PSBT has {maps} output maps")]
+    VoutLengthMismatch{
+        /// The number of outputs in the transaction.
+        tx_outs: usize,
+        /// The number of output maps in the PSBT
+        maps: usize,
+    },
 }
 
 wrap_prefixed_byte_vector!(

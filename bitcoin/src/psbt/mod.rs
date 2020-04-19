@@ -49,8 +49,12 @@ impl PSBT {
     fn consistency_checks(&self) -> Result<(), PSBTError> {
         // - PSBT-level checks
         let tx = self.tx().expect("already performed global consistency_checks");
-        if tx.inputs().len() != self.inputs.len() { return Err(PSBTError::InvalidPSBT) }
-        if tx.outputs().len() != self.outputs.len() { return Err(PSBTError::InvalidPSBT) }
+        if tx.inputs().len() != self.inputs.len() {
+            return Err(PSBTError::VinLengthMismatch{ tx_ins: tx.inputs().len(), maps: self.inputs.len() })
+        }
+        if tx.outputs().len() != self.outputs.len() {
+            return Err(PSBTError::VoutLengthMismatch{ tx_outs: tx.outputs().len(), maps: self.outputs.len() }) 
+        }
         // TODO:
         // - validate that all non-witness inputs match the tx
         Ok(())
