@@ -82,6 +82,14 @@ impl XPriv {
         }
     }
 
+    /// Return a `Pubkey` corresponding to the private key
+    pub fn pubkey<C>(&self, context: Option<&Secp256k1<C>>) -> Pubkey
+    where
+        C: secp256k1::Signing
+    {
+        Pubkey::from_signing_key(context, &self.privkey)
+    }
+
     /// Return a clone of the underlying `Privkey`
     pub fn privkey(&self) -> Privkey {
         self.privkey.clone()
@@ -105,7 +113,7 @@ impl XPriv {
             v
         } else {
             let mut v: Vec<u8> = vec![0];
-            v.extend(&Pubkey::from_signing_key(context, &self.privkey).serialize().to_vec());
+            v.extend(&self.pubkey(context).serialize().to_vec());
             v.extend(&index.to_be_bytes());
             v
         };
