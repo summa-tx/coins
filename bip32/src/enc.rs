@@ -5,7 +5,7 @@ use bitcoin_spv::btcspv::{hash256};
 
 use crate::{
     Bip32Error,
-    xkeys::{ChainCode, KeyFingerprint, Hint, XKey, XPriv, XPub},
+    xkeys::{ChainCode, KeyFingerprint, Hint, XKey, GenericXPriv, GenericXPub},
     backend::{Secp256k1Backend, ScalarSerialize, PointSerialize},
 };
 
@@ -68,7 +68,7 @@ pub trait Encoder<P: NetworkParams> {
     }
 
     /// Serialize the xpub to `std::io::Write`
-    fn write_xpub<W, T>(writer: &mut W, key: &XPub<T>) -> Result<usize, Bip32Error>
+    fn write_xpub<W, T>(writer: &mut W, key: &GenericXPub<T>) -> Result<usize, Bip32Error>
     where
         W: std::io::Write,
         T: Secp256k1Backend
@@ -85,7 +85,7 @@ pub trait Encoder<P: NetworkParams> {
     }
 
     /// Serialize the xpriv to `std::io::Write`
-    fn write_xpriv<W, T>(writer: &mut W, key: &XPriv<T>) -> Result<usize, Bip32Error>
+    fn write_xpriv<W, T>(writer: &mut W, key: &GenericXPriv<T>) -> Result<usize, Bip32Error>
     where
         W: std::io::Write,
         T: Secp256k1Backend
@@ -143,7 +143,7 @@ pub trait Encoder<P: NetworkParams> {
     }
 
     /// Attempt to instantiate an `XPriv` from a `std::io::Read`
-    fn read_xpriv<'a, R, T>(reader: &mut R, backend: Option<&'a T>) -> Result<XPriv<'a, T>, Bip32Error>
+    fn read_xpriv<'a, R, T>(reader: &mut R, backend: Option<&'a T>) -> Result<GenericXPriv<'a, T>, Bip32Error>
     where
         R: std::io::Read,
         T: Secp256k1Backend
@@ -178,11 +178,11 @@ pub trait Encoder<P: NetworkParams> {
         reader.read_exact(&mut buf)?;
         let key = T::Privkey::from_array(buf);
 
-        Ok(XPriv::new(depth, parent, index, key, chain_code, hint, backend))
+        Ok(GenericXPriv::new(depth, parent, index, key, chain_code, hint, backend))
     }
 
     /// Attempt to instantiate an `XPriv` from a `std::io::Read`
-    fn read_xpub<'a, R, T>(reader: &mut R, backend: Option<&'a T>) -> Result<XPub<'a, T>, Bip32Error>
+    fn read_xpub<'a, R, T>(reader: &mut R, backend: Option<&'a T>) -> Result<GenericXPub<'a, T>, Bip32Error>
     where
         R: std::io::Read,
         T: Secp256k1Backend
@@ -211,11 +211,11 @@ pub trait Encoder<P: NetworkParams> {
         reader.read_exact(&mut buf)?;
         let key = T::Pubkey::from_array(buf)?;
 
-        Ok(XPub::new(depth, parent, index, key, chain_code, hint, backend))
+        Ok(GenericXPub::new(depth, parent, index, key, chain_code, hint, backend))
     }
 
     /// Serialize an XPriv to base58
-    fn xpriv_to_base58<'a, T>(k: &XPriv<'a, T>) -> Result<String, Bip32Error>
+    fn xpriv_to_base58<'a, T>(k: &GenericXPriv<'a, T>) -> Result<String, Bip32Error>
     where
         T: Secp256k1Backend
     {
@@ -225,7 +225,7 @@ pub trait Encoder<P: NetworkParams> {
     }
 
     /// Serialize an XPub to base58
-    fn xpub_to_base58<'a, T>(k: &XPub<'a, T>) -> Result<String, Bip32Error>
+    fn xpub_to_base58<'a, T>(k: &GenericXPub<'a, T>) -> Result<String, Bip32Error>
     where
         T: Secp256k1Backend
     {
@@ -235,7 +235,7 @@ pub trait Encoder<P: NetworkParams> {
     }
 
     /// Attempt to read an XPriv from a b58check string
-    fn xpriv_from_base58<'a, T>(s: &str, backend: Option<&'a T>) -> Result<XPriv<'a, T>, Bip32Error>
+    fn xpriv_from_base58<'a, T>(s: &str, backend: Option<&'a T>) -> Result<GenericXPriv<'a, T>, Bip32Error>
     where
         T: Secp256k1Backend
     {
@@ -244,7 +244,7 @@ pub trait Encoder<P: NetworkParams> {
     }
 
     /// Attempt to read an XPub from a b58check string
-    fn xpub_from_base58<'a, T>(s: &str, backend: Option<&'a T>) -> Result<XPub<'a, T>, Bip32Error>
+    fn xpub_from_base58<'a, T>(s: &str, backend: Option<&'a T>) -> Result<GenericXPub<'a, T>, Bip32Error>
     where
         T: Secp256k1Backend
     {

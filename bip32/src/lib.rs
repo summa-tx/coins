@@ -73,20 +73,41 @@ pub enum Bip32Error {
     B58Error(#[from] bs58::decode::Error),
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
-    use std::convert::TryFrom;
-    use crate::xkeys::{Hint};
+    use std::convert::{TryFrom};
+    use crate::xkeys::{Hint, BIP32_HARDEN, XKey, XPriv, XPub};
     use crate::backend::{Secp256k1Backend};
     use crate::enc::{Encoder, MainnetEncoder};
+
+
+    struct KeyDeriv<'a> {
+        pub path: &'a [u32],
+        pub xpub: String,
+        pub xpriv: String,
+    }
+
+    fn validate_descendant<'a>(d: &KeyDeriv, m: &XPriv<'a>) {
+        let xpriv = m.derive_path(d.path).unwrap();
+        let xpub: XPub<'a> = TryFrom::try_from(&xpriv).unwrap();
+
+        let deser_xpriv = MainnetEncoder::xpriv_from_base58(&d.xpriv, xpriv.backend().ok()).unwrap();
+        let deser_xpub = MainnetEncoder::xpub_from_base58(&d.xpub, xpriv.backend().ok()).unwrap();
+
+        assert_eq!(&xpriv, &deser_xpriv);
+        assert_eq!(MainnetEncoder::xpriv_to_base58(&xpriv).unwrap(), d.xpriv);
+        assert_eq!(&xpub, &deser_xpub);
+        assert_eq!(MainnetEncoder::xpub_to_base58(&xpub).unwrap(), d.xpub);
+
+
+    }
 
     #[test]
     fn it_deserializes_xpubs() {
         let backend = backend::curve::Secp256k1::init();
         let seed: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-        let xpriv = xkeys::XPriv::generate_master_node(&seed, Some(Hint::Legacy), &backend).unwrap();
+        let xpriv = xkeys::XPriv::root_from_seed(&seed, Some(Hint::Legacy), &backend).unwrap();
         let xpub = xkeys::XPub::try_from(&xpriv).unwrap();
 
         let expected_xpriv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
@@ -99,5 +120,22 @@ mod test {
         assert_eq!(MainnetEncoder::xpriv_to_base58(&xpriv).unwrap(), expected_xpriv);
         assert_eq!(&xpub, &deser_xpub);
         assert_eq!(MainnetEncoder::xpub_to_base58(&xpub).unwrap(), expected_xpub);
+
+        let descendants = [
+            KeyDeriv {
+                path: &[0 + BIP32_HARDEN],
+                xpub: "xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw".to_owned(),
+                xpriv: "xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7".to_owned(),
+            },
+            KeyDeriv {
+                path: &[0 + BIP32_HARDEN, 1],
+                xpub: "xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ".to_owned(),
+                xpriv: "xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs".to_owned(),
+            }
+        ];
+
+        for case in descendants.iter() {
+            validate_descendant(&case, &xpriv);
+        }
     }
 }

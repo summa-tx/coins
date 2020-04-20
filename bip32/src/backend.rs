@@ -56,9 +56,9 @@ pub trait RecoverableSigSerialize: SigSerialize {
 /// A minmial curve-math backend interface
 pub trait Secp256k1Backend {
     /// A Private Key
-    type Privkey: ScalarSerialize + PartialEq;
+    type Privkey: ScalarSerialize + PartialEq + Clone;
     /// A Public Key
-    type Pubkey: PointSerialize + PartialEq;
+    type Pubkey: PointSerialize + PartialEq + Clone;
     /// A Signature
     type Signature;
     /// A Recoverage signature
@@ -122,8 +122,14 @@ pub mod curve {
     pub struct Secp256k1(secp256k1::Secp256k1<secp256k1::All>);
 
     /// A Private Key
-    #[derive(Debug, Clone)]
+    #[derive(Debug)]
     pub struct Privkey(secp256k1::SecretKey);
+
+    impl Clone for Privkey {
+        fn clone(&self) -> Self {
+            Self::from_array(self.to_array())
+        }
+    }
 
     impl std::cmp::Eq for Privkey {}
 
@@ -152,8 +158,14 @@ pub mod curve {
     }
 
     /// A Public Key
-    #[derive(Debug, Clone)]
+    #[derive(Debug)]
     pub struct Pubkey(secp256k1::PublicKey);
+
+    impl Clone for Pubkey {
+        fn clone(&self) -> Self {
+            Self::from_array(self.to_array()).expect("Can't fail")
+        }
+    }
 
     impl std::cmp::Eq for Pubkey {}
 
