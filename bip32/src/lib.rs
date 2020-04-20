@@ -99,12 +99,10 @@ mod test {
         assert_eq!(MainnetEncoder::xpriv_to_base58(&xpriv).unwrap(), d.xpriv);
         assert_eq!(&xpub, &deser_xpub);
         assert_eq!(MainnetEncoder::xpub_to_base58(&xpub).unwrap(), d.xpub);
-
-
     }
 
     #[test]
-    fn it_deserializes_xpubs() {
+    fn it_matches_bip32_vectors() {
         let backend = backend::curve::Secp256k1::init();
         let seed: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
         let xpriv = xkeys::XPriv::root_from_seed(&seed, Some(Hint::Legacy), &backend).unwrap();

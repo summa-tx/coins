@@ -90,12 +90,18 @@ pub trait XKey: std::marker::Sized + Clone {
 }
 
 /// A 4-byte key fingerprint
-#[derive(Eq, PartialEq, Debug, Clone, Copy)]
+#[derive(Eq, PartialEq, Clone, Copy)]
 pub struct KeyFingerprint(pub [u8; 4]);
 
 impl From<[u8; 4]> for KeyFingerprint {
     fn from(v: [u8; 4]) -> Self {
         Self(v)
+    }
+}
+
+impl std::fmt::Debug for KeyFingerprint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("KeyFingerprint {:x?}", self.0))
     }
 }
 
@@ -226,20 +232,19 @@ impl<'a, T: Secp256k1Backend> XKey for GenericXPriv<'a, T> {
 
     fn derive_child(&self, index: u32) -> Result<GenericXPriv<'a, T>, Bip32Error>{
         let hardened = index >= BIP32_HARDEN;
-        let data = if hardened {
-            let mut v: Vec<u8> = vec![0];
-            v.extend(&self.secret_key());
-            v.extend(&index.to_be_bytes());
-            v
+        let mut data: Vec<u8> = vec![];
+
+        if hardened {
+            data.push(0);
+            data.extend(&self.secret_key());
+            data.extend(&index.to_be_bytes());
         } else {
-            let mut v: Vec<u8> = vec![0];
-            v.extend(&self.pubkey()?.to_array().to_vec());
-            v.extend(&index.to_be_bytes());
-            v
+            data.extend(&self.pubkey()?.to_array().to_vec());
+            data.extend(&index.to_be_bytes());
         };
 
-        let (left, chain_code) = hmac_and_split(&self.chain_code().0, &data);
-        let privkey = self.backend()?.tweak_privkey(&self.privkey, left)?;
+        let (tweak, chain_code) = hmac_and_split(&self.chain_code().0, &data);
+        let privkey = self.backend()?.tweak_privkey(&self.privkey, tweak)?;
 
         Ok(GenericXPriv{
             depth: self.depth() + 1,
@@ -445,10 +450,11 @@ impl<'a, T: Secp256k1Backend> Eq for GenericXPub<'a, T> {}
 impl<'a, T: Secp256k1Backend> std::fmt::Debug for GenericXPub<'a, T>
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let idx = format!("{}{}", self.index() % BIP32_HARDEN, if self.index() > BIP32_HARDEN { "h"} else {""});
         f.debug_struct("XPub")
          .field("fingerprint", &self.fingerprint().unwrap_or_else(|_| [0u8; 4].into()))
          .field("parent", &self.parent())
-         .field("index", &self.index())
+         .field("index", &idx )
          .field("hint", &self.hint())
          .finish()
     }
@@ -457,10 +463,11 @@ impl<'a, T: Secp256k1Backend> std::fmt::Debug for GenericXPub<'a, T>
 impl<'a, T: Secp256k1Backend> std::fmt::Debug for GenericXPriv<'a, T>
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let idx = format!("{}{}", self.index() % BIP32_HARDEN, if self.index() > BIP32_HARDEN { "h"} else {""});
         f.debug_struct("XPriv")
          .field("fingerprint", &self.fingerprint().unwrap_or_else(|_| [0u8; 4].into()))
          .field("parent", &self.parent())
-         .field("index", &self.index())
+         .field("index", &idx)
          .field("hint", &self.hint())
          .finish()
     }
