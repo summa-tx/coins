@@ -214,6 +214,26 @@ pub trait Encoder<P: NetworkParams> {
         Ok(XPub::new(depth, parent, index, key, chain_code, hint, backend))
     }
 
+    /// Serialize an XPriv to base58
+    fn xpriv_to_base58<'a, T>(k: &XPriv<'a, T>) -> Result<String, Bip32Error>
+    where
+        T: Secp256k1Backend
+    {
+        let mut v: Vec<u8> = vec![];
+        Self::write_xpriv(&mut v, k)?;
+        Ok(encode_b58_check(&v))
+    }
+
+    /// Serialize an XPub to base58
+    fn xpub_to_base58<'a, T>(k: &XPub<'a, T>) -> Result<String, Bip32Error>
+    where
+        T: Secp256k1Backend
+    {
+        let mut v: Vec<u8> = vec![];
+        Self::write_xpub(&mut v, k)?;
+        Ok(encode_b58_check(&v))
+    }
+
     /// Attempt to read an XPriv from a b58check string
     fn xpriv_from_base58<'a, T>(s: &str, backend: Option<&'a T>) -> Result<XPriv<'a, T>, Bip32Error>
     where

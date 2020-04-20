@@ -177,7 +177,8 @@ impl<'a, T: Secp256k1Backend> XPriv<'a, T> {
         })
     }
 
-    fn backend(&self) -> Result<&'a T, Bip32Error> {
+    #[doc(hidden)]
+    pub fn backend(&self) -> Result<&'a T, Bip32Error> {
         self.backend.ok_or(Bip32Error::NoBackend)
     }
 }
@@ -239,6 +240,22 @@ pub struct XPub<'a, T: Secp256k1Backend> {
     hint: Hint,
     #[doc(hidden)]
     backend: Option<&'a T>,
+}
+
+impl<'a, T: Secp256k1Backend> std::convert::TryFrom<&XPriv<'a, T>> for XPub<'a, T> {
+    type Error = Bip32Error;
+
+    fn try_from(k: &XPriv<'a, T>) -> Result<Self, Bip32Error> {
+        Ok(Self::new(
+            k.depth(),
+            k.parent(),
+            k.index(),
+            k.pubkey()?,
+            k.chain_code(),
+            k.hint(),
+            k.backend().ok()
+        ))
+    }
 }
 
 impl<'a, T: Secp256k1Backend> XKey for XPub<'a, T> {

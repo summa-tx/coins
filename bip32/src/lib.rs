@@ -77,6 +77,8 @@ pub enum Bip32Error {
 #[cfg(test)]
 mod test {
     use super::*;
+    use std::convert::TryFrom;
+    use crate::xkeys::{Hint};
     use crate::backend::{Secp256k1Backend};
     use crate::enc::{Encoder, MainnetEncoder};
 
@@ -84,12 +86,18 @@ mod test {
     fn it_deserializes_xpubs() {
         let backend = backend::curve::Secp256k1::init();
         let seed: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-        let xpriv = xkeys::XPriv::generate_master_node(&seed, None, &backend).unwrap();
+        let xpriv = xkeys::XPriv::generate_master_node(&seed, Some(Hint::Legacy), &backend).unwrap();
+        let xpub = xkeys::XPub::try_from(&xpriv).unwrap();
 
         let expected_xpriv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
-        let expected_pub = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
+        let expected_xpub = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
 
         let deser_xpriv = MainnetEncoder::xpriv_from_base58(&expected_xpriv, Some(&backend)).unwrap();
-        assert_eq!(xpriv, deser_xpriv);
+        let deser_xpub = MainnetEncoder::xpub_from_base58(&expected_xpub, Some(&backend)).unwrap();
+
+        assert_eq!(&xpriv, &deser_xpriv);
+        assert_eq!(MainnetEncoder::xpriv_to_base58(&xpriv).unwrap(), expected_xpriv);
+        assert_eq!(&xpub, &deser_xpub);
+        assert_eq!(MainnetEncoder::xpub_to_base58(&xpub).unwrap(), expected_xpub);
     }
 }
