@@ -4,7 +4,7 @@ use crate::{Bip32Error};
 pub type HashFunc = dyn Fn(&[u8]) -> [u8; 32];
 
 /// A Serializable 32-byte scalar
-pub trait ScalarSerialize {
+pub trait ScalarSerialize: std::marker::Sized {
     /// Serialize the scalar to an array
     fn to_array(&self) -> [u8; 32];
 
@@ -13,7 +13,7 @@ pub trait ScalarSerialize {
 }
 
 /// A serializable curve point
-pub trait PointSerialize {
+pub trait PointSerialize: std::marker::Sized {
     /// Serialize the uncompressed pubkey
     fn to_array_uncompressed(&self) -> [u8; 65];
 
@@ -26,6 +26,19 @@ pub trait PointSerialize {
 
     /// Serialize the pubkey
     fn to_array(&self) -> [u8; 33];
+
+    /// Instantiate from a 33-byte uncompressed pubkey as a u8 array
+    fn from_array(buf: [u8; 33]) -> Result<Self, Bip32Error>;
+
+    /// Instantiate from a 65-byte compressed pubkey as a u8 array
+    fn from_array_uncompressed(buf: [u8; 65]) -> Result<Self, Bip32Error>;
+
+    /// Instantiate from a 64-byte raw pubkey as a u8 array
+    fn from_array_raw(buf: [u8; 64]) -> Result<Self, Bip32Error> {
+        let mut raw = [4u8; 65];
+        raw[1..].copy_from_slice(&buf);
+        PointSerialize::from_array_uncompressed(raw)
+    }
 }
 
 /// A Serializable Signature
@@ -43,9 +56,9 @@ pub trait RecoverableSigSerialize: SigSerialize {
 /// A minmial curve-math backend interface
 pub trait Secp256k1Backend {
     /// A Private Key
-    type Privkey: ScalarSerialize;
+    type Privkey: ScalarSerialize + PartialEq;
     /// A Public Key
-    type Pubkey: PointSerialize;
+    type Pubkey: PointSerialize + PartialEq;
     /// A Signature
     type Signature;
     /// A Recoverage signature
@@ -109,8 +122,16 @@ pub mod curve {
     pub struct Secp256k1(secp256k1::Secp256k1<secp256k1::All>);
 
     /// A Private Key
-    #[derive(Eq, PartialEq, Debug, Clone)]
+    #[derive(Debug, Clone)]
     pub struct Privkey(secp256k1::SecretKey);
+
+    impl std::cmp::Eq for Privkey {}
+
+    impl std::cmp::PartialEq for Privkey {
+        fn eq(&self, other: &Self) -> bool {
+            self.to_array() == other.to_array()
+        }
+    }
 
     impl ScalarSerialize for Privkey {
         fn to_array(&self) -> [u8; 32] {
@@ -131,8 +152,16 @@ pub mod curve {
     }
 
     /// A Public Key
-    #[derive(Eq, PartialEq, Debug, Clone)]
+    #[derive(Debug, Clone)]
     pub struct Pubkey(secp256k1::PublicKey);
+
+    impl std::cmp::Eq for Pubkey {}
+
+    impl std::cmp::PartialEq for Pubkey {
+        fn eq(&self, other: &Self) -> bool {
+            self.to_array()[..] == other.to_array()[..]
+        }
+    }
 
     impl From<secp256k1::PublicKey> for Pubkey {
         fn from(k: secp256k1::PublicKey) -> Self {
@@ -147,6 +176,14 @@ pub mod curve {
 
         fn to_array(&self) -> [u8; 33] {
             self.0.serialize()
+        }
+
+        fn from_array(buf: [u8; 33]) -> Result<Self, Bip32Error> {
+            Ok(secp256k1::PublicKey::from_slice(&buf)?.into())
+        }
+
+        fn from_array_uncompressed(buf: [u8; 65]) -> Result<Self, Bip32Error> {
+            Ok(secp256k1::PublicKey::from_slice(&buf)?.into())
         }
     }
 
