@@ -61,7 +61,7 @@ pub mod curve {
 
     impl Clone for Pubkey {
         fn clone(&self) -> Self {
-            Self::from_array(self.to_array()).expect("Can't fail")
+            Self::from_array(self.to_array()).expect("Key must be valid")
         }
     }
 

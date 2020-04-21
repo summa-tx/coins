@@ -182,7 +182,7 @@ impl<'a, T: Secp256k1Backend<'a>> GenericXPriv<'a, T> {
         Self::custom_master_node(SEED, data, hint, backend)
     }
 
-    /// Instantiate a new XPriv
+    #[doc(hidden)]
     pub fn new(
         depth: u8,
         parent: KeyFingerprint,
@@ -423,7 +423,7 @@ impl<'a, T: Secp256k1Backend<'a>> XKey for GenericXPub<'a, T> {
 }
 
 impl<'a, T: Secp256k1Backend<'a>> GenericXPub<'a, T> {
-    /// Instantiate a new XPub
+    #[doc(hidden)]
     pub fn new(
         depth: u8,
         parent: KeyFingerprint,
@@ -570,8 +570,8 @@ impl<'a, T: Secp256k1Backend<'a>> SigningKey for GenericXPriv<'a, T> {
     }
 
     /// Sign a digest
-    fn sign_digest(&self, message: [u8; 32]) -> Result<Self::Signature, Bip32Error> {
-        Ok(self.backend()?.sign_digest(&self.privkey, message))
+    fn sign_digest(&self, digest: [u8; 32]) -> Result<Self::Signature, Bip32Error> {
+        Ok(self.backend()?.sign_digest(&self.privkey, digest))
     }
 
     /// Sign a digest and produce a recovery ID

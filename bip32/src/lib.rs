@@ -1,11 +1,47 @@
 //! This crate provides a basic implementation of BIP32, BIP49, and BIP84 with configurable
-//! backends.
+//! backends. It can be easily adapted to support other networks, using the paramaterizable
+//! encoder.
+//!
+//! Typically, users will want to use the `MainnetEncoder`, `XPub`, `XPriv` objects, which are
+//! available at the crate root.
+//!
+//! The objects provided need a backend. They can be instantiated without one, but many basic
+//! operations (e.g. signing, verifying, key derivation) will fail. Simple usage:
+//!
+//! ```
+//! use rmn_bip32::{
+//!     Bip32Error,
+//!     Secp256k1,
+//!     enc::{Encoder, MainnetEncoder},
+//!     model::{Secp256k1Backend, SigningKey, VerifyingKey},
+//!     xkeys::{XKey, XPub, XPriv},
+//! };
+//!
+//! # fn main() -> Result<(), Bip32Error> {
+//! let digest = [1u8; 32];
+//! let backend = Secp256k1::init();
+//! let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
+//!
+//! let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, Some(&backend))?;
+//!
+//! let child = xpriv.derive_child(33)?;
+//! let sig = child.sign_digest(digest)?;
+//!
+//! let child_xpub = child.to_xpub()?;
+//! child_xpub.verify_digest(digest, &sig)
+//! # }
+//! ```
 //!
 //! The backend is configurable. By default, it uses bindings to Pieter Wuille's C `libsecp256k1`.
 //! Turning off standard features, and compiling with the `rust-secp` feature will use a pure rust
-//! backend. The
+//! backend. Users can provide their own backend by implementing the `Secp256k1Backend` trait.
+//! These backends are mutually exclusive. So to use `rust-secp` you must disable default features
 //!
-//!
+//! Additionally, both provided backends allow user-provided context objects via the
+//! `Secp256k1Backend::from_context` method. We also provide access to `lazy_static` on-demand
+//! contexts via `Secp256k1Backend::init()`. This has a 1-time cost. The
+//! `rust-secp-static-context` allows for compilation-timem generation of the context, but must
+//! be used with the `rust-secp` backend.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -33,8 +69,13 @@ pub mod model;
 /// `DerivationPath` type and tooling for parsing it from strings
 pub mod path;
 
+pub use enc::{Encoder, MainnetEncoder, TestnetEncoder};
+pub use model::*;
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
-pub use xkeys::{XPriv, XPub};
+pub use xkeys::{XKey, XPriv, XPub};
+
+#[cfg(any(feature = "libsecp", feature = "rust-secp"))]
+pub use backends::curve::Secp256k1;
 
 use thiserror::Error;
 
@@ -307,5 +348,20 @@ mod test {
         for case in descendants.iter() {
             validate_descendant(&case, &xpriv);
         }
+    }
+
+    #[test]
+    fn it_can_sign_and_verify() {
+        let digest = [1u8; 32];
+        let backend = Secp256k1::init();
+        let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
+
+        let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, Some(&backend)).unwrap();
+
+        let child = xpriv.derive_child(33).unwrap();
+        let sig = child.sign_digest(digest).unwrap();
+
+        let child_xpub = child.to_xpub().unwrap();
+        child_xpub.verify_digest(digest, &sig).unwrap();
     }
 }
