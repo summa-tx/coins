@@ -31,8 +31,13 @@ features = ["std"]
 
 [dev-dependencies]
 hex = "0.4.2"
+criterion = "0.3.1"
 
 [features]
 default = ["libsecp"]
 libsecp = ["secp256k1"]
 rust_secp = ["libsecp256k1", "libsecp256k1-core"]
+
+[[bench]]
+name = "bench"
+harness = false

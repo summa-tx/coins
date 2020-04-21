@@ -106,9 +106,12 @@ impl From<std::convert::Infallible> for Bip32Error {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::backend::Secp256k1Backend;
-    use crate::enc::{Encoder, MainnetEncoder};
-    use crate::xkeys::{Hint, XKey, XPriv, XPub};
+    use crate::{
+        backend::Secp256k1Backend,
+        enc::{Encoder, MainnetEncoder},
+        xkeys::{Hint, XKey, XPriv, XPub},
+    };
+
     use hex;
     use std::convert::TryFrom;
 
