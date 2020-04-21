@@ -15,6 +15,9 @@ sha2 = "0.8.0"
 bitcoin-spv = "2.0.0"
 bs58 = "0.3.0"
 
+[dev-dependencies]
+hex = "0.4.2"
+
 [features]
 default = ["libsecp"]
 libsecp = ["secp256k1"]

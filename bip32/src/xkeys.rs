@@ -1,9 +1,13 @@
+use std::convert::{TryInto};
+
 use sha2::{Sha512};
 use bitcoin_spv::btcspv::{hash160};
 use hmac::{Hmac, Mac};
 
 use crate::{
     Bip32Error,
+    BIP32_HARDEN,
+    path::DerivationPath,
     backend::{
         PointSerialize,
         ScalarSerialize,
@@ -12,9 +16,6 @@ use crate::{
 };
 
 type HmacSha512 = Hmac<Sha512>;
-
-///
-pub const BIP32_HARDEN: u32 = 0x8000_0000;
 
 /// Default BIP32
 pub const SEED: &[u8; 12] = b"Bitcoin seed";
@@ -75,7 +76,14 @@ pub trait XKey: std::marker::Sized + Clone {
     fn derive_child(&self, index: u32) -> Result<Self, Bip32Error>;
 
     /// Derive a series of child indices. Allows traversing several levels of the tree at once.
-    fn derive_path(&self, path: &[u32]) -> Result<Self, Bip32Error> {
+    /// Accepts an iterator producing u32, or a string.
+    fn derive_path<E, T>(&self, p: T) -> Result<Self, Bip32Error>
+    where
+        E: Into<Bip32Error>,
+        T: TryInto<DerivationPath, Error = E>
+    {
+        let path: DerivationPath = p.try_into().map_err(Into::into)?;
+
         if path.is_empty() {
             return Ok(self.to_owned())
         }
@@ -86,7 +94,6 @@ pub trait XKey: std::marker::Sized + Clone {
         }
         Ok(current)
     }
-
 }
 
 /// A 4-byte key fingerprint
@@ -232,8 +239,8 @@ impl<'a, T: Secp256k1Backend> XKey for GenericXPriv<'a, T> {
 
     fn derive_child(&self, index: u32) -> Result<GenericXPriv<'a, T>, Bip32Error>{
         let hardened = index >= BIP32_HARDEN;
-        let mut data: Vec<u8> = vec![];
 
+        let mut data: Vec<u8> = vec![];
         if hardened {
             data.push(0);
             data.extend(&self.secret_key());
