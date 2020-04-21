@@ -368,4 +368,10 @@ mod test {
         let child_xpub = child.to_xpub().unwrap();
         child_xpub.verify_digest(digest, &sig).unwrap();
     }
+
+    #[test]
+    fn it_can_read_keys_without_a_backend() {
+        let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
+        let _xpriv: XPriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, None).unwrap();
+    }
 }

@@ -1,6 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use rmn_bip32::{
-    backend::{curve::Secp256k1, Secp256k1Backend},
+    backends::curve::Secp256k1,
+    model::Secp256k1Backend,
     xkeys::{Hint, XKey, XPriv},
 };
 

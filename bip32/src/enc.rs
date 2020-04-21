@@ -143,6 +143,24 @@ pub trait Encoder<P: NetworkParams> {
     }
 
     /// Attempt to instantiate an `XPriv` from a `std::io::Read`
+    ///
+    /// # Note
+    ///
+    /// If passing in None, you must hint the return type. This can be the convenience type alias
+    /// (e.g. XPub) or the full type `GenericXPub<rmn_bip32::backends::curve::Secp256k1>`
+    ///
+    /// ```
+    /// use rmn_bip32::{Bip32Error, XPriv, enc::{Encoder, MainnetEncoder}};
+    /// # fn main() -> Result<(), Bip32Error> {
+    /// let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
+    ///
+    /// // // can't infer type of generic parameter
+    /// // let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, None)?;
+    ///
+    /// let xpriv: XPriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, None)?;
+    /// # Ok(())
+    /// # }
+    /// ```
     fn read_xpriv<'a, R, T>(
         reader: &mut R,
         backend: Option<&'a T>,
@@ -187,6 +205,24 @@ pub trait Encoder<P: NetworkParams> {
     }
 
     /// Attempt to instantiate an `XPriv` from a `std::io::Read`
+    ///
+    /// # Note
+    ///
+    /// If passing in None, you must hint the return type. This can be the convenience type alias
+    /// (e.g. XPub) or the full type `GenericXPub<rmn_bip32::backends::curve::Secp256k1>`
+    ///
+    /// ```
+    /// use rmn_bip32::{Bip32Error, XPub, enc::{Encoder, MainnetEncoder}};
+    /// # fn main() -> Result<(), Bip32Error> {
+    /// let xpub_str = "xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y".to_owned();
+    ///
+    /// // // can't infer type of generic parameter
+    /// // let xpub = MainnetEncoder::xpub_from_base58(&xpub_str, None)?;
+    ///
+    /// let xpub: XPub = MainnetEncoder::xpub_from_base58(&xpub_str, None)?;
+    /// # Ok(())
+    /// # }
+    /// ```
     fn read_xpub<'a, R, T>(
         reader: &mut R,
         backend: Option<&'a T>,
@@ -244,7 +280,25 @@ pub trait Encoder<P: NetworkParams> {
         Ok(encode_b58_check(&v))
     }
 
-    /// Attempt to read an XPriv from a b58check string
+    /// Attempt to read an XPriv from a b58check string.
+    ///
+    /// # Note
+    ///
+    /// If passing in None, you must hint the return type. This can be the convenience type alias
+    /// (e.g. XPub) or the full type `GenericXPub<rmn_bip32::backends::curve::Secp256k1>`
+    ///
+    /// ```
+    /// use rmn_bip32::{Bip32Error, XPriv, enc::{Encoder, MainnetEncoder}};
+    /// # fn main() -> Result<(), Bip32Error> {
+    /// let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
+    ///
+    /// // // can't infer type of generic parameter
+    /// // let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, None)?;
+    ///
+    /// let xpriv: XPriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, None)?;
+    /// # Ok(())
+    /// # }
+    /// ```
     fn xpriv_from_base58<'a, T>(
         s: &str,
         backend: Option<&'a T>,
@@ -257,6 +311,24 @@ pub trait Encoder<P: NetworkParams> {
     }
 
     /// Attempt to read an XPub from a b58check string
+    ///
+    /// # Note
+    ///
+    /// If passing in None, you must hint the return type. This can be the convenience type alias
+    /// (e.g. XPub) or the full type `GenericXPub<rmn_bip32::backends::curve::Secp256k1>`
+    ///
+    /// ```
+    /// use rmn_bip32::{Bip32Error, XPub, enc::{Encoder, MainnetEncoder}};
+    /// # fn main() -> Result<(), Bip32Error> {
+    /// let xpub_str = "xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y".to_owned();
+    ///
+    /// // // can't infer type of generic parameter
+    /// // let xpub = MainnetEncoder::xpub_from_base58(&xpub_str, None)?;
+    ///
+    /// let xpub: XPub = MainnetEncoder::xpub_from_base58(&xpub_str, None)?;
+    /// # Ok(())
+    /// # }
+    /// ```
     fn xpub_from_base58<'a, T>(
         s: &str,
         backend: Option<&'a T>,
