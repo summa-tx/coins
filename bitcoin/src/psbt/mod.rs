@@ -19,29 +19,19 @@ pub use schema::*;
 
 use std::{
     io::{Read, Write},
-    marker::{PhantomData},
+    marker::PhantomData,
 };
 
-use riemann_core::{
-    builder::{TxBuilder},
-    enc::{AddressEncoder},
-    ser::{Ser},
-    tx::{Transaction},
-};
+use riemann_core::{builder::TxBuilder, enc::AddressEncoder, ser::Ser, tx::Transaction};
 
 use crate::{
-    bases::{EncodingError},
-    builder::{LegacyBuilder},
-    encoder::{Address},
-    script::{ScriptPubkey},
-    types::{
-        transactions::{LegacyTx},
-        txin::{BitcoinTxIn},
-        txout::{TxOut},
-    },
-    psbt::common::{PSBTError},
+    bases::EncodingError,
+    builder::LegacyBuilder,
+    encoder::Address,
+    psbt::common::PSBTError,
+    script::ScriptPubkey,
+    types::{transactions::LegacyTx, txin::BitcoinTxIn, txout::TxOut},
 };
-
 
 /// A generic Partially Signed Transaction.
 pub trait PST<'a, T: AddressEncoder> {
@@ -97,12 +87,12 @@ pub struct PSBT<T: AddressEncoder> {
     /// Per-output attribute maps
     outputs: Vec<PSBTOutput>,
     /// Sppoooopppy
-    encoder: PhantomData<T>
+    encoder: PhantomData<*const T>,
 }
 
 impl<T> PSBT<T>
 where
-    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>
+    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>,
 {
     /// Insert an input into the PSBT. Updates the TX in the global, and inserts an `Input` map at
     /// the same index
@@ -111,7 +101,8 @@ where
         let tx = b.insert_input(index, tx_in).build();
         let mut buf = vec![];
         tx.serialize(&mut buf)?;
-        self.global_map_mut().insert(GlobalKey::UNSIGNED_TX.into(), buf.into());
+        self.global_map_mut()
+            .insert(GlobalKey::UNSIGNED_TX.into(), buf.into());
         self.input_maps_mut().insert(index, Default::default());
         Ok(())
     }
@@ -123,7 +114,8 @@ where
         let tx = b.insert_output(index, tx_out).build();
         let mut buf = vec![];
         tx.serialize(&mut buf)?;
-        self.global_map_mut().insert(GlobalKey::UNSIGNED_TX.into(), buf.into());
+        self.global_map_mut()
+            .insert(GlobalKey::UNSIGNED_TX.into(), buf.into());
         self.output_maps_mut().insert(index, Default::default());
         Ok(())
     }
@@ -131,7 +123,7 @@ where
 
 impl<'a, T> PST<'a, T> for PSBT<T>
 where
-    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>
+    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>,
 {
     const MAGIC_BYTES: [u8; 4] = *b"psbt";
 
@@ -155,12 +147,20 @@ where
 
     fn consistency_checks(&self) -> Result<(), PSBTError> {
         // - PSBT-level checks
-        let tx = self.tx().expect("already performed global consistency_checks");
+        let tx = self
+            .tx()
+            .expect("already performed global consistency_checks");
         if tx.inputs().len() != self.inputs.len() {
-            return Err(PSBTError::VinLengthMismatch{ tx_ins: tx.inputs().len(), maps: self.inputs.len() })
+            return Err(PSBTError::VinLengthMismatch {
+                tx_ins: tx.inputs().len(),
+                maps: self.inputs.len(),
+            });
         }
         if tx.outputs().len() != self.outputs.len() {
-            return Err(PSBTError::VoutLengthMismatch{ tx_outs: tx.outputs().len(), maps: self.outputs.len() })
+            return Err(PSBTError::VoutLengthMismatch {
+                tx_outs: tx.outputs().len(),
+                maps: self.outputs.len(),
+            });
         }
         // TODO:
         // - validate that all non-witness inputs match the tx
@@ -198,7 +198,7 @@ where
 
 impl<'a, T> Ser for PSBT<T>
 where
-    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>
+    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>,
 {
     type Error = PSBTError;
 
@@ -209,15 +209,23 @@ where
     fn serialized_length(&self) -> usize {
         let mut length: usize = 5;
         length += self.global_map().serialized_length();
-        length += self.input_maps().iter().map(|i| i.serialized_length()).sum::<usize>();
-        length += self.output_maps().iter().map(|o| o.serialized_length()).sum::<usize>();
+        length += self
+            .input_maps()
+            .iter()
+            .map(|i| i.serialized_length())
+            .sum::<usize>();
+        length += self
+            .output_maps()
+            .iter()
+            .map(|o| o.serialized_length())
+            .sum::<usize>();
         length
     }
 
     fn deserialize<R>(reader: &mut R, _limit: usize) -> Result<Self, PSBTError>
     where
         R: Read,
-        Self: std::marker::Sized
+        Self: std::marker::Sized,
     {
         let mut prefix = [0u8; 5];
         reader.read_exact(&mut prefix)?;
@@ -232,7 +240,7 @@ where
         let inputs = Vec::<PSBTInput>::deserialize(reader, tx.inputs().len())?;
         let outputs = Vec::<PSBTOutput>::deserialize(reader, tx.outputs().len())?;
 
-        let result = PSBT{
+        let result = PSBT {
             global,
             inputs,
             outputs,
@@ -244,7 +252,7 @@ where
 
     fn serialize<W>(&self, writer: &mut W) -> Result<usize, Self::Error>
     where
-        W: Write
+        W: Write,
     {
         self.validate()?;
         let mut len = writer.write(&<PSBT<T> as PST<T>>::MAGIC_BYTES)?;

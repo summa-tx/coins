@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "core",
+    "bip32",
     "bitcoin",
     "litecoin"
 ]

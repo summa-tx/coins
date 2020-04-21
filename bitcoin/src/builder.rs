@@ -9,25 +9,18 @@
 //!
 //! The builder is best accessed via the preconstructed network objects in `nets.rs`.
 
-use std::marker::{PhantomData};
+use std::marker::PhantomData;
 
-use riemann_core::{
-    builder::{TxBuilder},
-    enc::{AddressEncoder},
-    types::{
-        tx::{Transaction},
-    },
-};
+use riemann_core::{builder::TxBuilder, enc::AddressEncoder, types::tx::Transaction};
 
 use crate::{
     bases::{EncodingError, EncodingResult},
-    encoder::{Address},
-    script::{ScriptSig, ScriptPubkey, Witness},
-    transactions::{WitnessTransaction, LegacyTx, WitnessTx},
+    encoder::Address,
+    script::{ScriptPubkey, ScriptSig, Witness},
+    transactions::{LegacyTx, WitnessTransaction, WitnessTx},
     txin::{BitcoinOutpoint, BitcoinTxIn},
-    txout::{TxOut},
+    txout::TxOut,
 };
-
 
 /// A `TxBuilder` that builds Bitcoin transactions. This trait extends `TxBuilder` to provide
 /// easy conversion between Legacy and Witness bitcoin builders.
@@ -46,7 +39,7 @@ pub trait BitcoinBuilder<'a>: TxBuilder<'a> {
     /// Add a set of witnesses to the transaction, and return a witness builder.
     fn extend_witnesses<I>(self, outputs: I) -> Self::WitnessBuilder
     where
-    I: IntoIterator<Item = <Self::WitnessTransaction as WitnessTransaction<'a>>::Witness>;
+        I: IntoIterator<Item = <Self::WitnessTransaction as WitnessTransaction<'a>>::Witness>;
 
     /// Converts the builder into a witness builder.
     fn as_witness(self) -> Self::WitnessBuilder;
@@ -72,7 +65,7 @@ pub struct LegacyBuilder<T: AddressEncoder> {
     vin: Vec<BitcoinTxIn>,
     vout: Vec<TxOut>,
     locktime: u32,
-    encoder: PhantomData<T>
+    encoder: PhantomData<*const T>,
 }
 
 /// WitnessBuilder implements `TxBuilder` and `WitTxBuilder`. The only difference between
@@ -87,7 +80,7 @@ pub struct WitnessBuilder<T: AddressEncoder> {
 
 impl<T: AddressEncoder> From<LegacyBuilder<T>> for WitnessBuilder<T> {
     fn from(t: LegacyBuilder<T>) -> WitnessBuilder<T> {
-        WitnessBuilder{
+        WitnessBuilder {
             builder: t,
             witnesses: vec![],
         }
@@ -102,7 +95,7 @@ impl<T: AddressEncoder> From<WitnessBuilder<T>> for LegacyBuilder<T> {
 
 impl<'a, T> TxBuilder<'a> for LegacyBuilder<T>
 where
-    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>
+    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>,
 {
     type Encoder = T;
 
@@ -128,7 +121,6 @@ where
         }
     }
 
-
     fn version(mut self, version: u32) -> Self {
         self.version = version;
         self
@@ -138,7 +130,11 @@ where
     where
         I: Into<BitcoinOutpoint>,
     {
-        self.vin.push(BitcoinTxIn::new(prevout.into(), ScriptSig::default(), sequence));
+        self.vin.push(BitcoinTxIn::new(
+            prevout.into(),
+            ScriptSig::default(),
+            sequence,
+        ));
         self
     }
 
@@ -148,27 +144,35 @@ where
         Ok(self)
     }
 
-    fn insert_input(mut self, index: usize, input: <Self::Transaction as Transaction<'a>>::TxIn) -> Self {
+    fn insert_input(
+        mut self,
+        index: usize,
+        input: <Self::Transaction as Transaction<'a>>::TxIn,
+    ) -> Self {
         self.vin.insert(index, input);
         self
     }
 
     fn extend_inputs<I>(mut self, inputs: I) -> Self
     where
-        I: IntoIterator<Item = BitcoinTxIn>
+        I: IntoIterator<Item = BitcoinTxIn>,
     {
         self.vin.extend(inputs);
         self
     }
 
-    fn insert_output(mut self, index: usize, output: <Self::Transaction as Transaction<'a>>::TxOut) -> Self {
+    fn insert_output(
+        mut self,
+        index: usize,
+        output: <Self::Transaction as Transaction<'a>>::TxOut,
+    ) -> Self {
         self.vout.insert(index, output);
         self
     }
 
     fn extend_outputs<I>(mut self, outputs: I) -> Self
     where
-        I: IntoIterator<Item=TxOut>
+        I: IntoIterator<Item = TxOut>,
     {
         self.vout.extend(outputs);
         self
@@ -180,20 +184,18 @@ where
     }
 
     fn build(self) -> Self::Transaction {
-        Self::Transaction::new(
-            self.version, self.vin, self.vout, self.locktime
-        )
+        Self::Transaction::new(self.version, self.vin, self.vout, self.locktime)
     }
 }
 
 impl<'a, T> BitcoinBuilder<'a> for LegacyBuilder<T>
 where
-    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>
+    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>,
 {
     type WitnessTransaction = WitnessTx;
     type WitnessBuilder = WitnessBuilder<T>;
 
-    fn extend_witnesses<I: IntoIterator<Item=Witness>>(self, witnesses: I) -> WitnessBuilder<T>  {
+    fn extend_witnesses<I: IntoIterator<Item = Witness>>(self, witnesses: I) -> WitnessBuilder<T> {
         WitnessBuilder::from(self).extend_witnesses(witnesses)
     }
 
@@ -204,14 +206,14 @@ where
 
 impl<'a, T> TxBuilder<'a> for WitnessBuilder<T>
 where
-    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>
+    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>,
 {
     type Encoder = T;
 
     type Transaction = WitnessTx;
 
     fn new() -> Self {
-        Self{
+        Self {
             builder: LegacyBuilder::<T>::new(),
             witnesses: vec![],
         }
@@ -237,9 +239,13 @@ where
 
     fn spend<I>(mut self, prevout: I, sequence: u32) -> Self
     where
-        I: Into<BitcoinOutpoint>
+        I: Into<BitcoinOutpoint>,
     {
-        self.builder.vin.push(BitcoinTxIn::new(prevout.into(), ScriptSig::default(), sequence));
+        self.builder.vin.push(BitcoinTxIn::new(
+            prevout.into(),
+            ScriptSig::default(),
+            sequence,
+        ));
         self
     }
 
@@ -249,25 +255,33 @@ where
         Ok(self)
     }
 
-    fn insert_input(mut self, index: usize, input: <Self::Transaction as Transaction<'a>>::TxIn) -> Self {
+    fn insert_input(
+        mut self,
+        index: usize,
+        input: <Self::Transaction as Transaction<'a>>::TxIn,
+    ) -> Self {
         self.builder.vin.insert(index, input);
         self
     }
 
     fn extend_inputs<I>(mut self, inputs: I) -> Self
     where
-        I: IntoIterator<Item = BitcoinTxIn>
+        I: IntoIterator<Item = BitcoinTxIn>,
     {
         self.builder.vin.extend(inputs);
         self
     }
 
-    fn insert_output(mut self, index: usize, output: <Self::Transaction as Transaction<'a>>::TxOut) -> Self {
+    fn insert_output(
+        mut self,
+        index: usize,
+        output: <Self::Transaction as Transaction<'a>>::TxOut,
+    ) -> Self {
         self.builder.vout.insert(index, output);
         self
     }
 
-    fn extend_outputs<I: IntoIterator<Item=TxOut>>(mut self, outputs: I) -> Self  {
+    fn extend_outputs<I: IntoIterator<Item = TxOut>>(mut self, outputs: I) -> Self {
         self.builder.vout.extend(outputs);
         self
     }
@@ -279,19 +293,23 @@ where
 
     fn build(self) -> Self::Transaction {
         WitnessTransaction::new(
-            self.builder.version, self.builder.vin, self.builder.vout, self.witnesses, self.builder.locktime
+            self.builder.version,
+            self.builder.vin,
+            self.builder.vout,
+            self.witnesses,
+            self.builder.locktime,
         )
     }
 }
 
 impl<'a, T> BitcoinBuilder<'a> for WitnessBuilder<T>
 where
-    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey> {
-
+    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>,
+{
     type WitnessTransaction = WitnessTx;
     type WitnessBuilder = Self;
 
-    fn extend_witnesses<I: IntoIterator<Item=Witness>>(mut self, outputs: I) -> Self  {
+    fn extend_witnesses<I: IntoIterator<Item = Witness>>(mut self, outputs: I) -> Self {
         self.witnesses.extend(outputs);
         self
     }
@@ -303,12 +321,11 @@ where
 
 impl<'a, T> WitTxBuilder<'a> for WitnessBuilder<T>
 where
-    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>
+    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>,
 {
     type LegacyBuilder = LegacyBuilder<T>;
 
     fn as_legacy(self) -> Self::LegacyBuilder {
         self.builder
     }
-
 }

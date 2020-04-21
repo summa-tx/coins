@@ -5,15 +5,12 @@ use std::io::{Read, Write};
 use riemann_core::{
     ser::{Ser, SerError, SerResult},
     types::{
-        primitives::{
-            ConcretePrefixVec,
-            PrefixVec,
-        },
-        tx::{Output},
+        primitives::{ConcretePrefixVec, PrefixVec},
+        tx::Output,
     },
 };
 
-use crate::script::{ScriptPubkey};
+use crate::script::ScriptPubkey;
 
 /// An Output. This describes a new UTXO to be created. The value is encoded as an LE u64. The
 /// script pubkey encodes the spending constraints.
@@ -22,11 +19,11 @@ use crate::script::{ScriptPubkey};
 /// 0xffff_ffff_ffff_ffff, and an empty `script_pubkey`. This null output is used within legacy
 /// sighash calculations.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct TxOut{
+pub struct TxOut {
     /// The value of the output in satoshis
     pub value: u64,
     /// The `ScriptPubkey` which locks the UTXO.
-    pub script_pubkey: ScriptPubkey
+    pub script_pubkey: ScriptPubkey,
 }
 
 impl Output for TxOut {
@@ -40,23 +37,23 @@ impl Default for TxOut {
     }
 }
 
-impl TxOut{
+impl TxOut {
     /// Instantiate a new TxOut.
     pub fn new<T>(value: u64, script_pubkey: T) -> Self
     where
-        T: Into<ScriptPubkey>
+        T: Into<ScriptPubkey>,
     {
-        TxOut{
+        TxOut {
             value,
-            script_pubkey: script_pubkey.into()
+            script_pubkey: script_pubkey.into(),
         }
     }
 
     /// Instantiate the null TxOut, which is used in Legacy Sighash.
     pub fn null() -> Self {
-        TxOut{
+        TxOut {
             value: 0xffff_ffff_ffff_ffff,
-            script_pubkey: ScriptPubkey::null()
+            script_pubkey: ScriptPubkey::null(),
         }
     }
 }
@@ -67,7 +64,7 @@ impl Ser for TxOut {
     fn to_json(&self) -> String {
         format!(
             "{{\"value\": \"0x{}\", \"script_pubkey\": {}}}",
-            hex::encode(self.value.to_le_bytes()),  // to avoid loosing fidelity to JS
+            hex::encode(self.value.to_le_bytes()), // to avoid loosing fidelity to JS
             self.script_pubkey.to_json(),
         )
     }
@@ -81,18 +78,18 @@ impl Ser for TxOut {
     fn deserialize<T>(reader: &mut T, _limit: usize) -> SerResult<Self>
     where
         T: Read,
-        Self: std::marker::Sized
+        Self: std::marker::Sized,
     {
         let value = Self::read_u64_le(reader)?;
-        Ok(TxOut{
+        Ok(TxOut {
             value,
-            script_pubkey: ScriptPubkey::deserialize(reader, 0)?
+            script_pubkey: ScriptPubkey::deserialize(reader, 0)?,
         })
     }
 
     fn serialize<T>(&self, writer: &mut T) -> SerResult<usize>
     where
-        T: Write
+        T: Write,
     {
         let mut len = Self::write_u64_le(writer, self.value)?;
         len += self.script_pubkey.serialize(writer)?;
@@ -107,13 +104,13 @@ pub type Vout = ConcretePrefixVec<TxOut>;
 #[cfg(test)]
 mod test {
     use super::*;
-    use riemann_core::ser::{Ser};
+    use riemann_core::ser::Ser;
 
     #[test]
     fn it_serializes_and_derializes_outputs() {
         let cases = [
             (TxOut::new(0, ""), "000000000000000000", 9),
-            (TxOut::null(), "ffffffffffffffff00", 9)
+            (TxOut::null(), "ffffffffffffffff00", 9),
         ];
         for case in cases.iter() {
             assert_eq!(case.0.serialized_length(), case.2);

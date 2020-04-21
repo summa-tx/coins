@@ -1,22 +1,13 @@
+use std::collections::{btree_map, BTreeMap};
 
-use std::{
-    collections::{
-        BTreeMap,
-        btree_map,
-    },
-};
-
-use riemann_core::{
-    primitives::{PrefixVec},
-    ser::{Ser},
-};
+use riemann_core::{primitives::PrefixVec, ser::Ser};
 
 use crate::{
     psbt::{
-        common::{PSBTError, PSTMap, PSBTKey, PSBTValidate, PSBTValue},
+        common::{PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},
         schema,
     },
-    types::transactions::{LegacyTx},
+    types::transactions::LegacyTx,
 };
 
 psbt_map!(PSBTGlobal);
@@ -45,11 +36,11 @@ impl PSBTValidate for PSBTGlobal {
     fn consistency_checks(&self) -> Result<(), PSBTError> {
         // A PSBT MUST have a transaction
         if !self.contains_key(&GlobalKey::UNSIGNED_TX.into()) {
-            return Err(PSBTError::InvalidPSBT)  // TODO: differentiate error
+            return Err(PSBTError::InvalidPSBT); // TODO: differentiate error
         }
         // A PSBT MUST have a version
         if !self.contains_key(&GlobalKey::VERSION.into()) {
-            return Err(PSBTError::InvalidPSBT)  // TODO: differentiate error
+            return Err(PSBTError::InvalidPSBT); // TODO: differentiate error
         }
         Ok(())
     }
@@ -57,9 +48,18 @@ impl PSBTValidate for PSBTGlobal {
     fn standard_schema() -> schema::KVTypeSchema {
         // TODO: more
         let mut s: schema::KVTypeSchema = Default::default();
-        s.insert(GlobalKey::UNSIGNED_TX as u8, Box::new(|k, v| (schema::global::validate_tx(k, v))));
-        s.insert(GlobalKey::XPUB as u8, Box::new(|k, v| (schema::global::validate_xpub(k, v))));
-        s.insert(GlobalKey::VERSION as u8, Box::new(|k, v| (schema::global::validate_version(k, v))));
+        s.insert(
+            GlobalKey::UNSIGNED_TX as u8,
+            Box::new(|k, v| (schema::global::validate_tx(k, v))),
+        );
+        s.insert(
+            GlobalKey::XPUB as u8,
+            Box::new(|k, v| (schema::global::validate_xpub(k, v))),
+        );
+        s.insert(
+            GlobalKey::VERSION as u8,
+            Box::new(|k, v| (schema::global::validate_version(k, v))),
+        );
         s
     }
 }

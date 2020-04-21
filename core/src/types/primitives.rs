@@ -1,6 +1,6 @@
 use std::{
-    fmt::{Debug},
-    io::{Read, Write, Error as IOError},
+    fmt::Debug,
+    io::{Error as IOError, Read, Write},
     ops::{Index, IndexMut},
 };
 
@@ -45,8 +45,8 @@ pub trait PrefixVec: Ser {
     /// Instantiate a new `PrefixVec` that contains v.
     fn new(v: Vec<Self::Item>) -> Self
     where
-        Self: std::marker::Sized
-     {
+        Self: std::marker::Sized,
+    {
         let mut s = Self::null();
         s.set_items(v);
         s
@@ -59,11 +59,15 @@ where
     I: Ser<Error = E>,
     T: PrefixVec<Item = I>,
 {
-        type Error = SerError;
+    type Error = SerError;
 
     fn to_json(&self) -> String {
         let items: Vec<String> = self.items().iter().map(Ser::to_json).collect();
-        format!("{{\"prefix_bytes\": {}, \"items\": [{}]}}", self.len_prefix(), items.join(", "))
+        format!(
+            "{{\"prefix_bytes\": {}, \"items\": [{}]}}",
+            self.len_prefix(),
+            items.join(", ")
+        )
     }
 
     fn serialized_length(&self) -> usize {
@@ -75,7 +79,7 @@ where
     fn deserialize<R>(reader: &mut R, _limit: usize) -> Result<T, Self::Error>
     where
         R: Read,
-        Self: std::marker::Sized
+        Self: std::marker::Sized,
     {
         let num_items = Self::read_compact_int(reader)?;
         let vec = Vec::<I>::deserialize(reader, num_items as usize)
@@ -85,14 +89,16 @@ where
 
     fn serialize<W>(&self, writer: &mut W) -> Result<usize, Self::Error>
     where
-        W: Write
+        W: Write,
     {
         let varint_written = Self::write_comapct_int(writer, self.len() as u64)?;
-        let writes: Result<Vec<usize>, _> = self.items()
+        let writes: Result<Vec<usize>, _> = self
+            .items()
             .iter()
-            .map(|v| v.serialize(writer)
-                .map_err(|e| SerError::ComponentError(format!("{}", e)))
-            )
+            .map(|v| {
+                v.serialize(writer)
+                    .map_err(|e| SerError::ComponentError(format!("{}", e)))
+            })
             .collect();
         let vec_written: usize = writes?.iter().sum();
         Ok(varint_written + vec_written)
@@ -114,7 +120,7 @@ pub struct ConcretePrefixVec<T>(Vec<T>);
 impl<T, E> PrefixVec for ConcretePrefixVec<T>
 where
     E: From<SerError> + From<IOError> + std::error::Error,
-    T: Ser<Error = E>
+    T: Ser<Error = E>,
 {
     type Item = T;
 
@@ -145,7 +151,7 @@ where
 
 impl<T> Default for ConcretePrefixVec<T>
 where
-    T: Ser
+    T: Ser,
 {
     fn default() -> Self {
         Self::null()
@@ -169,7 +175,7 @@ impl<T> IndexMut<usize> for ConcretePrefixVec<T> {
 impl<T, U> From<U> for ConcretePrefixVec<T>
 where
     T: Ser,
-    U: Into<Vec<T>>
+    U: Into<Vec<T>>,
 {
     fn from(v: U) -> Self {
         ConcretePrefixVec::<T>::new(v.into())
@@ -177,7 +183,7 @@ where
 }
 
 impl<T> Extend<T> for ConcretePrefixVec<T> {
-    fn extend<I: IntoIterator<Item=T>>(&mut self, iter: I) {
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
         self.0.extend(iter)
     }
 }

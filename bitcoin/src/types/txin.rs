@@ -3,18 +3,15 @@
 use std::io::{Read, Write};
 
 use riemann_core::{
-    hashes::marked::{MarkedDigest},
+    hashes::marked::MarkedDigest,
     ser::{Ser, SerError, SerResult},
     types::{
-        primitives::{ConcretePrefixVec},
+        primitives::ConcretePrefixVec,
         tx::{Input, TXOIdentifier},
     },
 };
 
-use crate::{
-    script::{ScriptSig},
-    hashes::TXID,
-};
+use crate::{hashes::TXID, script::ScriptSig};
 /// An Outpoint. This is a unique identifier for a UTXO, and is composed of a transaction ID (in
 /// Bitcoin-style LE format), and the index of the output being spent within that transactions
 /// output vectour (vout).
@@ -24,43 +21,37 @@ use crate::{
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Outpoint<M>
 where
-    M: MarkedDigest
+    M: MarkedDigest,
 {
     /// The txid that created the UTXO being pointed to.
     pub txid: M,
     /// The index of that UTXO in the transaction's output vector.
-    pub idx: u32
+    pub idx: u32,
 }
 
-impl<M> TXOIdentifier for Outpoint<M>
-where
-    M: MarkedDigest
-{}
+impl<M> TXOIdentifier for Outpoint<M> where M: MarkedDigest {}
 
 impl<M> Outpoint<M>
 where
-    M: MarkedDigest
+    M: MarkedDigest,
 {
     /// Returns a new Outpoint from a digest and index
     pub fn new(txid: M, idx: u32) -> Self {
-        Self{
-            txid,
-            idx
-        }
+        Self { txid, idx }
     }
 
     /// Returns the `default`, or `null` Outpoint. This is used in the coinbase input.
     pub fn null() -> Self {
-        Outpoint{
+        Outpoint {
             txid: M::default(),
-            idx: 0xffff_ffff
+            idx: 0xffff_ffff,
         }
     }
 }
 
 impl<M> Default for Outpoint<M>
 where
-    M: MarkedDigest
+    M: MarkedDigest,
 {
     fn default() -> Self {
         Outpoint::null()
@@ -69,12 +60,16 @@ where
 
 impl<M> Ser for Outpoint<M>
 where
-    M: MarkedDigest + Ser
+    M: MarkedDigest + Ser,
 {
     type Error = SerError;
 
     fn to_json(&self) -> String {
-        format!("{{\"txid\": {}, \"idx\": {}}}", self.txid.to_json(), self.idx)
+        format!(
+            "{{\"txid\": {}, \"idx\": {}}}",
+            self.txid.to_json(),
+            self.idx
+        )
     }
 
     fn serialized_length(&self) -> usize {
@@ -84,20 +79,22 @@ where
     fn deserialize<T>(reader: &mut T, _limit: usize) -> SerResult<Self>
     where
         T: Read,
-        Self: std::marker::Sized
+        Self: std::marker::Sized,
     {
-        Ok(Outpoint{
+        Ok(Outpoint {
             txid: M::deserialize(reader, 0)
                 .map_err(|e| SerError::ComponentError(format!("{}", e)))?,
-            idx: Self::read_u32_le(reader)?
+            idx: Self::read_u32_le(reader)?,
         })
     }
 
     fn serialize<T>(&self, writer: &mut T) -> SerResult<usize>
     where
-        T: Write
+        T: Write,
     {
-        let mut len = self.txid.serialize(writer)
+        let mut len = self
+            .txid
+            .serialize(writer)
             .map_err(|e| SerError::ComponentError(format!("{}", e)))?;
         len += Self::write_u32_le(writer, self.idx)?;
         Ok(len)
@@ -116,43 +113,43 @@ where
 #[derive(Clone, Debug, Eq, PartialEq, Default)]
 pub struct TxInput<M>
 where
-    M: MarkedDigest
+    M: MarkedDigest,
 {
     /// The Outpoint identifying the UTXO being spent.
     pub outpoint: Outpoint<M>,
     /// For Legacy transactions, the authorization information necessary to spend the UTXO.
     pub script_sig: ScriptSig,
     /// The nSequence field
-    pub sequence: u32
+    pub sequence: u32,
 }
 
 impl<M> Input for TxInput<M>
 where
-    M: MarkedDigest
+    M: MarkedDigest,
 {
     type TXOIdentifier = Outpoint<M>;
 }
 
 impl<M> TxInput<M>
 where
-    M: MarkedDigest
+    M: MarkedDigest,
 {
     /// Instantiate a new TxInput
     pub fn new<T>(outpoint: Outpoint<M>, script_sig: T, sequence: u32) -> Self
     where
-        T: Into<ScriptSig>
+        T: Into<ScriptSig>,
     {
-        TxInput{
+        TxInput {
             outpoint,
             script_sig: script_sig.into(),
-            sequence
+            sequence,
         }
     }
 }
 
 impl<M> Ser for TxInput<M>
 where
-    M: MarkedDigest + Ser
+    M: MarkedDigest + Ser,
 {
     type Error = SerError;
 
@@ -175,18 +172,18 @@ where
     fn deserialize<T>(reader: &mut T, _limit: usize) -> SerResult<Self>
     where
         T: Read,
-        Self: std::marker::Sized
+        Self: std::marker::Sized,
     {
-        Ok(TxInput{
+        Ok(TxInput {
             outpoint: Outpoint::deserialize(reader, 0)?,
             script_sig: ScriptSig::deserialize(reader, 0)?,
-            sequence: Self::read_u32_le(reader)?
+            sequence: Self::read_u32_le(reader)?,
         })
     }
 
     fn serialize<T>(&self, writer: &mut T) -> SerResult<usize>
     where
-        T: Write
+        T: Write,
     {
         let mut len = self.outpoint.serialize(writer)?;
         len += self.script_sig.serialize(writer)?;
@@ -208,23 +205,30 @@ pub type Vin = ConcretePrefixVec<BitcoinTxIn>;
 #[cfg(test)]
 mod test {
     use super::*;
-    use riemann_core::{
-        ser::{Ser},
-        types::primitives::{PrefixVec},
-    };
+    use riemann_core::{ser::Ser, types::primitives::PrefixVec};
 
-    static NULL_OUTPOINT: &str = "0000000000000000000000000000000000000000000000000000000000000000ffffffff";
+    static NULL_OUTPOINT: &str =
+        "0000000000000000000000000000000000000000000000000000000000000000ffffffff";
 
     #[test]
     fn it_serializes_and_derializes_outpoints() {
         let cases = [
-        (Outpoint::<TXID>{txid: TXID::default(), idx: 0}, (0..36).map(|_| "00").collect::<String>()),
-        (Outpoint::<TXID>::null(), NULL_OUTPOINT.to_string())
+            (
+                Outpoint::<TXID> {
+                    txid: TXID::default(),
+                    idx: 0,
+                },
+                (0..36).map(|_| "00").collect::<String>(),
+            ),
+            (Outpoint::<TXID>::null(), NULL_OUTPOINT.to_string()),
         ];
         for case in cases.iter() {
             assert_eq!(case.0.serialized_length(), case.1.len() / 2);
             assert_eq!(case.0.serialize_hex().unwrap(), case.1.to_owned());
-            assert_eq!(Outpoint::<TXID>::deserialize_hex(case.1.to_owned()).unwrap(), case.0);
+            assert_eq!(
+                Outpoint::<TXID>::deserialize_hex(case.1.to_owned()).unwrap(),
+                case.0
+            );
         }
     }
 
@@ -232,27 +236,26 @@ mod test {
     fn it_serializes_and_derializes_inputs() {
         let cases = [
             (
-                BitcoinTxIn{
+                BitcoinTxIn {
                     outpoint: Outpoint::null(),
                     script_sig: ScriptSig::null(),
-                    sequence: 0x1234abcd
+                    sequence: 0x1234abcd,
                 },
-                format!("{}{}{}", NULL_OUTPOINT, "00", "cdab3412")
+                format!("{}{}{}", NULL_OUTPOINT, "00", "cdab3412"),
             ),
             (
-                BitcoinTxIn::new(
-                    Outpoint::null(),
-                    vec![],
-                    0x11223344
-                ),
-                format!("{}{}{}", NULL_OUTPOINT, "00", "44332211")
+                BitcoinTxIn::new(Outpoint::null(), vec![], 0x11223344),
+                format!("{}{}{}", NULL_OUTPOINT, "00", "44332211"),
             ),
         ];
 
         for case in cases.iter() {
             assert_eq!(case.0.serialized_length(), case.1.len() / 2);
             assert_eq!(case.0.serialize_hex().unwrap(), case.1.to_owned());
-            assert_eq!(BitcoinTxIn::deserialize_hex(case.1.to_owned()).unwrap(), case.0);
+            assert_eq!(
+                BitcoinTxIn::deserialize_hex(case.1.to_owned()).unwrap(),
+                case.0
+            );
         }
     }
 }

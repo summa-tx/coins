@@ -1,18 +1,17 @@
 //! A simple trait for binary (de)Serialization using std `Read` and `Write` traits.
 
-use std::{
-    fmt::{Debug},
-    io::{Read, Write, Error as IOError, Cursor},
-};
-use hex::FromHexError;
 use base64::DecodeError;
-use thiserror::Error;
 use bitcoin_spv::types::Hash256Digest;
-
+use hex::FromHexError;
+use std::{
+    fmt::Debug,
+    io::{Cursor, Error as IOError, Read, Write},
+};
+use thiserror::Error;
 
 /// Erros related to serialization of types.
 #[derive(Debug, Error)]
-pub enum SerError{
+pub enum SerError {
     /// VarInts must be minimal.
     #[error("Attempted to deserialize non-minmal VarInt. Someone is doing something fishy.")]
     NonMinimalVarInt,
@@ -31,7 +30,7 @@ pub enum SerError{
 
     /// An error by a component call in data structure (de)serialization
     #[error("Error in component (de)serialization: {0}")]
-    ComponentError(String)
+    ComponentError(String),
 }
 
 /// Type alias for serialization errors
@@ -43,17 +42,17 @@ pub fn prefix_byte_len(number: u64) -> u8 {
         0..=0xfc => 1,
         0xfd..=0xffff => 3,
         0x10000..=0xffff_ffff => 5,
-        _ => 9
+        _ => 9,
     }
 }
 
 /// Matches the length of the VarInt to the 1-byte flag
 pub fn first_byte_from_len(number: u8) -> Option<u8> {
     match number {
-         3 =>  Some(0xfd),
-         5 =>  Some(0xfe),
-         9 =>  Some(0xff),
-         _ => None
+        3 => Some(0xfd),
+        5 => Some(0xfe),
+        9 => Some(0xff),
+        _ => None,
     }
 }
 
@@ -63,7 +62,7 @@ pub fn prefix_len_from_first_byte(number: u8) -> u8 {
         0..=0xfc => 1,
         0xfd => 3,
         0xfe => 5,
-        0xff => 9
+        0xff => 9,
     }
 }
 
@@ -73,7 +72,6 @@ pub fn prefix_len_from_first_byte(number: u8) -> u8 {
 /// `Ser` is used extensively in Sighash calculation, txid calculations, and transaction
 /// serialization and deserialization.
 pub trait Ser {
-
     /// An associated error type
     type Error: From<SerError> + From<IOError> + std::error::Error;
 
@@ -87,7 +85,7 @@ pub trait Ser {
     /// Convenience function for reading a LE u32
     fn read_u32_le<R>(reader: &mut R) -> Result<u32, Self::Error>
     where
-        R: Read
+        R: Read,
     {
         let mut buf = [0u8; 4];
         reader.read_exact(&mut buf)?;
@@ -97,7 +95,7 @@ pub trait Ser {
     /// Convenience function for reading a LE u64
     fn read_u64_le<R>(reader: &mut R) -> Result<u64, Self::Error>
     where
-        R: Read
+        R: Read,
     {
         let mut buf = [0u8; 8];
         reader.read_exact(&mut buf)?;
@@ -107,10 +105,10 @@ pub trait Ser {
     /// Convenience function for reading a Bitcoin-style VarInt
     fn read_compact_int<R>(reader: &mut R) -> Result<u64, <Self as Ser>::Error>
     where
-        R: Read
+        R: Read,
     {
         let mut prefix = [0u8; 1];
-        reader.read_exact(&mut prefix)?;  // read at most one byte
+        reader.read_exact(&mut prefix)?; // read at most one byte
         let prefix_len = prefix_len_from_first_byte(prefix[0]);
 
         // Get the byte(s) representing the number, and parse as u64
@@ -134,7 +132,7 @@ pub trait Ser {
     /// Convenience function for writing a LE u32
     fn write_u32_le<W>(writer: &mut W, number: u32) -> Result<usize, <Self as Ser>::Error>
     where
-        W: Write
+        W: Write,
     {
         Ok(writer.write(&number.to_le_bytes())?)
     }
@@ -142,7 +140,7 @@ pub trait Ser {
     /// Convenience function for writing a LE u64
     fn write_u64_le<W>(writer: &mut W, number: u64) -> Result<usize, <Self as Ser>::Error>
     where
-        W: Write
+        W: Write,
     {
         Ok(writer.write(&number.to_le_bytes())?)
     }
@@ -150,7 +148,7 @@ pub trait Ser {
     /// Convenience function for writing a Bitcoin-style VarInt
     fn write_comapct_int<W>(writer: &mut W, number: u64) -> Result<usize, <Self as Ser>::Error>
     where
-        W: Write
+        W: Write,
     {
         let prefix_len = prefix_byte_len(number);
         let written: usize = match first_byte_from_len(prefix_len) {
@@ -192,7 +190,7 @@ pub trait Ser {
     /// Decodes a hex string to a `Vec<u8>`, deserializes an instance of `Self` from that vector.
     fn deserialize_hex(s: String) -> Result<Self, Self::Error>
     where
-        Self: std::marker::Sized
+        Self: std::marker::Sized,
     {
         let v: Vec<u8> = hex::decode(s).map_err(SerError::from)?;
         let mut cursor = Cursor::new(v);
@@ -202,7 +200,7 @@ pub trait Ser {
     /// Serialize `self` to a base64 string, using standard RFC4648 non-url safe characters
     fn deserialize_base64(s: String) -> Result<Self, Self::Error>
     where
-        Self: std::marker::Sized
+        Self: std::marker::Sized,
     {
         let v: Vec<u8> = base64::decode(s).map_err(SerError::from)?;
         let mut cursor = Cursor::new(v);
@@ -247,7 +245,7 @@ pub trait Ser {
 impl<E, I> Ser for Vec<I>
 where
     E: From<SerError> + From<IOError> + std::error::Error,
-    I: Ser<Error = E>
+    I: Ser<Error = E>,
 {
     type Error = E;
 
@@ -263,7 +261,7 @@ where
     fn deserialize<T>(reader: &mut T, limit: usize) -> Result<Self, Self::Error>
     where
         T: Read,
-        Self: std::marker::Sized
+        Self: std::marker::Sized,
     {
         let mut v = vec![];
         for _ in 0..limit {
@@ -274,7 +272,7 @@ where
 
     fn serialize<W>(&self, writer: &mut W) -> Result<usize, Self::Error>
     where
-        W: Write
+        W: Write,
     {
         Ok(self.iter().map(|v| v.serialize(writer).unwrap()).sum())
     }
@@ -294,7 +292,7 @@ impl Ser for Hash256Digest {
     fn deserialize<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
     where
         R: Read,
-        Self: std::marker::Sized
+        Self: std::marker::Sized,
     {
         let mut buf = Hash256Digest::default();
         reader.read_exact(&mut buf)?;
@@ -303,7 +301,7 @@ impl Ser for Hash256Digest {
 
     fn serialize<W>(&self, writer: &mut W) -> SerResult<usize>
     where
-        W: Write
+        W: Write,
     {
         Ok(writer.write(self)?)
     }
@@ -323,7 +321,7 @@ impl Ser for u8 {
     fn deserialize<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
     where
         R: Read,
-        Self: std::marker::Sized
+        Self: std::marker::Sized,
     {
         let mut buf = [0u8; 1];
         reader.read_exact(&mut buf)?;
@@ -332,7 +330,7 @@ impl Ser for u8 {
 
     fn serialize<W>(&self, writer: &mut W) -> SerResult<usize>
     where
-        W: Write
+        W: Write,
     {
         Ok(writer.write(&self.to_le_bytes())?)
     }
@@ -348,7 +346,8 @@ mod test {
             (1, 1, None),
             (0xff, 3, Some(0xfd)),
             (0xffff_ffff, 5, Some(0xfe)),
-            (0xffff_ffff_ffff_ffff, 9, Some(0xff))];
+            (0xffff_ffff_ffff_ffff, 9, Some(0xff)),
+        ];
         for case in cases.iter() {
             assert_eq!(prefix_byte_len(case.0), case.1);
             assert_eq!(first_byte_from_len(case.1), case.2);
