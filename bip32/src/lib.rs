@@ -1,9 +1,13 @@
 //! This crate provides a basic implementation of BIP32 and related BIPs.
 
 #![forbid(unsafe_code)]
-
 #![warn(missing_docs)]
 #![warn(unused_extern_crates)]
+
+
+#[macro_use]
+extern crate lazy_static;
+
 
 // /// Keys and related functionality
 // pub mod keys;
@@ -20,17 +24,26 @@ pub mod backend;
 /// `DerivationPath` type and tooling for parsing it from strings
 pub mod path;
 
-use secp256k1;
-
-use thiserror::{Error};
+use thiserror::Error;
 
 /// The hardened derivation flag. Keys at or above this index are hardened.
 pub const BIP32_HARDEN: u32 = 0x8000_0000;
 
+#[doc(hidden)]
+pub const CURVE_ORDER: [u8; 32] = [
+    0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe,
+    0xba, 0xae, 0xdc, 0xe6, 0xaf, 0x48, 0xa0, 0x3b, 0xbf, 0xd2, 0x5e, 0x8c, 0xd0, 0x36, 0x41, 0x41,
+];
 
 /// Errors for this library
 #[derive(Debug, Error)]
 pub enum Bip32Error {
+    #[cfg(all(feature = "rust_secp", not(feature = "libsecp")))]
+    /// Error bubbled up froom secp256k1
+    #[error(transparent)]
+    Secp256k1Error(#[from] libsecp256k1_core::Error),
+
+    #[cfg(all(feature = "libsecp", not(feature = "rust_secp")))]
     /// Error bubbled up froom secp256k1
     #[error(transparent)]
     Secp256k1Error(#[from] secp256k1::Error),
@@ -88,16 +101,16 @@ impl From<std::convert::Infallible> for Bip32Error {
     fn from(_i: std::convert::Infallible) -> Self {
         unimplemented!("unreachable, but required by type system")
     }
- }
+}
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use hex;
-    use std::convert::{TryFrom};
-    use crate::xkeys::{Hint, XKey, XPriv, XPub};
-    use crate::backend::{Secp256k1Backend};
+    use crate::backend::Secp256k1Backend;
     use crate::enc::{Encoder, MainnetEncoder};
+    use crate::xkeys::{Hint, XKey, XPriv, XPub};
+    use hex;
+    use std::convert::TryFrom;
 
     struct KeyDeriv<'a> {
         pub path: &'a [u32],
@@ -109,7 +122,8 @@ mod test {
         let xpriv = m.derive_path(d.path).unwrap();
         let xpub: XPub<'a> = TryFrom::try_from(&xpriv).unwrap();
 
-        let deser_xpriv = MainnetEncoder::xpriv_from_base58(&d.xpriv, xpriv.backend().ok()).unwrap();
+        let deser_xpriv =
+            MainnetEncoder::xpriv_from_base58(&d.xpriv, xpriv.backend().ok()).unwrap();
         let deser_xpub = MainnetEncoder::xpub_from_base58(&d.xpub, xpriv.backend().ok()).unwrap();
 
         assert_eq!(&xpriv, &deser_xpriv);
@@ -130,12 +144,19 @@ mod test {
         let expected_xpriv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
 
         let deser_xpub = MainnetEncoder::xpub_from_base58(&expected_xpub, Some(&backend)).unwrap();
-        let deser_xpriv = MainnetEncoder::xpriv_from_base58(&expected_xpriv, Some(&backend)).unwrap();
+        let deser_xpriv =
+            MainnetEncoder::xpriv_from_base58(&expected_xpriv, Some(&backend)).unwrap();
 
         assert_eq!(&xpriv, &deser_xpriv);
-        assert_eq!(MainnetEncoder::xpriv_to_base58(&xpriv).unwrap(), expected_xpriv);
+        assert_eq!(
+            MainnetEncoder::xpriv_to_base58(&xpriv).unwrap(),
+            expected_xpriv
+        );
         assert_eq!(&xpub, &deser_xpub);
-        assert_eq!(MainnetEncoder::xpub_to_base58(&xpub).unwrap(), expected_xpub);
+        assert_eq!(
+            MainnetEncoder::xpub_to_base58(&xpub).unwrap(),
+            expected_xpub
+        );
 
         let descendants = [
             KeyDeriv {
@@ -182,12 +203,19 @@ mod test {
         let expected_xpriv = "xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U";
 
         let deser_xpub = MainnetEncoder::xpub_from_base58(&expected_xpub, Some(&backend)).unwrap();
-        let deser_xpriv = MainnetEncoder::xpriv_from_base58(&expected_xpriv, Some(&backend)).unwrap();
+        let deser_xpriv =
+            MainnetEncoder::xpriv_from_base58(&expected_xpriv, Some(&backend)).unwrap();
 
         assert_eq!(&xpriv, &deser_xpriv);
-        assert_eq!(MainnetEncoder::xpriv_to_base58(&xpriv).unwrap(), expected_xpriv);
+        assert_eq!(
+            MainnetEncoder::xpriv_to_base58(&xpriv).unwrap(),
+            expected_xpriv
+        );
         assert_eq!(&xpub, &deser_xpub);
-        assert_eq!(MainnetEncoder::xpub_to_base58(&xpub).unwrap(), expected_xpub);
+        assert_eq!(
+            MainnetEncoder::xpub_to_base58(&xpub).unwrap(),
+            expected_xpub
+        );
 
         let descendants = [
             KeyDeriv {
@@ -234,12 +262,19 @@ mod test {
         let expected_xpriv = "xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6";
 
         let deser_xpub = MainnetEncoder::xpub_from_base58(&expected_xpub, Some(&backend)).unwrap();
-        let deser_xpriv = MainnetEncoder::xpriv_from_base58(&expected_xpriv, Some(&backend)).unwrap();
+        let deser_xpriv =
+            MainnetEncoder::xpriv_from_base58(&expected_xpriv, Some(&backend)).unwrap();
 
         assert_eq!(&xpriv, &deser_xpriv);
-        assert_eq!(MainnetEncoder::xpriv_to_base58(&xpriv).unwrap(), expected_xpriv);
+        assert_eq!(
+            MainnetEncoder::xpriv_to_base58(&xpriv).unwrap(),
+            expected_xpriv
+        );
         assert_eq!(&xpub, &deser_xpub);
-        assert_eq!(MainnetEncoder::xpub_to_base58(&xpub).unwrap(), expected_xpub);
+        assert_eq!(
+            MainnetEncoder::xpub_to_base58(&xpub).unwrap(),
+            expected_xpub
+        );
 
         let descendants = [
             KeyDeriv {

@@ -1,7 +1,7 @@
 use std::{
-    convert::{TryFrom},
+    convert::TryFrom,
     iter::{FromIterator, IntoIterator},
-    slice::{Iter},
+    slice::Iter,
 };
 
 use crate::{Bip32Error, BIP32_HARDEN};
@@ -15,7 +15,8 @@ fn try_parse_index(s: &str) -> Result<u32, Bip32Error> {
         false
     };
 
-    index_str.parse::<u32>()
+    index_str
+        .parse::<u32>()
         .map(|v| if harden { v + BIP32_HARDEN } else { v })
         .map_err(|_| Bip32Error::MalformattedIndex(s.to_owned()))
 }
@@ -64,16 +65,15 @@ impl From<&[u32]> for DerivationPath {
 impl TryFrom<&str> for DerivationPath {
     type Error = Bip32Error;
 
-   fn try_from(s: &str) -> Result<Self, Self::Error> {
-       try_parse_path(s)
-   }
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        try_parse_path(s)
+    }
 }
 
-impl FromIterator<u32> for DerivationPath
-{
+impl FromIterator<u32> for DerivationPath {
     fn from_iter<T>(iter: T) -> Self
     where
-        T: IntoIterator<Item = u32>
+        T: IntoIterator<Item = u32>,
     {
         Vec::from_iter(iter).into()
     }
