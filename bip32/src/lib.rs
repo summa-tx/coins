@@ -4,10 +4,8 @@
 #![warn(missing_docs)]
 #![warn(unused_extern_crates)]
 
-
 #[macro_use]
 extern crate lazy_static;
-
 
 // /// Keys and related functionality
 // pub mod keys;
@@ -19,10 +17,16 @@ pub mod xkeys;
 pub mod enc;
 
 /// The curve-math backend, selected at compile time. Defaults to native libsecp256k1 bindings.
-pub mod backend;
+pub mod backends;
+
+/// Traits and other high-level model description.
+pub mod model;
 
 /// `DerivationPath` type and tooling for parsing it from strings
 pub mod path;
+
+#[cfg(any(feature = "libsecp", feature = "rust_secp"))]
+pub use xkeys::{XPriv, XPub};
 
 use thiserror::Error;
 
@@ -95,6 +99,10 @@ pub enum Bip32Error {
     /// Parsing an string derivation failed because an index string was malformatted
     #[error("Malformatted index during derivation: {0}")]
     MalformattedIndex(String),
+
+    /// Attempted to deserialize a DER signature to a recoverable signature.
+    #[error("Attempted to deserialize a DER signature to a recoverable signature. Use deserialize_vrs instead")]
+    NoRecoveryID,
 }
 
 impl From<std::convert::Infallible> for Bip32Error {
@@ -107,8 +115,9 @@ impl From<std::convert::Infallible> for Bip32Error {
 mod test {
     use super::*;
     use crate::{
-        backend::Secp256k1Backend,
+        backends::curve::Secp256k1,
         enc::{Encoder, MainnetEncoder},
+        model::Secp256k1Backend,
         xkeys::{Hint, XKey, XPriv, XPub},
     };
 
@@ -138,7 +147,7 @@ mod test {
     #[test]
     fn bip32_vector_1() {
         let seed: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-        let backend = backend::curve::Secp256k1::init();
+        let backend = Secp256k1::init();
 
         let xpriv = xkeys::XPriv::root_from_seed(&seed, Some(Hint::Legacy), &backend).unwrap();
         let xpub = xkeys::XPub::try_from(&xpriv).unwrap();
@@ -197,7 +206,7 @@ mod test {
     #[test]
     fn bip32_vector_2() {
         let seed = hex::decode(&"fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542").unwrap();
-        let backend = backend::curve::Secp256k1::init();
+        let backend = Secp256k1::init();
 
         let xpriv = xkeys::XPriv::root_from_seed(&seed, Some(Hint::Legacy), &backend).unwrap();
         let xpub = xkeys::XPub::try_from(&xpriv).unwrap();
@@ -256,7 +265,7 @@ mod test {
     #[test]
     fn bip32_vector_3() {
         let seed = hex::decode(&"4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be").unwrap();
-        let backend = backend::curve::Secp256k1::init();
+        let backend = Secp256k1::init();
 
         let xpriv = xkeys::XPriv::root_from_seed(&seed, Some(Hint::Legacy), &backend).unwrap();
         let xpub = xkeys::XPub::try_from(&xpriv).unwrap();

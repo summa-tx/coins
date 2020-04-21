@@ -4,7 +4,7 @@ use bitcoin_spv::btcspv::hash256;
 use bs58;
 
 use crate::{
-    backend::{PointSerialize, ScalarSerialize, Secp256k1Backend},
+    model::{PointSerialize, ScalarSerialize, Secp256k1Backend},
     xkeys::{ChainCode, GenericXPriv, GenericXPub, Hint, KeyFingerprint, XKey},
     Bip32Error,
 };

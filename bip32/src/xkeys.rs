@@ -5,7 +5,7 @@ use hmac::{Hmac, Mac};
 use sha2::Sha512;
 
 use crate::{
-    backend::{PointSerialize, ScalarSerialize, Secp256k1Backend},
+    model::{PointSerialize, ScalarSerialize, Secp256k1Backend, SigningKey, VerifyingKey},
     path::DerivationPath,
     Bip32Error, BIP32_HARDEN, CURVE_ORDER,
 };
@@ -138,7 +138,7 @@ pub struct GenericXPriv<'a, T: Secp256k1Backend<'a>> {
 
 /// A BIP32 Extended privkey using the library's compiled-in secp256k1 backend.
 #[cfg(any(feature = "libsecp", feature = "rust_secp"))]
-pub type XPriv<'a> = GenericXPriv<'a, crate::backend::curve::Secp256k1<'a>>;
+pub type XPriv<'a> = GenericXPriv<'a, crate::backends::curve::Secp256k1<'a>>;
 
 impl<'a, T: Secp256k1Backend<'a>> GenericXPriv<'a, T> {
     /// Instantiate a master node using a custom HMAC key.
@@ -216,6 +216,19 @@ impl<'a, T: Secp256k1Backend<'a>> GenericXPriv<'a, T> {
     #[doc(hidden)]
     pub fn backend(&self) -> Result<&'a T, Bip32Error> {
         self.backend.ok_or(Bip32Error::NoBackend)
+    }
+
+    /// Derive the corresponding xpub
+    pub fn to_xpub(&self) -> Result<GenericXPub<'a, T>, Bip32Error> {
+        Ok(GenericXPub::new(
+            self.depth(),
+            self.parent(),
+            self.index(),
+            self.pubkey()?,
+            self.chain_code(),
+            self.hint(),
+            self.backend,
+        ))
     }
 }
 
@@ -315,9 +328,11 @@ pub struct GenericXPub<'a, T: Secp256k1Backend<'a>> {
 
 /// A BIP32 Extended pubkey using the library's compiled-in secp256k1 backend.
 #[cfg(any(feature = "libsecp", feature = "rust_secp"))]
-pub type XPub<'a> = GenericXPub<'a, crate::backend::curve::Secp256k1<'a>>;
+pub type XPub<'a> = GenericXPub<'a, crate::backends::curve::Secp256k1<'a>>;
 
-impl<'a, T: Secp256k1Backend<'a>> std::convert::TryFrom<&GenericXPriv<'a, T>> for GenericXPub<'a, T> {
+impl<'a, T: Secp256k1Backend<'a>> std::convert::TryFrom<&GenericXPriv<'a, T>>
+    for GenericXPub<'a, T>
+{
     type Error = Bip32Error;
 
     fn try_from(k: &GenericXPriv<'a, T>) -> Result<Self, Bip32Error> {
@@ -447,6 +462,11 @@ impl<'a, T: Secp256k1Backend<'a>> GenericXPub<'a, T> {
     pub fn raw_pubkey(&self) -> [u8; 64] {
         self.pubkey.to_array_raw()
     }
+
+    /// Derive an XPub from an xpriv
+    pub fn from_xpriv(xpriv: &GenericXPriv<'a, T>) -> Result<GenericXPub<'a, T>, Bip32Error> {
+        xpriv.to_xpub()
+    }
 }
 
 impl<'a, T: Secp256k1Backend<'a>> Clone for GenericXPriv<'a, T> {
@@ -536,5 +556,47 @@ impl<'a, T: Secp256k1Backend<'a>> std::fmt::Debug for GenericXPriv<'a, T> {
             .field("index", &idx)
             .field("hint", &self.hint())
             .finish()
+    }
+}
+
+impl<'a, T: Secp256k1Backend<'a>> SigningKey for GenericXPriv<'a, T> {
+    type VerifyingKey = GenericXPub<'a, T>;
+    type Signature = T::Signature;
+    type RecoverableSignature = T::RecoverableSignature;
+
+    /// Derive the corresponding pubkey
+    fn to_verifying_key(&self) -> Result<Self::VerifyingKey, Bip32Error> {
+        self.to_xpub()
+    }
+
+    /// Sign a digest
+    fn sign_digest(&self, message: [u8; 32]) -> Result<Self::Signature, Bip32Error> {
+        Ok(self.backend()?.sign_digest(&self.privkey, message))
+    }
+
+    /// Sign a digest and produce a recovery ID
+    fn sign_digest_recoverable(
+        &self,
+        message: [u8; 32],
+    ) -> Result<Self::RecoverableSignature, Bip32Error> {
+        Ok(self
+            .backend()?
+            .sign_digest_recoverable(&self.privkey, message))
+    }
+}
+
+impl<'a, T: Secp256k1Backend<'a>> VerifyingKey for GenericXPub<'a, T> {
+    type SigningKey = GenericXPriv<'a, T>;
+    type Signature = T::Signature;
+    type RecoverableSignature = T::RecoverableSignature;
+
+    /// Instantiate `Self` from the corresponding signing key
+    fn from_signing_key(key: &Self::SigningKey) -> Result<Self, Bip32Error> {
+        key.to_verifying_key()
+    }
+
+    /// Verify a signature on a digest
+    fn verify_digest(&self, digest: [u8; 32], sig: &Self::Signature) -> Result<(), Bip32Error> {
+        self.backend()?.verify_digest(&self.pubkey, digest, sig)
     }
 }
