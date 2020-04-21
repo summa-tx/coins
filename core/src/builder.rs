@@ -1,14 +1,12 @@
 //! The `builder` module defines an abstract `TxBuilder` trait. A concrete implementation for
 //! Bitcoin can be found in the `bitcoin` crate
 
-use std::io::Read;
 use crate::{
-    enc::{AddressEncoder},
-    ser::{Ser},
-    types::{
-        tx::{Transaction, Input, Output},
-    },
+    enc::AddressEncoder,
+    ser::Ser,
+    types::tx::{Input, Output, Transaction},
 };
+use std::io::Read;
 
 /// A builder-pattern interface for constructing transactions. Implementations should accumulate
 /// inputs, outputs, witnesses, and other TX data, and then `build()` a Transaction object from
@@ -28,16 +26,20 @@ pub trait TxBuilder<'a>: std::marker::Sized {
     fn from_tx(tx: &Self::Transaction) -> Self;
 
     /// Instantiate a new builder from a `std::io::Read` that contains a serialized tx
-    fn from_serialized_tx<R>(reader: &mut R) -> Result<Self, <Self::Transaction as Transaction<'a>>::TxError>
+    fn from_serialized_tx<R>(
+        reader: &mut R,
+    ) -> Result<Self, <Self::Transaction as Transaction<'a>>::TxError>
     where
-        R: Read
+        R: Read,
     {
         let tx = Self::Transaction::deserialize(reader, 0)?;
         Ok(Self::from_tx(&tx))
     }
 
     /// Instantiate a new builder from transaction hex
-    fn from_hex_tx(hex_str: String) -> Result<Self, <Self::Transaction as Transaction<'a>>::TxError> {
+    fn from_hex_tx(
+        hex_str: String,
+    ) -> Result<Self, <Self::Transaction as Transaction<'a>>::TxError> {
         let tx = Self::Transaction::deserialize_hex(hex_str)?;
         Ok(Self::from_tx(&tx))
     }
@@ -57,7 +59,7 @@ pub trait TxBuilder<'a>: std::marker::Sized {
     fn pay(
         self,
         value: <<Self::Transaction as Transaction<'a>>::TxOut as Output>::Value,
-        address: &<Self::Encoder as AddressEncoder>::Address
+        address: &<Self::Encoder as AddressEncoder>::Address,
     ) -> Result<Self, <Self::Encoder as AddressEncoder>::Error>;
 
     /// Insert an input at the specified index. Inputs after that are shifted to later indices.
@@ -65,7 +67,11 @@ pub trait TxBuilder<'a>: std::marker::Sized {
     /// ## Note
     ///
     /// This may invalidate signatures made using ANYONECANPAY.
-    fn insert_input(self, index: usize, input: <Self::Transaction as Transaction<'a>>::TxIn) -> Self;
+    fn insert_input(
+        self,
+        index: usize,
+        input: <Self::Transaction as Transaction<'a>>::TxIn,
+    ) -> Self;
 
     /// Add a set of inputs to the transaction.
     fn extend_inputs<I>(self, inputs: I) -> Self
@@ -77,7 +83,11 @@ pub trait TxBuilder<'a>: std::marker::Sized {
     /// ## Note
     ///
     /// This may invalidate signatures made using SINGLE.
-    fn insert_output(self, index: usize, output: <Self::Transaction as Transaction<'a>>::TxOut) -> Self;
+    fn insert_output(
+        self,
+        index: usize,
+        output: <Self::Transaction as Transaction<'a>>::TxOut,
+    ) -> Self;
 
     /// Add a set of outputs to the transaction.
     fn extend_outputs<I>(self, outputs: I) -> Self

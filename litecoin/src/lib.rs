@@ -2,7 +2,7 @@
 
 use rmn_btc::{
     enc::{BitcoinEncoder, NetworkParams},
-    nets::{Bitcoin},
+    nets::Bitcoin,
 };
 
 pub struct LTC;

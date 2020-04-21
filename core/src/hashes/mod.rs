@@ -10,5 +10,5 @@ pub mod marked;
 /// Tooling for bitcoin-style double-sha2
 pub mod hash256;
 
-pub use marked::*;
 pub use hash256::*;
+pub use marked::*;

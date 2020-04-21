@@ -3,11 +3,11 @@
 //! transactions (and allow conversion from one to the other).
 
 pub mod script;
+pub mod transactions;
 pub mod txin;
 pub mod txout;
-pub mod transactions;
 
 pub use script::*;
+pub use transactions::*;
 pub use txin::*;
 pub use txout::*;
-pub use transactions::*;

@@ -1,11 +1,9 @@
-use std::io::{Write, Result as IOResult};
 use sha2::{Digest, Sha256};
+use std::io::{Result as IOResult, Write};
 
-use bitcoin_spv::types::{Hash256Digest};
+use bitcoin_spv::types::Hash256Digest;
 
-use crate::hashes::{
-    marked::{MarkedDigestWriter},
-};
+use crate::hashes::marked::MarkedDigestWriter;
 
 /// A struct that exposes a Bitcoin-style Hash256 `Write` interface by wrapping an internal SHA2
 /// instance.
@@ -29,7 +27,7 @@ use crate::hashes::{
 /// ```
 #[derive(Default)]
 pub struct Hash256Writer {
-    internal: Sha256
+    internal: Sha256,
 }
 
 impl Write for Hash256Writer {
@@ -62,7 +60,10 @@ mod test {
         w.flush().unwrap();
         assert_eq!(
             w.finish(),
-            Hash256Digest::deserialize_hex("1406e05881e299367766d313e26c05564ec91bf721d31726bd6e46e60689539a".to_owned()).unwrap()
+            Hash256Digest::deserialize_hex(
+                "1406e05881e299367766d313e26c05564ec91bf721d31726bd6e46e60689539a".to_owned()
+            )
+            .unwrap()
         );
     }
 }

@@ -1,16 +1,13 @@
 use std::collections::HashMap;
 
-use riemann_core::{
-    ser::{Ser},
-    types::primitives::{PrefixVec}
-};
+use riemann_core::{ser::Ser, types::primitives::PrefixVec};
 
 use crate::{
     psbt::common::{PSBTError, PSBTKey, PSBTValue},
     types::{
-        script::{Witness},
+        script::Witness,
         transactions::{LegacyTx, Sighash, TxError},
-        txout::{TxOut},
+        txout::TxOut,
     },
 };
 
@@ -33,13 +30,11 @@ impl KVTypeSchema {
     pub fn insert(&mut self, key_type: u8, new: KVPredicate) {
         let existing = self.0.remove(&key_type);
         let updated: KVPredicate = match existing {
-            Some(predicate) => {
-                Box::new(move |k: &PSBTKey, v: &PSBTValue| {
-                    predicate(k, v)?;
-                    new(k, v)
-                })
-            }
-            None => new
+            Some(predicate) => Box::new(move |k: &PSBTKey, v: &PSBTValue| {
+                predicate(k, v)?;
+                new(k, v)
+            }),
+            None => new,
         };
         self.0.insert(key_type, updated);
     }
@@ -52,7 +47,7 @@ impl KVTypeSchema {
 
 /// Check that a value can be interpreted as a bip32 fingerprint + derivation
 pub fn validate_bip32_value(val: &PSBTValue) -> Result<(), PSBTError> {
-    if !val.is_empty() && val.len() % 4 != 0  {
+    if !val.is_empty() && val.len() % 4 != 0 {
         Err(PSBTError::InvalidBIP32Path)
     } else {
         Ok(())
@@ -62,7 +57,10 @@ pub fn validate_bip32_value(val: &PSBTValue) -> Result<(), PSBTError> {
 /// Validate that a key is a fixed length
 pub fn validate_fixed_key_length(key: &PSBTKey, length: usize) -> Result<(), PSBTError> {
     if key.len() != length {
-        Err(PSBTError::WrongKeyLength{expected: length, got: key.len()})
+        Err(PSBTError::WrongKeyLength {
+            expected: length,
+            got: key.len(),
+        })
     } else {
         Ok(())
     }
@@ -71,7 +69,10 @@ pub fn validate_fixed_key_length(key: &PSBTKey, length: usize) -> Result<(), PSB
 /// Validate that a key is a fixed length
 pub fn validate_fixed_val_length(val: &PSBTValue, length: usize) -> Result<(), PSBTError> {
     if val.len() != length {
-        Err(PSBTError::WrongValueLength{expected: length, got: val.len()})
+        Err(PSBTError::WrongValueLength {
+            expected: length,
+            got: val.len(),
+        })
     } else {
         Ok(())
     }
@@ -83,9 +84,12 @@ pub fn validate_single_byte_key_type(key: &PSBTKey) -> Result<(), PSBTError> {
 }
 
 /// Ensure that a key has the expected key type
-pub fn validate_expected_key_type(key: &PSBTKey, key_type: u8) ->  Result<(), PSBTError> {
+pub fn validate_expected_key_type(key: &PSBTKey, key_type: u8) -> Result<(), PSBTError> {
     if key.key_type() != key_type {
-        Err(PSBTError::WrongKeyType{expected: key_type, got: key.key_type()})
+        Err(PSBTError::WrongKeyType {
+            expected: key_type,
+            got: key.key_type(),
+        })
     } else {
         Ok(())
     }
@@ -108,8 +112,9 @@ pub fn try_val_as_sighash(val: &PSBTValue) -> Result<Sighash, PSBTError> {
     let mut buf = [0u8; 4];
     buf.copy_from_slice(&val.items()[..4]);
     let sighash = u32::from_le_bytes(buf);
-    if sighash > 0xff {  // bits higher than the first byte should be empty
-        return Err(TxError::UnknownSighash(0xff).into())
+    if sighash > 0xff {
+        // bits higher than the first byte should be empty
+        return Err(TxError::UnknownSighash(0xff).into());
     }
     Ok(Sighash::from_u8(sighash as u8)?)
 }
@@ -241,7 +246,10 @@ pub mod input {
     }
 
     /// Validate PSBT_IN_FINAL_SCRIPTWITNESS kv pair.
-    pub fn validate_finalized_script_witness(key: &PSBTKey, _val: &PSBTValue) -> Result<(), PSBTError> {
+    pub fn validate_finalized_script_witness(
+        key: &PSBTKey,
+        _val: &PSBTValue,
+    ) -> Result<(), PSBTError> {
         validate_expected_key_type(key, 8)?;
         validate_single_byte_key_type(key)
         // TODO: Script isn't nonsense

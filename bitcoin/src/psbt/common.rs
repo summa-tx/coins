@@ -1,24 +1,14 @@
-use std::{
-    collections::btree_map,
-    io::{Error as IOError},
-    ops::{RangeBounds},
-};
+use std::{collections::btree_map, io::Error as IOError, ops::RangeBounds};
 
-use thiserror::{Error};
+use thiserror::Error;
 
-use riemann_core::{
-    ser::{SerError},
-    types::primitives::{ConcretePrefixVec},
-};
+use riemann_core::{ser::SerError, types::primitives::ConcretePrefixVec};
 
-use crate::{
-    psbt::schema,
-    types::transactions::{TxError},
-};
+use crate::{psbt::schema, types::transactions::TxError};
 
 /// An Error type for PSBT objects
 #[derive(Debug, Error)]
-pub enum PSBTError{
+pub enum PSBTError {
     /// Serialization-related errors
     #[error(transparent)]
     SerError(#[from] SerError),
@@ -45,29 +35,29 @@ pub enum PSBTError{
 
     /// Returned from schema validation when the key size is unexpected
     #[error("Key failed validation. Wrong length. Expected {expected} bytes. Got {got} bytes")]
-    WrongKeyLength{
+    WrongKeyLength {
         /// The expected key length
         expected: usize,
         /// The actual key length
-        got: usize
+        got: usize,
     },
 
     /// Returned from schema validation when the value size is unexpected
     #[error("Value failed validation. Wrong length. Expected {expected} bytes. Got {got} bytes")]
-    WrongValueLength{
+    WrongValueLength {
         /// The expected value length
         expected: usize,
         /// The actual value length
-        got: usize
+        got: usize,
     },
 
     /// Returned from schema validation when the key size is unexpected
     #[error("Key failed validation. Wrong type. Expected {expected}. Got {got}")]
-    WrongKeyType{
+    WrongKeyType {
         /// The expected key length
         expected: u8,
         /// The actual key length
-        got: u8
+        got: u8,
     },
 
     /// Returned when a serialized bip32 derivation is invalid. This
@@ -76,7 +66,7 @@ pub enum PSBTError{
 
     /// Returned when a PSBT's `Input` map vec length doesn't match its transaction's vin length
     #[error("Vin length mismatch. Tx has {tx_ins} inputs. PSBT has {maps} input maps")]
-    VinLengthMismatch{
+    VinLengthMismatch {
         /// The number of inputs in the transaction.
         tx_ins: usize,
         /// The number of input maps in the PSBT
@@ -85,7 +75,7 @@ pub enum PSBTError{
 
     /// Returned when a PSBT's `Output` map vec length doesn't match its transaction's vout length
     #[error("Vout length mismatch. Tx has {tx_outs} outputs. PSBT has {maps} output maps")]
-    VoutLengthMismatch{
+    VoutLengthMismatch {
         /// The number of outputs in the transaction.
         tx_outs: usize,
         /// The number of output maps in the PSBT
@@ -144,7 +134,8 @@ pub trait PSTMap {
 
     /// Return the value or a MissingKey error
     fn must_get(&self, key: &PSBTKey) -> Result<&PSBTValue, PSBTError> {
-        self.get(key).ok_or_else(|| PSBTError::MissingKey(key.key_type()))
+        self.get(key)
+            .ok_or_else(|| PSBTError::MissingKey(key.key_type()))
     }
 
     /// Return a range containing any proprietary KV pairs
@@ -168,7 +159,8 @@ pub trait PSBTValidate: PSTMap {
         // BOTH is NOT acceptable
         // NEITHER is acceptable
         for (key_type, predicate) in schema.0.iter() {
-            let result: Result<Vec<_>, PSBTError> = self.range_by_key_type(*key_type)
+            let result: Result<Vec<_>, PSBTError> = self
+                .range_by_key_type(*key_type)
                 .map(|(k, v)| predicate(k, v))
                 .collect();
             result?;

@@ -20,11 +20,9 @@
 //! let script = bitcoin::Script::new(/* your script info */);
 //! let script = rmn_btc::types::Script::from(script.into_bytes());
 //! ```
-use riemann_core::{
-    types::{
-        tx::{RecipientIdentifier},
-        primitives::{ConcretePrefixVec, PrefixVec},
-    },
+use riemann_core::types::{
+    primitives::{ConcretePrefixVec, PrefixVec},
+    tx::RecipientIdentifier,
 };
 
 /// A wrapped script.
@@ -67,7 +65,6 @@ wrap_prefixed_byte_vector!(
     ScriptPubkey
 );
 
-
 impl BitcoinScript for Script {
     fn from_script(s: ConcretePrefixVec<u8>) -> Self {
         Self(s)
@@ -80,7 +77,6 @@ impl BitcoinScript for ScriptPubkey {
     }
 }
 
-
 impl BitcoinScript for ScriptSig {
     fn from_script(s: ConcretePrefixVec<u8>) -> Self {
         Self(s)
@@ -92,7 +88,6 @@ impl BitcoinScript for WitnessStackItem {
         Self(s)
     }
 }
-
 
 impl_script_conversion!(Script, ScriptPubkey);
 impl_script_conversion!(Script, ScriptSig);
@@ -125,7 +120,7 @@ pub enum ScriptType {
     /// Pay to Witness Scripthash.
     WSH,
     /// Nonstandard or unknown `Script` type. May be a newer witness version.
-    NonStandard
+    NonStandard,
 }
 
 impl ScriptPubkey {
@@ -140,7 +135,7 @@ impl ScriptPubkey {
                 } else {
                     ScriptType::NonStandard
                 }
-            },
+            }
             0x17 => {
                 // SH
                 if items[0..=2] == [0xa9, 0x14] && items[17..=18] == [0x87] {
@@ -148,7 +143,7 @@ impl ScriptPubkey {
                 } else {
                     ScriptType::NonStandard
                 }
-            },
+            }
             0x16 => {
                 // WPKH
                 if items[0..=1] == [0x00, 0x14] {
@@ -156,45 +151,36 @@ impl ScriptPubkey {
                 } else {
                     ScriptType::NonStandard
                 }
-            },
+            }
             0x22 => {
                 if items[0..=1] == [0x00, 0x20] {
                     ScriptType::WSH
                 } else {
                     ScriptType::NonStandard
                 }
-            },
-            _ => ScriptType::NonStandard
+            }
+            _ => ScriptType::NonStandard,
         }
     }
 }
 
 #[cfg(test)]
-mod test{
+mod test {
     use super::*;
-    use riemann_core::{
-        ser::{Ser},
-        types::primitives::{PrefixVec}
-    };
+    use riemann_core::{ser::Ser, types::primitives::PrefixVec};
 
     #[test]
     fn it_serializes_and_derializes_scripts() {
         let cases = [
             (
-                Script::new(hex::decode("0014758ce550380d964051086798d6546bebdca27a73".to_owned()).unwrap()),
+                Script::new(
+                    hex::decode("0014758ce550380d964051086798d6546bebdca27a73".to_owned()).unwrap(),
+                ),
                 "160014758ce550380d964051086798d6546bebdca27a73",
-                22
+                22,
             ),
-            (
-                Script::new(vec![]),
-                "00",
-                0
-            ),
-            (
-                Script::null(),
-                "00",
-                0
-            ),
+            (Script::new(vec![]), "00", 0),
+            (Script::null(), "00", 0),
         ];
         for case in cases.iter() {
             let prevout_script = Script::deserialize_hex(case.1.to_owned()).unwrap();
@@ -206,28 +192,21 @@ mod test{
             assert_eq!(prevout_script.serialize_hex().unwrap(), case.1);
             assert_eq!(prevout_script.len(), case.2);
             assert_eq!(prevout_script.is_empty(), case.2 == 0);
-
         }
     }
 
     #[test]
     fn it_serializes_and_derializes_witness_stack_items() {
         let cases = [
-        (
-            WitnessStackItem::new(hex::decode("0014758ce550380d964051086798d6546bebdca27a73".to_owned()).unwrap()),
-            "160014758ce550380d964051086798d6546bebdca27a73",
-            22
-        ),
-        (
-            WitnessStackItem::new(vec![]),
-            "00",
-            0
-        ),
-        (
-            WitnessStackItem::null(),
-            "00",
-            0
-        ),
+            (
+                WitnessStackItem::new(
+                    hex::decode("0014758ce550380d964051086798d6546bebdca27a73".to_owned()).unwrap(),
+                ),
+                "160014758ce550380d964051086798d6546bebdca27a73",
+                22,
+            ),
+            (WitnessStackItem::new(vec![]), "00", 0),
+            (WitnessStackItem::null(), "00", 0),
         ];
         for case in cases.iter() {
             let prevout_script = WitnessStackItem::deserialize_hex(case.1.to_owned()).unwrap();
@@ -239,7 +218,6 @@ mod test{
             assert_eq!(prevout_script.serialize_hex().unwrap(), case.1);
             assert_eq!(prevout_script.len(), case.2);
             assert_eq!(prevout_script.is_empty(), case.2 == 0);
-
         }
     }
 }

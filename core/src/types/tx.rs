@@ -1,10 +1,8 @@
 use std::io::Write;
 
 use crate::{
-    hashes::{
-        marked::{Digest, MarkedDigest, MarkedDigestWriter},
-    },
-    ser::{Ser, SerError}
+    hashes::marked::{Digest, MarkedDigest, MarkedDigestWriter},
+    ser::{Ser, SerError},
 };
 
 /// A `TXOIdentifier` represents the network's unique identifier an output. In Bitcoin this is an
@@ -12,7 +10,7 @@ use crate::{
 pub trait TXOIdentifier {}
 
 /// An `Input` spends a specific TXO, and typically contains a `TXOIdentifier` for that TXO.
-pub trait Input{
+pub trait Input {
     /// An input must define what type contains the TXO ID it is spending.
     type TXOIdentifier: TXOIdentifier;
 }
@@ -53,12 +51,7 @@ pub trait Transaction<'a>: Ser {
     type HashWriter: MarkedDigestWriter<Self::Digest>;
 
     /// Instantiate a new Transaction by specifying inputs and outputs.
-    fn new<I, O>(
-        version: u32,
-        vin: I,
-        vout: O,
-        locktime: u32
-    ) -> Self
+    fn new<I, O>(version: u32, vin: I, vout: O, locktime: u32) -> Self
     where
         I: Into<Vec<Self::TxIn>>,
         O: Into<Vec<Self::TxOut>>;
@@ -67,10 +60,10 @@ pub trait Transaction<'a>: Ser {
     fn version(&self) -> u32;
 
     /// Returns a reference to the transaction input vector
-    fn inputs(&'a self) -> &'a[Self::TxIn];
+    fn inputs(&'a self) -> &'a [Self::TxIn];
 
     /// Returns a reference the the transaction output vector
-    fn outputs(&'a self) -> &'a[Self::TxOut];
+    fn outputs(&'a self) -> &'a [Self::TxOut];
 
     /// Returns the transaction's nLocktime field
     fn locktime(&self) -> u32;
@@ -79,7 +72,8 @@ pub trait Transaction<'a>: Ser {
     /// serialized transaction.
     fn txid(&self) -> Self::TXID {
         let mut w = Self::HashWriter::default();
-        self.serialize(&mut w).expect("No IOError from hash functions");
+        self.serialize(&mut w)
+            .expect("No IOError from hash functions");
         w.finish_marked()
     }
 
@@ -94,7 +88,7 @@ pub trait Transaction<'a>: Ser {
     fn write_sighash_preimage<W: Write>(
         &self,
         writer: &mut W,
-        _args: &Self::SighashArgs
+        _args: &Self::SighashArgs,
     ) -> Result<(), Self::TxError>;
 
     /// Calls `write_sighash_preimage` with the provided arguments and a new HashWriter.
@@ -103,5 +97,5 @@ pub trait Transaction<'a>: Ser {
         let mut w = Self::HashWriter::default();
         self.write_sighash_preimage(&mut w, args)?;
         Ok(w.finish())
-   }
+    }
 }

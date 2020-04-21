@@ -2,22 +2,12 @@
 //! addresses. Also defines common encoder errors.
 
 use bech32::{
-    FromBase32,
-    ToBase32,
-    u5,
-    Error as BechError,
-    encode as b32_encode,
-    decode as b32_decode,
+    decode as b32_decode, encode as b32_encode, u5, Error as BechError, FromBase32, ToBase32,
 };
 
-use base58check::{
-    FromBase58Check,
-    FromBase58CheckError,
-    ToBase58Check
-};
+use base58check::{FromBase58Check, FromBase58CheckError, ToBase58Check};
 
 use thiserror::Error;
-
 
 /// Errors that can be returned by the Bitcoin `AddressEncoder`.
 #[derive(Debug, Error)]
@@ -28,20 +18,20 @@ pub enum EncodingError {
 
     /// Bech32 HRP does not match the current network.
     #[error("Bech32 HRP does not match. \nGot {:?} expected {:?} Hint: Is this address for another network?", got, expected)]
-    WrongHRP{
+    WrongHRP {
         /// The actual HRP.
         got: String,
         /// The expected HRP.
-        expected: String
+        expected: String,
     },
 
     /// Base58Check version does not match the current network
     #[error("Base58Check version does not match. \nGot {:?} expected {:?} Hint: Is this address for another network?", got, expected)]
-    WrongVersion{
+    WrongVersion {
         /// The actual version byte.
         got: u8,
         /// The expected version byte.
-        expected: u8
+        expected: u8,
     },
 
     /// Bubbled up error from base58check library
@@ -68,7 +58,7 @@ pub type EncodingResult<T> = Result<T, EncodingError>;
 pub fn encode_bech32(hrp: &str, v: &[u8]) -> EncodingResult<String> {
     let (version_and_len, payload) = v.split_at(2);
     if version_and_len[0] > 16 || version_and_len[1] as usize != payload.len() {
-        return Err(EncodingError::UnknownScriptType)
+        return Err(EncodingError::UnknownScriptType);
     };
     let mut v = vec![u5::try_from_u8(version_and_len[0])?];
     v.extend(&payload.to_base32());
@@ -79,7 +69,12 @@ pub fn encode_bech32(hrp: &str, v: &[u8]) -> EncodingResult<String> {
 /// different HRP is found, returns `WrongHRP`.
 pub fn decode_bech32(expected_hrp: &str, s: &str) -> EncodingResult<Vec<u8>> {
     let (hrp, data) = b32_decode(&s)?;
-    if hrp != expected_hrp { return Err(EncodingError::WrongHRP{got: hrp, expected: expected_hrp.to_owned()}) }
+    if hrp != expected_hrp {
+        return Err(EncodingError::WrongHRP {
+            got: hrp,
+            expected: expected_hrp.to_owned(),
+        });
+    }
 
     // Extract the witness version and payload
     let (v, p) = data.split_at(1);
@@ -101,7 +96,12 @@ pub fn encode_base58(version: u8, v: &[u8]) -> String {
 /// encoding is wrong. Returns a `WrongVersion` if it decodes an unexpected version.
 pub fn decode_base58(expected_version: u8, s: &str) -> EncodingResult<Vec<u8>> {
     let (version, data) = s.from_base58check()?;
-    if version != expected_version { return Err(EncodingError::WrongVersion{got: version, expected: expected_version}) };
+    if version != expected_version {
+        return Err(EncodingError::WrongVersion {
+            got: version,
+            expected: expected_version,
+        });
+    };
     Ok(data)
 }
 
@@ -176,22 +176,28 @@ mod test {
     fn it_should_error_on_wrong_version_and_hrp_and_invalid_addrs() {
         match decode_bech32("tb", "bc1q233q49ve8ysdsztqh9ue57m6227627j8ztscl9") {
             Ok(_) => assert!(false, "expected an error"),
-            Err(EncodingError::WrongHRP{got: _, expected: _}) => {},
+            Err(EncodingError::WrongHRP {
+                got: _,
+                expected: _,
+            }) => {}
             _ => assert!(false, "Got the wrong error {:?}"),
         }
         match decode_base58(1, "3HXNFmJpxjgTVFN35Y9f6Waje5YFsLEQZ2") {
             Ok(_) => assert!(false, "expected an error"),
-            Err(EncodingError::WrongVersion{got: _, expected: _}) => {},
+            Err(EncodingError::WrongVersion {
+                got: _,
+                expected: _,
+            }) => {}
             _ => assert!(false, "Got the wrong error"),
         }
         match decode_bech32("bc", "bc1qqh9ue57m6227627j8ztscl9") {
             Ok(_) => assert!(false, "expected an error"),
-            Err(EncodingError::BechError(_)) => {},
+            Err(EncodingError::BechError(_)) => {}
             _ => assert!(false, "Got the wrong error"),
         }
         match decode_base58(5, "3HXNf6Waje5YFsLEQZ2") {
             Ok(_) => assert!(false, "expected an error"),
-            Err(EncodingError::B58Error(_)) => {},
+            Err(EncodingError::B58Error(_)) => {}
             _ => assert!(false, "Got the wrong error"),
         }
     }

@@ -1,24 +1,16 @@
-use std::{
-    collections::{
-        BTreeMap,
-        btree_map
-    },
-};
+use std::collections::{btree_map, BTreeMap};
 
-use riemann_core::{
-    primitives::{PrefixVec},
-    ser::{Ser},
-};
+use riemann_core::{primitives::PrefixVec, ser::Ser};
 
 use crate::{
     psbt::{
-        common::{PSBTError, PSTMap, PSBTKey, PSBTValidate, PSBTValue},
+        common::{PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},
         schema,
     },
     types::{
         script::{Script, ScriptSig, Witness},
-        txout::{TxOut},
         transactions::{LegacyTx, Sighash},
+        txout::TxOut,
     },
 };
 
@@ -61,8 +53,10 @@ impl From<InputKey> for PSBTKey {
 impl PSBTValidate for PSBTInput {
     fn consistency_checks(&self) -> Result<(), PSBTError> {
         // Can't contain both witness and non-witness input info
-        if self.contains_key(&InputKey::NON_WITNESS_UTXO.into()) && self.contains_key(&InputKey::WITNESS_UTXO.into()) {
-            return Err(PSBTError::InvalidPSBT)  // TODO: differentiate error
+        if self.contains_key(&InputKey::NON_WITNESS_UTXO.into())
+            && self.contains_key(&InputKey::WITNESS_UTXO.into())
+        {
+            return Err(PSBTError::InvalidPSBT); // TODO: differentiate error
         }
         // TODO
         // - validate that all signatures use the sighash type
@@ -73,16 +67,46 @@ impl PSBTValidate for PSBTInput {
 
     fn standard_schema() -> schema::KVTypeSchema {
         let mut s: schema::KVTypeSchema = Default::default();
-        s.insert(InputKey::NON_WITNESS_UTXO as u8, Box::new(|k, v| (schema::input::validate_in_non_witness(k, v))));
-        s.insert(InputKey::WITNESS_UTXO as u8, Box::new(|k, v| (schema::input::validate_in_witness(k, v))));
-        s.insert(InputKey::PARTIAL_SIG as u8, Box::new(|k, v| (schema::input::validate_in_partial_sig(k, v))));
-        s.insert(InputKey::SIGHASH_TYPE as u8, Box::new(|k, v| (schema::input::validate_sighash_type(k, v))));
-        s.insert(InputKey::REDEEM_SCRIPT as u8, Box::new(|k, v| (schema::input::validate_redeem_script(k, v))));
-        s.insert(InputKey::WITNESS_SCRIPT as u8, Box::new(|k, v| (schema::input::validate_witness_script(k, v))));
-        s.insert(InputKey::BIP32_DERIVATION as u8, Box::new(|k, v| (schema::input::validate_bip32_derivations(k, v))));
-        s.insert(InputKey::FINAL_SCRIPTSIG as u8, Box::new(|k, v| (schema::input::validate_finalized_script_sig(k, v))));
-        s.insert(InputKey::FINAL_SCRIPTWITNESS as u8, Box::new(|k, v| (schema::input::validate_finalized_script_witness(k, v))));
-        s.insert(InputKey::POR_COMMITMENT as u8, Box::new(|k, v| (schema::input::validate_por_commitment(k, v))));
+        s.insert(
+            InputKey::NON_WITNESS_UTXO as u8,
+            Box::new(|k, v| (schema::input::validate_in_non_witness(k, v))),
+        );
+        s.insert(
+            InputKey::WITNESS_UTXO as u8,
+            Box::new(|k, v| (schema::input::validate_in_witness(k, v))),
+        );
+        s.insert(
+            InputKey::PARTIAL_SIG as u8,
+            Box::new(|k, v| (schema::input::validate_in_partial_sig(k, v))),
+        );
+        s.insert(
+            InputKey::SIGHASH_TYPE as u8,
+            Box::new(|k, v| (schema::input::validate_sighash_type(k, v))),
+        );
+        s.insert(
+            InputKey::REDEEM_SCRIPT as u8,
+            Box::new(|k, v| (schema::input::validate_redeem_script(k, v))),
+        );
+        s.insert(
+            InputKey::WITNESS_SCRIPT as u8,
+            Box::new(|k, v| (schema::input::validate_witness_script(k, v))),
+        );
+        s.insert(
+            InputKey::BIP32_DERIVATION as u8,
+            Box::new(|k, v| (schema::input::validate_bip32_derivations(k, v))),
+        );
+        s.insert(
+            InputKey::FINAL_SCRIPTSIG as u8,
+            Box::new(|k, v| (schema::input::validate_finalized_script_sig(k, v))),
+        );
+        s.insert(
+            InputKey::FINAL_SCRIPTWITNESS as u8,
+            Box::new(|k, v| (schema::input::validate_finalized_script_witness(k, v))),
+        );
+        s.insert(
+            InputKey::POR_COMMITMENT as u8,
+            Box::new(|k, v| (schema::input::validate_por_commitment(k, v))),
+        );
         s
     }
 }

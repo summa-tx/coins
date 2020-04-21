@@ -1,6 +1,5 @@
 //! Contains macros for use in this crate
 
-
 macro_rules! wrap_prefixed_byte_vector {
     (
         $(#[$outer:meta])*
@@ -85,7 +84,6 @@ macro_rules! wrap_prefixed_byte_vector {
 // TOOD: make this repeat properly
 macro_rules! impl_script_conversion {
     ($t1:ty, $t2:ty) => {
-
         impl From<$t2> for $t1 {
             fn from(t: $t2) -> $t1 {
                 <$t1>::from_script(t.0)
@@ -96,7 +94,7 @@ macro_rules! impl_script_conversion {
                 <$t2>::from_script(t.0)
             }
         }
-    }
+    };
 }
 
 macro_rules! mark_hash256 {
@@ -163,7 +161,7 @@ macro_rules! psbt_map {
     ($name:ident) => {
         /// A newtype wrapping a BTreeMap. Provides a simplified interface
         #[derive(PartialEq, Eq, Clone, Default, Debug, Ord, PartialOrd)]
-        pub struct $name{
+        pub struct $name {
             map: std::collections::BTreeMap<PSBTKey, PSBTValue>,
         }
 
@@ -179,7 +177,7 @@ macro_rules! psbt_map {
 
             fn range<R>(&self, range: R) -> std::collections::btree_map::Range<PSBTKey, PSBTValue>
             where
-                R: std::ops::RangeBounds<PSBTKey>
+                R: std::ops::RangeBounds<PSBTKey>,
             {
                 self.map.range(range)
             }
@@ -213,18 +211,19 @@ macro_rules! psbt_map {
             }
 
             fn serialized_length(&self) -> usize {
-                let kv_length: usize = self.iter()
+                let kv_length: usize = self
+                    .iter()
                     .map(|(k, v)| k.serialized_length() + v.serialized_length())
                     .sum();
-                kv_length + 1  // terminates in a 0 byte (null key)
+                kv_length + 1 // terminates in a 0 byte (null key)
             }
 
             fn deserialize<R>(reader: &mut R, _limit: usize) -> Result<Self, PSBTError>
             where
                 R: std::io::Read,
-                Self: std::marker::Sized
+                Self: std::marker::Sized,
             {
-                let mut map = Self{
+                let mut map = Self {
                     map: BTreeMap::default(),
                 };
 
@@ -241,7 +240,7 @@ macro_rules! psbt_map {
 
             fn serialize<W>(&self, writer: &mut W) -> Result<usize, PSBTError>
             where
-                W: std::io::Write
+                W: std::io::Write,
             {
                 let mut length: usize = 0;
                 for (k, v) in self.iter() {
@@ -252,5 +251,5 @@ macro_rules! psbt_map {
                 Ok(length)
             }
         }
-    }
+    };
 }
