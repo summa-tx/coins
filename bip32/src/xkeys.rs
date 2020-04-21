@@ -15,8 +15,7 @@ type HmacSha512 = Hmac<Sha512>;
 /// Default BIP32
 pub const SEED: &[u8; 12] = b"Bitcoin seed";
 
-/// Perform `HmacSha512` and split the output into left and right segments
-pub fn hmac_and_split(seed: &[u8], data: &[u8]) -> ([u8; 32], ChainCode) {
+fn hmac_and_split(seed: &[u8], data: &[u8]) -> ([u8; 32], ChainCode) {
     let mut mac = HmacSha512::new_varkey(seed).expect("key length is ok");
     mac.input(data);
     let result = mac.result().code();
@@ -30,7 +29,8 @@ pub fn hmac_and_split(seed: &[u8], data: &[u8]) -> ([u8; 32], ChainCode) {
     (left, ChainCode(right))
 }
 
-/// We treat the xpub/ypub/zpub convention as a hint
+/// We treat the xpub/ypub/zpub convention as a hint regarding address type. Users are free to
+/// follow or ignore these hints.
 #[derive(Eq, PartialEq, Debug, Clone, Copy)]
 pub enum Hint {
     /// Standard Bip32 hint
@@ -137,7 +137,7 @@ pub struct GenericXPriv<'a, T: Secp256k1Backend<'a>> {
 }
 
 /// A BIP32 Extended privkey using the library's compiled-in secp256k1 backend.
-#[cfg(any(feature = "libsecp", feature = "rust_secp"))]
+#[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 pub type XPriv<'a> = GenericXPriv<'a, crate::backends::curve::Secp256k1<'a>>;
 
 impl<'a, T: Secp256k1Backend<'a>> GenericXPriv<'a, T> {
@@ -327,7 +327,7 @@ pub struct GenericXPub<'a, T: Secp256k1Backend<'a>> {
 }
 
 /// A BIP32 Extended pubkey using the library's compiled-in secp256k1 backend.
-#[cfg(any(feature = "libsecp", feature = "rust_secp"))]
+#[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 pub type XPub<'a> = GenericXPub<'a, crate::backends::curve::Secp256k1<'a>>;
 
 impl<'a, T: Secp256k1Backend<'a>> std::convert::TryFrom<&GenericXPriv<'a, T>>

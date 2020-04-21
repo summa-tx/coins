@@ -1,9 +1,17 @@
-//! This crate provides a basic implementation of BIP32 and related BIPs.
+//! This crate provides a basic implementation of BIP32, BIP49, and BIP84 with configurable
+//! backends.
+//!
+//! The backend is configurable. By default, it uses bindings to Pieter Wuille's C `libsecp256k1`.
+//! Turning off standard features, and compiling with the `rust-secp` feature will use a pure rust
+//! backend. The
+//!
+//!
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 #![warn(unused_extern_crates)]
 
+#[cfg(not(feature = "rust-secp-static-context"))]
 #[macro_use]
 extern crate lazy_static;
 
@@ -25,7 +33,7 @@ pub mod model;
 /// `DerivationPath` type and tooling for parsing it from strings
 pub mod path;
 
-#[cfg(any(feature = "libsecp", feature = "rust_secp"))]
+#[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 pub use xkeys::{XPriv, XPub};
 
 use thiserror::Error;
@@ -42,12 +50,12 @@ pub const CURVE_ORDER: [u8; 32] = [
 /// Errors for this library
 #[derive(Debug, Error)]
 pub enum Bip32Error {
-    #[cfg(all(feature = "rust_secp", not(feature = "libsecp")))]
+    #[cfg(all(feature = "rust-secp", not(feature = "libsecp")))]
     /// Error bubbled up froom secp256k1
     #[error(transparent)]
     Secp256k1Error(#[from] libsecp256k1_core::Error),
 
-    #[cfg(all(feature = "libsecp", not(feature = "rust_secp")))]
+    #[cfg(all(feature = "libsecp", not(feature = "rust-secp")))]
     /// Error bubbled up froom secp256k1
     #[error(transparent)]
     Secp256k1Error(#[from] secp256k1::Error),

@@ -1,5 +1,5 @@
 /// Contains a backend for performing operations on curve points. Uses libsecp256k1.
-#[cfg(all(feature = "libsecp", not(feature = "rust_secp")))]
+#[cfg(all(feature = "libsecp", not(feature = "rust-secp")))]
 pub mod curve {
     // Wuille's secp
     use secp256k1;
@@ -221,7 +221,7 @@ pub mod curve {
 }
 
 /// Contains a backend for performing operations on curve points. Uses rust secp256k1.
-#[cfg(all(feature = "rust_secp", not(feature = "libsecp")))]
+#[cfg(all(feature = "rust-secp", not(feature = "libsecp")))]
 pub mod curve {
     // Parity's secp
     use libsecp256k1 as secp256k1;
@@ -234,6 +234,7 @@ pub mod curve {
         Bip32Error,
     };
 
+    #[cfg(not(feature = "rust-secp-static-context"))]
     lazy_static! {
         static ref EC_MULT: Box<secp256k1::curve::ECMultContext> =
             { secp256k1::curve::ECMultContext::new_boxed() };
@@ -368,6 +369,12 @@ pub mod curve {
             Self(context.0, context.1)
         }
 
+        #[cfg(feature = "rust-secp-static-context")]
+        fn init() -> Self {
+            Self(&secp256k1::ECMULT_CONTEXT, &secp256k1::ECMULT_GEN_CONTEXT)
+        }
+
+        #[cfg(not(feature = "rust-secp-static-context"))]
         fn init() -> Self {
             Self(&EC_MULT, &EC_MULT_GEN)
         }
