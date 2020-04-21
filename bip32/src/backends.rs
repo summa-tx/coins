@@ -98,22 +98,21 @@ pub mod curve {
     }
 
     impl SigSerialize for secp256k1::Signature {
-        fn serialize_der(&self) -> Vec<u8> {
+        fn to_der(&self) -> Vec<u8> {
             secp256k1::Signature::serialize_der(self).to_vec()
         }
 
-        fn deserialize_der(der: &[u8]) -> Result<Self, Bip32Error> {
+        fn try_from_der(der: &[u8]) -> Result<Self, Bip32Error> {
             Ok(Self::from_der(der)?)
         }
     }
 
     impl SigSerialize for secp256k1::recovery::RecoverableSignature {
-        fn serialize_der(&self) -> Vec<u8> {
-            // lol disambiguation inversion
-            SigSerialize::serialize_der(&RecoverableSigSerialize::to_standard(self))
+        fn to_der(&self) -> Vec<u8> {
+            self.without_recovery().to_der()
         }
 
-        fn deserialize_der(_der: &[u8]) -> Result<Self, Bip32Error> {
+        fn try_from_der(_der: &[u8]) -> Result<Self, Bip32Error> {
             Err(Bip32Error::NoRecoveryID)
         }
     }
@@ -139,7 +138,7 @@ pub mod curve {
             Ok(Self::from_compact(&data, rec_id)?)
         }
 
-        fn to_standard(&self) -> Self::Signature {
+        fn without_recovery(&self) -> Self::Signature {
             // full disambiguation
             secp256k1::recovery::RecoverableSignature::to_standard(self)
         }
@@ -306,21 +305,21 @@ pub mod curve {
     }
 
     impl SigSerialize for secp256k1::Signature {
-        fn serialize_der(&self) -> Vec<u8> {
+        fn to_der(&self) -> Vec<u8> {
             secp256k1::Signature::serialize_der(self).as_ref().to_vec()
         }
 
-        fn deserialize_der(der: &[u8]) -> Result<Self, Bip32Error> {
+        fn try_from_der(der: &[u8]) -> Result<Self, Bip32Error> {
             Ok(Self::parse_der(der)?)
         }
     }
 
     impl SigSerialize for RecoverableSignature {
-        fn serialize_der(&self) -> Vec<u8> {
+        fn to_der(&self) -> Vec<u8> {
             self.sig.serialize_der().as_ref().to_vec()
         }
 
-        fn deserialize_der(_der: &[u8]) -> Result<Self, Bip32Error> {
+        fn try_from_der(_der: &[u8]) -> Result<Self, Bip32Error> {
             Err(Bip32Error::NoRecoveryID)
         }
     }
@@ -349,8 +348,7 @@ pub mod curve {
             })
         }
 
-        fn to_standard(&self) -> Self::Signature {
-            // full disambiguation
+        fn without_recovery(&self) -> Self::Signature {
             self.sig.clone()
         }
     }

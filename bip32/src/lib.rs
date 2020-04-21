@@ -13,7 +13,7 @@
 //!     Bip32Error,
 //!     Secp256k1,
 //!     enc::{Encoder, MainnetEncoder},
-//!     model::{Secp256k1Backend, SigningKey, VerifyingKey},
+//!     model::{Secp256k1Backend, SigningKey, SigSerialize, VerifyingKey},
 //!     xkeys::{XKey, XPub, XPriv},
 //! };
 //!
@@ -28,7 +28,11 @@
 //! let sig = child.sign_digest(digest)?;
 //!
 //! let child_xpub = child.to_xpub()?;
-//! child_xpub.verify_digest(digest, &sig)
+//! child_xpub.verify_digest(digest, &sig);
+//!
+//! sig.to_der(); // serialize to der-encoded byte-array
+//! MainnetEncoder::xpub_to_base58(&child_xpub)?;
+//! # Ok(())
 //! # }
 //! ```
 //!

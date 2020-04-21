@@ -85,7 +85,7 @@ pub trait VerifyingKey: std::marker::Sized {
         digest: [u8; 32],
         sig: &Self::RecoverableSignature,
     ) -> Result<(), Bip32Error> {
-        self.verify_digest(digest, &sig.to_standard())
+        self.verify_digest(digest, &sig.without_recovery())
     }
 
     /// Verify a signature on a message
@@ -105,7 +105,7 @@ pub trait VerifyingKey: std::marker::Sized {
         hash: &HashFunc,
         sig: &Self::RecoverableSignature,
     ) -> Result<(), Bip32Error> {
-        self.verify_digest(hash(message), &sig.to_standard())
+        self.verify_digest(hash(message), &sig.without_recovery())
     }
 
     /// Produce a signature on `sha2(sha2(message))`
@@ -164,10 +164,10 @@ pub trait PointSerialize: std::marker::Sized {
 /// A Serializable Signature
 pub trait SigSerialize: Clone {
     /// Serialize to DER
-    fn serialize_der(&self) -> Vec<u8>;
+    fn to_der(&self) -> Vec<u8>;
 
     /// Deserialize from DER
-    fn deserialize_der(der: &[u8]) -> Result<Self, Bip32Error>;
+    fn try_from_der(der: &[u8]) -> Result<Self, Bip32Error>;
 }
 
 /// A serializable RecoverableSignature
@@ -182,7 +182,7 @@ pub trait RecoverableSigSerialize: SigSerialize {
     fn deserialize_vrs(vrs: (u8, [u8; 32], [u8; 32])) -> Result<Self, Bip32Error>;
 
     /// Clone, and convert into a standard sig.
-    fn to_standard(&self) -> Self::Signature;
+    fn without_recovery(&self) -> Self::Signature;
 }
 
 /// A minmial curve-math backend interface
