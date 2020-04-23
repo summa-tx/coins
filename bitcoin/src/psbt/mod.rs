@@ -23,12 +23,8 @@ use std::{
 };
 
 use rmn_bip32::{
-    XPub,
-    Secp256k1,
-    KeyFingerprint,
-    Encoder as Bip32Encoder,
-    MainnetEncoder as Bip32MainnetEncoder,
-    TestnetEncoder as Bip32TestnetEncoder,
+    Encoder as Bip32Encoder, KeyFingerprint, MainnetEncoder as Bip32MainnetEncoder, Secp256k1,
+    TestnetEncoder as Bip32TestnetEncoder, XPub,
 };
 
 use riemann_core::{builder::TxBuilder, enc::AddressEncoder, ser::Ser, tx::Transaction};
@@ -133,20 +129,54 @@ where
 
     /// Return a parsed vector of k/v pairs. Keys are parsed as XPubs with the provided backend.
     /// Values are parsed as `KeyDerivation` structs.
-    pub fn xpubs<'b>(
+    pub fn parsed_xpubs<'a>(
         &self,
-        backend: Option<&'b Secp256k1>,
-    ) -> Result<Vec<(XPub<'b>, KeyDerivation)>, PSBTError> {
+        backend: Option<&'a Secp256k1>,
+    ) -> Result<Vec<DerivedXPub<'a>>, PSBTError> {
         self.global_map().parsed_xpubs::<E>(backend)
     }
 
-    /// Find an xpub in the global map by its fingerprint
-    pub fn find_xpub<'b>(&self, fingerprint: KeyFingerprint, backend: Option<&'b Secp256k1>) -> Option<XPub<'b>> {
+    /// Find an xpub in the global map by its fingerprint. This will ignore any parsing errors
+    pub fn find_xpub<'a>(
+        &self,
+        fingerprint: KeyFingerprint,
+        backend: Option<&'a Secp256k1>,
+    ) -> Option<XPub<'a>> {
         self.global_map()
             .xpubs()
             .find(|(k, _)| fingerprint.eq_slice(&k[5..9]))
             .map(|(k, _)| schema::try_key_as_xpub::<E>(k, backend).ok())
             .flatten()
+    }
+
+    /// Find all xpubs with a specified root fingerprint. This with silently fail if any
+    pub fn find_xpubs_by_root<'a> (
+        &self,
+        root: KeyFingerprint,
+        backend: Option<&'a Secp256k1>,
+    ) -> Vec<DerivedXPub<'a>> {
+        let mut results = vec![];
+        let xpubs = self.global_map()
+            .xpubs()
+            .filter(|(_, v)| root.eq_slice(&v[0..4]));
+        for (k, v) in xpubs {
+            let xpub = schema::try_key_as_xpub::<E>(k, backend);
+            let deriv = schema::try_val_as_key_derivation(v);
+            if deriv.is_err() || xpub.is_err() {
+                continue
+            }
+            results.push((xpub.expect("checked"), deriv.expect("checked")).into());
+        }
+        results
+        // self.parsed_xpubs(backend)
+        //     .map_or_else(
+        //         |_| vec![],
+        //         |v| {
+        //             v.into_iter()
+        //             .filter(|k| root == k.derivation.root)
+        //             .collect()
+        //         }
+        //     )
     }
 }
 

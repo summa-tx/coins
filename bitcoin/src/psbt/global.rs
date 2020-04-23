@@ -4,13 +4,13 @@ use riemann_core::{primitives::PrefixVec, ser::Ser};
 
 use crate::{
     psbt::{
-        common::{KeyDerivation, PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},
+        common::{DerivedXPub, PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},
         schema,
     },
     types::transactions::LegacyTx,
 };
 
-use rmn_bip32::{Encoder as Bip32Encoder, Secp256k1, XPub};
+use rmn_bip32::{Encoder as Bip32Encoder, Secp256k1};
 
 psbt_map!(PSBTGlobal);
 
@@ -84,7 +84,7 @@ impl PSBTGlobal {
     pub fn parsed_xpubs<'a, E>(
         &self,
         backend: Option<&'a Secp256k1>,
-    ) -> Result<Vec<(XPub<'a>, KeyDerivation)>, PSBTError>
+    ) -> Result<Vec<DerivedXPub<'a>>, PSBTError>
     where
         E: Bip32Encoder,
     {
@@ -92,7 +92,7 @@ impl PSBTGlobal {
         for (k, v) in self.xpubs() {
             let xpub = schema::try_key_as_xpub::<E>(k, backend)?;
             let deriv = schema::try_val_as_key_derivation(v)?;
-            results.push((xpub, deriv));
+            results.push((xpub, deriv).into());
         }
         Ok(results)
     }

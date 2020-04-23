@@ -8,8 +8,10 @@ use thiserror::Error;
 
 use riemann_core::{
     ser::{Ser, SerError},
-    types::primitives::ConcretePrefixVec,
+    types::primitives::{PrefixVec, ConcretePrefixVec},
 };
+
+use rmn_bip32::{XPub, model::PointSerialize, backends::curve::Pubkey};
 
 use crate::{psbt::schema, types::transactions::TxError};
 
@@ -98,10 +100,66 @@ pub enum PSBTError {
     },
 }
 
-/// A Derivation Path for a
+/// A Derivation Path for a bip32 key
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct KeyDerivation {
-    root: rmn_bip32::KeyFingerprint,
-    path: rmn_bip32::DerivationPath,
+    /// The root key fingerprint
+    pub root: rmn_bip32::KeyFingerprint,
+    /// The derivation path from the root key
+    pub path: rmn_bip32::DerivationPath,
+}
+
+/// An XPub coupled with its (purported) derivation.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct DerivedXPub<'a> {
+    /// The bip32 extended public key
+    pub xpub: XPub<'a>,
+    /// The (purported) derivation of that key
+    pub derivation: KeyDerivation,
+}
+
+/// A pubkey coupled with its (purported) derivation.
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct DerivedPubkey {
+    /// An ECDSA Public Key
+    pub pubkey: Pubkey,
+    /// The (purported) derivation of that key
+    pub derivation: KeyDerivation,
+}
+
+impl<'a> From<(Pubkey, KeyDerivation)> for DerivedPubkey {
+    fn from(tuple: (Pubkey, KeyDerivation)) -> DerivedPubkey {
+        Self {
+            pubkey: tuple.0,
+            derivation: tuple.1
+        }
+    }
+}
+
+impl std::convert::TryFrom<(&PSBTKey, &PSBTValue)> for DerivedPubkey {
+    type Error = PSBTError;
+
+    fn try_from(t: (&PSBTKey, &PSBTValue)) -> Result<Self, Self::Error> {
+        let (k, v) = t;
+        if k.len() != 34 {
+            return Err(PSBTError::WrongKeyLength{got: k.len(), expected: 34});
+        }
+
+        let mut key = [0u8; 33];
+        key.copy_from_slice(&k[1..34]);
+        let pubkey = Pubkey::from_array(key)?;
+        let deriv = schema::try_val_as_key_derivation(v)?;
+        Ok((pubkey, deriv).into())
+    }
+}
+
+impl<'a> From<(XPub<'a>, KeyDerivation)> for DerivedXPub<'a> {
+    fn from(tuple: (XPub<'a>, KeyDerivation)) -> DerivedXPub<'a> {
+        Self {
+            xpub: tuple.0,
+            derivation: tuple.1
+        }
+    }
 }
 
 impl Ser for KeyDerivation {
