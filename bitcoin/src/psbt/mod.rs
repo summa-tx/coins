@@ -23,7 +23,11 @@ use std::{
 };
 
 use rmn_bip32::{
-    Encoder as Bip32Encoder, MainnetEncoder as Bip32MainnetEncoder,
+    XPub,
+    Secp256k1,
+    KeyFingerprint,
+    Encoder as Bip32Encoder,
+    MainnetEncoder as Bip32MainnetEncoder,
     TestnetEncoder as Bip32TestnetEncoder,
 };
 
@@ -125,6 +129,24 @@ where
             .insert(GlobalKey::UNSIGNED_TX.into(), buf.into());
         self.output_maps_mut().insert(index, Default::default());
         Ok(())
+    }
+
+    /// Return a parsed vector of k/v pairs. Keys are parsed as XPubs with the provided backend.
+    /// Values are parsed as `KeyDerivation` structs.
+    pub fn xpubs<'b>(
+        &self,
+        backend: Option<&'b Secp256k1>,
+    ) -> Result<Vec<(XPub<'b>, KeyDerivation)>, PSBTError> {
+        self.global_map().parsed_xpubs::<E>(backend)
+    }
+
+    /// Find an xpub in the global map by its fingerprint
+    pub fn find_xpub<'b>(&self, fingerprint: KeyFingerprint, backend: Option<&'b Secp256k1>) -> Option<XPub<'b>> {
+        self.global_map()
+            .xpubs()
+            .find(|(k, _)| fingerprint.eq_slice(&k[5..9]))
+            .map(|(k, _)| schema::try_key_as_xpub::<E>(k, backend).ok())
+            .flatten()
     }
 }
 

@@ -166,6 +166,14 @@ impl<T> Index<usize> for ConcretePrefixVec<T> {
     }
 }
 
+impl<T> Index<std::ops::Range<usize>> for ConcretePrefixVec<T> {
+    type Output = [T];
+
+    fn index(&self, range: std::ops::Range<usize>) -> &[T] {
+        &self.0[range]
+    }
+}
+
 impl<T> IndexMut<usize> for ConcretePrefixVec<T> {
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         &mut self.0[index]

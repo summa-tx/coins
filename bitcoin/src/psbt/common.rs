@@ -181,6 +181,9 @@ pub trait PSTMap {
     /// Returns true if the map contains a value for the specified key.
     fn contains_key(&self, key: &PSBTKey) -> bool;
 
+    /// Return an iterator of the keys of the map
+    fn keys(&self) -> btree_map::Keys<PSBTKey, PSBTValue>;
+
     /// Returns a range object over the specified range bounds.
     fn range<R>(&self, range: R) -> btree_map::Range<PSBTKey, PSBTValue>
     where

@@ -101,6 +101,13 @@ impl From<[u8; 4]> for KeyFingerprint {
     }
 }
 
+impl KeyFingerprint {
+    /// Determines if the slice represents the same key fingerprint
+    pub fn eq_slice(self, other: &[u8]) -> bool {
+        self.0 == other
+    }
+}
+
 impl std::fmt::Debug for KeyFingerprint {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(format_args!("KeyFingerprint {:x?}", self.0))

@@ -58,6 +58,14 @@ macro_rules! wrap_prefixed_byte_vector {
             }
         }
 
+        impl std::ops::Index<std::ops::Range<usize>> for $wrapper_name {
+            type Output = [u8];
+
+            fn index(&self, range: std::ops::Range<usize>) -> &[u8] {
+                &self.0[range]
+            }
+        }
+
         impl std::ops::IndexMut<usize> for $wrapper_name {
             fn index_mut(&mut self, index: usize) -> &mut Self::Output {
                 &mut self.0[index]
@@ -173,6 +181,10 @@ macro_rules! psbt_map {
 
             fn contains_key(&self, key: &PSBTKey) -> bool {
                 self.map.contains_key(key)
+            }
+
+            fn keys(&self) -> std::collections::btree_map::Keys<PSBTKey, PSBTValue> {
+                self.map.keys()
             }
 
             fn range<R>(&self, range: R) -> std::collections::btree_map::Range<PSBTKey, PSBTValue>

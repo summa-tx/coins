@@ -81,7 +81,7 @@ impl PSBTGlobal {
 
     /// Return a parsed vector of k/v pairs. Keys are parsed as XPubs with the provided backend.
     /// Values are parsed as `KeyDerivation` structs.
-    pub fn parse_xpubs<'a, E>(
+    pub fn parsed_xpubs<'a, E>(
         &self,
         backend: Option<&'a Secp256k1>,
     ) -> Result<Vec<(XPub<'a>, KeyDerivation)>, PSBTError>
