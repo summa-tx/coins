@@ -80,13 +80,13 @@ impl PSBTOutput {
     }
 
     /// Returns a range containing any PSBT_OUT_BIP32_DERIVATION.
-    pub fn bip_32_derivations(&self) -> btree_map::Range<PSBTKey, PSBTValue> {
+    pub fn pubkey_kv_pairs(&self) -> btree_map::Range<PSBTKey, PSBTValue> {
         self.range_by_key_type(OutputKey::BIP32_DERIVATION as u8)
     }
 
     /// Returns a vec containing parsed public keys. Unparsable keys will be ignored
     pub fn parsed_pubkey_derivations(&self) -> Vec<DerivedPubkey> {
-        self.bip_32_derivations()
+        self.pubkey_kv_pairs()
             .map(DerivedPubkey::try_from)
             .filter_map(Result::ok)
             .collect()

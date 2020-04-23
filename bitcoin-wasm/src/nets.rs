@@ -7,17 +7,25 @@
 use wasm_bindgen::prelude::*;
 
 use crate::{
-    builder::{MainnetLegacyBuilder, TestnetLegacyBuilder, SignetLegacyBuilder},
-    enc::{Address, MainnetEncoder, TestnetEncoder, SignetEncoder},
+    builder::{MainnetLegacyBuilder, SignetLegacyBuilder, TestnetLegacyBuilder},
+    enc::{Address, MainnetEncoder, SignetEncoder, TestnetEncoder},
 };
-
 
 impl_network!(
     /// A fully-parameterized BitcoinMainnet. This is the main interface for accessing the library.
-    BitcoinMainnet, MainnetLegacyBuilder, MainnetEncoder);
+    BitcoinMainnet,
+    MainnetLegacyBuilder,
+    MainnetEncoder
+);
 impl_network!(
     /// A fully-parameterized BitcoinTestnet. This is the main interface for accessing the library.
-    BitcoinTestnet, TestnetLegacyBuilder, TestnetEncoder);
+    BitcoinTestnet,
+    TestnetLegacyBuilder,
+    TestnetEncoder
+);
 impl_network!(
     /// A fully-parameterized BitcoinSignet. This is the main interface for accessing the library.
-    BitcoinSignet, SignetLegacyBuilder, SignetEncoder);
+    BitcoinSignet,
+    SignetLegacyBuilder,
+    SignetEncoder
+);

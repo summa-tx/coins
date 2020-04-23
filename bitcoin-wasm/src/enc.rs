@@ -1,17 +1,14 @@
 //! Defines parameterized Bitcoin encoders for Mainnet, Testnet, and Signet.
 
 use js_sys;
-use wasm_bindgen::prelude::*;
 use serde::ser::{Serialize, Serializer};
+use wasm_bindgen::prelude::*;
 
-use riemann_core::{
-    enc::{AddressEncoder},
-    primitives::{PrefixVec},
-};
+use riemann_core::{enc::AddressEncoder, primitives::PrefixVec};
 
 use rmn_btc::{enc, script};
 
-use crate::errors::{WasmError};
+use crate::errors::WasmError;
 
 /// A wrapper type for Bitcoin addresses. Contains an instance of the address enum.
 #[wasm_bindgen]
@@ -41,7 +38,7 @@ impl Address {
 impl Serialize for Address {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
-        S: Serializer
+        S: Serializer,
     {
         serializer.serialize_str(&self.0.as_string())
     }

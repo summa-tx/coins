@@ -15,7 +15,6 @@
 //!    class's `txid()` method;
 //! - `impl_prefix_vec_access` generates getters and setters for prefix vecs
 
-
 // This macro wraps and implements a wrapper around the `Ser` trait
 macro_rules! wrap_struct {
     (
@@ -119,7 +118,7 @@ macro_rules! impl_simple_getter {
                 (self.0).$prop
             }
         }
-    }
+    };
 }
 
 macro_rules! impl_getter_passthrough {
@@ -131,7 +130,7 @@ macro_rules! impl_getter_passthrough {
                 (self.0).$prop()
             }
         }
-    }
+    };
 }
 
 macro_rules! impl_wrapped_getter {
@@ -143,7 +142,7 @@ macro_rules! impl_wrapped_getter {
                 (self.0).$prop.into()
             }
         }
-    }
+    };
 }
 
 macro_rules! impl_wrapped_getter_passthrough {
@@ -155,7 +154,7 @@ macro_rules! impl_wrapped_getter_passthrough {
                 (self.0).$prop().into()
             }
         }
-    }
+    };
 }
 
 macro_rules! impl_prefix_vec_access {
@@ -182,7 +181,7 @@ macro_rules! impl_prefix_vec_access {
             }
 
             pub fn push(&mut self, input: &$inner_class) {
-                 self.0.push(input.0.clone())
+                self.0.push(input.0.clone())
             }
 
             pub fn get(&self, index: usize) -> $inner_class {
@@ -195,7 +194,8 @@ macro_rules! impl_prefix_vec_access {
 
             #[wasm_bindgen(method, getter)]
             pub fn items(&self) -> js_sys::Array {
-                self.0.items()
+                self.0
+                    .items()
                     .iter()
                     .map(Clone::clone)
                     .map($inner_class::from)
@@ -203,12 +203,11 @@ macro_rules! impl_prefix_vec_access {
                     .collect()
             }
         }
-    }
+    };
 }
 
 macro_rules! impl_builders {
     ($leg:ident, $wit:ident, $enc:ident) => {
-
         /// LegacyBuilder provides a struct on which we implement `TxBuilder` for legacy Bitcoin
         /// Transactions. Its associated types are the standard Bitcoin `LegacyTx`, and `WitnessTx`,
         /// and the WitnessBuilder. It is parameterized with an address encoder, so that the same
@@ -283,7 +282,8 @@ macro_rules! impl_builders {
                 let addr = enc::$enc::string_to_address(address)
                     .map_err(WasmError::from)
                     .map_err(JsValue::from)?;
-                self.0.pay(value, &addr)
+                self.0
+                    .pay(value, &addr)
                     .map($leg::from)
                     .map_err(WasmError::from)
                     .map_err(JsValue::from)
@@ -306,7 +306,9 @@ macro_rules! impl_builders {
 
             /// Add witnesses and implicitly convert to a witness builder.
             pub fn extend_witnesses(self, witnesses: TxWitness) -> $wit {
-                self.0.extend_witnesses(Vec::<script::Witness>::from(witnesses)).into()
+                self.0
+                    .extend_witnesses(Vec::<script::Witness>::from(witnesses))
+                    .into()
             }
 
             /// Explicitly convert to a witness builder
@@ -351,7 +353,8 @@ macro_rules! impl_builders {
                 let addr = enc::$enc::string_to_address(address)
                     .map_err(WasmError::from)
                     .map_err(JsValue::from)?;
-                self.0.pay(value, &addr)
+                self.0
+                    .pay(value, &addr)
                     .map($wit::from)
                     .map_err(WasmError::from)
                     .map_err(JsValue::from)
@@ -374,7 +377,9 @@ macro_rules! impl_builders {
 
             /// Add witnesses
             pub fn extend_witnesses(self, witnesses: TxWitness) -> $wit {
-                self.0.extend_witnesses(Vec::<script::Witness>::from(witnesses)).into()
+                self.0
+                    .extend_witnesses(Vec::<script::Witness>::from(witnesses))
+                    .into()
             }
 
             /// Explicitly convert to a legacy builder
@@ -388,7 +393,7 @@ macro_rules! impl_builders {
                 self.0.build().into()
             }
         }
-    }
+    };
 }
 
 macro_rules! impl_encoder {
@@ -433,7 +438,7 @@ macro_rules! impl_network {
     (
         $(#[$outer:meta])*
         $network_name:ident, $builder_name:ident, $encoder_name:ident
-    )=> {
+    ) => {
         #[wasm_bindgen(inspectable)]
         #[derive(Debug)]
         pub struct $network_name;
@@ -463,5 +468,5 @@ macro_rules! impl_network {
                 $encoder_name::string_to_address(s)
             }
         }
-    }
+    };
 }

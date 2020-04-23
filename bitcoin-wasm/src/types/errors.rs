@@ -2,14 +2,10 @@
 
 use wasm_bindgen::prelude::*;
 
-use riemann_core::ser::{SerError};
-use rmn_btc::{
-    bases::{EncodingError},
-    transactions::{TxError},
-};
+use riemann_core::ser::SerError;
+use rmn_btc::{bases::EncodingError, transactions::TxError};
 
 use thiserror::Error;
-
 
 /// An error type that wraps internal error types into something that can easily
 /// be propagated to JS.

@@ -11,8 +11,12 @@ publish = false
 [lib]
 crate-type = ["cdylib"]
 
+# Recommended when packing the wasm for release
+[profile.release]
+lto = true
+opt-level = 'z'
+
 [dependencies]
-rmn-btc = {path = "../bitcoin"}
 riemann-core = {path = "../core"}
 wasm-bindgen = "0.2.60"
 js-sys = "0.3.37"
@@ -20,7 +24,10 @@ bitcoin-spv = "2.0.0"
 thiserror = "1.0"
 serde = "1.0.105"
 
-# Recommended when packing the wasm for release
-[profile.release]
-lto = true
-opt-level = 'z'
+[dependencies.rmn-btc]
+path = "../bitcoin"
+default-features = false
+
+[features]
+default = ["wasm"]
+wasm = ["rmn-btc/rust-secp"]
