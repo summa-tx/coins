@@ -48,6 +48,19 @@ impl DerivationPath {
     pub fn iter(&self) -> Iter<u32> {
         self.0.iter()
     }
+
+    /// Convenience function for finding the last hardened derivation in a path.
+    /// Returns the index and the element. If there is no hardened derivation, it
+    /// will return (0, None).
+    pub fn last_hardened(&self) -> (usize, Option<u32>) {
+        match self.iter().rev().position(|v| *v >= BIP32_HARDEN) {
+            Some(rev_pos) => {
+                let pos = self.len() - rev_pos - 1;
+                (pos, Some(self.0[pos]))
+            }
+            None => (0, None)
+        }
+    }
 }
 
 impl From<Vec<u32>> for DerivationPath {

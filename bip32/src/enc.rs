@@ -142,6 +142,53 @@ pub trait Encoder<P: NetworkParams> {
         Ok(buf.into())
     }
 
+    #[doc(hidden)]
+    fn read_xpriv_body<'a, R, T>(
+        reader: &mut R,
+        hint: Hint,
+        backend: Option<&'a T>,
+    ) -> Result<GenericXPriv<'a, T>, Bip32Error>
+    where
+        R: std::io::Read,
+        T: Secp256k1Backend<'a>
+    {
+        let depth = Self::read_depth(reader)?;
+        let parent = Self::read_parent(reader)?;
+        let index = Self::read_index(reader)?;
+        let chain_code = Self::read_chain_code(reader)?;
+
+        let mut buf = [0u8];
+        reader.read_exact(&mut buf)?;
+        if buf != [0] {
+            return Err(Bip32Error::BadPadding(buf[0]));
+        }
+
+        let mut buf = [0u8; 32];
+        reader.read_exact(&mut buf)?;
+        let key = T::Privkey::from_array(buf)?;
+
+        Ok(GenericXPriv::new(
+            depth, parent, index, key, chain_code, hint, backend,
+        ))
+    }
+
+    #[doc(hidden)]
+    // Can be used for unhealthy but sometimes-desiable behavior. E.g. accepting an xpriv from any
+    // network.
+    fn read_xpriv_without_network<'a, R, T>(
+        reader: &mut R,
+        backend: Option<&'a T>,
+    ) -> Result<GenericXPriv<'a, T>, Bip32Error>
+    where
+        R: std::io::Read,
+        T: Secp256k1Backend<'a>,
+    {
+        let mut buf = [0u8; 4];
+        reader.read_exact(&mut buf)?;
+
+        Self::read_xpriv_body(reader, Hint::Legacy, backend)
+    }
+
     /// Attempt to instantiate an `XPriv` from a `std::io::Read`
     ///
     /// # Note
@@ -183,25 +230,48 @@ pub trait Encoder<P: NetworkParams> {
         } else {
             return Err(Bip32Error::BadXPrivVersionBytes(buf));
         };
+        Self::read_xpriv_body(reader, hint, backend)
+    }
 
+    #[doc(hidden)]
+    fn read_xpub_body<'a, R, T>(
+        reader: &mut R,
+        hint: Hint,
+        backend: Option<&'a T>,
+    ) -> Result<GenericXPub<'a, T>, Bip32Error>
+    where
+        R: std::io::Read,
+        T: Secp256k1Backend<'a>
+    {
         let depth = Self::read_depth(reader)?;
         let parent = Self::read_parent(reader)?;
         let index = Self::read_index(reader)?;
         let chain_code = Self::read_chain_code(reader)?;
 
-        let mut buf = [0u8];
+        let mut buf = [0u8; 33];
         reader.read_exact(&mut buf)?;
-        if buf != [0] {
-            return Err(Bip32Error::BadPadding(buf[0]));
-        }
+        let key = T::Pubkey::from_array(buf)?;
 
-        let mut buf = [0u8; 32];
-        reader.read_exact(&mut buf)?;
-        let key = T::Privkey::from_array(buf)?;
-
-        Ok(GenericXPriv::new(
+        Ok(GenericXPub::new(
             depth, parent, index, key, chain_code, hint, backend,
         ))
+    }
+
+    #[doc(hidden)]
+    // Can be used for unhealthy but sometimes-desiable behavior. E.g. accepting an xpub from any
+    // network.
+    fn read_xpub_without_network<'a, R, T>(
+        reader: &mut R,
+        backend: Option<&'a T>,
+    ) -> Result<GenericXPub<'a, T>, Bip32Error>
+    where
+        R: std::io::Read,
+        T: Secp256k1Backend<'a>,
+    {
+        let mut buf = [0u8; 4];
+        reader.read_exact(&mut buf)?;
+
+        Self::read_xpub_body(reader, Hint::Legacy, backend)
     }
 
     /// Attempt to instantiate an `XPriv` from a `std::io::Read`
@@ -245,19 +315,7 @@ pub trait Encoder<P: NetworkParams> {
         } else {
             return Err(Bip32Error::BadXPrivVersionBytes(buf));
         };
-
-        let depth = Self::read_depth(reader)?;
-        let parent = Self::read_parent(reader)?;
-        let index = Self::read_index(reader)?;
-        let chain_code = Self::read_chain_code(reader)?;
-
-        let mut buf = [0u8; 33];
-        reader.read_exact(&mut buf)?;
-        let key = T::Pubkey::from_array(buf)?;
-
-        Ok(GenericXPub::new(
-            depth, parent, index, key, chain_code, hint, backend,
-        ))
+        Self::read_xpub_body(reader, hint, backend)
     }
 
     /// Serialize an XPriv to base58

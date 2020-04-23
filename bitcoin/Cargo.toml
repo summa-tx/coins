@@ -15,3 +15,13 @@ base58check = "0.1.0"
 thiserror = "1.0"
 sha2 = "0.8.0"
 riemann-core = { path = "../core"}
+
+[dependencies.rmn-bip32]
+path = "../bip32"
+default-features = false
+
+
+[features]
+default = ["libsecp"]
+libsecp = ["rmn-bip32/libsecp"]
+rust-secp = ["rmn-bip32/rust-secp"]

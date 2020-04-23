@@ -16,6 +16,9 @@ may also use the optional static context for the `rust-secp` backend via the
 compilation time and library size, but eliminates the overhead on the
 first call to `Secp256k1::init()`.
 
+Note that `libsecp` and `rust_secp` are mutually exclusive. The library will
+fail to compile if both are selected.
+
 ## Building
 
 ```

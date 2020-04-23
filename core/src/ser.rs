@@ -31,6 +31,10 @@ pub enum SerError {
     /// An error by a component call in data structure (de)serialization
     #[error("Error in component (de)serialization: {0}")]
     ComponentError(String),
+
+    /// Failed to pass a limit to an iterated deserializer that requires one.
+    #[error("Deserialization of this struct needs additional lenght information")]
+    RequiresLimit,
 }
 
 /// Type alias for serialization errors

@@ -48,7 +48,8 @@ pub trait NetworkParams {
     const SH_VERSION: u8;
 }
 
-/// The standard encoder for Bitcoin networks. Parameterized by a `NetworkParams` type.
+/// The standard encoder for Bitcoin networks. Parameterized by a `NetworkParams` type and an
+/// `rmn_bip32::Encoder`. It exposes
 #[derive(Debug, Clone)]
 pub struct BitcoinEncoder<P: NetworkParams>(PhantomData<*const P>);
 

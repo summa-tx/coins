@@ -1,8 +1,12 @@
-use std::{collections::btree_map, io::Error as IOError, ops::RangeBounds};
+use std::{
+    collections::btree_map,
+    io::{Error as IOError, Read, Write},
+    ops::RangeBounds
+};
 
 use thiserror::Error;
 
-use riemann_core::{ser::SerError, types::primitives::ConcretePrefixVec};
+use riemann_core::{ser::{Ser, SerError}, types::primitives::ConcretePrefixVec};
 
 use crate::{psbt::schema, types::transactions::TxError};
 
@@ -62,7 +66,11 @@ pub enum PSBTError {
 
     /// Returned when a serialized bip32 derivation is invalid. This
     #[error("Invalid bip32 derivation.")]
-    InvalidBIP32Path,
+    InvalidBip32Path,
+
+    /// Returned when a PSBT_GLOBAL_XPUB's stated depth does not match its provided derivation path.
+    #[error("Master pubkey depth did not match derivation path elements")]
+    Bip32DepthMismatch,
 
     /// Returned when a PSBT's `Input` map vec length doesn't match its transaction's vin length
     #[error("Vin length mismatch. Tx has {tx_ins} inputs. PSBT has {maps} input maps")]
@@ -81,6 +89,64 @@ pub enum PSBTError {
         /// The number of output maps in the PSBT
         maps: usize,
     },
+}
+
+/// A Derivation Path for a
+pub struct KeyDerivation {
+    root: rmn_bip32::KeyFingerprint,
+    path: rmn_bip32::DerivationPath
+}
+
+impl Ser for KeyDerivation {
+    type Error = PSBTError;
+
+    fn to_json(&self) -> String {
+        unimplemented!()
+    }
+
+    fn serialized_length(&self) -> usize {
+        4 + 4 * self.path.len()
+    }
+
+    fn deserialize<T>(reader: &mut T, limit: usize) -> Result<Self, Self::Error>
+    where
+        T: Read,
+        Self: std::marker::Sized,
+    {
+        if limit == 0 {
+            return Err(SerError::RequiresLimit.into())
+        }
+
+        if limit > 255 {
+            return Err(PSBTError::InvalidBip32Path) 
+        }
+
+        let mut finger = [0u8; 4];
+        reader.read_exact(&mut finger)?;
+
+        let mut path = vec![];
+        for _ in 0..limit {
+            let mut buf = [0u8; 4];
+            reader.read_exact(&mut buf)?;
+            path.push(u32::from_le_bytes(buf));
+        }
+
+        Ok(KeyDerivation {
+            root: finger.into(),
+            path: path.into()
+        })
+    }
+
+    fn serialize<T>(&self, writer: &mut T) -> Result<usize, Self::Error>
+    where
+        T: Write,
+    {
+        let mut length = writer.write(&self.root.0)?;
+        for i in self.path.iter() {
+            length += writer.write(&i.to_le_bytes())?;
+        }
+        Ok(length)
+    }
 }
 
 wrap_prefixed_byte_vector!(

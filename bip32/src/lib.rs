@@ -75,8 +75,9 @@ pub mod path;
 
 pub use enc::{Encoder, MainnetEncoder, TestnetEncoder};
 pub use model::*;
+pub use path::DerivationPath;
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
-pub use xkeys::{XKey, XPriv, XPub};
+pub use xkeys::{KeyFingerprint, XKey, XPriv, XPub};
 
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 pub use backends::curve::Secp256k1;

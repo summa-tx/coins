@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use riemann_core::{ser::Ser, types::primitives::PrefixVec};
 
 use crate::{
-    psbt::common::{PSBTError, PSBTKey, PSBTValue},
+    psbt::common::{KeyDerivation, PSBTError, PSBTKey, PSBTValue},
     types::{
         script::Witness,
         transactions::{LegacyTx, Sighash, TxError},
@@ -46,12 +46,12 @@ impl KVTypeSchema {
 }
 
 /// Check that a value can be interpreted as a bip32 fingerprint + derivation
-pub fn validate_bip32_value(val: &PSBTValue) -> Result<(), PSBTError> {
-    if !val.is_empty() && val.len() % 4 != 0 {
-        Err(PSBTError::InvalidBIP32Path)
-    } else {
-        Ok(())
+pub fn try_val_as_key_derivation(val: &PSBTValue) -> Result<KeyDerivation, PSBTError> {
+    if val.len() % 4 != 0 {
+        return Err(PSBTError::InvalidBip32Path);
     }
+    let limit = val.len() / 4;
+    KeyDerivation::deserialize(&mut val.items(), limit)
 }
 
 /// Validate that a key is a fixed length
@@ -92,6 +92,18 @@ pub fn validate_expected_key_type(key: &PSBTKey, key_type: u8) -> Result<(), PSB
         })
     } else {
         Ok(())
+    }
+}
+
+/// Compares an xpub key to its derivation, and ensure the depth marker matches tne stated
+/// derivation depth
+pub fn validate_xpub_depth(key: &PSBTKey, val: &PSBTValue) -> Result<(), PSBTError> {
+    let expected = (val.len() / 4) - 1;
+    let depth = key.items()[4];
+    if expected == depth as usize {
+        Ok(())
+    } else {
+        Err(PSBTError::Bip32DepthMismatch)
     }
 }
 
@@ -140,8 +152,7 @@ pub mod global {
     pub fn validate_xpub(key: &PSBTKey, val: &PSBTValue) -> Result<(), PSBTError> {
         validate_expected_key_type(key, 1)?;
         validate_fixed_key_length(key, 79)?;
-        // TODO: check that xpub depth matches derivation path length
-        validate_bip32_value(val)
+        validate_xpub_depth(key, val)
     }
 
     /// Validate version kv pair. Checks whether the version is exactly 32-bytes.
@@ -176,7 +187,8 @@ pub mod output {
         // 34 = 33-byte pubkey + 1-byte type
         validate_expected_key_type(key, 2)?;
         validate_fixed_key_length(key, 34)?;
-        validate_bip32_value(val)
+        try_val_as_key_derivation(val)?;
+        Ok(())
     }
 }
 
@@ -235,7 +247,8 @@ pub mod input {
         // 34 = 33-byte pubkey + 1-byte type
         validate_expected_key_type(key, 6)?;
         validate_fixed_key_length(key, 34)?;
-        validate_bip32_value(val)
+        try_val_as_key_derivation(val)?;
+        Ok(())
     }
 
     /// Validate PSBT_IN_FINAL_SCRIPTSIG kv pair.
