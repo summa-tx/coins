@@ -73,14 +73,17 @@ pub mod model;
 /// `DerivationPath` type and tooling for parsing it from strings
 pub mod path;
 
+/// Provides keys that are coupled with their derivation path
+pub mod derived;
+
 pub use enc::{Encoder, MainnetEncoder, NetworkParams, TestnetEncoder};
 pub use model::*;
-pub use path::DerivationPath;
+pub use path::{DerivationPath, KeyDerivation};
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 pub use xkeys::{KeyFingerprint, XKey, XPriv, XPub};
 
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
-pub use backends::curve::Secp256k1;
+pub use backends::curve::{Pubkey, RecoverableSignature, Secp256k1, Signature};
 
 use thiserror::Error;
 

@@ -97,6 +97,9 @@ pub mod curve {
         }
     }
 
+    /// Type alias for underlyin signature type
+    pub type Signature = secp256k1::Signature;
+
     impl SigSerialize for secp256k1::Signature {
         fn to_der(&self) -> Vec<u8> {
             secp256k1::Signature::serialize_der(self).to_vec()
@@ -116,6 +119,9 @@ pub mod curve {
             Err(Bip32Error::NoRecoveryID)
         }
     }
+
+    /// Type alias for underlyin RecoverableSigSerialize signature type
+    pub type RecoverableSignature = secp256k1::recovery::RecoverableSignature;
 
     /// A serializable RecoverableSignature
     impl RecoverableSigSerialize for secp256k1::recovery::RecoverableSignature {
@@ -294,6 +300,9 @@ pub mod curve {
             Ok(secp256k1::PublicKey::parse(&buf)?.into())
         }
     }
+
+    /// Type alias for the underlying Signature type
+    pub type Signature = secp256k1::Signature;
 
     /// A Signature with recovery information
     #[derive(Debug, Clone, PartialEq, Eq)]

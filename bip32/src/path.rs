@@ -4,7 +4,7 @@ use std::{
     slice::Iter,
 };
 
-use crate::{Bip32Error, BIP32_HARDEN};
+use crate::{Bip32Error, KeyFingerprint, BIP32_HARDEN};
 
 fn try_parse_index(s: &str) -> Result<u32, Bip32Error> {
     let mut index_str = s.to_owned();
@@ -60,6 +60,32 @@ impl DerivationPath {
                 (pos, Some(self.0[pos]))
             }
             None => (0, None),
+        }
+    }
+    
+    /// Append an additional derivation to the end, return a clone
+    pub fn extended(&self, idx: u32) -> Self {
+        let mut child = self.clone();
+        child.0.push(idx);
+        child
+    }
+}
+
+/// A Derivation Path for a bip32 key
+#[derive(Debug, Clone, Eq, PartialEq)]
+pub struct KeyDerivation {
+    /// The root key fingerprint
+    pub root: KeyFingerprint,
+    /// The derivation path from the root key
+    pub path: DerivationPath,
+}
+
+impl KeyDerivation {
+    /// Append an additional derivation to the end, return a clone
+    pub fn extended(&self, idx: u32) -> Self {
+        Self {
+            root: self.root,
+            path: self.path.extended(idx),
         }
     }
 }
