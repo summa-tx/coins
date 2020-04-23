@@ -31,6 +31,7 @@ fn try_parse_path(path: &str) -> Result<DerivationPath, Bip32Error> {
 }
 
 /// A Bip32 derivation path
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub struct DerivationPath(Vec<u32>);
 
 impl DerivationPath {
