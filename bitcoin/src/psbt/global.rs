@@ -4,11 +4,13 @@ use riemann_core::{primitives::PrefixVec, ser::Ser};
 
 use crate::{
     psbt::{
-        common::{PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},
+        common::{KeyDerivation, PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},
         schema,
     },
     types::transactions::LegacyTx,
 };
+
+use rmn_bip32::{Encoder as Bip32Encoder, Secp256k1, XPub};
 
 psbt_map!(PSBTGlobal);
 
@@ -75,6 +77,24 @@ impl PSBTGlobal {
     /// Get a range of XPUBs
     pub fn xpubs(&self) -> btree_map::Range<PSBTKey, PSBTValue> {
         self.range_by_key_type(GlobalKey::XPUB as u8)
+    }
+
+    /// Return a parsed vector of k/v pairs. Keys are parsed as XPubs with the provided backend.
+    /// Values are parsed as `KeyDerivation` structs.
+    pub fn parse_xpubs<'a, E>(
+        &self,
+        backend: Option<&'a Secp256k1>,
+    ) -> Result<Vec<(XPub<'a>, KeyDerivation)>, PSBTError>
+    where
+        E: Bip32Encoder,
+    {
+        let mut results = vec![];
+        for (k, v) in self.xpubs() {
+            let xpub = schema::try_key_as_xpub::<E>(k, backend)?;
+            let deriv = schema::try_val_as_key_derivation(v)?;
+            results.push((xpub, deriv));
+        }
+        Ok(results)
     }
 
     /// Get the global PSBT version

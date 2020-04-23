@@ -58,7 +58,7 @@ impl DerivationPath {
                 let pos = self.len() - rev_pos - 1;
                 (pos, Some(self.0[pos]))
             }
-            None => (0, None)
+            None => (0, None),
         }
     }
 }

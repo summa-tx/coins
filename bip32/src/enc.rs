@@ -53,7 +53,7 @@ pub trait NetworkParams {
 }
 
 /// Bip32/49/84 encoder
-pub trait Encoder<P: NetworkParams> {
+pub trait Encoder {
     #[doc(hidden)]
     fn write_key_details<K, W>(writer: &mut W, key: &K) -> Result<usize, Bip32Error>
     where
@@ -71,36 +71,16 @@ pub trait Encoder<P: NetworkParams> {
     fn write_xpub<'a, W, T>(writer: &mut W, key: &GenericXPub<'a, T>) -> Result<usize, Bip32Error>
     where
         W: std::io::Write,
-        T: Secp256k1Backend<'a>,
-    {
-        let version = match key.hint() {
-            Hint::Legacy => P::PUB_VERSION,
-            Hint::Compatibility => P::BIP49_PUB_VERSION,
-            Hint::SegWit => P::BIP84_PUB_VERSION,
-        };
-        let mut written = writer.write(&version.to_be_bytes())?;
-        written += Self::write_key_details(writer, key)?;
-        written += writer.write(&key.compressed_pubkey())?;
-        Ok(written)
-    }
+        T: Secp256k1Backend<'a>;
 
     /// Serialize the xpriv to `std::io::Write`
-    fn write_xpriv<'a, W, T>(writer: &mut W, key: &GenericXPriv<'a, T>) -> Result<usize, Bip32Error>
+    fn write_xpriv<'a, W, T>(
+        writer: &mut W,
+        key: &GenericXPriv<'a, T>,
+    ) -> Result<usize, Bip32Error>
     where
         W: std::io::Write,
-        T: Secp256k1Backend<'a>,
-    {
-        let version = match key.hint() {
-            Hint::Legacy => P::PRIV_VERSION,
-            Hint::Compatibility => P::BIP49_PRIV_VERSION,
-            Hint::SegWit => P::BIP84_PRIV_VERSION,
-        };
-        let mut written = writer.write(&version.to_be_bytes())?;
-        written += Self::write_key_details(writer, key)?;
-        written += writer.write(&[0])?;
-        written += writer.write(&key.secret_key())?;
-        Ok(written)
-    }
+        T: Secp256k1Backend<'a>;
 
     #[doc(hidden)]
     fn read_depth<R>(reader: &mut R) -> Result<u8, Bip32Error>
@@ -150,7 +130,7 @@ pub trait Encoder<P: NetworkParams> {
     ) -> Result<GenericXPriv<'a, T>, Bip32Error>
     where
         R: std::io::Read,
-        T: Secp256k1Backend<'a>
+        T: Secp256k1Backend<'a>,
     {
         let depth = Self::read_depth(reader)?;
         let parent = Self::read_parent(reader)?;
@@ -214,24 +194,7 @@ pub trait Encoder<P: NetworkParams> {
     ) -> Result<GenericXPriv<'a, T>, Bip32Error>
     where
         R: std::io::Read,
-        T: Secp256k1Backend<'a>,
-    {
-        let mut buf = [0u8; 4];
-        reader.read_exact(&mut buf)?;
-        let version_bytes = u32::from_be_bytes(buf);
-
-        // Can't use associated constants in matches :()
-        let hint = if version_bytes == P::PRIV_VERSION {
-            Hint::Legacy
-        } else if version_bytes == P::BIP49_PRIV_VERSION {
-            Hint::Compatibility
-        } else if version_bytes == P::BIP84_PRIV_VERSION {
-            Hint::SegWit
-        } else {
-            return Err(Bip32Error::BadXPrivVersionBytes(buf));
-        };
-        Self::read_xpriv_body(reader, hint, backend)
-    }
+        T: Secp256k1Backend<'a>;
 
     #[doc(hidden)]
     fn read_xpub_body<'a, R, T>(
@@ -241,7 +204,7 @@ pub trait Encoder<P: NetworkParams> {
     ) -> Result<GenericXPub<'a, T>, Bip32Error>
     where
         R: std::io::Read,
-        T: Secp256k1Backend<'a>
+        T: Secp256k1Backend<'a>,
     {
         let depth = Self::read_depth(reader)?;
         let parent = Self::read_parent(reader)?;
@@ -299,24 +262,7 @@ pub trait Encoder<P: NetworkParams> {
     ) -> Result<GenericXPub<'a, T>, Bip32Error>
     where
         R: std::io::Read,
-        T: Secp256k1Backend<'a>,
-    {
-        let mut buf = [0u8; 4];
-        reader.read_exact(&mut buf)?;
-        let version_bytes = u32::from_be_bytes(buf);
-
-        // Can't use associated constants in matches :()
-        let hint = if version_bytes == P::PUB_VERSION {
-            Hint::Legacy
-        } else if version_bytes == P::BIP49_PUB_VERSION {
-            Hint::Compatibility
-        } else if version_bytes == P::BIP84_PUB_VERSION {
-            Hint::SegWit
-        } else {
-            return Err(Bip32Error::BadXPrivVersionBytes(buf));
-        };
-        Self::read_xpub_body(reader, hint, backend)
-    }
+        T: Secp256k1Backend<'a>;
 
     /// Serialize an XPriv to base58
     fn xpriv_to_base58<'a, T>(k: &GenericXPriv<'a, T>) -> Result<String, Bip32Error>
@@ -412,6 +358,7 @@ macro_rules! params {
         }
     ) => {
         $(#[$outer])*
+        #[derive(Debug, Clone)]
         pub struct $name;
 
         impl NetworkParams for $name {
@@ -453,7 +400,92 @@ params!(
 #[derive(Debug, Clone)]
 pub struct BitcoinEncoder<P: NetworkParams>(PhantomData<*const P>);
 
-impl<P: NetworkParams> Encoder<P> for BitcoinEncoder<P> {}
+impl<P: NetworkParams> Encoder for BitcoinEncoder<P> {
+    /// Serialize the xpub to `std::io::Write`
+    fn write_xpub<'a, W, T>(writer: &mut W, key: &GenericXPub<'a, T>) -> Result<usize, Bip32Error>
+    where
+        W: std::io::Write,
+        T: Secp256k1Backend<'a>,
+    {
+        let version = match key.hint() {
+            Hint::Legacy => P::PUB_VERSION,
+            Hint::Compatibility => P::BIP49_PUB_VERSION,
+            Hint::SegWit => P::BIP84_PUB_VERSION,
+        };
+        let mut written = writer.write(&version.to_be_bytes())?;
+        written += Self::write_key_details(writer, key)?;
+        written += writer.write(&key.compressed_pubkey())?;
+        Ok(written)
+    }
+
+    /// Serialize the xpriv to `std::io::Write`
+    fn write_xpriv<'a, W, T>(writer: &mut W, key: &GenericXPriv<'a, T>) -> Result<usize, Bip32Error>
+    where
+        W: std::io::Write,
+        T: Secp256k1Backend<'a>,
+    {
+        let version = match key.hint() {
+            Hint::Legacy => P::PRIV_VERSION,
+            Hint::Compatibility => P::BIP49_PRIV_VERSION,
+            Hint::SegWit => P::BIP84_PRIV_VERSION,
+        };
+        let mut written = writer.write(&version.to_be_bytes())?;
+        written += Self::write_key_details(writer, key)?;
+        written += writer.write(&[0])?;
+        written += writer.write(&key.secret_key())?;
+        Ok(written)
+    }
+
+    fn read_xpriv<'a, R, T>(
+        reader: &mut R,
+        backend: Option<&'a T>,
+    ) -> Result<GenericXPriv<'a, T>, Bip32Error>
+    where
+        R: std::io::Read,
+        T: Secp256k1Backend<'a>,
+    {
+        let mut buf = [0u8; 4];
+        reader.read_exact(&mut buf)?;
+        let version_bytes = u32::from_be_bytes(buf);
+
+        // Can't use associated constants in matches :()
+        let hint = if version_bytes == P::PRIV_VERSION {
+            Hint::Legacy
+        } else if version_bytes == P::BIP49_PRIV_VERSION {
+            Hint::Compatibility
+        } else if version_bytes == P::BIP84_PRIV_VERSION {
+            Hint::SegWit
+        } else {
+            return Err(Bip32Error::BadXPrivVersionBytes(buf));
+        };
+        Self::read_xpriv_body(reader, hint, backend)
+    }
+
+    fn read_xpub<'a, R, T>(
+        reader: &mut R,
+        backend: Option<&'a T>,
+    ) -> Result<GenericXPub<'a, T>, Bip32Error>
+    where
+        R: std::io::Read,
+        T: Secp256k1Backend<'a>,
+    {
+        let mut buf = [0u8; 4];
+        reader.read_exact(&mut buf)?;
+        let version_bytes = u32::from_be_bytes(buf);
+
+        // Can't use associated constants in matches :()
+        let hint = if version_bytes == P::PUB_VERSION {
+            Hint::Legacy
+        } else if version_bytes == P::BIP49_PUB_VERSION {
+            Hint::Compatibility
+        } else if version_bytes == P::BIP84_PUB_VERSION {
+            Hint::SegWit
+        } else {
+            return Err(Bip32Error::BadXPrivVersionBytes(buf));
+        };
+        Self::read_xpub_body(reader, hint, backend)
+    }
+}
 
 /// Encoder for Mainnet xkeys
 pub type MainnetEncoder = BitcoinEncoder<Main>;

@@ -2,6 +2,8 @@ use std::collections::HashMap;
 
 use riemann_core::{ser::Ser, types::primitives::PrefixVec};
 
+use rmn_bip32::{Encoder as Bip32Encoder, Secp256k1, XPub};
+
 use crate::{
     psbt::common::{KeyDerivation, PSBTError, PSBTKey, PSBTValue},
     types::{
@@ -135,6 +137,19 @@ pub fn try_val_as_sighash(val: &PSBTValue) -> Result<Sighash, PSBTError> {
 pub fn try_val_as_witness(val: &PSBTValue) -> Result<Witness, PSBTError> {
     let mut wit_bytes = val.items();
     Ok(Witness::deserialize(&mut wit_bytes, 0)?)
+}
+
+/// Attempt to parse a key as a valid extended pubkey
+pub fn try_key_as_xpub<'a, E>(
+    key: &PSBTKey,
+    backend: Option<&'a Secp256k1>,
+) -> Result<XPub<'a>, PSBTError>
+where
+    E: Bip32Encoder,
+{
+    // strip off first byte (the type)
+    let mut xpub_bytes = &key.items()[1..];
+    Ok(E::read_xpub(&mut xpub_bytes, backend)?)
 }
 
 /// Validation functions for PSBT Global maps

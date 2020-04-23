@@ -1,12 +1,15 @@
 use std::{
     collections::btree_map,
     io::{Error as IOError, Read, Write},
-    ops::RangeBounds
+    ops::RangeBounds,
 };
 
 use thiserror::Error;
 
-use riemann_core::{ser::{Ser, SerError}, types::primitives::ConcretePrefixVec};
+use riemann_core::{
+    ser::{Ser, SerError},
+    types::primitives::ConcretePrefixVec,
+};
 
 use crate::{psbt::schema, types::transactions::TxError};
 
@@ -21,17 +24,21 @@ pub enum PSBTError {
     #[error(transparent)]
     IOError(#[from] IOError),
 
-    /// PSBT Prefix does not match the expected value
-    #[error("Bad PSBT Prefix. Expected psbt with 0xff separator.")]
-    BadPrefix,
-
     /// PSBT Global map tx value is not a valid legacy transaction.
     #[error(transparent)]
-    InvalidTx(#[from] TxError),
+    TxError(#[from] TxError),
+
+    /// Bubbled up from the BIP32 library
+    #[error(transparent)]
+    Bip32Error(#[from] rmn_bip32::Bip32Error),
 
     /// Returned by convenience functions that attempt to read a non-existant key
     #[error("Attempted to get missing singleton key {0}")]
     MissingKey(u8),
+
+    /// PSBT Prefix does not match the expected value
+    #[error("Bad PSBT Prefix. Expected psbt with 0xff separator.")]
+    BadPrefix,
 
     /// Placeholder. TODO: Differentiate later
     #[error("Invalid PSBT. Unknown cause.")]
@@ -94,7 +101,7 @@ pub enum PSBTError {
 /// A Derivation Path for a
 pub struct KeyDerivation {
     root: rmn_bip32::KeyFingerprint,
-    path: rmn_bip32::DerivationPath
+    path: rmn_bip32::DerivationPath,
 }
 
 impl Ser for KeyDerivation {
@@ -114,11 +121,11 @@ impl Ser for KeyDerivation {
         Self: std::marker::Sized,
     {
         if limit == 0 {
-            return Err(SerError::RequiresLimit.into())
+            return Err(SerError::RequiresLimit.into());
         }
 
         if limit > 255 {
-            return Err(PSBTError::InvalidBip32Path) 
+            return Err(PSBTError::InvalidBip32Path);
         }
 
         let mut finger = [0u8; 4];
@@ -133,7 +140,7 @@ impl Ser for KeyDerivation {
 
         Ok(KeyDerivation {
             root: finger.into(),
-            path: path.into()
+            path: path.into(),
         })
     }
 

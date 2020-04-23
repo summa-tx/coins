@@ -73,7 +73,7 @@ pub mod model;
 /// `DerivationPath` type and tooling for parsing it from strings
 pub mod path;
 
-pub use enc::{Encoder, MainnetEncoder, TestnetEncoder};
+pub use enc::{Encoder, MainnetEncoder, NetworkParams, TestnetEncoder};
 pub use model::*;
 pub use path::DerivationPath;
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
