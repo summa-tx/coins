@@ -58,7 +58,7 @@ impl<T: XKey> XKey for DerivedKey<T> {
     fn derive_child(&self, index: u32) -> Result<Self, Bip32Error> {
         Ok(Self {
             key: self.key.derive_child(index)?,
-            derivation: self.derivation.extended(index)
+            derivation: self.derivation.extended(index),
         })
     }
 }
@@ -86,7 +86,7 @@ impl<T> DerivedKey<T> {
 
 impl<T> DerivedKey<T>
 where
-    T: XKey
+    T: XKey,
 {
     /// Determine whether `self` is an ancestor of `descendant` by attempting to derive the path
     /// between them. Returns true if both the fingerprint and the parent fingerprint match.
@@ -95,15 +95,15 @@ where
     /// in a birthday attack setting).
     pub fn is_ancestor_of<K: XKey>(&self, descendant: &DerivedKey<K>) -> Result<bool, Bip32Error> {
         if !self.is_possible_ancestor_of(descendant) {
-            return Ok(false)
+            return Ok(false);
         }
-        let path = self.path_to_descendant(descendant).expect("pre-flighted by is_possible_ancestor_of");
-        let descendant = self.derive_path(path)?;
+        let path = self
+            .path_to_descendant(descendant)
+            .expect("pre-flighted by is_possible_ancestor_of");
+        let descendant = self.derive_path(&path)?;
         // Consider: is this sufficient collision resistance?
-        Ok(
-            descendant.fingerprint()? == descendant.key.fingerprint()?
-            && descendant.parent() == descendant.parent()
-        )
+        Ok(descendant.fingerprint()? == descendant.key.fingerprint()?
+            && descendant.parent() == descendant.parent())
     }
 }
 
@@ -185,12 +185,9 @@ pub mod keys {
             let key = XPriv::root_from_seed(data, hint, backend)?;
             let derivation = KeyDerivation {
                 root: key.fingerprint()?,
-                path: vec![].into()
+                path: vec![].into(),
             };
-            Ok(Self{
-                key,
-                derivation,
-            })
+            Ok(Self { key, derivation })
         }
 
         /// Return a `Pubkey` corresponding to the private key
