@@ -84,20 +84,15 @@ pub enum SignerError {
     ScriptHashMismatch(usize),
 }
 
-/// A simple signer using a bip32 XPriv key with attached derivation information.
+/// A sample signer using a bip32 XPriv key with attached derivation information.
 ///
-/// Implements naive change-checking by simply chekcing if it owns the pubkey of a PKH or WPKH
+/// Implements naive change-checking by simply checking if it owns the pubkey of a PKH or WPKH
 /// output.
 pub struct Bip32Signer<'a> {
     xpriv: bip32::DerivedXPriv<'a>,
 }
 
 impl<'a> Bip32Signer<'a> {
-    /// Instantiate a new XPriv
-    pub fn new(xpriv: bip32::DerivedXPriv<'a>) -> Self {
-        Self { xpriv }
-    }
-
     fn can_sign_non_witness(
         &self,
         input_idx: usize,
@@ -242,6 +237,12 @@ impl<'a> Bip32Signer<'a> {
         }
 
         Ok(())
+    }
+}
+
+impl<'a> From<bip32::DerivedXPriv<'a>,> for Bip32Signer<'a> {
+    fn from(xpriv: bip32::DerivedXPriv<'a>) -> Self {
+        Self { xpriv }
     }
 }
 
