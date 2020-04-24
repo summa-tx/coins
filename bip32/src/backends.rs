@@ -233,10 +233,7 @@ pub mod curve {
     use libsecp256k1 as secp256k1;
 
     use crate::{
-        model::{
-            PointSerialize, RecoverableSigSerialize, ScalarSerialize, Secp256k1Backend,
-            SigSerialize,
-        },
+        model::*,
         Bip32Error,
     };
 
@@ -270,7 +267,7 @@ pub mod curve {
         }
     }
 
-    impl ScalarSerialize for Privkey {
+    impl ScalarDeserialize for Privkey {
         fn from_privkey_array(buf: [u8; 32]) -> Result<Self, Bip32Error> {
             Ok(secp256k1::SecretKey::parse(&buf)?.into())
         }
