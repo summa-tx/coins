@@ -89,7 +89,7 @@ pub enum SignerError {
 /// Implements naive change-checking by simply checking if it owns the pubkey of a PKH or WPKH
 /// output.
 pub struct Bip32Signer<'a> {
-    xpriv: bip32::DerivedXPriv<'a>,
+    xpriv: &'a bip32::DerivedXPriv<'a>,
 }
 
 impl<'a> Bip32Signer<'a> {
@@ -240,8 +240,8 @@ impl<'a> Bip32Signer<'a> {
     }
 }
 
-impl<'a> From<bip32::DerivedXPriv<'a>,> for Bip32Signer<'a> {
-    fn from(xpriv: bip32::DerivedXPriv<'a>) -> Self {
+impl<'a> From<&'a bip32::DerivedXPriv<'a>,> for Bip32Signer<'a> {
+    fn from(xpriv: &'a bip32::DerivedXPriv<'a>) -> Self {
         Self { xpriv }
     }
 }
