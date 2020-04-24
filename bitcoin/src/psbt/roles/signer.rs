@@ -23,6 +23,16 @@ where
     /// An associated error type that can be instantiated from the PST's Error type.
     type Error: std::error::Error + From<P::Error>;
 
+    /// Determine whether an output is change.
+    fn is_change(&self, pst: &P, idx: usize) -> bool;
+
+    /// Returns a vector of integers speciiying the indices out change ouputs.
+    fn identify_change_outputs(&self, pst: &P) -> Vec<usize> {
+        (0..pst.output_maps().len())
+            .filter(|i| self.is_change(pst, *i))
+            .collect()
+    }
+
     /// Returns `true` if the sighash is acceptable, else `false`.
     fn acceptable_sighash(&self, sighash_type: Sighash) -> bool;
 
@@ -74,7 +84,10 @@ pub enum SignerError {
     ScriptHashMismatch(usize),
 }
 
-/// A simple signer using a bip32 key
+/// A simple signer using a bip32 XPriv key with attached derivation information.
+///
+/// Implements naive change-checking by simply chekcing if it owns the pubkey of a PKH or WPKH
+/// output.
 pub struct Bip32Signer<'a> {
     xpriv: bip32::DerivedXPriv<'a>,
 }
@@ -112,6 +125,8 @@ impl<'a> Bip32Signer<'a> {
             });
         }
 
+        // TODO: shortcut PKH here
+
         if let Ok(script) = input_map.redeem_script() {
             if prevout_type != ScriptType::SH {
                 return Err(SignerError::WrongPrevoutScriptType {
@@ -137,12 +152,15 @@ impl<'a> Bip32Signer<'a> {
         let prevout_script = &prevout.script_pubkey;
         let prevout_type = prevout_script.standard_type();
 
+
         if prevout_type != ScriptType::WPKH && prevout_type != ScriptType::WSH {
             return Err(SignerError::WrongPrevoutScriptType {
                 got: prevout.script_pubkey.standard_type(),
                 expected: vec![ScriptType::WSH, ScriptType::WPKH],
             });
         }
+
+        // TODO: Shortcut WPKH here
 
         if let Ok(script) = input_map.witness_script() {
             if prevout_type != ScriptType::WSH {
@@ -233,6 +251,35 @@ where
     E: bip32::Encoder,
 {
     type Error = PSBTError;
+
+    fn is_change(&self, pst: &PSBT<A, E>, idx: usize) -> bool {
+        let output_map = &pst.output_maps()[idx];
+
+        let pubkeys = output_map.parsed_pubkey_derivations();
+        if pubkeys.len() != 1 {
+            return false
+        }
+
+        let tx_res = pst.tx();
+        if tx_res.is_err() {
+            return false;
+        }
+        let tx = tx_res.unwrap();
+        let output = &tx.outputs()[idx];
+
+        let script = &output.script_pubkey;
+        let script_type = script.standard_type();
+        if script_type == ScriptType::WPKH || script_type == ScriptType::PKH {
+            let res = self.xpriv.private_ancestor_of(&pubkeys[0]);
+            if res.is_err() {
+                false
+            } else {
+                res.unwrap()
+            }
+        } else {
+            false
+        }
+    }
 
     fn acceptable_sighash(&self, _sighash_type: Sighash) -> bool {
         true
