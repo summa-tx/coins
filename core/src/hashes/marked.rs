@@ -1,7 +1,7 @@
-use std::io::{Write};
-use bitcoin_spv::types::{Hash256Digest};
+use bitcoin_spv::types::Hash256Digest;
+use std::io::Write;
 
-use crate::ser::{Ser};
+use crate::ser::Ser;
 
 /// Marks a hash function digest.
 pub trait Digest: Default + Ser {}

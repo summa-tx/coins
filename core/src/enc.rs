@@ -1,9 +1,7 @@
 //! Specifies an abstract `AddressEncoder` that is used to convert `Address` to/from the in-memory
 //! representation of the associated spending constraint.
 
-use crate::{
-    types::tx::{RecipientIdentifier},
-};
+use crate::types::tx::RecipientIdentifier;
 
 /// An AddressEncoder encodes and decodes addresses. This struct is used by the Builder to decode
 /// addresses, and is associated with a Network object. It handles converting addresses to

@@ -2,18 +2,13 @@
 //! only `TXID`s and `WTXID`s. In the future we may also represent sighash digests this way.
 
 use js_sys;
-use wasm_bindgen::prelude::*;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
+use wasm_bindgen::prelude::*;
 
-use bitcoin_spv::types::{Hash256Digest};
+use bitcoin_spv::types::Hash256Digest;
 
-use riemann_core::{
-    hashes::marked::{MarkedDigest},
-    ser::{Ser},
-};
-use rmn_btc::{
-    hashes,
-};
+use riemann_core::{hashes::marked::MarkedDigest, ser::Ser};
+use rmn_btc::hashes;
 
 use crate::errors::WasmError;
 
@@ -28,7 +23,6 @@ wrap_struct!(
 
 #[wasm_bindgen]
 impl TXID {
-
     /// Instantiate a new TXID from a Uint8Array
     #[wasm_bindgen(constructor)]
     pub fn new(digest: &[u8]) -> Self {
@@ -46,7 +40,6 @@ impl TXID {
 
 #[wasm_bindgen]
 impl WTXID {
-
     /// Instantiate a new WTXID from a Uint8Array
     #[wasm_bindgen(constructor)]
     pub fn new(digest: &[u8]) -> Self {

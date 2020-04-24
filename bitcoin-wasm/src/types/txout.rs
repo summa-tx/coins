@@ -1,16 +1,11 @@
 //! Transaction outputs, their components, and the output vector.
 
 use js_sys;
-use wasm_bindgen::prelude::*;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
+use wasm_bindgen::prelude::*;
 
-use riemann_core::{
-    types::primitives::{PrefixVec},
-    ser::{Ser}
-};
-use rmn_btc::{
-    types::{script, txout},
-};
+use riemann_core::{ser::Ser, types::primitives::PrefixVec};
+use rmn_btc::types::{script, txout};
 
 use crate::errors::WasmError;
 
@@ -32,26 +27,29 @@ impl TxOut {
     /// Instantiate a new TxOut.
     #[wasm_bindgen(constructor)]
     pub fn new(value: u64, script_pubkey: &[u8]) -> Self {
-        txout::TxOut{
+        txout::TxOut {
             value,
-            script_pubkey: script_pubkey.into()
-        }.into()
+            script_pubkey: script_pubkey.into(),
+        }
+        .into()
     }
 
     /// Instantiate the null TxOut, which is used in Legacy Sighash.
     pub fn null() -> Self {
-        txout::TxOut{
+        txout::TxOut {
             value: 0xffff_ffff_ffff_ffff,
-            script_pubkey: script::ScriptPubkey::null()
-        }.into()
+            script_pubkey: script::ScriptPubkey::null(),
+        }
+        .into()
     }
 
     /// Instantiate the null TxOut, which is used in Legacy Sighash.
     pub fn default() -> Self {
-        txout::TxOut{
+        txout::TxOut {
             value: 0xffff_ffff_ffff_ffff,
-            script_pubkey: script::ScriptPubkey::null()
-        }.into()
+            script_pubkey: script::ScriptPubkey::null(),
+        }
+        .into()
     }
 
     /// Return the script_pubkey as a `Uint8Array`

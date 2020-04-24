@@ -3,12 +3,10 @@
 //! for various Bitcoin networks are found in the `bitcoin` crate.
 
 use crate::{
-    builder::{TxBuilder},
-    enc::{AddressEncoder},
-    ser::{Ser},
-    types::{
-        tx::{Input, Output, RecipientIdentifier, Transaction},
-    },
+    builder::TxBuilder,
+    enc::AddressEncoder,
+    ser::Ser,
+    types::tx::{Input, Output, RecipientIdentifier, Transaction},
 };
 
 /// A Network describes a possible UTXO network. It is primarily a collection of types with
@@ -38,7 +36,8 @@ pub trait Network<'a> {
     type Encoder: AddressEncoder<
         Address = Self::Address,
         Error = Self::Error,
-        RecipientIdentifier = Self::RecipientIdentifier>;
+        RecipientIdentifier = Self::RecipientIdentifier,
+    >;
 
     /// A transaction Input type. This type is used within the `Transaction` and specificies UTXOs
     /// being spent by the transaction.

@@ -1,22 +1,13 @@
 //! Transaction inputs, their components, and the input vector.
 
 use js_sys;
-use wasm_bindgen::prelude::*;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
+use wasm_bindgen::prelude::*;
 
-use riemann_core::{
-    types::primitives::{PrefixVec},
-    ser::{Ser}
-};
-use rmn_btc::{
-    types::{script, txin},
-};
+use riemann_core::{ser::Ser, types::primitives::PrefixVec};
+use rmn_btc::types::{script, txin};
 
-use crate::{
-    errors::{WasmError},
-    hashes::{TXID},
-};
-
+use crate::{errors::WasmError, hashes::TXID};
 
 wrap_struct!(
     /// An Outpoint. This is a unique identifier for a UTXO, and is composed of a transaction ID (in
@@ -68,11 +59,7 @@ impl BitcoinTxIn {
     /// Instantiate a new BitcoinTxIn.
     #[wasm_bindgen(constructor)]
     pub fn new(outpoint: BitcoinOutpoint, script_sig: &[u8], sequence: u32) -> Self {
-        txin::BitcoinTxIn::new(
-            outpoint.0,
-            script::ScriptSig::from(script_sig),
-            sequence
-        ).into()
+        txin::BitcoinTxIn::new(outpoint.0, script::ScriptSig::from(script_sig), sequence).into()
     }
 
     /// Return the input's script sig.

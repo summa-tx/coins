@@ -1,16 +1,11 @@
 //! Simple type wrappers for `WitnessStackItem` `Witness` and `TxWitness`.
 
 use js_sys;
-use wasm_bindgen::prelude::*;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
+use wasm_bindgen::prelude::*;
 
-use riemann_core::{
-    types::primitives::{PrefixVec},
-    ser::{Ser}
-};
-use rmn_btc::{
-    types::{script},
-};
+use riemann_core::{ser::Ser, types::primitives::PrefixVec};
+use rmn_btc::types::script;
 
 use crate::errors::WasmError;
 

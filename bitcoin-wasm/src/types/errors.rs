@@ -2,14 +2,10 @@
 
 use wasm_bindgen::prelude::*;
 
-use riemann_core::ser::{SerError};
-use rmn_btc::{
-    bases::{EncodingError},
-    transactions::{TxError},
-};
+use riemann_core::ser::SerError;
+use rmn_btc::{bases::EncodingError, transactions::TxError};
 
 use thiserror::Error;
-
 
 /// An error type that wraps internal error types into something that can easily
 /// be propagated to JS.
@@ -19,14 +15,14 @@ pub enum WasmError {
     #[error("Unknown error in wasm")]
     UnknownError,
     /// An error related to serailization.
-    #[error("SerError: {}", .0)]
+    #[error(transparent)]
     SerError(#[from] SerError),
     /// An error related to TX operations. Usually itself a wrapped `SerError`
-    #[error("TxError: {}", .0)]
+    #[error(transparent)]
     TxError(#[from] TxError),
     /// An error related to Address encoding/decoding. Often a wrapped error from
     /// base58check or bech32 crates. Sometimes a version or HRP mismatch.
-    #[error("EncodingError: {}", .0)]
+    #[error(transparent)]
     EncodingError(#[from] EncodingError),
 }
 

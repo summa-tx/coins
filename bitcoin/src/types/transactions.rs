@@ -1,17 +1,15 @@
 //! Bitcoin transaction types and associated sighash arguments.
-use std::io::{Read, Write, Error as IOError};
-use bitcoin_spv::types::{Hash256Digest};
+use bitcoin_spv::types::Hash256Digest;
+use std::io::{Error as IOError, Read, Write};
+use thiserror::Error;
 
 use riemann_core::{
     hashes::{
-        hash256::{Hash256Writer},
+        hash256::Hash256Writer,
         marked::{MarkedDigest, MarkedDigestWriter},
     },
     ser::{Ser, SerError},
-    types::{
-        primitives::{PrefixVec},
-        tx::{Transaction},
-    },
+    types::{primitives::PrefixVec, tx::Transaction},
 };
 
 use crate::{
@@ -21,19 +19,17 @@ use crate::{
     txout::{TxOut, Vout},
 };
 
-use thiserror::Error;
-
 /// An Error type for transaction objects
 #[derive(Debug, Error)]
-pub enum TxError{
+pub enum TxError {
     /// Serialization-related errors
-    #[error("Serialization-related error: {}", .0)]
+    #[error(transparent)]
     SerError(#[from] SerError),
 
     /// IOError bubbled up from a `Write` passed to a `Ser::serialize` implementation.
-    #[error("IO-related error: {}", .0)]
+    #[error(transparent)]
     IOError(#[from] IOError),
-    
+
     /// Sighash NONE is unsupported
     #[error("SIGHASH_NONE is unsupported")]
     NoneUnsupported,
@@ -42,7 +38,7 @@ pub enum TxError{
     #[error("SIGHASH_SINGLE bug is unsupported")]
     SighashSingleBug,
 
-    /// Caller provided an unknown sighash type to `sighash_from_u8`
+    /// Caller provided an unknown sighash type to `Sighash::from_u8`
     #[error("Unknown Sighash: {}", .0)]
     UnknownSighash(u8),
 
@@ -50,7 +46,6 @@ pub enum TxError{
     /// transaction.
     #[error("Witness flag not as expected. Got {:?}. Expected {:?}.", .0, [0u8, 1u8])]
     BadWitnessFlag([u8; 2]),
-
     // /// No inputs in vin
     // #[error("Vin may not be empty")]
     // EmptyVin,
@@ -81,13 +76,7 @@ pub trait WitnessTransaction<'a>: BitcoinTransaction<'a> {
     type Witness;
 
     /// Instantiate a new WitnessTx from the arguments.
-    fn new<I, O, W>(
-        version: u32,
-        vin: I,
-        vout: O,
-        witnesses: W,
-        locktime: u32
-    ) -> Self
+    fn new<I, O, W>(version: u32, vin: I, vout: O, witnesses: W, locktime: u32) -> Self
     where
         I: Into<Vec<Self::TxIn>>,
         O: Into<Vec<Self::TxOut>>,
@@ -97,7 +86,11 @@ pub trait WitnessTransaction<'a>: BitcoinTransaction<'a> {
     fn wtxid(&self) -> Self::WTXID;
 
     /// Writes the Legacy sighash preimage to the provider writer.
-    fn write_legacy_sighash_preimage<W: Write>(&self, writer: &mut W, args: &LegacySighashArgs) -> Result<(), Self::TxError>;
+    fn write_legacy_sighash_preimage<W: Write>(
+        &self,
+        writer: &mut W,
+        args: &LegacySighashArgs,
+    ) -> Result<(), Self::TxError>;
 
     /// Calculates the Legacy sighash preimage given the sighash args.
     fn legacy_sighash(&self, args: &LegacySighashArgs) -> Result<Self::Digest, Self::TxError> {
@@ -108,24 +101,31 @@ pub trait WitnessTransaction<'a>: BitcoinTransaction<'a> {
 
     /// Writes the BIP143 sighash preimage to the provided `writer`. See the
     /// `WitnessSighashArgsSigh` documentation for more in-depth discussion of sighash.
-    fn write_witness_sighash_preimage<W: Write>(&self, writer: &mut W, args: &Self::WitnessSighashArgs) -> Result<(), Self::TxError>;
+    fn write_witness_sighash_preimage<W: Write>(
+        &self,
+        writer: &mut W,
+        args: &Self::WitnessSighashArgs,
+    ) -> Result<(), Self::TxError>;
 
     /// Calculates the BIP143 sighash given the sighash args. See the
     /// `WitnessSighashArgsSigh` documentation for more in-depth discussion of sighash.
-    fn witness_sighash(&self, args: &Self::WitnessSighashArgs) -> Result<Self::Digest, Self::TxError> {
+    fn witness_sighash(
+        &self,
+        args: &Self::WitnessSighashArgs,
+    ) -> Result<Self::Digest, Self::TxError> {
         let mut w = Self::HashWriter::default();
         self.write_witness_sighash_preimage(&mut w, args)?;
         Ok(w.finish())
     }
 
     /// Returns a reference to the transaction's witnesses.
-    fn witnesses(&'a self) -> &'a[Self::Witness];
+    fn witnesses(&'a self) -> &'a [Self::Witness];
 }
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 /// All possible Sighash modes
-pub enum Sighash{
+pub enum Sighash {
     /// Sign ALL inputs and ALL outputs
     All = 0x01,
     /// Sign ALL inputs and NO outputs (unsupported)
@@ -140,16 +140,18 @@ pub enum Sighash{
     SingleACP = 0x83,
 }
 
-/// Convert a u8 into a Sighash flag or an error.
-pub fn sighash_from_u8(flag: u8) -> Result<Sighash, TxError> {
-    match flag {
-         0x01 => Ok(Sighash::All),
-         0x02 => Ok(Sighash::None),
-         0x3 => Ok(Sighash::Single),
-         0x81 => Ok(Sighash::AllACP),
-         0x82 => Ok(Sighash::NoneACP),
-         0x83 => Ok(Sighash::SingleACP),
-         _ => Err(TxError::UnknownSighash(flag))
+impl Sighash {
+    /// Convert a u8 into a Sighash flag or an error.
+    pub fn from_u8(flag: u8) -> Result<Sighash, TxError> {
+        match flag {
+            0x01 => Ok(Sighash::All),
+            0x02 => Ok(Sighash::None),
+            0x3 => Ok(Sighash::Single),
+            0x81 => Ok(Sighash::AllACP),
+            0x82 => Ok(Sighash::NoneACP),
+            0x83 => Ok(Sighash::SingleACP),
+            _ => Err(TxError::UnknownSighash(flag)),
+        }
     }
 }
 
@@ -208,10 +210,15 @@ pub struct LegacyTx {
     /// The vector of outputs
     vout: Vout,
     /// The nLocktime field.
-    locktime: u32
+    locktime: u32,
 }
 
 impl LegacyTx {
+    /// Consumes the TX and converts it to a witness Tx with null witnesses.
+    pub fn into_witness(self) -> WitnessTx {
+        WitnessTx::from_legacy(self)
+    }
+
     /// Performs steps 6, 7, and 8 of the sighash setup described here:
     /// https://en.bitcoin.it/wiki/OP_CHECKSIG#How_it_works
     /// https://bitcoin.stackexchange.com/questions/3374/how-to-redeem-a-basic-tx
@@ -219,8 +226,7 @@ impl LegacyTx {
     /// OP_CODESEPARATOR functionality is NOT provided here.
     ///
     /// TODO: memoize
-    fn legacy_sighash_prep(&self, index: usize, prevout_script: &Script) -> Self
-    {
+    fn legacy_sighash_prep(&self, index: usize, prevout_script: &Script) -> Self {
         let mut copy_tx = self.clone();
 
         for i in 0..copy_tx.vin.len() {
@@ -229,7 +235,7 @@ impl LegacyTx {
             } else {
                 ScriptSig::null()
             };
-        };
+        }
         copy_tx
     }
 
@@ -238,10 +244,7 @@ impl LegacyTx {
     /// For Legacy sighash documentation, see here:
     ///
     /// - https://en.bitcoin.it/wiki/OP_CHECKSIG#Hashtype_SIGHASH_ALL_.28default.29
-    fn legacy_sighash_single(
-        copy_tx: &mut Self,
-        index: usize) -> TxResult<()>
-    {
+    fn legacy_sighash_single(copy_tx: &mut Self, index: usize) -> TxResult<()> {
         let mut tx_outs: Vec<TxOut> = (0..index).map(|_| TxOut::null()).collect();
         tx_outs.push(copy_tx.vout[index].clone());
         copy_tx.vout = Vout::new(tx_outs);
@@ -251,7 +254,9 @@ impl LegacyTx {
         // let mut vin = copy_tx.vin.clone();
         for i in 0..copy_tx.vin.items().len() {
             let mut txin = copy_tx.vin[i].clone();
-            if i != index { txin.sequence = 0; }
+            if i != index {
+                txin.sequence = 0;
+            }
             vin.push(txin);
         }
         copy_tx.vin = vin.into();
@@ -263,10 +268,7 @@ impl LegacyTx {
     /// For Legacy sighash documentation, see here:
     ///
     /// - https://en.bitcoin.it/wiki/OP_CHECKSIG#Hashtype_SIGHASH_ALL_.28default.29
-    fn legacy_sighash_anyone_can_pay(
-        copy_tx: &mut Self,
-        index: usize) -> TxResult<()>
-    {
+    fn legacy_sighash_anyone_can_pay(copy_tx: &mut Self, index: usize) -> TxResult<()> {
         copy_tx.vin = Vin::new(vec![copy_tx.vin[index].clone()]);
         Ok(())
     }
@@ -281,17 +283,12 @@ impl<'a> Transaction<'a> for LegacyTx {
     type TXID = TXID;
     type HashWriter = Hash256Writer;
 
-    fn new<I, O>(
-        version: u32,
-        vin: I,
-        vout: O,
-        locktime: u32
-    ) -> Self
+    fn new<I, O>(version: u32, vin: I, vout: O, locktime: u32) -> Self
     where
         I: Into<Vec<Self::TxIn>>,
-        O: Into<Vec<Self::TxOut>>
+        O: Into<Vec<Self::TxOut>>,
     {
-        Self{
+        Self {
             version,
             vin: Vin::from(vin),
             vout: Vout::from(vout),
@@ -299,11 +296,11 @@ impl<'a> Transaction<'a> for LegacyTx {
         }
     }
 
-    fn inputs(&'a self) -> &'a[Self::TxIn] {
+    fn inputs(&'a self) -> &'a [Self::TxIn] {
         &self.vin.items()
     }
 
-    fn outputs(&'a self) -> &'a[Self::TxOut] {
+    fn outputs(&'a self) -> &'a [Self::TxOut] {
         &self.vout.items()
     }
 
@@ -318,7 +315,7 @@ impl<'a> Transaction<'a> for LegacyTx {
     fn write_sighash_preimage<W: Write>(
         &self,
         writer: &mut W,
-        args: &LegacySighashArgs
+        args: &LegacySighashArgs,
     ) -> TxResult<()> {
         if args.sighash_flag == Sighash::None || args.sighash_flag == Sighash::NoneACP {
             return Err(TxError::NoneUnsupported);
@@ -326,11 +323,10 @@ impl<'a> Transaction<'a> for LegacyTx {
 
         let mut copy_tx: Self = self.legacy_sighash_prep(args.index, args.prevout_script);
         if args.sighash_flag == Sighash::Single || args.sighash_flag == Sighash::SingleACP {
-            if args.index >= self.outputs().len() { return Err(TxError::SighashSingleBug); }
-            Self::legacy_sighash_single(
-                &mut copy_tx,
-                args.index
-            )?;
+            if args.index >= self.outputs().len() {
+                return Err(TxError::SighashSingleBug);
+            }
+            Self::legacy_sighash_single(&mut copy_tx, args.index)?;
         }
 
         if args.sighash_flag as u8 & 0x80 == 0x80 {
@@ -370,13 +366,13 @@ impl Ser for LegacyTx {
     fn deserialize<R>(reader: &mut R, _limit: usize) -> Result<Self, Self::Error>
     where
         R: Read,
-        Self: std::marker::Sized
+        Self: std::marker::Sized,
     {
         let version = Self::read_u32_le(reader)?;
         let vin = Vin::deserialize(reader, 0)?;
         let vout = Vout::deserialize(reader, 0)?;
         let locktime = Self::read_u32_le(reader)?;
-        Ok(Self{
+        Ok(Self {
             version,
             vin,
             vout,
@@ -384,9 +380,9 @@ impl Ser for LegacyTx {
         })
     }
 
-    fn serialize<T>(&self, writer: &mut T) -> Result<usize, Self::Error>
+    fn serialize<W>(&self, writer: &mut W) -> Result<usize, Self::Error>
     where
-        T: Write
+        W: Write,
     {
         let mut len = Self::write_u32_le(writer, self.version())?;
         len += self.vin.serialize(writer)?;
@@ -474,7 +470,6 @@ impl WitnessTx {
             }
             Ok(w.finish())
         }
-
     }
 
     /// Calculates `hash_sequence` according to BIP143 semantics.`
@@ -505,19 +500,32 @@ impl WitnessTx {
     /// TODO: memoize
     fn hash_outputs(&self, index: usize, sighash_flag: Sighash) -> TxResult<Hash256Digest> {
         match sighash_flag {
-            Sighash::All | Sighash::AllACP  => {
+            Sighash::All | Sighash::AllACP => {
                 let mut w = Hash256Writer::default();
                 for output in self.legacy_tx.vout.items().iter() {
                     output.serialize(&mut w)?;
                 }
                 Ok(w.finish())
-            },
+            }
             Sighash::Single | Sighash::SingleACP => {
                 let mut w = Hash256Writer::default();
                 self.legacy_tx.vout[index].serialize(&mut w)?;
                 Ok(w.finish())
-            },
-            _ => Ok(Hash256Digest::default())
+            }
+            _ => Ok(Hash256Digest::default()),
+        }
+    }
+}
+
+impl WitnessTx {
+    /// Consumes a `LegacyTx` and instantiates a new `WitnessTx` with empty witnesses
+    pub fn from_legacy(legacy_tx: LegacyTx) -> Self {
+        let witnesses = (0..legacy_tx.inputs().len())
+            .map(|_| Witness::null())
+            .collect();
+        Self {
+            legacy_tx,
+            witnesses,
         }
     }
 }
@@ -531,31 +539,26 @@ impl<'a> Transaction<'a> for WitnessTx {
     type TXID = TXID;
     type HashWriter = Hash256Writer;
 
-    fn new<I, O>(
-        version: u32,
-        vin: I,
-        vout: O,
-        locktime: u32
-    ) -> Self
+    fn new<I, O>(version: u32, vin: I, vout: O, locktime: u32) -> Self
     where
         I: Into<Vec<Self::TxIn>>,
-        O: Into<Vec<Self::TxOut>>
+        O: Into<Vec<Self::TxOut>>,
     {
         let input_vector: Vec<BitcoinTxIn> = vin.into();
         let witnesses = input_vector.iter().map(|_| Witness::null()).collect();
 
         let legacy_tx = LegacyTx::new(version, input_vector, vout, locktime);
-        Self{
+        Self {
             legacy_tx,
-            witnesses
+            witnesses,
         }
     }
 
-    fn inputs(&'a self) -> &'a[Self::TxIn] {
+    fn inputs(&'a self) -> &'a [Self::TxIn] {
         &self.legacy_tx.vin.items()
     }
 
-    fn outputs(&'a self) -> &'a[Self::TxOut] {
+    fn outputs(&'a self) -> &'a [Self::TxOut] {
         &self.legacy_tx.vout.items()
     }
 
@@ -571,8 +574,14 @@ impl<'a> Transaction<'a> for WitnessTx {
     fn txid(&self) -> Self::TXID {
         let mut w = Self::HashWriter::default();
         Self::write_u32_le(&mut w, self.version()).expect("No IOError from SHA2");
-        self.legacy_tx.vin.serialize(&mut w).expect("No IOError from SHA2");
-        self.legacy_tx.vout.serialize(&mut w).expect("No IOError from SHA2");
+        self.legacy_tx
+            .vin
+            .serialize(&mut w)
+            .expect("No IOError from SHA2");
+        self.legacy_tx
+            .vout
+            .serialize(&mut w)
+            .expect("No IOError from SHA2");
         Self::write_u32_le(&mut w, self.locktime()).expect("No IOError from SHA2");
         w.finish_marked()
     }
@@ -593,27 +602,16 @@ impl<'a> WitnessTransaction<'a> for WitnessTx {
     type WitnessSighashArgs = WitnessSighashArgs<'a>;
     type Witness = Witness;
 
-    fn new<I, O, W>(
-        version: u32,
-        vin: I,
-        vout: O,
-        witnesses: W,
-        locktime: u32
-    ) -> Self
+    fn new<I, O, W>(version: u32, vin: I, vout: O, witnesses: W, locktime: u32) -> Self
     where
         I: Into<Vec<Self::TxIn>>,
         O: Into<Vec<Self::TxOut>>,
-        W: Into<Vec<Self::Witness>>
+        W: Into<Vec<Self::Witness>>,
     {
-        let legacy_tx = LegacyTx::new(
-            version,
-            vin,
-            vout,
-            locktime,
-        );
-        Self{
+        let legacy_tx = LegacyTx::new(version, vin, vout, locktime);
+        Self {
             legacy_tx,
-            witnesses: witnesses.into()
+            witnesses: witnesses.into(),
         }
     }
 
@@ -623,25 +621,30 @@ impl<'a> WitnessTransaction<'a> for WitnessTx {
         w.finish_marked()
     }
 
-    fn write_legacy_sighash_preimage<W: Write>(&self, writer: &mut W, args: &LegacySighashArgs) -> Result<(), Self::TxError> {
+    fn write_legacy_sighash_preimage<W: Write>(
+        &self,
+        writer: &mut W,
+        args: &LegacySighashArgs,
+    ) -> Result<(), Self::TxError> {
         self.legacy_tx.write_sighash_preimage(writer, args)
     }
 
     fn write_witness_sighash_preimage<W>(
         &self,
         writer: &mut W,
-        args: &WitnessSighashArgs) -> TxResult<()>
+        args: &WitnessSighashArgs,
+    ) -> TxResult<()>
     where
-        W: Write
+        W: Write,
     {
         if args.sighash_flag == Sighash::None || args.sighash_flag == Sighash::NoneACP {
             return Err(TxError::NoneUnsupported);
         }
 
-        if (args.sighash_flag == Sighash::Single || args.sighash_flag == Sighash::SingleACP) &&
-            args.index >= self.outputs().len()
+        if (args.sighash_flag == Sighash::Single || args.sighash_flag == Sighash::SingleACP)
+            && args.index >= self.outputs().len()
         {
-            return Err(TxError::SighashSingleBug)
+            return Err(TxError::SighashSingleBug);
         }
 
         let input = &self.legacy_tx.vin[args.index];
@@ -653,13 +656,14 @@ impl<'a> WitnessTransaction<'a> for WitnessTx {
         args.prevout_script.serialize(writer)?;
         Self::write_u64_le(writer, args.prevout_value)?;
         Self::write_u32_le(writer, input.sequence)?;
-        self.hash_outputs(args.index, args.sighash_flag)?.serialize(writer)?;
+        self.hash_outputs(args.index, args.sighash_flag)?
+            .serialize(writer)?;
         Self::write_u32_le(writer, self.legacy_tx.locktime)?;
         Self::write_u32_le(writer, args.sighash_flag as u32)?;
         Ok(())
     }
 
-    fn witnesses(&'a self) -> &'a[Self::Witness] {
+    fn witnesses(&'a self) -> &'a [Self::Witness] {
         &self.witnesses
     }
 }
@@ -678,10 +682,9 @@ impl Ser for WitnessTx {
         )
     }
 
-
     fn serialized_length(&self) -> usize {
         let mut len = 4; // version
-        len += 2;  // Segwit Flag
+        len += 2; // Segwit Flag
         len += self.legacy_tx.vin.serialized_length();
         len += self.legacy_tx.vout.serialized_length();
         len += self.witnesses.serialized_length();
@@ -692,25 +695,27 @@ impl Ser for WitnessTx {
     fn deserialize<R>(reader: &mut R, _limit: usize) -> Result<Self, Self::Error>
     where
         R: Read,
-        Self: std::marker::Sized
+        Self: std::marker::Sized,
     {
         let version = Self::read_u32_le(reader)?;
         let mut flag = [0u8; 2];
         reader.read_exact(&mut flag)?;
-        if flag != [0u8, 1u8] { return Err(TxError::BadWitnessFlag(flag)); };
+        if flag != [0u8, 1u8] {
+            return Err(TxError::BadWitnessFlag(flag));
+        };
         let vin = Vin::deserialize(reader, 0)?;
         let vout = Vout::deserialize(reader, 0)?;
         let witnesses = Vec::<Witness>::deserialize(reader, vin.len())?;
         let locktime = Self::read_u32_le(reader)?;
 
-        let legacy_tx = LegacyTx{
+        let legacy_tx = LegacyTx {
             version,
             vin,
             vout,
             locktime,
         };
 
-        Ok(Self{
+        Ok(Self {
             legacy_tx,
             witnesses,
         })
@@ -718,7 +723,7 @@ impl Ser for WitnessTx {
 
     fn serialize<W>(&self, writer: &mut W) -> Result<usize, Self::Error>
     where
-        W: Write
+        W: Write,
     {
         let mut len = Self::write_u32_le(writer, self.version())?;
         len += writer.write(&[0u8, 1u8])?;
@@ -743,12 +748,27 @@ mod tests {
         let prevout_script_hex = "17a91424d6008f143af0cca57344069c46661aa4fcea2387";
         let prevout_script = Script::deserialize_hex(prevout_script_hex.to_owned()).unwrap();
 
-        let all = Hash256Digest::deserialize_hex("b85c4f8d1377cc138225dd9b319d0a4ca547f7884270640f44c5fcdf269e0fe8".to_owned()).unwrap();
-        let all_anyonecanpay = Hash256Digest::deserialize_hex("3b67a5114cc9fc837ddd6f6ec11bde38db5f68c34ab6ece2a043d7b25f2cf8bb".to_owned()).unwrap();
-        let single = Hash256Digest::deserialize_hex("1dab67d768be0380fc800098005d1f61744ffe585b0852f8d7adc12121a86938".to_owned()).unwrap();
-        let single_anyonecanpay = Hash256Digest::deserialize_hex("d4687b93c0a9090dc0a3384cd3a594ce613834bb37abc56f6032e96c597547e3".to_owned()).unwrap();
+        let all = Hash256Digest::deserialize_hex(
+            "b85c4f8d1377cc138225dd9b319d0a4ca547f7884270640f44c5fcdf269e0fe8".to_owned(),
+        )
+        .unwrap();
+        let all_anyonecanpay = Hash256Digest::deserialize_hex(
+            "3b67a5114cc9fc837ddd6f6ec11bde38db5f68c34ab6ece2a043d7b25f2cf8bb".to_owned(),
+        )
+        .unwrap();
+        let single = Hash256Digest::deserialize_hex(
+            "1dab67d768be0380fc800098005d1f61744ffe585b0852f8d7adc12121a86938".to_owned(),
+        )
+        .unwrap();
+        let single_anyonecanpay = Hash256Digest::deserialize_hex(
+            "d4687b93c0a9090dc0a3384cd3a594ce613834bb37abc56f6032e96c597547e3".to_owned(),
+        )
+        .unwrap();
 
-        let txid = Hash256Digest::deserialize_hex("03ee4f7a4e68f802303bc659f8f817964b4b74fe046facc3ae1be4679d622c45".to_owned()).unwrap();
+        let txid = Hash256Digest::deserialize_hex(
+            "03ee4f7a4e68f802303bc659f8f817964b4b74fe046facc3ae1be4679d622c45".to_owned(),
+        )
+        .unwrap();
         assert_eq!(tx.txid(), txid.into());
 
         let mut args = LegacySighashArgs {
@@ -775,12 +795,27 @@ mod tests {
         let prevout_script_hex = "160014758ce550380d964051086798d6546bebdca27a73";
         let prevout_script = Script::deserialize_hex(prevout_script_hex.to_owned()).unwrap();
 
-        let all = Hash256Digest::deserialize_hex("135754ab872e4943f7a9c30d6143c4c7187e33d0f63c75ec82a7f9a15e2f2d00".to_owned()).unwrap();
-        let all_anyonecanpay = Hash256Digest::deserialize_hex("cc7438d5b15e93ba612dcd227cf1937c35273675b3aa7d1b771573667376ddf6".to_owned()).unwrap();
-        let single = Hash256Digest::deserialize_hex("d04631d2742e6fd8e80e2e4309dece65becca41d37fd6bc0bcba041c52d824d5".to_owned()).unwrap();
-        let single_anyonecanpay = Hash256Digest::deserialize_hex("ffea9cdda07170af9bc9967cedf485e9fe15b78a622e0c196c0b6fc64f40c615".to_owned()).unwrap();
+        let all = Hash256Digest::deserialize_hex(
+            "135754ab872e4943f7a9c30d6143c4c7187e33d0f63c75ec82a7f9a15e2f2d00".to_owned(),
+        )
+        .unwrap();
+        let all_anyonecanpay = Hash256Digest::deserialize_hex(
+            "cc7438d5b15e93ba612dcd227cf1937c35273675b3aa7d1b771573667376ddf6".to_owned(),
+        )
+        .unwrap();
+        let single = Hash256Digest::deserialize_hex(
+            "d04631d2742e6fd8e80e2e4309dece65becca41d37fd6bc0bcba041c52d824d5".to_owned(),
+        )
+        .unwrap();
+        let single_anyonecanpay = Hash256Digest::deserialize_hex(
+            "ffea9cdda07170af9bc9967cedf485e9fe15b78a622e0c196c0b6fc64f40c615".to_owned(),
+        )
+        .unwrap();
 
-        let txid = Hash256Digest::deserialize_hex("9e77087321b870859ebf08976d665c42d9f98cad18fff6a05a91c1d2da6d6c41".to_owned()).unwrap();
+        let txid = Hash256Digest::deserialize_hex(
+            "9e77087321b870859ebf08976d665c42d9f98cad18fff6a05a91c1d2da6d6c41".to_owned(),
+        )
+        .unwrap();
         assert_eq!(tx.txid(), txid.into());
 
         let mut args = WitnessSighashArgs {
@@ -811,12 +846,27 @@ mod tests {
         let prevout_script_hex = "160014758ce550380d964051086798d6546bebdca27a73";
         let prevout_script = Script::deserialize_hex(prevout_script_hex.to_owned()).unwrap();
 
-        let all = Hash256Digest::deserialize_hex("75385c87ece4980b581cfd71bc5814f607801a87f6e0973c63dc9fda465c19c4".to_owned()).unwrap();
-        let all_anyonecanpay = Hash256Digest::deserialize_hex("bc55c4303c82cdcc8e290c597a00d662ab34414d79ec15d63912b8be7fe2ca3c".to_owned()).unwrap();
-        let single = Hash256Digest::deserialize_hex("9d57bf7af01a4e0baa57e749aa193d37a64e3bbc08eb88af93944f41af8dfc70".to_owned()).unwrap();
-        let single_anyonecanpay = Hash256Digest::deserialize_hex("ffea9cdda07170af9bc9967cedf485e9fe15b78a622e0c196c0b6fc64f40c615".to_owned()).unwrap();
+        let all = Hash256Digest::deserialize_hex(
+            "75385c87ece4980b581cfd71bc5814f607801a87f6e0973c63dc9fda465c19c4".to_owned(),
+        )
+        .unwrap();
+        let all_anyonecanpay = Hash256Digest::deserialize_hex(
+            "bc55c4303c82cdcc8e290c597a00d662ab34414d79ec15d63912b8be7fe2ca3c".to_owned(),
+        )
+        .unwrap();
+        let single = Hash256Digest::deserialize_hex(
+            "9d57bf7af01a4e0baa57e749aa193d37a64e3bbc08eb88af93944f41af8dfc70".to_owned(),
+        )
+        .unwrap();
+        let single_anyonecanpay = Hash256Digest::deserialize_hex(
+            "ffea9cdda07170af9bc9967cedf485e9fe15b78a622e0c196c0b6fc64f40c615".to_owned(),
+        )
+        .unwrap();
 
-        let txid = Hash256Digest::deserialize_hex("184e7bce099679b27ed958213c97d2fb971e227c6517bca11f06ccbb97dcdc30".to_owned()).unwrap();
+        let txid = Hash256Digest::deserialize_hex(
+            "184e7bce099679b27ed958213c97d2fb971e227c6517bca11f06ccbb97dcdc30".to_owned(),
+        )
+        .unwrap();
         assert_eq!(tx.txid(), txid.into());
 
         let mut args = WitnessSighashArgs {
@@ -847,12 +897,27 @@ mod tests {
         let prevout_script_hex = "160014758ce550380d964051086798d6546bebdca27a73";
         let prevout_script = Script::deserialize_hex(prevout_script_hex.to_owned()).unwrap();
 
-        let all = Hash256Digest::deserialize_hex("3ab40bf1287b7be9a5c67ed0f97f80b38c5f68e53ec93bffd3893901eaaafdb2".to_owned()).unwrap();
-        let all_anyonecanpay = Hash256Digest::deserialize_hex("2d5802fed31e1ef6a857346cc0a9085ea452daeeb3a0b5afcb16a2203ce5689d".to_owned()).unwrap();
-        let single = Hash256Digest::deserialize_hex("ea52b62b26c1f0db838c952fa50806fb8e39ba4c92a9a88d1b4ba7e9c094517d".to_owned()).unwrap();
-        let single_anyonecanpay = Hash256Digest::deserialize_hex("9e2aca0a04afa6e1e5e00ff16b06a247a0da1e7bbaa7cd761c066a82bb3b07d0".to_owned()).unwrap();
+        let all = Hash256Digest::deserialize_hex(
+            "3ab40bf1287b7be9a5c67ed0f97f80b38c5f68e53ec93bffd3893901eaaafdb2".to_owned(),
+        )
+        .unwrap();
+        let all_anyonecanpay = Hash256Digest::deserialize_hex(
+            "2d5802fed31e1ef6a857346cc0a9085ea452daeeb3a0b5afcb16a2203ce5689d".to_owned(),
+        )
+        .unwrap();
+        let single = Hash256Digest::deserialize_hex(
+            "ea52b62b26c1f0db838c952fa50806fb8e39ba4c92a9a88d1b4ba7e9c094517d".to_owned(),
+        )
+        .unwrap();
+        let single_anyonecanpay = Hash256Digest::deserialize_hex(
+            "9e2aca0a04afa6e1e5e00ff16b06a247a0da1e7bbaa7cd761c066a82bb3b07d0".to_owned(),
+        )
+        .unwrap();
 
-        let txid = Hash256Digest::deserialize_hex("40157948972c5c97a2bafff861ee2f8745151385c7f9fbd03991ddf59b76ac81".to_owned()).unwrap();
+        let txid = Hash256Digest::deserialize_hex(
+            "40157948972c5c97a2bafff861ee2f8745151385c7f9fbd03991ddf59b76ac81".to_owned(),
+        )
+        .unwrap();
         assert_eq!(tx.txid(), txid.into());
 
         let mut args = LegacySighashArgs {

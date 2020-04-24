@@ -1,28 +1,25 @@
 //! Transaction types.
 
 use js_sys;
-use wasm_bindgen::prelude::*;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
+use wasm_bindgen::prelude::*;
 
 use rmn_btc::{
     script,
-    transactions::{self, WitnessTransaction}
+    transactions::{self, Sighash, WitnessTransaction},
 };
 
 use riemann_core::{
-    types::{
-        primitives::{PrefixVec},
-        tx::{Transaction},
-    },
-    ser::{Ser},
+    ser::Ser,
+    types::{primitives::PrefixVec, tx::Transaction},
 };
 
 use crate::{
-    errors::{WasmError},
+    errors::WasmError,
     hashes::{TXID, WTXID},
-    txin::{Vin, BitcoinTxIn},
-    txout::{Vout, TxOut},
     script::{TxWitness, Witness},
+    txin::{BitcoinTxIn, Vin},
+    txout::{TxOut, Vout},
 };
 
 wrap_struct!(
@@ -48,18 +45,15 @@ impl LegacyTx {
     /// Instantiate a new Legacy Tx.
     #[wasm_bindgen(constructor)]
     pub fn new(version: u32, vin: Vin, vout: Vout, locktime: u32) -> Self {
-        transactions::LegacyTx::new(
-            version,
-            vin.inner().items(),
-            vout.inner().items(),
-            locktime
-        ).into()
+        transactions::LegacyTx::new(version, vin.inner().items(), vout.inner().items(), locktime)
+            .into()
     }
 
     /// Return a clone of the transaction input vector
     #[wasm_bindgen(method, getter)]
     pub fn inputs(&self) -> js_sys::Array {
-        self.0.inputs()
+        self.0
+            .inputs()
             .iter()
             .map(Clone::clone)
             .map(BitcoinTxIn::from)
@@ -70,7 +64,8 @@ impl LegacyTx {
     /// Return a clone of the transaction output vector
     #[wasm_bindgen(method, getter)]
     pub fn outputs(&self) -> js_sys::Array {
-        self.0.outputs()
+        self.0
+            .outputs()
             .iter()
             .map(Clone::clone)
             .map(TxOut::from)
@@ -84,17 +79,18 @@ impl LegacyTx {
         &self,
         index: usize,
         flag: u8,
-        prevout_script: &[u8]
+        prevout_script: &[u8],
     ) -> Result<js_sys::Uint8Array, JsValue> {
-        let sighash_flag = transactions::sighash_from_u8(flag)
+        let sighash_flag = Sighash::from_u8(flag)
             .map_err(WasmError::from)
             .map_err(JsValue::from)?;
-        let args = transactions::LegacySighashArgs{
+        let args = transactions::LegacySighashArgs {
             index,
             sighash_flag,
-            prevout_script: &script::Script::from(prevout_script)
+            prevout_script: &script::Script::from(prevout_script),
         };
-        self.0.sighash(&args)
+        self.0
+            .sighash(&args)
             .map(|v| js_sys::Uint8Array::from(&v[..]))
             .map_err(WasmError::from)
             .map_err(JsValue::from)
@@ -105,27 +101,23 @@ impl LegacyTx {
 impl WitnessTx {
     /// Instantiate a new Legacy Tx.zs
     #[wasm_bindgen(constructor)]
-    pub fn new(
-        version: u32,
-        vin: Vin,
-        vout: Vout,
-        witnesses: TxWitness,
-        locktime: u32
-    ) -> Self {
+    pub fn new(version: u32, vin: Vin, vout: Vout, witnesses: TxWitness, locktime: u32) -> Self {
         // disambiguate `new`
         <transactions::WitnessTx as transactions::WitnessTransaction>::new(
             version,
             vin.inner().items(),
             vout.inner().items(),
             witnesses,
-            locktime
-        ).into()
+            locktime,
+        )
+        .into()
     }
 
     /// Return a clone of the transaction input vector
     #[wasm_bindgen(method, getter)]
     pub fn inputs(&self) -> js_sys::Array {
-        self.0.inputs()
+        self.0
+            .inputs()
             .iter()
             .map(Clone::clone)
             .map(BitcoinTxIn::from)
@@ -136,7 +128,8 @@ impl WitnessTx {
     /// Return a clone of the transaction output vector
     #[wasm_bindgen(method, getter)]
     pub fn outputs(&self) -> js_sys::Array {
-        self.0.outputs()
+        self.0
+            .outputs()
             .iter()
             .map(Clone::clone)
             .map(TxOut::from)
@@ -147,7 +140,8 @@ impl WitnessTx {
     /// Return a clone of the transaction witness vector
     #[wasm_bindgen(method, getter)]
     pub fn witnesses(&self) -> js_sys::Array {
-        self.0.witnesses()
+        self.0
+            .witnesses()
             .iter()
             .map(Clone::clone)
             .map(Witness::from)
@@ -162,18 +156,19 @@ impl WitnessTx {
         index: usize,
         flag: u8,
         prevout_script: &[u8],
-        prevout_value: u64
+        prevout_value: u64,
     ) -> Result<js_sys::Uint8Array, JsValue> {
-        let sighash_flag = transactions::sighash_from_u8(flag)
+        let sighash_flag = Sighash::from_u8(flag)
             .map_err(WasmError::from)
             .map_err(JsValue::from)?;
-        let args = transactions::WitnessSighashArgs{
+        let args = transactions::WitnessSighashArgs {
             index,
             sighash_flag,
             prevout_script: &script::Script::from(prevout_script),
-            prevout_value
+            prevout_value,
         };
-        self.0.sighash(&args)
+        self.0
+            .sighash(&args)
             .map(|v| js_sys::Uint8Array::from(&v[..]))
             .map_err(WasmError::from)
             .map_err(JsValue::from)
