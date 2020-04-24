@@ -25,12 +25,12 @@ pub trait SigningKey: std::marker::Sized {
     fn to_verifying_key(&self) -> Result<Self::VerifyingKey, Bip32Error>;
 
     /// Sign a digest
-    fn sign_digest(&self, message: [u8; 32]) -> Result<Self::Signature, Bip32Error>;
+    fn sign_digest(&self, digest: [u8; 32]) -> Result<Self::Signature, Bip32Error>;
 
     /// Sign a digest and produce a recovery ID
     fn sign_digest_recoverable(
         &self,
-        message: [u8; 32],
+        digest: [u8; 32],
     ) -> Result<Self::RecoverableSignature, Bip32Error>;
 
     /// Sign a message
@@ -380,3 +380,161 @@ pub trait XKey: std::marker::Sized + Clone {
         Ok(current)
     }
 }
+
+/// Shortcuts for deriving and signing. Generically implemented on any type that impls SigningKey
+/// and XKey
+pub trait XSigning: XKey + SigningKey {
+    /// Derive a descendant, and have it sign a digest
+    fn descendant_sign_digest<E, T>(&self, path: T, digest: [u8; 32]) -> Result<Self::Signature, Bip32Error>
+    where
+        E: Into<Bip32Error>,
+        T: TryInto<DerivationPath, Error = E>,
+    {
+        self.derive_path(path)?.sign_digest(digest)
+    }
+
+    /// Derive a descendant, and have it sign a digest and produce a recovery ID
+    fn descendant_sign_digest_recoverable<E, T>(
+        &self, path: T,
+        digest: [u8; 32],
+    ) -> Result<Self::RecoverableSignature, Bip32Error>
+    where
+        E: Into<Bip32Error>,
+        T: TryInto<DerivationPath, Error = E>,
+    {
+        self.derive_path(path)?.sign_digest_recoverable(digest)
+    }
+
+    /// Derive a descendant, and have it sign a message
+    fn descendant_sign_with_hash<E, T>(
+        &self, path: T,
+        message: &[u8],
+        hash: &HashFunc,
+    ) -> Result<Self::Signature, Bip32Error>
+    where
+        E: Into<Bip32Error>,
+        T: TryInto<DerivationPath, Error = E>,
+    {
+        self.descendant_sign_digest(path, hash(message))
+    }
+
+    /// Derive a descendant, and have it sign a message and produce a recovery ID
+    fn descendant_sign_recoverable_with_hash<E, T>(
+        &self, path: T,
+        message: &[u8],
+        hash: &HashFunc,
+    ) -> Result<Self::RecoverableSignature, Bip32Error>
+    where
+        E: Into<Bip32Error>,
+        T: TryInto<DerivationPath, Error = E>,
+    {
+        self.descendant_sign_digest_recoverable(path, hash(message))
+    }
+
+    /// Derive a descendant, and have it produce a signature on `sha2(sha2(message))`
+    fn descendant_sign<E, T>(&self, path: T, message: &[u8]) -> Result<Self::Signature, Bip32Error>
+    where
+        E: Into<Bip32Error>,
+        T: TryInto<DerivationPath, Error = E>,
+    {
+        self.descendant_sign_with_hash(path, message, &|m| hash256(&[m]))
+    }
+
+    /// Derive a descendant, and have it produce a recoverable signature on `sha2(sha2(message))`
+    fn descendant_sign_recoverable<E, T>(&self, path: T, message: &[u8]) -> Result<Self::RecoverableSignature, Bip32Error>
+    where
+        E: Into<Bip32Error>,
+        T: TryInto<DerivationPath, Error = E>,
+    {
+        self.descendant_sign_recoverable_with_hash(path, message, &|m| hash256(&[m]))
+    }
+}
+
+/// Shortcuts for deriving and signing. Generically implemented on any type that impls
+/// VerifyingKey and XKey
+pub trait XVerifying: XKey + VerifyingKey {
+
+    /// Verify a signature on a digest
+    fn descendant_verify_digest<T, E>(&self, path: T, digest: [u8; 32], sig: &Self::Signature) -> Result<(), Bip32Error>
+    where
+        E: Into<Bip32Error>,
+        T: TryInto<DerivationPath, Error = E>,
+    {
+        self.derive_path(path)?.verify_digest(digest, sig)
+    }
+
+    /// Verify a recoverable signature on a digest.
+    fn descendant_verify_digest_recoverable<T, E>(
+        &self,
+        path: T,
+        digest: [u8; 32],
+        sig: &Self::RecoverableSignature,
+    ) -> Result<(), Bip32Error>
+    where
+        E: Into<Bip32Error>,
+        T: TryInto<DerivationPath, Error = E>,
+    {
+        self.descendant_verify_digest(path, digest, &sig.without_recovery())
+    }
+
+    /// Verify a signature on a message
+    fn descendant_verify_with_hash<T, E>(
+        &self,
+        path: T,
+        message: &[u8],
+        hash: &HashFunc,
+        sig: &Self::Signature,
+    ) -> Result<(), Bip32Error>
+    where
+        E: Into<Bip32Error>,
+        T: TryInto<DerivationPath, Error = E>,
+    {
+        self.descendant_verify_digest(path, hash(message), sig)
+    }
+
+    /// Verify a recoverable signature on a message.
+    fn descendant_verify_recoverable_with_hash<T, E>(
+        &self,
+        path: T,
+        message: &[u8],
+        hash: &HashFunc,
+        sig: &Self::RecoverableSignature,
+    ) -> Result<(), Bip32Error>
+    where
+        E: Into<Bip32Error>,
+        T: TryInto<DerivationPath, Error = E>,
+    {
+        self.descendant_verify_digest(path, hash(message), &sig.without_recovery())
+    }
+
+    /// Produce a signature on `sha2(sha2(message))`
+    fn descendant_verify<T, E>(&self, path: T, message: &[u8], sig: &Self::Signature) -> Result<(), Bip32Error>
+    where
+        E: Into<Bip32Error>,
+        T: TryInto<DerivationPath, Error = E>,
+    {
+        self.descendant_verify_with_hash(path, message, &|m| hash256(&[m]), sig)
+    }
+
+    /// Produce a recoverable signature on `sha2(sha2(message))`
+    fn descendant_verify_recoverable<T, E>(
+        &self,
+        path: T,
+        message: &[u8],
+        sig: &Self::RecoverableSignature,
+    ) -> Result<(), Bip32Error>
+    where
+        E: Into<Bip32Error>,
+        T: TryInto<DerivationPath, Error = E>,
+    {
+        self.descendant_verify_recoverable_with_hash(path, message, &|m| hash256(&[m]), sig)
+    }
+}
+
+impl<T> XSigning for T
+where
+    T: XKey + SigningKey {}
+
+impl<T> XVerifying for T
+where
+    T: XKey + VerifyingKey {}
