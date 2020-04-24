@@ -81,7 +81,7 @@ pub use model::*;
 pub use path::{DerivationPath, KeyDerivation};
 
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
-pub use xkeys::{KeyFingerprint, XKey, XPriv, XPub};
+pub use xkeys::{XPriv, XPub};
 
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 pub use backends::curve::{Privkey, Pubkey, RecoverableSignature, Secp256k1, Signature};

@@ -1,7 +1,6 @@
 use crate::{
-    model::{RecoverableSigSerialize, SigSerialize, SigningKey, VerifyingKey},
+    model::*,
     path::{DerivationPath, KeyDerivation},
-    xkeys::{ChainCode, Hint, KeyFingerprint, XKey},
     Bip32Error,
 };
 
@@ -192,6 +191,16 @@ pub mod keys {
                 key,
                 derivation,
             })
+        }
+
+        /// Return a `Pubkey` corresponding to the private key
+        pub fn pubkey(&self) -> Result<Pubkey, Bip32Error> {
+            self.key.pubkey()
+        }
+
+        /// Return the secret key as an array
+        pub fn secret_key(&self) -> [u8; 32] {
+            self.key.secret_key()
         }
     }
 

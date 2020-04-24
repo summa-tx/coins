@@ -1,5 +1,8 @@
-use crate::Bip32Error;
+use std::convert::TryInto;
+
 use bitcoin_spv::btcspv::hash256;
+
+use crate::{Bip32Error, path::DerivationPath};
 
 /// A simple hash function type signature
 pub type HashFunc = dyn Fn(&[u8]) -> [u8; 32];
@@ -280,5 +283,100 @@ pub trait Secp256k1Backend<'a> {
         sig: &Self::RecoverableSignature,
     ) -> Result<(), Bip32Error> {
         self.verify_digest_recoverable(k, hash(message), sig)
+    }
+}
+
+/// We treat the xpub/ypub/zpub convention as a hint regarding address type. Users are free to
+/// follow or ignore these hints.
+#[derive(Eq, PartialEq, Debug, Clone, Copy)]
+pub enum Hint {
+    /// Standard Bip32 hint
+    Legacy,
+    /// Bip32 + Bip49 hint for Witness-via-P2SH
+    Compatibility,
+    /// Bip32 + Bip84 hint for Native SegWit
+    SegWit,
+}
+
+/// A 4-byte key fingerprint
+#[derive(Eq, PartialEq, Clone, Copy)]
+pub struct KeyFingerprint(pub [u8; 4]);
+
+impl From<[u8; 4]> for KeyFingerprint {
+    fn from(v: [u8; 4]) -> Self {
+        Self(v)
+    }
+}
+
+impl KeyFingerprint {
+    /// Determines if the slice represents the same key fingerprint
+    pub fn eq_slice(self, other: &[u8]) -> bool {
+        self.0 == other
+    }
+}
+
+impl std::fmt::Debug for KeyFingerprint {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("KeyFingerprint {:x?}", self.0))
+    }
+}
+
+/// A 32-byte chain code
+#[derive(Eq, PartialEq, Debug, Clone, Copy)]
+pub struct ChainCode(pub [u8; 32]);
+
+impl From<[u8; 32]> for ChainCode {
+    fn from(v: [u8; 32]) -> Self {
+        Self(v)
+    }
+}
+
+/// Extended Key common features
+pub trait XKey: std::marker::Sized + Clone {
+    /// Calculate and return the key fingerprint
+    fn fingerprint(&self) -> Result<KeyFingerprint, Bip32Error>;
+    /// Get the key's depth
+    fn depth(&self) -> u8;
+    #[doc(hidden)]
+    fn set_depth(&mut self, depth: u8);
+    /// Get the key's parent
+    fn parent(&self) -> KeyFingerprint;
+    #[doc(hidden)]
+    fn set_parent(&mut self, parent: KeyFingerprint);
+    /// Get the key's index
+    fn index(&self) -> u32;
+    #[doc(hidden)]
+    fn set_index(&mut self, index: u32);
+    /// Get the key's chain_code
+    fn chain_code(&self) -> ChainCode;
+    #[doc(hidden)]
+    fn set_chain_code(&mut self, chain_code: ChainCode);
+    /// Get the key's hint
+    fn hint(&self) -> Hint;
+    #[doc(hidden)]
+    fn set_hint(&mut self, hint: Hint);
+
+    /// Derive a child key. Private keys derive private children, public keys derive public
+    /// children.
+    fn derive_child(&self, index: u32) -> Result<Self, Bip32Error>;
+
+    /// Derive a series of child indices. Allows traversing several levels of the tree at once.
+    /// Accepts an iterator producing u32, or a string.
+    fn derive_path<E, T>(&self, p: T) -> Result<Self, Bip32Error>
+    where
+        E: Into<Bip32Error>,
+        T: TryInto<DerivationPath, Error = E>,
+    {
+        let path: DerivationPath = p.try_into().map_err(Into::into)?;
+
+        if path.is_empty() {
+            return Ok(self.to_owned());
+        }
+
+        let mut current = self.to_owned();
+        for index in path.iter() {
+            current = current.derive_child(*index)?;
+        }
+        Ok(current)
     }
 }

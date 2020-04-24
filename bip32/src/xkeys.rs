@@ -1,12 +1,9 @@
-use std::convert::TryInto;
-
 use bitcoin_spv::btcspv::hash160;
 use hmac::{Hmac, Mac};
 use sha2::Sha512;
 
 use crate::{
-    model::{PointSerialize, ScalarSerialize, Secp256k1Backend, SigningKey, VerifyingKey},
-    path::DerivationPath,
+    model::*,
     Bip32Error, BIP32_HARDEN, CURVE_ORDER,
 };
 
@@ -29,101 +26,6 @@ fn hmac_and_split(seed: &[u8], data: &[u8]) -> ([u8; 32], ChainCode) {
     (left, ChainCode(right))
 }
 
-/// We treat the xpub/ypub/zpub convention as a hint regarding address type. Users are free to
-/// follow or ignore these hints.
-#[derive(Eq, PartialEq, Debug, Clone, Copy)]
-pub enum Hint {
-    /// Standard Bip32 hint
-    Legacy,
-    /// Bip32 + Bip49 hint for Witness-via-P2SH
-    Compatibility,
-    /// Bip32 + Bip84 hint for Native SegWit
-    SegWit,
-}
-
-/// Extended Key common features
-pub trait XKey: std::marker::Sized + Clone {
-    /// Calculate and return the key fingerprint
-    fn fingerprint(&self) -> Result<KeyFingerprint, Bip32Error>;
-    /// Get the key's depth
-    fn depth(&self) -> u8;
-    #[doc(hidden)]
-    fn set_depth(&mut self, depth: u8);
-    /// Get the key's parent
-    fn parent(&self) -> KeyFingerprint;
-    #[doc(hidden)]
-    fn set_parent(&mut self, parent: KeyFingerprint);
-    /// Get the key's index
-    fn index(&self) -> u32;
-    #[doc(hidden)]
-    fn set_index(&mut self, index: u32);
-    /// Get the key's chain_code
-    fn chain_code(&self) -> ChainCode;
-    #[doc(hidden)]
-    fn set_chain_code(&mut self, chain_code: ChainCode);
-    /// Get the key's hint
-    fn hint(&self) -> Hint;
-    #[doc(hidden)]
-    fn set_hint(&mut self, hint: Hint);
-
-    /// Derive a child key. Private keys derive private children, public keys derive public
-    /// children.
-    fn derive_child(&self, index: u32) -> Result<Self, Bip32Error>;
-
-    /// Derive a series of child indices. Allows traversing several levels of the tree at once.
-    /// Accepts an iterator producing u32, or a string.
-    fn derive_path<E, T>(&self, p: T) -> Result<Self, Bip32Error>
-    where
-        E: Into<Bip32Error>,
-        T: TryInto<DerivationPath, Error = E>,
-    {
-        let path: DerivationPath = p.try_into().map_err(Into::into)?;
-
-        if path.is_empty() {
-            return Ok(self.to_owned());
-        }
-
-        let mut current = self.to_owned();
-        for index in path.iter() {
-            current = current.derive_child(*index)?;
-        }
-        Ok(current)
-    }
-}
-
-/// A 4-byte key fingerprint
-#[derive(Eq, PartialEq, Clone, Copy)]
-pub struct KeyFingerprint(pub [u8; 4]);
-
-impl From<[u8; 4]> for KeyFingerprint {
-    fn from(v: [u8; 4]) -> Self {
-        Self(v)
-    }
-}
-
-impl KeyFingerprint {
-    /// Determines if the slice represents the same key fingerprint
-    pub fn eq_slice(self, other: &[u8]) -> bool {
-        self.0 == other
-    }
-}
-
-impl std::fmt::Debug for KeyFingerprint {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("KeyFingerprint {:x?}", self.0))
-    }
-}
-
-/// A 32-byte chain code
-#[derive(Eq, PartialEq, Debug, Clone, Copy)]
-pub struct ChainCode(pub [u8; 32]);
-
-impl From<[u8; 32]> for ChainCode {
-    fn from(v: [u8; 32]) -> Self {
-        Self(v)
-    }
-}
-
 /// A BIP32 Extended privkey. This key is genericized to accept any compatibile backend.
 pub struct GenericXPriv<'a, T: Secp256k1Backend<'a>> {
     /// The key depth in the HD tree
@@ -142,10 +44,6 @@ pub struct GenericXPriv<'a, T: Secp256k1Backend<'a>> {
     #[doc(hidden)]
     backend: Option<&'a T>,
 }
-
-/// A BIP32 Extended privkey using the library's compiled-in secp256k1 backend.
-#[cfg(any(feature = "libsecp", feature = "rust-secp"))]
-pub type XPriv<'a> = GenericXPriv<'a, crate::backends::curve::Secp256k1<'a>>;
 
 impl<'a, T: Secp256k1Backend<'a>> GenericXPriv<'a, T> {
     /// Instantiate a master node using a custom HMAC key.
@@ -332,10 +230,6 @@ pub struct GenericXPub<'a, T: Secp256k1Backend<'a>> {
     #[doc(hidden)]
     backend: Option<&'a T>,
 }
-
-/// A BIP32 Extended pubkey using the library's compiled-in secp256k1 backend.
-#[cfg(any(feature = "libsecp", feature = "rust-secp"))]
-pub type XPub<'a> = GenericXPub<'a, crate::backends::curve::Secp256k1<'a>>;
 
 impl<'a, T: Secp256k1Backend<'a>> std::convert::TryFrom<&GenericXPriv<'a, T>>
     for GenericXPub<'a, T>
@@ -607,3 +501,12 @@ impl<'a, T: Secp256k1Backend<'a>> VerifyingKey for GenericXPub<'a, T> {
         self.backend()?.verify_digest(&self.pubkey, digest, sig)
     }
 }
+
+
+/// A BIP32 Extended privkey using the library's compiled-in secp256k1 backend.
+#[cfg(any(feature = "libsecp", feature = "rust-secp"))]
+pub type XPriv<'a> = GenericXPriv<'a, crate::backends::curve::Secp256k1<'a>>;
+
+/// A BIP32 Extended pubkey using the library's compiled-in secp256k1 backend.
+#[cfg(any(feature = "libsecp", feature = "rust-secp"))]
+pub type XPub<'a> = GenericXPub<'a, crate::backends::curve::Secp256k1<'a>>;
