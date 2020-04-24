@@ -2,7 +2,10 @@ use std::{collections::btree_map, io::Error as IOError, ops::RangeBounds};
 
 use thiserror::Error;
 
-use riemann_core::{ser::SerError, types::primitives::ConcretePrefixVec};
+use riemann_core::{
+    ser::SerError,
+    types::primitives::{ConcretePrefixVec, PrefixVec},
+};
 
 use crate::{
     psbt::{roles::signer::SignerError, schema},
@@ -111,7 +114,11 @@ wrap_prefixed_byte_vector!(
 impl PSBTKey {
     /// The BIP174 type of the key (its first byte)
     pub fn key_type(&self) -> u8 {
-        self[0]
+        if self.len() == 0 {
+            0
+        } else {
+            self[0]
+        }
     }
 }
 

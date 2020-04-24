@@ -56,6 +56,9 @@ pub type EncodingResult<T> = Result<T, EncodingError>;
 /// Encode a byte vector to bech32. This function expects `v` to be a witness program, and will
 /// return an `UnknownScriptType` if it does not meet the witness program format.
 pub fn encode_bech32(hrp: &str, v: &[u8]) -> EncodingResult<String> {
+    if v.len() < 2 {
+        return Err(BechError::InvalidLength.into());
+    }
     let (version_and_len, payload) = v.split_at(2);
     if version_and_len[0] > 16 || version_and_len[1] as usize != payload.len() {
         return Err(EncodingError::UnknownScriptType);

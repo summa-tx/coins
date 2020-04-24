@@ -16,8 +16,10 @@ pub fn decode_b58_check(s: &str) -> Result<Vec<u8>, Bip32Error> {
     let payload = &data[..idx];
     let checksum = &data[idx..];
 
+    let digest = &hash256(&[&payload[..]]);
+
     let mut expected = [0u8; 4];
-    expected.copy_from_slice(&hash256(&[&payload[..]])[..4]);
+    expected.copy_from_slice(&digest[..4]);
     if expected != checksum {
         Err(Bip32Error::BadB58Checksum)
     } else {
@@ -27,8 +29,10 @@ pub fn decode_b58_check(s: &str) -> Result<Vec<u8>, Bip32Error> {
 
 /// Encode a vec into a base58 check String
 pub fn encode_b58_check(v: &[u8]) -> String {
+    let digest = &hash256(&[&v[..]]);
+
     let mut checksum = [0u8; 4];
-    checksum.copy_from_slice(&hash256(&[&v[..]])[..4]);
+    checksum.copy_from_slice(&digest[..4]);
 
     let mut data = v.to_vec();
     data.extend(&checksum);

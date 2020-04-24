@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use riemann_core::{ser::Ser, types::primitives::PrefixVec};
 
-use rmn_bip32::{self as bip32, Encoder as Bip32Encoder, PointDeserialize, Secp256k1};
+use rmn_bip32::{self as bip32, Bip32Error, Encoder as Bip32Encoder, PointDeserialize, Secp256k1};
 
 use crate::{
     psbt::common::{PSBTError, PSBTKey, PSBTValue},
@@ -101,9 +101,12 @@ pub fn validate_expected_key_type(key: &PSBTKey, key_type: u8) -> Result<(), PSB
 /// derivation depth
 pub fn validate_xpub_depth(key: &PSBTKey, val: &PSBTValue) -> Result<(), PSBTError> {
     let expected = (val.len() / 4) - 1;
-    let depth = key.items()[4];
-    if expected == depth as usize {
-        Ok(())
+    if let Some(depth) = key.items().get(4) {
+        if expected == *depth as usize {
+            Ok(())
+        } else {
+            Err(PSBTError::Bip32DepthMismatch)
+        }
     } else {
         Err(PSBTError::Bip32DepthMismatch)
     }
@@ -123,6 +126,7 @@ pub fn try_val_as_tx_out(val: &PSBTValue) -> Result<TxOut, PSBTError> {
 
 /// Attempt to deserialize a value as a sighash flag
 pub fn try_val_as_sighash(val: &PSBTValue) -> Result<Sighash, PSBTError> {
+    validate_fixed_val_length(val, 4)?;
     let mut buf = [0u8; 4];
     buf.copy_from_slice(&val.items()[..4]);
     let sighash = u32::from_le_bytes(buf);
@@ -147,6 +151,9 @@ pub fn try_key_as_xpub<'a, E>(
 where
     E: Bip32Encoder,
 {
+    if key.len() < 2 {
+        return Err(Bip32Error::BadXPubVersionBytes([0u8; 4]).into());
+    }
     // strip off first byte (the type)
     let mut xpub_bytes = &key.items()[1..];
     Ok(E::read_xpub(&mut xpub_bytes, backend)?)

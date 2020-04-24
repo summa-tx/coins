@@ -89,7 +89,7 @@ impl<T> DerivedKey<T> {
 
 impl<K> PointSerialize for DerivedKey<K>
 where
-    K: PointSerialize
+    K: PointSerialize,
 {
     fn pubkey_array(&self) -> [u8; 33] {
         self.key.pubkey_array()
@@ -102,7 +102,7 @@ where
 
 impl<K> ScalarSerialize for DerivedKey<K>
 where
-    K: ScalarSerialize
+    K: ScalarSerialize,
 {
     fn privkey_array(&self) -> [u8; 32] {
         self.key.privkey_array()
@@ -121,7 +121,10 @@ where
     ///
     /// Note that a malicious party can fool this by trying 2**64 derivations (2**32 derivations)
     /// in a birthday attack setting).
-    pub fn private_ancestor_of<K: PointSerialize>(&self, descendant: &DerivedKey<K>) -> Result<bool, Bip32Error> {
+    pub fn private_ancestor_of<K: PointSerialize>(
+        &self,
+        descendant: &DerivedKey<K>,
+    ) -> Result<bool, Bip32Error> {
         if !self.is_possible_ancestor_of(descendant) {
             return Ok(false);
         }
@@ -147,7 +150,10 @@ where
     ///
     /// Note that a malicious party can fool this by trying 2**64 derivations (2**32 derivations)
     /// in a birthday attack setting).
-    pub fn public_ancestor_of<K: PointSerialize>(&self, descendant: &DerivedKey<K>) -> Result<bool, Bip32Error> {
+    pub fn public_ancestor_of<K: PointSerialize>(
+        &self,
+        descendant: &DerivedKey<K>,
+    ) -> Result<bool, Bip32Error> {
         if !self.is_possible_ancestor_of(descendant) {
             return Ok(false);
         }
@@ -160,7 +166,6 @@ where
         Ok(derived.pubkey_array()[..] == descendant.pubkey_array()[..])
     }
 }
-
 
 impl<'a, S, V, Sig, Rec> SigningKey for DerivedKey<S>
 where

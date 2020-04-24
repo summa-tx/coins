@@ -136,8 +136,9 @@ impl<'a, T: Secp256k1Backend<'a>> GenericXPriv<'a, T> {
 
 impl<'a, T: Secp256k1Backend<'a>> XKey for GenericXPriv<'a, T> {
     fn fingerprint(&self) -> Result<KeyFingerprint, Bip32Error> {
+        let digest = hash160(&self.pubkey()?.pubkey_array());
         let mut buf = [0u8; 4];
-        buf.copy_from_slice(&hash160(&self.pubkey()?.pubkey_array())[..4]);
+        buf.copy_from_slice(&digest[..4]);
         Ok(buf.into())
     }
 
@@ -258,8 +259,9 @@ impl<'a, T: Secp256k1Backend<'a>> ScalarSerialize for GenericXPriv<'a, T> {
 
 impl<'a, T: Secp256k1Backend<'a>> XKey for GenericXPub<'a, T> {
     fn fingerprint(&self) -> Result<KeyFingerprint, Bip32Error> {
+        let digest = hash160(&self.pubkey.pubkey_array());
         let mut buf = [0u8; 4];
-        buf.copy_from_slice(&hash160(&self.pubkey.pubkey_array())[..4]);
+        buf.copy_from_slice(&digest[..4]);
         Ok(buf.into())
     }
 
@@ -306,7 +308,6 @@ impl<'a, T: Secp256k1Backend<'a>> XKey for GenericXPub<'a, T> {
     fn pubkey_bytes(&self) -> Result<[u8; 33], Bip32Error> {
         Ok(self.pubkey_array())
     }
-
 
     fn derive_child(&self, index: u32) -> Result<GenericXPub<'a, T>, Bip32Error> {
         if index >= BIP32_HARDEN {

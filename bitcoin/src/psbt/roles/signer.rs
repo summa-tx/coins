@@ -103,7 +103,9 @@ impl<'a> Bip32Signer<'a> {
         let prevout_tx = match res {
             Ok(v) => v,
             Err(_) => {
-                return Err(SignerError::SignerMissingInfo("Non-witness UTXO".to_owned()))
+                return Err(SignerError::SignerMissingInfo(
+                    "Non-witness UTXO".to_owned(),
+                ))
             }
         };
 
@@ -146,7 +148,6 @@ impl<'a> Bip32Signer<'a> {
 
         let prevout_script = &prevout.script_pubkey;
         let prevout_type = prevout_script.standard_type();
-
 
         if prevout_type != ScriptType::WPKH && prevout_type != ScriptType::WSH {
             return Err(SignerError::WrongPrevoutScriptType {
@@ -240,7 +241,7 @@ impl<'a> Bip32Signer<'a> {
     }
 }
 
-impl<'a> From<&'a bip32::DerivedXPriv<'a>,> for Bip32Signer<'a> {
+impl<'a> From<&'a bip32::DerivedXPriv<'a>> for Bip32Signer<'a> {
     fn from(xpriv: &'a bip32::DerivedXPriv<'a>) -> Self {
         Self { xpriv }
     }
@@ -258,8 +259,9 @@ where
 
         let pubkeys = output_map.parsed_pubkey_derivations();
         if pubkeys.len() != 1 {
-            return false
+            return false;
         }
+        let pubkey = &pubkeys[0];
 
         let tx_res = pst.tx();
         if tx_res.is_err() {
@@ -271,10 +273,10 @@ where
         let script = &output.script_pubkey;
         let script_type = script.standard_type();
         if script_type == ScriptType::WPKH || script_type == ScriptType::PKH {
-            let res = self.xpriv.private_ancestor_of(&pubkeys[0]);
+            let res = self.xpriv.private_ancestor_of(pubkey);
             match res {
                 Ok(v) => v,
-                Err(_) => false
+                Err(_) => false,
             }
         } else {
             false

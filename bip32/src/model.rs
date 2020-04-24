@@ -8,7 +8,7 @@ use crate::{path::DerivationPath, Bip32Error};
 pub type HashFunc = dyn Fn(&[u8]) -> [u8; 32];
 
 /// A Serializable 32-byte scalar
-pub trait ScalarSerialize{
+pub trait ScalarSerialize {
     /// Serialize the scalar to an array
     fn privkey_array(&self) -> [u8; 32];
 }
@@ -364,7 +364,6 @@ pub trait XKey: std::marker::Sized + Clone {
 
     /// Return the 33-byte compressed pubkey representation
     fn pubkey_bytes(&self) -> Result<[u8; 33], Bip32Error>;
-
 
     /// Derive a child key. Private keys derive private children, public keys derive public
     /// children.

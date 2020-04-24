@@ -4,10 +4,7 @@ pub mod curve {
     // Wuille's secp
     use secp256k1;
 
-    use crate::{
-        model::*,
-        Bip32Error,
-    };
+    use crate::{model::*, Bip32Error};
 
     lazy_static! {
         static ref CONTEXT: secp256k1::Secp256k1<secp256k1::All> = { secp256k1::Secp256k1::new() };
@@ -232,10 +229,7 @@ pub mod curve {
     // Parity's secp
     use libsecp256k1 as secp256k1;
 
-    use crate::{
-        model::*,
-        Bip32Error,
-    };
+    use crate::{model::*, Bip32Error};
 
     #[cfg(not(feature = "rust-secp-static-context"))]
     lazy_static! {

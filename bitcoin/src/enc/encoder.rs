@@ -64,12 +64,12 @@ impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
                 // s.items contains the op codes. we want only the pkh
                 Ok(Address::PKH(encode_base58(
                     P::PKH_VERSION,
-                    &s.items()[4..24],
+                    &s.items()[3..23],
                 )))
             }
             ScriptType::SH => {
                 // s.items contains the op codes. we want only the sh
-                Ok(Address::SH(encode_base58(P::SH_VERSION, &s.items()[3..23])))
+                Ok(Address::SH(encode_base58(P::SH_VERSION, &s.items()[2..22])))
             }
             ScriptType::WSH => Ok(Address::WSH(encode_bech32(P::HRP, &s.items())?)),
             ScriptType::WPKH => Ok(Address::WPKH(encode_bech32(P::HRP, &s.items())?)),

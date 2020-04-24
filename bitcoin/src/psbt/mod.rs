@@ -30,7 +30,9 @@ use rmn_bip32::{
     Secp256k1, TestnetEncoder as Bip32TestnetEncoder, XPub,
 };
 
-use riemann_core::{builder::TxBuilder, enc::AddressEncoder, ser::Ser, tx::Transaction};
+use riemann_core::{
+    builder::TxBuilder, enc::AddressEncoder, primitives::PrefixVec, ser::Ser, tx::Transaction,
+};
 
 use crate::{
     bases::EncodingError,
@@ -147,7 +149,7 @@ where
     ) -> Option<XPub<'a>> {
         self.global_map()
             .xpubs()
-            .find(|(k, _)| fingerprint.eq_slice(&k[5..9]))
+            .find(|(k, _)| k.len() >= 9 && fingerprint.eq_slice(&k[5..9]))
             .map(|(k, _)| schema::try_key_as_xpub::<E>(k, backend).ok())
             .flatten()
     }
@@ -162,7 +164,7 @@ where
         let xpubs = self
             .global_map()
             .xpubs()
-            .filter(|(_, v)| root.eq_slice(&v[0..4]));
+            .filter(|(_, v)| v.len() >= 4 && root.eq_slice(&v[0..4]));
         for (k, v) in xpubs {
             let xpub = schema::try_key_as_xpub::<E>(k, backend);
             let deriv = schema::try_val_as_key_derivation(v);
@@ -324,7 +326,7 @@ where
     {
         self.validate()?;
         let mut len = writer.write(&<PSBT<T, E> as PST<T>>::MAGIC_BYTES)?;
-        len += writer.write(&[0xffu8])?;
+        len += writer.write(&[0xff])?;
         len += self.global_map().serialize(writer)?;
         len += self.input_maps().serialize(writer)?;
         len += self.output_maps().serialize(writer)?;

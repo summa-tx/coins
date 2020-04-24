@@ -130,7 +130,7 @@ impl ScriptPubkey {
         match self.0.len() {
             0x19 => {
                 // PKH;
-                if items[0..=2] == [0x76, 0xa9, 0x14] && items[0x17..] == [0x88, 0xac] {
+                if items[0..3] == [0x76, 0xa9, 0x14] && items[0x17..] == [0x88, 0xac] {
                     ScriptType::PKH
                 } else {
                     ScriptType::NonStandard
@@ -138,7 +138,7 @@ impl ScriptPubkey {
             }
             0x17 => {
                 // SH
-                if items[0..=2] == [0xa9, 0x14] && items[0x15..] == [0x87] {
+                if items[0..2] == [0xa9, 0x14] && items[0x15..] == [0x87] {
                     ScriptType::SH
                 } else {
                     ScriptType::NonStandard
@@ -146,14 +146,14 @@ impl ScriptPubkey {
             }
             0x16 => {
                 // WPKH
-                if items[0..=1] == [0x00, 0x14] {
+                if items[0..2] == [0x00, 0x14] {
                     ScriptType::WPKH
                 } else {
                     ScriptType::NonStandard
                 }
             }
             0x22 => {
-                if items[0..=1] == [0x00, 0x20] {
+                if items[0..2] == [0x00, 0x20] {
                     ScriptType::WSH
                 } else {
                     ScriptType::NonStandard
