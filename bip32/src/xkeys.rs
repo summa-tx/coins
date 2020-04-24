@@ -207,6 +207,10 @@ impl<'a, T: Secp256k1Backend<'a>> XKey for GenericXPriv<'a, T> {
             backend: self.backend,
         })
     }
+
+    fn pubkey_bytes(&self) -> Result<[u8; 33], Bip32Error> {
+        Ok(self.pubkey()?.to_array())
+    }
 }
 
 /// A BIP32 Extended pubkey. This key is genericized to accept any compatibile backend.
@@ -243,6 +247,16 @@ impl<'a, T: Secp256k1Backend<'a>> std::convert::TryFrom<&GenericXPriv<'a, T>>
             k.hint(),
             k.backend().ok(),
         ))
+    }
+}
+
+impl<'a, T: Secp256k1Backend<'a>> ScalarSerialize for GenericXPriv<'a, T> {
+    fn to_array(&self) -> [u8; 32] {
+        self.privkey.to_array()
+    }
+
+    fn from_array(_buf: [u8; 32]) -> Result<Self, Bip32Error> {
+        Err(Bip32Error::InvalidBip32Path)
     }
 }
 
@@ -292,6 +306,11 @@ impl<'a, T: Secp256k1Backend<'a>> XKey for GenericXPub<'a, T> {
     fn set_hint(&mut self, hint: Hint) {
         self.hint = hint
     }
+
+    fn pubkey_bytes(&self) -> Result<[u8; 33], Bip32Error> {
+        Ok(self.compressed_pubkey())
+    }
+
 
     fn derive_child(&self, index: u32) -> Result<GenericXPub<'a, T>, Bip32Error> {
         if index >= BIP32_HARDEN {
@@ -480,6 +499,24 @@ impl<'a, T: Secp256k1Backend<'a>> SigningKey for GenericXPriv<'a, T> {
         Ok(self
             .backend()?
             .sign_digest_recoverable(&self.privkey, message))
+    }
+}
+
+impl<'a, T: Secp256k1Backend<'a>> PointSerialize for GenericXPub<'a, T> {
+    fn to_array(&self) -> [u8; 33] {
+        self.pubkey.to_array()
+    }
+
+    fn to_array_uncompressed(&self) -> [u8; 65] {
+        self.pubkey.to_array_uncompressed()
+    }
+
+    fn from_array(_buf: [u8; 33]) -> Result<Self, Bip32Error> {
+        Err(Bip32Error::InvalidBip32Path)
+    }
+
+    fn from_array_uncompressed(_buf: [u8; 65]) -> Result<Self, Bip32Error> {
+        Err(Bip32Error::InvalidBip32Path)
     }
 }
 

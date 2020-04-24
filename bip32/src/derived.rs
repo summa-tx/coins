@@ -55,6 +55,9 @@ impl<T: XKey> XKey for DerivedKey<T> {
     fn set_hint(&mut self, hint: Hint) {
         self.key.set_hint(hint)
     }
+    fn pubkey_bytes(&self) -> Result<[u8; 33], Bip32Error> {
+        self.key.pubkey_bytes()
+    }
     fn derive_child(&self, index: u32) -> Result<Self, Bip32Error> {
         Ok(Self {
             key: self.key.derive_child(index)?,
@@ -84,28 +87,92 @@ impl<T> DerivedKey<T> {
     }
 }
 
-impl<T> DerivedKey<T>
+impl<K> PointSerialize for DerivedKey<K>
 where
-    T: XKey,
+    K: PointSerialize
+{
+    fn to_array(&self) -> [u8; 33] {
+        self.key.to_array()
+    }
+
+    fn to_array_uncompressed(&self) -> [u8; 65] {
+        self.key.to_array_uncompressed()
+    }
+
+    fn from_array(_buf: [u8; 33]) -> Result<Self, Bip32Error> {
+        Err(Bip32Error::InvalidBip32Path)
+    }
+
+    fn from_array_uncompressed(_buf: [u8; 65]) -> Result<Self, Bip32Error> {
+        Err(Bip32Error::InvalidBip32Path)
+    }
+}
+
+impl<K> ScalarSerialize for DerivedKey<K>
+where
+    K: ScalarSerialize
+{
+    fn to_array(&self) -> [u8; 32] {
+        self.key.to_array()
+    }
+
+    fn from_array(_buf: [u8; 32]) -> Result<Self, Bip32Error> {
+        Err(Bip32Error::InvalidBip32Path)
+    }
+}
+
+impl<'a, S, V, Sig, Rec> DerivedKey<S>
+where
+    Sig: SigSerialize,
+    Rec: RecoverableSigSerialize<Signature = Sig>,
+    V: VerifyingKey<SigningKey = S, Signature = Sig, RecoverableSignature = Rec>,
+    S: XKey + SigningKey<VerifyingKey = V, Signature = Sig, RecoverableSignature = Rec>,
 {
     /// Determine whether `self` is an ancestor of `descendant` by attempting to derive the path
     /// between them. Returns true if both the fingerprint and the parent fingerprint match.
     ///
     /// Note that a malicious party can fool this by trying 2**64 derivations (2**32 derivations)
     /// in a birthday attack setting).
-    pub fn is_ancestor_of<K: XKey>(&self, descendant: &DerivedKey<K>) -> Result<bool, Bip32Error> {
+    pub fn private_ancestor_of<K: PointSerialize>(&self, descendant: &DerivedKey<K>) -> Result<bool, Bip32Error> {
         if !self.is_possible_ancestor_of(descendant) {
             return Ok(false);
         }
+
         let path = self
             .path_to_descendant(descendant)
             .expect("pre-flighted by is_possible_ancestor_of");
-        let descendant = self.derive_path(&path)?;
-        // Consider: is this sufficient collision resistance?
-        Ok(descendant.fingerprint()? == descendant.key.fingerprint()?
-            && descendant.parent() == descendant.parent())
+
+        let derived = self.derive_path(&path)?.to_verifying_key()?;
+        Ok(derived.to_array()[..] == descendant.to_array()[..])
     }
 }
+
+impl<S, V, Sig, Rec> DerivedKey<V>
+where
+    Sig: SigSerialize,
+    Rec: RecoverableSigSerialize<Signature = Sig>,
+    S: SigningKey<VerifyingKey = V, Signature = Sig, RecoverableSignature = Rec>,
+    V: XKey + VerifyingKey<SigningKey = S, Signature = Sig, RecoverableSignature = Rec>,
+{
+    /// Determine whether `self` is an ancestor of `descendant` by attempting to derive the path
+    /// between them. Returns true if both the fingerprint and the parent fingerprint match.
+    ///
+    /// Note that a malicious party can fool this by trying 2**64 derivations (2**32 derivations)
+    /// in a birthday attack setting).
+    pub fn public_ancestor_of<K: PointSerialize>(&self, descendant: &DerivedKey<K>) -> Result<bool, Bip32Error> {
+        if !self.is_possible_ancestor_of(descendant) {
+            return Ok(false);
+        }
+
+        let path = self
+            .path_to_descendant(descendant)
+            .expect("pre-flighted by is_possible_ancestor_of");
+
+        let derived = self.derive_path(&path)?;
+        Ok(derived.to_array()[..] == descendant.to_array()[..])
+    }
+}
+
 
 impl<'a, S, V, Sig, Rec> SigningKey for DerivedKey<S>
 where

@@ -8,7 +8,7 @@ use crate::{path::DerivationPath, Bip32Error};
 pub type HashFunc = dyn Fn(&[u8]) -> [u8; 32];
 
 /// A secp256k1 signing key
-pub trait SigningKey: std::marker::Sized {
+pub trait SigningKey: std::marker::Sized + ScalarSerialize {
     /// The corresponding verifying key
     type VerifyingKey: VerifyingKey<
         Signature = Self::Signature,
@@ -63,7 +63,7 @@ pub trait SigningKey: std::marker::Sized {
 }
 
 /// A secp256k1 verifying key
-pub trait VerifyingKey: std::marker::Sized {
+pub trait VerifyingKey: std::marker::Sized + PointSerialize {
     /// The corresponding signing key
     type SigningKey: SigningKey<
         Signature = Self::Signature,
@@ -355,6 +355,10 @@ pub trait XKey: std::marker::Sized + Clone {
     fn hint(&self) -> Hint;
     #[doc(hidden)]
     fn set_hint(&mut self, hint: Hint);
+
+    /// Return the 33-byte compressed pubkey representation
+    fn pubkey_bytes(&self) -> Result<[u8; 33], Bip32Error>;
+
 
     /// Derive a child key. Private keys derive private children, public keys derive public
     /// children.

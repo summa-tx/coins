@@ -170,7 +170,7 @@ pub enum Bip32Error {
     NoRecoveryID,
 
     /// Attempted to deserialize a very long path
-    #[error("Bip32 paths are capped at 255 derivations")]
+    #[error("Invalid Bip32 Path.")]
     InvalidBip32Path,
 }
 
