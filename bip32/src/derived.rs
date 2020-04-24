@@ -1,7 +1,7 @@
 use crate::{
-    path::KeyDerivation,
-    model::{RecoverableSigSerialize, SigningKey, SigSerialize, VerifyingKey},
-    xkeys::{ChainCode, KeyFingerprint, Hint, XKey},
+    model::{RecoverableSigSerialize, SigSerialize, SigningKey, VerifyingKey},
+    path::{DerivationPath, KeyDerivation},
+    xkeys::{ChainCode, Hint, KeyFingerprint, XKey},
     Bip32Error,
 };
 
@@ -22,14 +22,10 @@ impl<T> From<(T, KeyDerivation)> for DerivedKey<T> {
     }
 }
 
-impl<'a, T> XKey for DerivedKey<T>
-where
-    T: XKey,
-{
+impl<T: XKey> XKey for DerivedKey<T> {
     fn fingerprint(&self) -> Result<KeyFingerprint, Bip32Error> {
         self.key.fingerprint()
     }
-
     fn depth(&self) -> u8 {
         self.key.depth()
     }
@@ -60,14 +56,57 @@ where
     fn set_hint(&mut self, hint: Hint) {
         self.key.set_hint(hint)
     }
-    fn derive_child(&self, idx: u32) -> Result<Self, Bip32Error> {
+    fn derive_child(&self, index: u32) -> Result<Self, Bip32Error> {
         Ok(Self {
-            key: self.key.derive_child(idx)?,
-            derivation: self.derivation.extended(idx),
+            key: self.key.derive_child(index)?,
+            derivation: self.derivation.extended(index)
         })
     }
 }
 
+impl<T> DerivedKey<T> {
+    /// `true` if the keys share a root fingerprint, `false` otherwise. Note that on key
+    /// fingerprints, which may collide accidentally, or be intentionally collided.
+    pub fn same_root<K>(&self, other: &DerivedKey<K>) -> bool {
+        self.derivation.same_root(&other.derivation)
+    }
+
+    /// `true` if this key is an ancestor of other, `false` otherwise. Note that on key
+    /// fingerprints, which may collide accidentally, or be intentionally collided.
+    pub fn is_possible_ancestor_of<K>(&self, other: &DerivedKey<K>) -> bool {
+        self.derivation.is_possible_ancestor_of(&other.derivation)
+    }
+
+    /// Returns the path to the decendant, or `None` if `descendant` is definitely not a
+    /// descendant.
+    /// This is useful for determining the path to rech some descendant from some ancestor.
+    pub fn path_to_descendant<K>(&self, descendant: &DerivedKey<K>) -> Option<DerivationPath> {
+        self.derivation.path_to_descendant(&descendant.derivation)
+    }
+}
+
+impl<T> DerivedKey<T>
+where
+    T: XKey
+{
+    /// Determine whether `self` is an ancestor of `descendant` by attempting to derive the path
+    /// between them. Returns true if both the fingerprint and the parent fingerprint match.
+    ///
+    /// Note that a malicious party can fool this by trying 2**64 derivations (2**32 derivations)
+    /// in a birthday attack setting).
+    pub fn is_ancestor_of<K: XKey>(&self, descendant: &DerivedKey<K>) -> Result<bool, Bip32Error> {
+        if !self.is_possible_ancestor_of(descendant) {
+            return Ok(false)
+        }
+        let path = self.path_to_descendant(descendant).expect("pre-flighted by is_possible_ancestor_of");
+        let descendant = self.derive_path(path)?;
+        // Consider: is this sufficient collision resistance?
+        Ok(
+            descendant.fingerprint()? == descendant.key.fingerprint()?
+            && descendant.parent() == descendant.parent()
+        )
+    }
+}
 
 impl<'a, S, V, Sig, Rec> SigningKey for DerivedKey<S>
 where
@@ -91,19 +130,15 @@ where
         self.key.sign_digest(message)
     }
 
-    fn sign_digest_recoverable(
-        &self,
-        message: [u8; 32],
-    ) -> Result<Rec, Bip32Error> {
+    fn sign_digest_recoverable(&self, message: [u8; 32]) -> Result<Rec, Bip32Error> {
         self.key.sign_digest_recoverable(message)
     }
 }
 
-
 impl<S, V, Sig, Rec> VerifyingKey for DerivedKey<V>
 where
     Sig: SigSerialize,
-    Rec: RecoverableSigSerialize< Signature = Sig>,
+    Rec: RecoverableSigSerialize<Signature = Sig>,
     V: VerifyingKey<SigningKey = S, Signature = Sig, RecoverableSignature = Rec>,
     S: SigningKey<VerifyingKey = V, Signature = Sig, RecoverableSignature = Rec>,
 {
@@ -121,20 +156,48 @@ where
 }
 
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
-pub use self::keys::{DerivedXPriv, DerivedXPub};
+pub use self::keys::{DerivedPrivkey, DerivedPubkey, DerivedXPriv, DerivedXPub};
 
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 /// Pre-defined shortcuts for derived XPrivs and XPubs using the compiled-in backend
 pub mod keys {
-    use super::DerivedKey;
+    use super::*;
 
-    use crate::{
-        XPriv, XPub,
-    };
+    use crate::{Privkey, Pubkey, Secp256k1, XKey, XPriv, XPub};
 
     /// An XPriv coupled with its (purported) derivation path
     pub type DerivedXPriv<'a> = DerivedKey<XPriv<'a>>;
 
     /// An XPub coupled with its (purported) derivation path
     pub type DerivedXPub<'a> = DerivedKey<XPub<'a>>;
+
+    impl<'a> DerivedXPriv<'a> {
+        /// Generate a master node from some seed data. Uses the BIP32-standard hmac key.
+        ///
+        ///
+        /// # Important:
+        ///
+        /// Use a seed of AT LEAST 128 bits.
+        pub fn root_from_seed(
+            data: &[u8],
+            hint: Option<Hint>,
+            backend: &'a Secp256k1,
+        ) -> Result<Self, Bip32Error> {
+            let key = XPriv::root_from_seed(data, hint, backend)?;
+            let derivation = KeyDerivation {
+                root: key.fingerprint()?,
+                path: vec![].into()
+            };
+            Ok(Self{
+                key,
+                derivation,
+            })
+        }
+    }
+
+    /// A Privkey coupled with its (purported) derivation path
+    pub type DerivedPrivkey = DerivedKey<Privkey>;
+
+    /// A Pubkey coupled with its (purported) derivation path
+    pub type DerivedPubkey = DerivedKey<Pubkey>;
 }

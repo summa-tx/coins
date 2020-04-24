@@ -15,6 +15,7 @@ sha2 = "0.8.0"
 bitcoin-spv = "2.0.0"
 bs58 = "0.3.0"
 lazy_static = "1.4.0"
+riemann-core = { path = "../core"}
 
 [dependencies.libsecp256k1]
 git = "https://github.com/paritytech/libsecp256k1.git"

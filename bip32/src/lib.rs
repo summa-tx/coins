@@ -79,11 +79,15 @@ pub mod derived;
 pub use enc::{Encoder, MainnetEncoder, NetworkParams, TestnetEncoder};
 pub use model::*;
 pub use path::{DerivationPath, KeyDerivation};
+
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 pub use xkeys::{KeyFingerprint, XKey, XPriv, XPub};
 
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
-pub use backends::curve::{Pubkey, RecoverableSignature, Secp256k1, Signature};
+pub use backends::curve::{Privkey, Pubkey, RecoverableSignature, Secp256k1, Signature};
+
+#[cfg(any(feature = "libsecp", feature = "rust-secp"))]
+pub use derived::{DerivedPrivkey, DerivedPubkey, DerivedXPriv, DerivedXPub};
 
 use thiserror::Error;
 
@@ -112,6 +116,10 @@ pub enum Bip32Error {
     /// Error bubbled up froom std::io
     #[error(transparent)]
     IOError(#[from] std::io::Error),
+
+    /// Error bubbled up froom Ser
+    #[error(transparent)]
+    SerError(#[from] riemann_core::ser::SerError),
 
     /// Master key seed generation received <16 bytes
     #[error("Master key seed generation received <16 bytes")]
@@ -160,6 +168,10 @@ pub enum Bip32Error {
     /// Attempted to deserialize a DER signature to a recoverable signature.
     #[error("Attempted to deserialize a DER signature to a recoverable signature. Use deserialize_vrs instead")]
     NoRecoveryID,
+
+    /// Attempted to deserialize a very long path
+    #[error("Bip32 paths are capped at 255 derivations")]
+    InvalidBip32Path,
 }
 
 impl From<std::convert::Infallible> for Bip32Error {

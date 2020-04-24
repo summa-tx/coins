@@ -1,8 +1,11 @@
 use std::{
     convert::TryFrom,
+    io::{Read, Write},
     iter::{FromIterator, IntoIterator},
     slice::Iter,
 };
+
+use riemann_core::ser::{Ser, SerError};
 
 use crate::{Bip32Error, KeyFingerprint, BIP32_HARDEN};
 
@@ -50,6 +53,21 @@ impl DerivationPath {
         self.0.iter()
     }
 
+    /// `true` if `other` is a prefix of `self`
+    pub fn starts_with(&self, other: &Self) -> bool {
+        self.0.starts_with(&other.0)
+    }
+
+    /// Remove a prefix from a derivation. Return a new DerivationPath without the prefix.
+    /// This is useful for determining the path to rech some descendant from some ancestor.
+    pub fn remove_prefix(&self, prefix: &Self) -> Option<DerivationPath> {
+        if !self.starts_with(prefix) {
+            None
+        } else {
+            Some(self.0[prefix.len()..].to_vec().into())
+        }
+    }
+
     /// Convenience function for finding the last hardened derivation in a path.
     /// Returns the index and the element. If there is no hardened derivation, it
     /// will return (0, None).
@@ -62,7 +80,7 @@ impl DerivationPath {
             None => (0, None),
         }
     }
-    
+
     /// Append an additional derivation to the end, return a clone
     pub fn extended(&self, idx: u32) -> Self {
         let mut child = self.clone();
@@ -81,6 +99,23 @@ pub struct KeyDerivation {
 }
 
 impl KeyDerivation {
+    /// `true` if the keys share a root fingerprint, `false` otherwise. Note that on key
+    /// fingerprints, which may collide accidentally, or be intentionally collided.
+    pub fn same_root(&self, other: &Self) -> bool {
+        self.root == other.root
+    }
+
+    /// `true` if this key is an ancestor of other, `false` otherwise. Note that on key
+    /// fingerprints, which may collide accidentally, or be intentionally collided.
+    pub fn is_possible_ancestor_of(&self, other: &Self) -> bool {
+        self.same_root(other) && other.path.starts_with(&self.path)
+    }
+
+    /// Returns the path to the decendant.
+    pub fn path_to_descendant(&self, descendant: &Self) -> Option<DerivationPath> {
+        descendant.path.remove_prefix(&self.path)
+    }
+
     /// Append an additional derivation to the end, return a clone
     pub fn extended(&self, idx: u32) -> Self {
         Self {
@@ -116,5 +151,57 @@ impl FromIterator<u32> for DerivationPath {
         T: IntoIterator<Item = u32>,
     {
         Vec::from_iter(iter).into()
+    }
+}
+
+impl Ser for KeyDerivation {
+    type Error = Bip32Error;
+
+    fn to_json(&self) -> String {
+        unimplemented!()
+    }
+
+    fn serialized_length(&self) -> usize {
+        4 + 4 * self.path.len()
+    }
+
+    fn deserialize<T>(reader: &mut T, limit: usize) -> Result<Self, Self::Error>
+    where
+        T: Read,
+        Self: std::marker::Sized,
+    {
+        if limit == 0 {
+            return Err(SerError::RequiresLimit.into());
+        }
+
+        if limit > 255 {
+            return Err(Bip32Error::InvalidBip32Path);
+        }
+
+        let mut finger = [0u8; 4];
+        reader.read_exact(&mut finger)?;
+
+        let mut path = vec![];
+        for _ in 0..limit {
+            let mut buf = [0u8; 4];
+            reader.read_exact(&mut buf)?;
+            path.push(u32::from_le_bytes(buf));
+        }
+
+        Ok(KeyDerivation {
+            root: finger.into(),
+            path: path.into(),
+        })
+    }
+
+    fn serialize<T>(&self, writer: &mut T) -> Result<usize, Self::Error>
+    where
+        T: Write,
+    {
+        let mut length = writer.write(&self.root.0)?;
+        for i in self.path.iter() {
+            length += writer.write(&i.to_le_bytes())?;
+        }
+        Ok(length)
     }
 }
