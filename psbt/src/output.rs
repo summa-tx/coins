@@ -4,12 +4,11 @@ use riemann_core::{primitives::PrefixVec, ser::Ser};
 
 use rmn_bip32::DerivedPubkey;
 
+use rmn_btc::types::script::Script;
+
 use crate::{
-    psbt::{
         common::{PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},
         schema,
-    },
-    types::script::Script,
 };
 
 psbt_map!(PSBTOutput);

@@ -14,12 +14,16 @@ use std::marker::PhantomData;
 use riemann_core::{builder::TxBuilder, enc::AddressEncoder, types::tx::Transaction};
 
 use crate::{
-    bases::{EncodingError, EncodingResult},
-    encoder::Address,
-    script::{ScriptPubkey, ScriptSig, Witness},
-    transactions::{LegacyTx, WitnessTransaction, WitnessTx},
-    txin::{BitcoinOutpoint, BitcoinTxIn},
-    txout::TxOut,
+    enc::{
+        bases::{EncodingError, EncodingResult},
+        encoder::Address,
+    },
+    types::{
+        script::{ScriptPubkey, ScriptSig, Witness},
+        transactions::{LegacyTx, WitnessTransaction, WitnessTx},
+        txin::{BitcoinOutpoint, BitcoinTxIn},
+        txout::TxOut,
+    },
 };
 
 /// A `TxBuilder` that builds Bitcoin transactions. This trait extends `TxBuilder` to provide

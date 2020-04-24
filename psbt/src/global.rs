@@ -2,13 +2,11 @@ use std::collections::{btree_map, BTreeMap};
 
 use riemann_core::{primitives::PrefixVec, ser::Ser};
 use rmn_bip32::DerivedXPub;
+use rmn_btc::types::transactions::LegacyTx;
 
 use crate::{
-    psbt::{
         common::{PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},
         schema,
-    },
-    types::transactions::LegacyTx,
 };
 
 use rmn_bip32::{Encoder as Bip32Encoder, Secp256k1};

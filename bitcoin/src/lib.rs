@@ -6,18 +6,13 @@
 #![warn(unused_extern_crates)]
 
 #[macro_use]
-pub(crate) mod prelude;
+#[doc(hidden)]
+pub mod prelude;
 
 pub mod builder;
 pub mod enc;
 pub mod hashes;
 pub mod nets;
-pub mod psbt;
 pub mod types;
 
-pub use builder::*;
-pub use enc::*;
-pub use hashes::*;
 pub use nets::*;
-pub use psbt::*;
-pub use types::*;

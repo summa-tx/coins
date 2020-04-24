@@ -3,7 +3,8 @@ members = [
     "core",
     "bip32",
     "bitcoin",
-    "litecoin"
+    "litecoin",
+    "psbt",
 ]
 exclude = [
   "bitcoin-wasm"

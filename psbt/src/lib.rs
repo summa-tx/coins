@@ -1,5 +1,8 @@
 //! Partially Signed Bitcoin transactions (bip174)
 
+#[macro_use]
+pub mod prelude;
+
 /// Common data structures
 pub mod common;
 /// Global KV store
@@ -34,13 +37,25 @@ use riemann_core::{
     builder::TxBuilder, enc::AddressEncoder, primitives::PrefixVec, ser::Ser, tx::Transaction,
 };
 
-use crate::{
-    bases::EncodingError,
+use rmn_btc::{
     builder::LegacyBuilder,
-    encoder::{Address, MainnetEncoder, TestnetEncoder},
-    psbt::common::PSBTError,
-    script::ScriptPubkey,
-    types::{transactions::LegacyTx, txin::BitcoinTxIn, txout::TxOut},
+    enc::{
+        bases::EncodingError,
+        encoder::{Address, MainnetEncoder, TestnetEncoder},
+    },
+    types::{
+        script::ScriptPubkey,
+        transactions::LegacyTx,
+        txin::BitcoinTxIn,
+        txout::TxOut
+    },
+};
+
+use crate::{
+    common::PSBTError,
+    input::PSBTInput,
+    output::PSBTOutput,
+    global::PSBTGlobal,
 };
 
 /// A generic Partially Signed Transaction.

@@ -4,13 +4,15 @@ use thiserror::Error;
 
 use riemann_core::{
     ser::SerError,
-    types::primitives::{ConcretePrefixVec, PrefixVec},
+    types::primitives::PrefixVec,
 };
 
-use crate::{
-    psbt::{roles::signer::SignerError, schema},
-    types::transactions::TxError,
+use rmn_btc::{
+    wrap_prefixed_byte_vector,
+    types::transactions::TxError
 };
+
+use crate::{roles::signer::SignerError, schema};
 
 /// An Error type for PSBT objects
 #[derive(Debug, Error)]

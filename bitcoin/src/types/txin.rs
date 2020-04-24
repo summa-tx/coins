@@ -11,7 +11,7 @@ use riemann_core::{
     },
 };
 
-use crate::{hashes::TXID, script::ScriptSig};
+use crate::{hashes::TXID, types::script::ScriptSig};
 /// An Outpoint. This is a unique identifier for a UTXO, and is composed of a transaction ID (in
 /// Bitcoin-style LE format), and the index of the output being spent within that transactions
 /// output vectour (vout).

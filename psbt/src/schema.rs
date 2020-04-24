@@ -4,14 +4,13 @@ use riemann_core::{ser::Ser, types::primitives::PrefixVec};
 
 use rmn_bip32::{self as bip32, Bip32Error, Encoder as Bip32Encoder, PointDeserialize, Secp256k1};
 
-use crate::{
-    psbt::common::{PSBTError, PSBTKey, PSBTValue},
-    types::{
-        script::Witness,
-        transactions::{LegacyTx, Sighash, TxError},
-        txout::TxOut,
-    },
+use rmn_btc::types::{
+    script::Witness,
+    transactions::{LegacyTx, Sighash, TxError},
+    txout::TxOut,
 };
+
+use crate::common::{PSBTError, PSBTKey, PSBTValue};
 
 /// A PSBT key/value validation function. Returns `Ok(())` if the KV pair is valid, otherwise an
 /// error.

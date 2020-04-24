@@ -1,0 +1,23 @@
+[package]
+name = "rmn_psbt"
+version = "0.1.0"
+authors = ["James Prestwich <james@prestwi.ch>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+riemann-core = { path = "../core"}
+rmn-btc = { path = "../bitcoin"}
+bitcoin-spv = "2.0.0"
+thiserror = "1.0"
+
+[dependencies.rmn-bip32]
+path = "../bip32"
+default-features = false
+
+
+[features]
+default = ["libsecp"]
+libsecp = ["rmn-bip32/libsecp"]
+rust-secp = ["rmn-bip32/rust-secp"]

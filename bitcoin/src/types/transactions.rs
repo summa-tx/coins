@@ -14,9 +14,11 @@ use riemann_core::{
 
 use crate::{
     hashes::{TXID, WTXID},
-    script::{Script, ScriptSig, Witness},
-    txin::{BitcoinTxIn, Vin},
-    txout::{TxOut, Vout},
+    types::{
+        script::{Script, ScriptSig, Witness},
+        txin::{BitcoinTxIn, Vin},
+        txout::{TxOut, Vout},
+    }
 };
 
 /// An Error type for transaction objects

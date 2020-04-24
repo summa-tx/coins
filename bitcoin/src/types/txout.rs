@@ -10,7 +10,7 @@ use riemann_core::{
     },
 };
 
-use crate::script::ScriptPubkey;
+use crate::types::script::ScriptPubkey;
 
 /// An Output. This describes a new UTXO to be created. The value is encoded as an LE u64. The
 /// script pubkey encodes the spending constraints.

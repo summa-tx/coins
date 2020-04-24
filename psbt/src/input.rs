@@ -4,16 +4,15 @@ use riemann_core::{primitives::PrefixVec, ser::Ser};
 
 use rmn_bip32::{self as bip32, DerivedPubkey, PointSerialize, SigSerialize};
 
+use rmn_btc::types::{
+    script::{Script, ScriptSig, Witness},
+    transactions::{LegacyTx, Sighash},
+    txout::TxOut,
+};
+
 use crate::{
-    psbt::{
-        common::{PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},
-        schema,
-    },
-    types::{
-        script::{Script, ScriptSig, Witness},
-        transactions::{LegacyTx, Sighash},
-        txout::TxOut,
-    },
+    common::{PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},
+    schema,
 };
 
 psbt_map!(PSBTInput);

@@ -5,10 +5,10 @@ use std::marker::PhantomData;
 use riemann_core::{enc::AddressEncoder, types::primitives::PrefixVec};
 
 use crate::{
-    bases::{
+    enc::bases::{
         decode_base58, decode_bech32, encode_base58, encode_bech32, EncodingError, EncodingResult,
     },
-    script::{ScriptPubkey, ScriptType},
+    types::script::{ScriptPubkey, ScriptType},
 };
 
 /// The available Bitcoin Address types, implemented as a type enum around strings.
