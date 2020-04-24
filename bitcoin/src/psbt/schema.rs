@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use riemann_core::{ser::Ser, types::primitives::PrefixVec};
 
-use rmn_bip32::{self as bip32, Encoder as Bip32Encoder, PointSerialize, Secp256k1};
+use rmn_bip32::{self as bip32, Encoder as Bip32Encoder, PointDeserialize, Secp256k1};
 
 use crate::{
     psbt::common::{PSBTError, PSBTKey, PSBTValue},
@@ -166,7 +166,7 @@ pub fn try_kv_pair_as_derived_pubkey(
 
     let mut pubkey = [0u8; 33];
     pubkey.copy_from_slice(&key[1..34]);
-    let pubkey = bip32::Pubkey::from_array(pubkey)?;
+    let pubkey = bip32::Pubkey::from_pubkey_array(pubkey)?;
     let deriv = try_val_as_key_derivation(val)?;
     Ok((pubkey, deriv).into())
 }

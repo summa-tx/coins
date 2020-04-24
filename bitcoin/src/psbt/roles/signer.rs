@@ -271,10 +271,9 @@ where
         let script_type = script.standard_type();
         if script_type == ScriptType::WPKH || script_type == ScriptType::PKH {
             let res = self.xpriv.private_ancestor_of(&pubkeys[0]);
-            if res.is_err() {
-                false
-            } else {
-                res.unwrap()
+            match res {
+                Ok(v) => v,
+                Err(_) => false
             }
         } else {
             false
