@@ -1,10 +1,11 @@
 use std::collections::{btree_map, BTreeMap};
 
 use riemann_core::{primitives::PrefixVec, ser::Ser};
+use rmn_bip32::DerivedXPub;
 
 use crate::{
     psbt::{
-        common::{DerivedXPub, PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},
+        common::{PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},
         schema,
     },
     types::transactions::LegacyTx,

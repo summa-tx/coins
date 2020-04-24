@@ -7,14 +7,17 @@ pub mod global;
 /// Per-Input KV store
 pub mod input;
 /// Per-Output KV store
-pub mod outputs;
-/// BIP174 schema validation functions
+pub mod output;
+/// BIP174 schema valid,ation functions
 pub mod schema;
+
+/// Interfaces for BIP174 defined roles
+pub mod roles;
 
 pub use common::*;
 pub use global::*;
 pub use input::*;
-pub use outputs::*;
+pub use output::*;
 pub use schema::*;
 
 use std::{
@@ -23,8 +26,8 @@ use std::{
 };
 
 use rmn_bip32::{
-    Encoder as Bip32Encoder, KeyFingerprint, MainnetEncoder as Bip32MainnetEncoder, Secp256k1,
-    TestnetEncoder as Bip32TestnetEncoder, XPub,
+    DerivedXPub, Encoder as Bip32Encoder, KeyFingerprint, MainnetEncoder as Bip32MainnetEncoder,
+    Secp256k1, TestnetEncoder as Bip32TestnetEncoder, XPub,
 };
 
 use riemann_core::{builder::TxBuilder, enc::AddressEncoder, ser::Ser, tx::Transaction};
@@ -150,20 +153,21 @@ where
     }
 
     /// Find all xpubs with a specified root fingerprint. This with silently fail if any
-    pub fn find_xpubs_by_root<'a> (
+    pub fn find_xpubs_by_root<'a>(
         &self,
         root: KeyFingerprint,
         backend: Option<&'a Secp256k1>,
     ) -> Vec<DerivedXPub<'a>> {
         let mut results = vec![];
-        let xpubs = self.global_map()
+        let xpubs = self
+            .global_map()
             .xpubs()
             .filter(|(_, v)| root.eq_slice(&v[0..4]));
         for (k, v) in xpubs {
             let xpub = schema::try_key_as_xpub::<E>(k, backend);
             let deriv = schema::try_val_as_key_derivation(v);
             if deriv.is_err() || xpub.is_err() {
-                continue
+                continue;
             }
             results.push((xpub.expect("checked"), deriv.expect("checked")).into());
         }
@@ -223,6 +227,7 @@ where
                 maps: self.outputs.len(),
             });
         }
+
         // TODO:
         // - validate that all non-witness inputs match the tx
         Ok(())

@@ -1,10 +1,12 @@
-use std::{collections::{btree_map, BTreeMap}, convert::TryFrom};
+use std::collections::{btree_map, BTreeMap};
 
 use riemann_core::{primitives::PrefixVec, ser::Ser};
 
+use rmn_bip32::DerivedPubkey;
+
 use crate::{
     psbt::{
-        common::{DerivedPubkey, PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},
+        common::{PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},
         schema,
     },
     types::script::Script,
@@ -87,7 +89,7 @@ impl PSBTOutput {
     /// Returns a vec containing parsed public keys. Unparsable keys will be ignored
     pub fn parsed_pubkey_derivations(&self) -> Vec<DerivedPubkey> {
         self.pubkey_kv_pairs()
-            .map(DerivedPubkey::try_from)
+            .map(|(k, v)| schema::try_kv_pair_as_derived_pubkey(k, v))
             .filter_map(Result::ok)
             .collect()
     }

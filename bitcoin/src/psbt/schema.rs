@@ -2,10 +2,10 @@ use std::collections::HashMap;
 
 use riemann_core::{ser::Ser, types::primitives::PrefixVec};
 
-use rmn_bip32::{Encoder as Bip32Encoder, Secp256k1, XPub};
+use rmn_bip32::{self as bip32, Encoder as Bip32Encoder, PointSerialize, Secp256k1};
 
 use crate::{
-    psbt::common::{KeyDerivation, PSBTError, PSBTKey, PSBTValue},
+    psbt::common::{PSBTError, PSBTKey, PSBTValue},
     types::{
         script::Witness,
         transactions::{LegacyTx, Sighash, TxError},
@@ -48,12 +48,12 @@ impl KVTypeSchema {
 }
 
 /// Check that a value can be interpreted as a bip32 fingerprint + derivation
-pub fn try_val_as_key_derivation(val: &PSBTValue) -> Result<KeyDerivation, PSBTError> {
+pub fn try_val_as_key_derivation(val: &PSBTValue) -> Result<bip32::KeyDerivation, PSBTError> {
     if val.len() % 4 != 0 {
         return Err(PSBTError::InvalidBip32Path);
     }
     let limit = val.len() / 4;
-    KeyDerivation::deserialize(&mut val.items(), limit)
+    Ok(bip32::KeyDerivation::deserialize(&mut val.items(), limit)?)
 }
 
 /// Validate that a key is a fixed length
@@ -143,13 +143,32 @@ pub fn try_val_as_witness(val: &PSBTValue) -> Result<Witness, PSBTError> {
 pub fn try_key_as_xpub<'a, E>(
     key: &PSBTKey,
     backend: Option<&'a Secp256k1>,
-) -> Result<XPub<'a>, PSBTError>
+) -> Result<bip32::XPub<'a>, PSBTError>
 where
     E: Bip32Encoder,
 {
     // strip off first byte (the type)
     let mut xpub_bytes = &key.items()[1..];
     Ok(E::read_xpub(&mut xpub_bytes, backend)?)
+}
+
+/// Attempt to convert a KV pair into a derived pubkey struct
+pub fn try_kv_pair_as_derived_pubkey(
+    key: &PSBTKey,
+    val: &PSBTValue,
+) -> Result<bip32::DerivedPubkey, PSBTError> {
+    if key.len() != 34 {
+        return Err(PSBTError::WrongKeyLength {
+            got: key.len(),
+            expected: 34,
+        });
+    }
+
+    let mut pubkey = [0u8; 33];
+    pubkey.copy_from_slice(&key[1..34]);
+    let pubkey = bip32::Pubkey::from_array(pubkey)?;
+    let deriv = try_val_as_key_derivation(val)?;
+    Ok((pubkey, deriv).into())
 }
 
 /// Validation functions for PSBT Global maps

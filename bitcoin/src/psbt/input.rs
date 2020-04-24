@@ -1,10 +1,12 @@
-use std::{collections::{btree_map, BTreeMap}, convert::TryFrom};
+use std::collections::{btree_map, BTreeMap};
 
 use riemann_core::{primitives::PrefixVec, ser::Ser};
 
+use rmn_bip32::{self as bip32, DerivedPubkey, PointSerialize, SigSerialize};
+
 use crate::{
     psbt::{
-        common::{DerivedPubkey, PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},
+        common::{PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},
         schema,
     },
     types::{
@@ -53,9 +55,7 @@ impl From<InputKey> for PSBTKey {
 impl PSBTValidate for PSBTInput {
     fn consistency_checks(&self) -> Result<(), PSBTError> {
         // Can't contain both witness and non-witness input info
-        if self.contains_key(&InputKey::NON_WITNESS_UTXO.into())
-            && self.contains_key(&InputKey::WITNESS_UTXO.into())
-        {
+        if self.has_witness_utxo() && self.has_non_witness_utxo() {
             return Err(PSBTError::InvalidPSBT); // TODO: differentiate error
         }
         // TODO
@@ -112,6 +112,11 @@ impl PSBTValidate for PSBTInput {
 }
 
 impl PSBTInput {
+    /// Returns true if the map has a non-witness utxo in it.
+    pub fn has_non_witness_utxo(&self) -> bool {
+        self.contains_key(&InputKey::NON_WITNESS_UTXO.into())
+    }
+
     /// Returns the BIP174 PSBT_IN_NON_WITNESS_UTXO transaction if present and valid.
     ///'
     /// ## Errors
@@ -121,6 +126,11 @@ impl PSBTInput {
     pub fn non_witness_utxo(&self) -> Result<LegacyTx, PSBTError> {
         let tx_val = self.must_get(&InputKey::NON_WITNESS_UTXO.into())?;
         schema::try_val_as_tx(tx_val)
+    }
+
+    /// Returns true if the map has a non-witness utxo in it.
+    pub fn has_witness_utxo(&self) -> bool {
+        self.contains_key(&InputKey::WITNESS_UTXO.into())
     }
 
     /// Returns the BIP174 PSBT_IN_WITNESS_UTXO TxOut if present and valid.
@@ -139,6 +149,18 @@ impl PSBTInput {
         self.range_by_key_type(InputKey::PARTIAL_SIG as u8)
     }
 
+    /// Inserts a signature into the map
+    pub fn insert_partial_sig(&mut self, pk: bip32::Pubkey, sig: bip32::Signature) {
+        let mut key = vec![InputKey::PARTIAL_SIG as u8];
+        key.extend(pk.to_array().iter());
+
+        let mut val = vec![];
+        val.extend(sig.to_der());
+        val.push(self.sighash_or_default() as u8);
+
+        self.insert(key.into(), val.into());
+    }
+
     /// Returns the BIP174 PSBT_IN_SIGHASH_TYPE if present and valid.
     ///
     /// ## Errors
@@ -148,6 +170,12 @@ impl PSBTInput {
     pub fn sighash(&self) -> Result<Sighash, PSBTError> {
         let val = self.must_get(&InputKey::SIGHASH_TYPE.into())?;
         schema::try_val_as_sighash(&val)
+    }
+
+    /// Returns the BIP174 PSBT_IN_SIGHASH_TYPE if present and valid, otherwise defaults to
+    /// `SIGHASH_ALL`. This ignores errors from invalid/unknown sighash flags
+    pub fn sighash_or_default(&self) -> Sighash {
+        self.sighash().unwrap_or(Sighash::All)
     }
 
     /// Returns the BIP174 PSBT_IN_REDEEM_SCRIPT if present and valid.
@@ -178,7 +206,7 @@ impl PSBTInput {
     /// Returns a vec containing parsed public keys. Unparsable keys will be ignored
     pub fn parsed_pubkey_derivations(&self) -> Vec<DerivedPubkey> {
         self.pubkey_kv_pairs()
-            .map(DerivedPubkey::try_from)
+            .map(|(k, v)| schema::try_kv_pair_as_derived_pubkey(k, v))
             .filter_map(Result::ok)
             .collect()
     }

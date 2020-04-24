@@ -59,7 +59,7 @@ impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
     type RecipientIdentifier = ScriptPubkey;
 
     fn encode_address(s: &ScriptPubkey) -> EncodingResult<Address> {
-        match s.determine_type() {
+        match s.standard_type() {
             ScriptType::PKH => {
                 // s.items contains the op codes. we want only the pkh
                 Ok(Address::PKH(encode_base58(

@@ -1,19 +1,13 @@
-use std::{
-    collections::btree_map,
-    io::{Error as IOError, Read, Write},
-    ops::RangeBounds,
-};
+use std::{collections::btree_map, io::Error as IOError, ops::RangeBounds};
 
 use thiserror::Error;
 
-use riemann_core::{
-    ser::{Ser, SerError},
-    types::primitives::{PrefixVec, ConcretePrefixVec},
+use riemann_core::{ser::SerError, types::primitives::ConcretePrefixVec};
+
+use crate::{
+    psbt::{roles::signer::SignerError, schema},
+    types::transactions::TxError,
 };
-
-use rmn_bip32::{XPub, model::PointSerialize, backends::curve::Pubkey};
-
-use crate::{psbt::schema, types::transactions::TxError};
 
 /// An Error type for PSBT objects
 #[derive(Debug, Error)]
@@ -33,6 +27,10 @@ pub enum PSBTError {
     /// Bubbled up from the BIP32 library
     #[error(transparent)]
     Bip32Error(#[from] rmn_bip32::Bip32Error),
+
+    /// Bubbled up from a SignerError
+    #[error(transparent)]
+    SignerError(#[from] SignerError),
 
     /// Returned by convenience functions that attempt to read a non-existant key
     #[error("Attempted to get missing singleton key {0}")]
@@ -98,120 +96,6 @@ pub enum PSBTError {
         /// The number of output maps in the PSBT
         maps: usize,
     },
-}
-
-/// A Derivation Path for a bip32 key
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct KeyDerivation {
-    /// The root key fingerprint
-    pub root: rmn_bip32::KeyFingerprint,
-    /// The derivation path from the root key
-    pub path: rmn_bip32::DerivationPath,
-}
-
-/// An XPub coupled with its (purported) derivation.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct DerivedXPub<'a> {
-    /// The bip32 extended public key
-    pub xpub: XPub<'a>,
-    /// The (purported) derivation of that key
-    pub derivation: KeyDerivation,
-}
-
-/// A pubkey coupled with its (purported) derivation.
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct DerivedPubkey {
-    /// An ECDSA Public Key
-    pub pubkey: Pubkey,
-    /// The (purported) derivation of that key
-    pub derivation: KeyDerivation,
-}
-
-impl<'a> From<(Pubkey, KeyDerivation)> for DerivedPubkey {
-    fn from(tuple: (Pubkey, KeyDerivation)) -> DerivedPubkey {
-        Self {
-            pubkey: tuple.0,
-            derivation: tuple.1
-        }
-    }
-}
-
-impl std::convert::TryFrom<(&PSBTKey, &PSBTValue)> for DerivedPubkey {
-    type Error = PSBTError;
-
-    fn try_from(t: (&PSBTKey, &PSBTValue)) -> Result<Self, Self::Error> {
-        let (k, v) = t;
-        if k.len() != 34 {
-            return Err(PSBTError::WrongKeyLength{got: k.len(), expected: 34});
-        }
-
-        let mut key = [0u8; 33];
-        key.copy_from_slice(&k[1..34]);
-        let pubkey = Pubkey::from_array(key)?;
-        let deriv = schema::try_val_as_key_derivation(v)?;
-        Ok((pubkey, deriv).into())
-    }
-}
-
-impl<'a> From<(XPub<'a>, KeyDerivation)> for DerivedXPub<'a> {
-    fn from(tuple: (XPub<'a>, KeyDerivation)) -> DerivedXPub<'a> {
-        Self {
-            xpub: tuple.0,
-            derivation: tuple.1
-        }
-    }
-}
-
-impl Ser for KeyDerivation {
-    type Error = PSBTError;
-
-    fn to_json(&self) -> String {
-        unimplemented!()
-    }
-
-    fn serialized_length(&self) -> usize {
-        4 + 4 * self.path.len()
-    }
-
-    fn deserialize<T>(reader: &mut T, limit: usize) -> Result<Self, Self::Error>
-    where
-        T: Read,
-        Self: std::marker::Sized,
-    {
-        if limit == 0 {
-            return Err(SerError::RequiresLimit.into());
-        }
-
-        if limit > 255 {
-            return Err(PSBTError::InvalidBip32Path);
-        }
-
-        let mut finger = [0u8; 4];
-        reader.read_exact(&mut finger)?;
-
-        let mut path = vec![];
-        for _ in 0..limit {
-            let mut buf = [0u8; 4];
-            reader.read_exact(&mut buf)?;
-            path.push(u32::from_le_bytes(buf));
-        }
-
-        Ok(KeyDerivation {
-            root: finger.into(),
-            path: path.into(),
-        })
-    }
-
-    fn serialize<T>(&self, writer: &mut T) -> Result<usize, Self::Error>
-    where
-        T: Write,
-    {
-        let mut length = writer.write(&self.root.0)?;
-        for i in self.path.iter() {
-            length += writer.write(&i.to_le_bytes())?;
-        }
-        Ok(length)
-    }
 }
 
 wrap_prefixed_byte_vector!(

@@ -214,6 +214,11 @@ pub struct LegacyTx {
 }
 
 impl LegacyTx {
+    /// Consumes the TX and converts it to a witness Tx with null witnesses.
+    pub fn into_witness(self) -> WitnessTx {
+        WitnessTx::from_legacy(self)
+    }
+
     /// Performs steps 6, 7, and 8 of the sighash setup described here:
     /// https://en.bitcoin.it/wiki/OP_CHECKSIG#How_it_works
     /// https://bitcoin.stackexchange.com/questions/3374/how-to-redeem-a-basic-tx
@@ -508,6 +513,19 @@ impl WitnessTx {
                 Ok(w.finish())
             }
             _ => Ok(Hash256Digest::default()),
+        }
+    }
+}
+
+impl WitnessTx {
+    /// Consumes a `LegacyTx` and instantiates a new `WitnessTx` with empty witnesses
+    pub fn from_legacy(legacy_tx: LegacyTx) -> Self {
+        let witnesses = (0..legacy_tx.inputs().len())
+            .map(|_| Witness::null())
+            .collect();
+        Self {
+            legacy_tx,
+            witnesses,
         }
     }
 }
