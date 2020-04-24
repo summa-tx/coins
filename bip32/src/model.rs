@@ -7,6 +7,50 @@ use crate::{path::DerivationPath, Bip32Error};
 /// A simple hash function type signature
 pub type HashFunc = dyn Fn(&[u8]) -> [u8; 32];
 
+/// A Serializable 32-byte scalar
+pub trait ScalarSerialize{
+    /// Serialize the scalar to an array
+    fn privkey_array(&self) -> [u8; 32];
+}
+
+/// A deserializable 32-byte scalar
+pub trait ScalarDeserialize: std::marker::Sized {
+    /// Get a scalar from an array
+    fn from_privkey_array(buf: [u8; 32]) -> Result<Self, Bip32Error>;
+}
+
+/// A serializable curve point
+pub trait PointSerialize {
+    /// Serialize the pubkey
+    fn pubkey_array(&self) -> [u8; 33];
+
+    /// Serialize the uncompressed pubkey
+    fn pubkey_array_uncompressed(&self) -> [u8; 65];
+
+    /// Serialize the raw pubkey (useful for Ethereum)
+    fn pubkey_array_raw(&self) -> [u8; 64] {
+        let mut buf: [u8; 64] = [0u8; 64];
+        buf.copy_from_slice(&self.pubkey_array_uncompressed()[1..]);
+        buf
+    }
+}
+
+/// A deserializable curve point
+pub trait PointDeserialize: std::marker::Sized {
+    /// Instantiate from a 33-byte uncompressed pubkey as a u8 array
+    fn from_pubkey_array(buf: [u8; 33]) -> Result<Self, Bip32Error>;
+
+    /// Instantiate from a 65-byte compressed pubkey as a u8 array
+    fn from_pubkey_array_uncompressed(buf: [u8; 65]) -> Result<Self, Bip32Error>;
+
+    /// Instantiate from a 64-byte raw pubkey as a u8 array
+    fn from_pubkey_array_raw(buf: [u8; 64]) -> Result<Self, Bip32Error> {
+        let mut raw = [4u8; 65];
+        raw[1..].copy_from_slice(&buf);
+        Self::from_pubkey_array_uncompressed(raw)
+    }
+}
+
 /// A secp256k1 signing key
 pub trait SigningKey: std::marker::Sized + ScalarSerialize {
     /// The corresponding verifying key
@@ -126,44 +170,6 @@ pub trait VerifyingKey: std::marker::Sized + PointSerialize {
     }
 }
 
-/// A Serializable 32-byte scalar
-pub trait ScalarSerialize: std::marker::Sized {
-    /// Serialize the scalar to an array
-    fn to_array(&self) -> [u8; 32];
-
-    /// Get a scalar from an array
-    fn from_array(buf: [u8; 32]) -> Result<Self, Bip32Error>;
-}
-
-/// A serializable curve point
-pub trait PointSerialize: std::marker::Sized {
-    /// Serialize the pubkey
-    fn to_array(&self) -> [u8; 33];
-
-    /// Serialize the uncompressed pubkey
-    fn to_array_uncompressed(&self) -> [u8; 65];
-
-    /// Instantiate from a 33-byte uncompressed pubkey as a u8 array
-    fn from_array(buf: [u8; 33]) -> Result<Self, Bip32Error>;
-
-    /// Instantiate from a 65-byte compressed pubkey as a u8 array
-    fn from_array_uncompressed(buf: [u8; 65]) -> Result<Self, Bip32Error>;
-
-    /// Serialize the raw pubkey (useful for Ethereum)
-    fn to_array_raw(&self) -> [u8; 64] {
-        let mut buf: [u8; 64] = [0u8; 64];
-        buf.copy_from_slice(&self.to_array_uncompressed()[1..]);
-        buf
-    }
-
-    /// Instantiate from a 64-byte raw pubkey as a u8 array
-    fn from_array_raw(buf: [u8; 64]) -> Result<Self, Bip32Error> {
-        let mut raw = [4u8; 65];
-        raw[1..].copy_from_slice(&buf);
-        PointSerialize::from_array_uncompressed(raw)
-    }
-}
-
 /// A Serializable Signature
 pub trait SigSerialize: Clone {
     /// Serialize to DER
@@ -193,9 +199,9 @@ pub trait Secp256k1Backend<'a> {
     /// The underlying context type (if any)
     type Context;
     /// A Private Key
-    type Privkey: ScalarSerialize + PartialEq + Clone;
+    type Privkey: ScalarSerialize + ScalarDeserialize + PartialEq + Clone;
     /// A Public Key
-    type Pubkey: PointSerialize + PartialEq + Clone;
+    type Pubkey: PointSerialize + PointDeserialize + PartialEq + Clone;
     /// A Signature
     type Signature: SigSerialize;
     /// A Recoverage signature

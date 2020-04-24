@@ -58,7 +58,7 @@ impl<'a, T: Secp256k1Backend<'a>> GenericXPriv<'a, T> {
         if key == [0u8; 32] || key > CURVE_ORDER {
             return Err(Bip32Error::InvalidKey);
         }
-        let privkey = T::Privkey::from_array(key)?;
+        let privkey = T::Privkey::from_privkey_array(key)?;
         Ok(GenericXPriv::new(
             0,
             parent,
@@ -112,7 +112,7 @@ impl<'a, T: Secp256k1Backend<'a>> GenericXPriv<'a, T> {
 
     /// Return the secret key as an array
     pub fn secret_key(&self) -> [u8; 32] {
-        self.privkey.to_array()
+        self.privkey.privkey_array()
     }
 
     #[doc(hidden)]
@@ -137,7 +137,7 @@ impl<'a, T: Secp256k1Backend<'a>> GenericXPriv<'a, T> {
 impl<'a, T: Secp256k1Backend<'a>> XKey for GenericXPriv<'a, T> {
     fn fingerprint(&self) -> Result<KeyFingerprint, Bip32Error> {
         let mut buf = [0u8; 4];
-        buf.copy_from_slice(&hash160(&self.pubkey()?.to_array())[..4]);
+        buf.copy_from_slice(&hash160(&self.pubkey()?.pubkey_array())[..4]);
         Ok(buf.into())
     }
 
@@ -190,7 +190,7 @@ impl<'a, T: Secp256k1Backend<'a>> XKey for GenericXPriv<'a, T> {
             data.extend(&self.secret_key());
             data.extend(&index.to_be_bytes());
         } else {
-            data.extend(&self.pubkey()?.to_array().to_vec());
+            data.extend(&self.pubkey()?.pubkey_array().to_vec());
             data.extend(&index.to_be_bytes());
         };
 
@@ -209,7 +209,7 @@ impl<'a, T: Secp256k1Backend<'a>> XKey for GenericXPriv<'a, T> {
     }
 
     fn pubkey_bytes(&self) -> Result<[u8; 33], Bip32Error> {
-        Ok(self.pubkey()?.to_array())
+        Ok(self.pubkey()?.pubkey_array())
     }
 }
 
@@ -251,19 +251,15 @@ impl<'a, T: Secp256k1Backend<'a>> std::convert::TryFrom<&GenericXPriv<'a, T>>
 }
 
 impl<'a, T: Secp256k1Backend<'a>> ScalarSerialize for GenericXPriv<'a, T> {
-    fn to_array(&self) -> [u8; 32] {
-        self.privkey.to_array()
-    }
-
-    fn from_array(_buf: [u8; 32]) -> Result<Self, Bip32Error> {
-        Err(Bip32Error::InvalidBip32Path)
+    fn privkey_array(&self) -> [u8; 32] {
+        self.privkey.privkey_array()
     }
 }
 
 impl<'a, T: Secp256k1Backend<'a>> XKey for GenericXPub<'a, T> {
     fn fingerprint(&self) -> Result<KeyFingerprint, Bip32Error> {
         let mut buf = [0u8; 4];
-        buf.copy_from_slice(&hash160(&self.pubkey.to_array())[..4]);
+        buf.copy_from_slice(&hash160(&self.pubkey.pubkey_array())[..4]);
         Ok(buf.into())
     }
 
@@ -308,7 +304,7 @@ impl<'a, T: Secp256k1Backend<'a>> XKey for GenericXPub<'a, T> {
     }
 
     fn pubkey_bytes(&self) -> Result<[u8; 33], Bip32Error> {
-        Ok(self.compressed_pubkey())
+        Ok(self.pubkey_array())
     }
 
 
@@ -316,7 +312,7 @@ impl<'a, T: Secp256k1Backend<'a>> XKey for GenericXPub<'a, T> {
         if index >= BIP32_HARDEN {
             return Err(Bip32Error::HardenedKey);
         }
-        let mut data: Vec<u8> = self.compressed_pubkey().to_vec();
+        let mut data: Vec<u8> = self.pubkey_array().to_vec();
         data.extend(&index.to_be_bytes());
 
         let (offset, chain_code) = hmac_and_split(&self.chain_code().0, &data);
@@ -363,21 +359,6 @@ impl<'a, T: Secp256k1Backend<'a>> GenericXPub<'a, T> {
 
     fn backend(&self) -> Result<&'a T, Bip32Error> {
         self.backend.ok_or(Bip32Error::NoBackend)
-    }
-
-    /// Serialize the uncompressed pubkey
-    pub fn uncompressed_pubkey(&self) -> [u8; 65] {
-        self.pubkey.to_array_uncompressed()
-    }
-
-    /// Serialize the compressed pubkey
-    pub fn compressed_pubkey(&self) -> [u8; 33] {
-        self.pubkey.to_array()
-    }
-
-    /// Serialize the compressed pubkey
-    pub fn raw_pubkey(&self) -> [u8; 64] {
-        self.pubkey.to_array_raw()
     }
 
     /// Derive an XPub from an xpriv
@@ -503,20 +484,12 @@ impl<'a, T: Secp256k1Backend<'a>> SigningKey for GenericXPriv<'a, T> {
 }
 
 impl<'a, T: Secp256k1Backend<'a>> PointSerialize for GenericXPub<'a, T> {
-    fn to_array(&self) -> [u8; 33] {
-        self.pubkey.to_array()
+    fn pubkey_array(&self) -> [u8; 33] {
+        self.pubkey.pubkey_array()
     }
 
-    fn to_array_uncompressed(&self) -> [u8; 65] {
-        self.pubkey.to_array_uncompressed()
-    }
-
-    fn from_array(_buf: [u8; 33]) -> Result<Self, Bip32Error> {
-        Err(Bip32Error::InvalidBip32Path)
-    }
-
-    fn from_array_uncompressed(_buf: [u8; 65]) -> Result<Self, Bip32Error> {
-        Err(Bip32Error::InvalidBip32Path)
+    fn pubkey_array_uncompressed(&self) -> [u8; 65] {
+        self.pubkey.pubkey_array_uncompressed()
     }
 }
 

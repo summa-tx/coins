@@ -5,10 +5,7 @@ pub mod curve {
     use secp256k1;
 
     use crate::{
-        model::{
-            PointSerialize, RecoverableSigSerialize, ScalarSerialize, Secp256k1Backend,
-            SigSerialize,
-        },
+        model::*,
         Bip32Error,
     };
 
@@ -25,7 +22,7 @@ pub mod curve {
 
     impl Clone for Privkey {
         fn clone(&self) -> Self {
-            Self::from_array(self.to_array()).expect("Key must be valid")
+            Self::from_privkey_array(self.privkey_array()).expect("Key must be valid")
         }
     }
 
@@ -33,18 +30,20 @@ pub mod curve {
 
     impl std::cmp::PartialEq for Privkey {
         fn eq(&self, other: &Self) -> bool {
-            self.to_array() == other.to_array()
+            self.privkey_array() == other.privkey_array()
         }
     }
 
     impl ScalarSerialize for Privkey {
-        fn to_array(&self) -> [u8; 32] {
+        fn privkey_array(&self) -> [u8; 32] {
             let mut buf = [0u8; 32];
             buf.copy_from_slice(&self.0[..32]);
             buf
         }
+    }
 
-        fn from_array(buf: [u8; 32]) -> Result<Self, Bip32Error> {
+    impl ScalarDeserialize for Privkey {
+        fn from_privkey_array(buf: [u8; 32]) -> Result<Self, Bip32Error> {
             Ok(secp256k1::SecretKey::from_slice(&buf)?.into())
         }
     }
@@ -61,7 +60,7 @@ pub mod curve {
 
     impl Clone for Pubkey {
         fn clone(&self) -> Self {
-            Self::from_array(self.to_array()).expect("Key must be valid")
+            Self::from_pubkey_array(self.pubkey_array()).expect("Key must be valid")
         }
     }
 
@@ -69,7 +68,7 @@ pub mod curve {
 
     impl std::cmp::PartialEq for Pubkey {
         fn eq(&self, other: &Self) -> bool {
-            self.to_array()[..] == other.to_array()[..]
+            self.pubkey_array()[..] == other.pubkey_array()[..]
         }
     }
 
@@ -80,19 +79,21 @@ pub mod curve {
     }
 
     impl PointSerialize for Pubkey {
-        fn to_array_uncompressed(&self) -> [u8; 65] {
-            self.0.serialize_uncompressed()
-        }
-
-        fn to_array(&self) -> [u8; 33] {
+        fn pubkey_array(&self) -> [u8; 33] {
             self.0.serialize()
         }
 
-        fn from_array(buf: [u8; 33]) -> Result<Self, Bip32Error> {
+        fn pubkey_array_uncompressed(&self) -> [u8; 65] {
+            self.0.serialize_uncompressed()
+        }
+    }
+
+    impl PointDeserialize for Pubkey {
+        fn from_pubkey_array(buf: [u8; 33]) -> Result<Self, Bip32Error> {
             Ok(secp256k1::PublicKey::from_slice(&buf)?.into())
         }
 
-        fn from_array_uncompressed(buf: [u8; 65]) -> Result<Self, Bip32Error> {
+        fn from_pubkey_array_uncompressed(buf: [u8; 65]) -> Result<Self, Bip32Error> {
             Ok(secp256k1::PublicKey::from_slice(&buf)?.into())
         }
     }
@@ -264,11 +265,13 @@ pub mod curve {
     }
 
     impl ScalarSerialize for Privkey {
-        fn to_array(&self) -> [u8; 32] {
+        fn privkey_array(&self) -> [u8; 32] {
             self.0.serialize()
         }
+    }
 
-        fn from_array(buf: [u8; 32]) -> Result<Self, Bip32Error> {
+    impl ScalarSerialize for Privkey {
+        fn from_privkey_array(buf: [u8; 32]) -> Result<Self, Bip32Error> {
             Ok(secp256k1::SecretKey::parse(&buf)?.into())
         }
     }
@@ -284,19 +287,21 @@ pub mod curve {
     }
 
     impl PointSerialize for Pubkey {
-        fn to_array_uncompressed(&self) -> [u8; 65] {
+        fn pubkey_array_uncompressed(&self) -> [u8; 65] {
             self.0.serialize()
         }
 
-        fn to_array(&self) -> [u8; 33] {
+        fn pubkey_array(&self) -> [u8; 33] {
             self.0.serialize_compressed()
         }
+    }
 
-        fn from_array(buf: [u8; 33]) -> Result<Self, Bip32Error> {
+    impl PointDeserialize for Pubkey {
+        fn from_pubkey_array(buf: [u8; 33]) -> Result<Self, Bip32Error> {
             Ok(secp256k1::PublicKey::parse_compressed(&buf)?.into())
         }
 
-        fn from_array_uncompressed(buf: [u8; 65]) -> Result<Self, Bip32Error> {
+        fn from_pubkey_array_uncompressed(buf: [u8; 65]) -> Result<Self, Bip32Error> {
             Ok(secp256k1::PublicKey::parse(&buf)?.into())
         }
     }

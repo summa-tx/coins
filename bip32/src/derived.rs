@@ -91,20 +91,12 @@ impl<K> PointSerialize for DerivedKey<K>
 where
     K: PointSerialize
 {
-    fn to_array(&self) -> [u8; 33] {
-        self.key.to_array()
+    fn pubkey_array(&self) -> [u8; 33] {
+        self.key.pubkey_array()
     }
 
-    fn to_array_uncompressed(&self) -> [u8; 65] {
-        self.key.to_array_uncompressed()
-    }
-
-    fn from_array(_buf: [u8; 33]) -> Result<Self, Bip32Error> {
-        Err(Bip32Error::InvalidBip32Path)
-    }
-
-    fn from_array_uncompressed(_buf: [u8; 65]) -> Result<Self, Bip32Error> {
-        Err(Bip32Error::InvalidBip32Path)
+    fn pubkey_array_uncompressed(&self) -> [u8; 65] {
+        self.key.pubkey_array_uncompressed()
     }
 }
 
@@ -112,12 +104,8 @@ impl<K> ScalarSerialize for DerivedKey<K>
 where
     K: ScalarSerialize
 {
-    fn to_array(&self) -> [u8; 32] {
-        self.key.to_array()
-    }
-
-    fn from_array(_buf: [u8; 32]) -> Result<Self, Bip32Error> {
-        Err(Bip32Error::InvalidBip32Path)
+    fn privkey_array(&self) -> [u8; 32] {
+        self.key.privkey_array()
     }
 }
 
@@ -143,7 +131,7 @@ where
             .expect("pre-flighted by is_possible_ancestor_of");
 
         let derived = self.derive_path(&path)?.to_verifying_key()?;
-        Ok(derived.to_array()[..] == descendant.to_array()[..])
+        Ok(derived.pubkey_array()[..] == descendant.pubkey_array()[..])
     }
 }
 
@@ -169,7 +157,7 @@ where
             .expect("pre-flighted by is_possible_ancestor_of");
 
         let derived = self.derive_path(&path)?;
-        Ok(derived.to_array()[..] == descendant.to_array()[..])
+        Ok(derived.pubkey_array()[..] == descendant.pubkey_array()[..])
     }
 }
 

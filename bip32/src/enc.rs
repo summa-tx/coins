@@ -145,7 +145,7 @@ pub trait Encoder {
 
         let mut buf = [0u8; 32];
         reader.read_exact(&mut buf)?;
-        let key = T::Privkey::from_array(buf)?;
+        let key = T::Privkey::from_privkey_array(buf)?;
 
         Ok(GenericXPriv::new(
             depth, parent, index, key, chain_code, hint, backend,
@@ -213,7 +213,7 @@ pub trait Encoder {
 
         let mut buf = [0u8; 33];
         reader.read_exact(&mut buf)?;
-        let key = T::Pubkey::from_array(buf)?;
+        let key = T::Pubkey::from_pubkey_array(buf)?;
 
         Ok(GenericXPub::new(
             depth, parent, index, key, chain_code, hint, backend,
@@ -414,7 +414,7 @@ impl<P: NetworkParams> Encoder for BitcoinEncoder<P> {
         };
         let mut written = writer.write(&version.to_be_bytes())?;
         written += Self::write_key_details(writer, key)?;
-        written += writer.write(&key.compressed_pubkey())?;
+        written += writer.write(&key.pubkey_array())?;
         Ok(written)
     }
 

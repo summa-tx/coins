@@ -13,8 +13,8 @@
 //!     Bip32Error,
 //!     Secp256k1,
 //!     enc::{Encoder, MainnetEncoder},
-//!     model::{Secp256k1Backend, SigningKey, SigSerialize, VerifyingKey},
-//!     xkeys::{XKey, XPub, XPriv},
+//!     model::*,
+//!     xkeys::{XPub, XPriv},
 //! };
 //!
 //! # fn main() -> Result<(), Bip32Error> {
@@ -186,8 +186,7 @@ mod test {
     use crate::{
         backends::curve::Secp256k1,
         enc::{Encoder, MainnetEncoder},
-        model::Secp256k1Backend,
-        xkeys::{Hint, XKey, XPriv, XPub},
+        xkeys::{XPriv, XPub},
     };
 
     use hex;
@@ -200,7 +199,7 @@ mod test {
     }
 
     fn validate_descendant<'a>(d: &KeyDeriv, m: &XPriv<'a>) {
-        let xpriv = m.derive_path(d.path).unwrap();
+        let xpriv = m.derive_path(&d.path).unwrap();
         let xpub: XPub<'a> = TryFrom::try_from(&xpriv).unwrap();
 
         let deser_xpriv =
