@@ -1,5 +1,5 @@
 [package]
-name = "rmn_psbt"
+name = "rmn-psbt"
 version = "0.1.0"
 authors = ["James Prestwich <james@prestwi.ch>"]
 edition = "2018"
