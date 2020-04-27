@@ -3,7 +3,9 @@ use std::collections::HashMap;
 use riemann_core::{ser::Ser, types::primitives::PrefixVec};
 
 use rmn_bip32::{
-    self as bip32, curve::PointDeserialize, Bip32Error, Encoder as Bip32Encoder, Secp256k1,
+    self as bip32,
+    curve::{PointDeserialize, SigSerialize},
+    Bip32Error, Encoder as Bip32Encoder, Secp256k1,
 };
 
 use rmn_btc::types::{
@@ -138,6 +140,13 @@ pub fn try_val_as_sighash(val: &PSBTValue) -> Result<Sighash, PSBTError> {
     Ok(Sighash::from_u8(sighash as u8)?)
 }
 
+/// Attempt to deserialize a value as a signature
+pub fn try_val_as_signature(val: &PSBTValue) -> Result<(bip32::Signature, Sighash), PSBTError> {
+    let items = val.items();
+    let sig = bip32::Signature::try_from_der(&items[..items.len() - 1])?;
+    Ok((sig, Sighash::from_u8(items[items.len()])?))
+}
+
 /// Attempt to deserialize a value as a script Witness
 pub fn try_val_as_witness(val: &PSBTValue) -> Result<Witness, PSBTError> {
     let mut wit_bytes = val.items();
@@ -173,8 +182,7 @@ pub fn try_kv_pair_as_derived_pubkey(
         let mut pubkey = [0u8; 65];
         pubkey.copy_from_slice(&key[1..66]);
         bip32::Pubkey::from_pubkey_array_uncompressed(pubkey)?
-    }
-    else {
+    } else {
         return Err(PSBTError::WrongKeyLength {
             got: key.len(),
             expected: 34,
@@ -260,13 +268,13 @@ pub mod input {
     }
 
     /// Validate a PSBT_IN_PARTIAL_SIG key-value pair in an input map
-    pub fn validate_in_partial_sig(key: &PSBTKey, _val: &PSBTValue) -> Result<(), PSBTError> {
+    pub fn validate_in_partial_sig(key: &PSBTKey, val: &PSBTValue) -> Result<(), PSBTError> {
         // 34 = 33-byte pubkey + 1-byte type
+        validate_expected_key_type(key, 2)?;
         if validate_fixed_key_length(key, 34).is_err() {
             validate_fixed_key_length(key, 66)?;
         }
-        validate_expected_key_type(key, 2)
-        // TODO: validate val is signature
+        try_val_as_signature(val).map(|_| ())
     }
 
     /// Validate a PSBT_IN_SIGHASH_TYPE key-value pair in an input map
