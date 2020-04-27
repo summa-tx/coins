@@ -2,7 +2,11 @@ use bitcoin_spv::btcspv::hash160;
 use hmac::{Hmac, Mac};
 use sha2::Sha512;
 
-use crate::{model::*, Bip32Error, BIP32_HARDEN, CURVE_ORDER};
+use crate::{
+    Bip32Error, BIP32_HARDEN, CURVE_ORDER,
+    curve::model::*,
+    model::*,
+};
 
 type HmacSha512 = Hmac<Sha512>;
 
@@ -472,8 +476,8 @@ impl<'a, T: Secp256k1Backend<'a>> VerifyingKey for GenericXPub<'a, T> {
 
 /// A BIP32 Extended privkey using the library's compiled-in secp256k1 backend.
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
-pub type XPriv<'a> = GenericXPriv<'a, crate::backends::curve::Secp256k1<'a>>;
+pub type XPriv<'a> = GenericXPriv<'a, crate::curve::Secp256k1<'a>>;
 
 /// A BIP32 Extended pubkey using the library's compiled-in secp256k1 backend.
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
-pub type XPub<'a> = GenericXPub<'a, crate::backends::curve::Secp256k1<'a>>;
+pub type XPub<'a> = GenericXPub<'a, crate::curve::Secp256k1<'a>>;

@@ -5,6 +5,7 @@ use bs58;
 
 use crate::{
     model::*,
+    curve::model::*,
     xkeys::{GenericXPriv, GenericXPub},
     Bip32Error,
 };

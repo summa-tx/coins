@@ -14,6 +14,7 @@
 //!     Secp256k1,
 //!     enc::{Encoder, MainnetEncoder},
 //!     model::*,
+//!     curve::model::*,
 //!     xkeys::{XPub, XPriv},
 //! };
 //!
@@ -65,7 +66,7 @@ pub mod xkeys;
 pub mod enc;
 
 /// The curve-math backend, selected at compile time. Defaults to native libsecp256k1 bindings.
-pub mod backends;
+pub mod curve;
 
 /// Traits and other high-level model description.
 pub mod model;
@@ -84,7 +85,7 @@ pub use path::{DerivationPath, KeyDerivation};
 pub use xkeys::{XPriv, XPub};
 
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
-pub use backends::curve::{Privkey, Pubkey, RecoverableSignature, Secp256k1, Signature};
+pub use curve::{Privkey, Pubkey, RecoverableSignature, Secp256k1, Signature};
 
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 pub use derived::{DerivedPrivkey, DerivedPubkey, DerivedXPriv, DerivedXPub};
@@ -103,15 +104,14 @@ pub const CURVE_ORDER: [u8; 32] = [
 /// Errors for this library
 #[derive(Debug, Error)]
 pub enum Bip32Error {
-    #[cfg(all(feature = "rust-secp", not(feature = "libsecp")))]
-    /// Error bubbled up froom secp256k1
+    /// Error bubbled up from the backend
+    #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
     #[error(transparent)]
-    Secp256k1Error(#[from] libsecp256k1_core::Error),
+    BackendError(#[from] crate::curve::Error),
 
-    #[cfg(all(feature = "libsecp", not(feature = "rust-secp")))]
-    /// Error bubbled up froom secp256k1
-    #[error(transparent)]
-    Secp256k1Error(#[from] secp256k1::Error),
+    /// General wrapper for errors from custom backends
+    #[error("Custom backend returned error with info: {0}")]
+    CustomBackendError(String),
 
     /// Error bubbled up froom std::io
     #[error(transparent)]
@@ -184,7 +184,7 @@ impl From<std::convert::Infallible> for Bip32Error {
 mod test {
     use super::*;
     use crate::{
-        backends::curve::Secp256k1,
+        curve::*,
         enc::{Encoder, MainnetEncoder},
         xkeys::{XPriv, XPub},
     };
