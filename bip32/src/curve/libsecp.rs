@@ -1,7 +1,7 @@
 // Wuille's secp
 use secp256k1;
 
-use crate::{Bip32Error, curve::{model::*}};
+use crate::{curve::model::*, Bip32Error};
 
 pub(crate) type Error = secp256k1::Error;
 
@@ -167,11 +167,7 @@ impl<'a> Secp256k1Backend<'a> for Secp256k1<'a> {
         secp256k1::PublicKey::from_secret_key(&self.0, &k.0).into()
     }
 
-    fn tweak_pubkey(
-        &self,
-        k: &Self::Pubkey,
-        tweak: [u8; 32],
-    ) -> Result<Self::Pubkey, Bip32Error> {
+    fn tweak_pubkey(&self, k: &Self::Pubkey, tweak: [u8; 32]) -> Result<Self::Pubkey, Bip32Error> {
         let mut key = k.0;
         key.add_exp_assign(&self.0, &tweak)?;
         Ok(key.into())

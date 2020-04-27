@@ -1,6 +1,6 @@
 use crate::{
-    model::*,
     curve::model::*,
+    model::*,
     path::{DerivationPath, KeyDerivation},
     Bip32Error,
 };

@@ -2,11 +2,7 @@ use std::convert::TryInto;
 
 use bitcoin_spv::btcspv::hash256;
 
-use crate::{
-    Bip32Error,
-    curve::model::*,
-    path::DerivationPath,
-};
+use crate::{curve::model::*, path::DerivationPath, Bip32Error};
 
 /// We treat the xpub/ypub/zpub convention as a hint regarding address type. Users are free to
 /// follow or ignore these hints.

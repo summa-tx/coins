@@ -6,17 +6,14 @@ use thiserror::Error;
 
 use riemann_core::{enc::AddressEncoder, primitives::PrefixVec, types::Transaction};
 
+use crate::{input::PSBTInput, PSBTError, PSBT, PST};
 use rmn_btc::{
-    enc::{
-        bases::EncodingError,
-        encoder::Address,
-    },
+    enc::{bases::EncodingError, encoder::Address},
     types::{
         script::{ScriptPubkey, ScriptType},
-        transactions::{LegacySighashArgs, LegacyTx, Sighash, WitnessSighashArgs, WitnessTx}
+        transactions::{LegacySighashArgs, LegacyTx, Sighash, WitnessSighashArgs, WitnessTx},
     },
 };
-use crate::{input::PSBTInput, PSBTError, PSBT, PST};
 
 /// A PST Signer interface.
 pub trait PSTSigner<'a, A, P>

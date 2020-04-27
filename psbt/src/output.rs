@@ -7,8 +7,8 @@ use rmn_bip32::DerivedPubkey;
 use rmn_btc::types::script::Script;
 
 use crate::{
-        common::{PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},
-        schema,
+    common::{PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},
+    schema,
 };
 
 psbt_map!(PSBTOutput);

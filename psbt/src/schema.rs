@@ -2,7 +2,9 @@ use std::collections::HashMap;
 
 use riemann_core::{ser::Ser, types::primitives::PrefixVec};
 
-use rmn_bip32::{self as bip32, Bip32Error, Encoder as Bip32Encoder, PointDeserialize, Secp256k1};
+use rmn_bip32::{
+    self as bip32, curve::PointDeserialize, Bip32Error, Encoder as Bip32Encoder, Secp256k1,
+};
 
 use rmn_btc::types::{
     script::Witness,

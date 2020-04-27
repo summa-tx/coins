@@ -5,8 +5,8 @@ use rmn_bip32::DerivedXPub;
 use rmn_btc::types::transactions::LegacyTx;
 
 use crate::{
-        common::{PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},
-        schema,
+    common::{PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},
+    schema,
 };
 
 use rmn_bip32::{Encoder as Bip32Encoder, Secp256k1};

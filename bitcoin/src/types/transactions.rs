@@ -18,7 +18,7 @@ use crate::{
         script::{Script, ScriptSig, Witness},
         txin::{BitcoinTxIn, Vin},
         txout::{TxOut, Vout},
-    }
+    },
 };
 
 /// An Error type for transaction objects

@@ -43,20 +43,10 @@ use rmn_btc::{
         bases::EncodingError,
         encoder::{Address, MainnetEncoder, TestnetEncoder},
     },
-    types::{
-        script::ScriptPubkey,
-        transactions::LegacyTx,
-        txin::BitcoinTxIn,
-        txout::TxOut
-    },
+    types::{script::ScriptPubkey, transactions::LegacyTx, txin::BitcoinTxIn, txout::TxOut},
 };
 
-use crate::{
-    common::PSBTError,
-    input::PSBTInput,
-    output::PSBTOutput,
-    global::PSBTGlobal,
-};
+use crate::{common::PSBTError, global::PSBTGlobal, input::PSBTInput, output::PSBTOutput};
 
 /// A generic Partially Signed Transaction.
 pub trait PST<'a, T: AddressEncoder> {

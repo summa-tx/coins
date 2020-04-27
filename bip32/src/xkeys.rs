@@ -2,11 +2,7 @@ use bitcoin_spv::btcspv::hash160;
 use hmac::{Hmac, Mac};
 use sha2::Sha512;
 
-use crate::{
-    Bip32Error, BIP32_HARDEN, CURVE_ORDER,
-    curve::model::*,
-    model::*,
-};
+use crate::{curve::model::*, model::*, Bip32Error, BIP32_HARDEN, CURVE_ORDER};
 
 type HmacSha512 = Hmac<Sha512>;
 
@@ -184,7 +180,8 @@ impl<'a, T: Secp256k1Backend<'a>> XKey for GenericXPriv<'a, T> {
         };
 
         let (tweak, chain_code) = hmac_and_split(&self.chain_code().0, &data);
-        let privkey = self.backend()?
+        let privkey = self
+            .backend()?
             .tweak_privkey(&self.privkey, tweak)
             .map_err(Into::into)?;
 
@@ -284,7 +281,8 @@ impl<'a, T: Secp256k1Backend<'a>> XKey for GenericXPub<'a, T> {
             return self.derive_child(index + 1);
         }
 
-        let pubkey = self.backend()?
+        let pubkey = self
+            .backend()?
             .tweak_pubkey(&self.pubkey, offset)
             .map_err(Into::into)?;
 
@@ -314,7 +312,7 @@ impl<'a, T: Secp256k1Backend<'a>> GenericXPub<'a, T> {
         backend: Option<&'a T>,
     ) -> Self {
         Self {
-            info: XKeyInfo{
+            info: XKeyInfo {
                 depth,
                 parent,
                 index,

@@ -1,7 +1,7 @@
 // Parity's secp
 use libsecp256k1 as secp256k1;
 
-use crate::{Bip32Error, curve::{model::*}};
+use crate::{curve::model::*, Bip32Error};
 
 pub(crate) type Error = libsecp256k1_core::Error;
 
@@ -161,11 +161,7 @@ impl<'a> Secp256k1Backend<'a> for Secp256k1<'a> {
         secp256k1::PublicKey::from_secret_key_with_context(&k.0, self.1).into()
     }
 
-    fn tweak_pubkey(
-        &self,
-        k: &Self::Pubkey,
-        tweak: [u8; 32],
-    ) -> Result<Self::Pubkey, Bip32Error> {
+    fn tweak_pubkey(&self, k: &Self::Pubkey, tweak: [u8; 32]) -> Result<Self::Pubkey, Bip32Error> {
         let mut key = k.0.clone();
         key.tweak_add_assign_with_context(&secp256k1::SecretKey::parse(&tweak)?, self.0)?;
         Ok(key.into())

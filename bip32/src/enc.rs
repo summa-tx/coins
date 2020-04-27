@@ -4,8 +4,8 @@ use bitcoin_spv::btcspv::hash256;
 use bs58;
 
 use crate::{
-    model::*,
     curve::model::*,
+    model::*,
     xkeys::{GenericXPriv, GenericXPub},
     Bip32Error,
 };

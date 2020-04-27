@@ -2,15 +2,9 @@ use std::{collections::btree_map, io::Error as IOError, ops::RangeBounds};
 
 use thiserror::Error;
 
-use riemann_core::{
-    ser::SerError,
-    types::primitives::PrefixVec,
-};
+use riemann_core::{ser::SerError, types::primitives::PrefixVec};
 
-use rmn_btc::{
-    wrap_prefixed_byte_vector,
-    types::transactions::TxError
-};
+use rmn_btc::{types::transactions::TxError, wrap_prefixed_byte_vector};
 
 use crate::{roles::signer::SignerError, schema};
 
