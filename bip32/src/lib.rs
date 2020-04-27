@@ -25,7 +25,7 @@
 //!
 //! let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, Some(&backend))?;
 //!
-//! let child = xpriv.derive_child(33)?;
+//! let child = xpriv.derive_private_child(33)?;
 //! let sig = child.sign_digest(digest)?;
 //!
 //! let child_xpub = child.to_xpub()?;
@@ -197,7 +197,7 @@ mod test {
     }
 
     fn validate_descendant<'a>(d: &KeyDeriv, m: &XPriv<'a>) {
-        let xpriv = m.derive_path(&d.path).unwrap();
+        let xpriv = m.derive_private_path(&d.path).unwrap();
         let xpub: XPub<'a> = TryFrom::try_from(&xpriv).unwrap();
 
         let deser_xpriv =
@@ -375,7 +375,7 @@ mod test {
 
         let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, Some(&backend)).unwrap();
 
-        let child = xpriv.derive_child(33).unwrap();
+        let child = xpriv.derive_private_child(33).unwrap();
         let sig = child.sign_digest(digest).unwrap();
 
         let child_xpub = child.to_xpub().unwrap();

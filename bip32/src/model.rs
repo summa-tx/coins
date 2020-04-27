@@ -66,14 +66,16 @@ pub trait XKey: std::marker::Sized + Clone {
 
     /// Return the 33-byte compressed pubkey representation
     fn pubkey_bytes(&self) -> Result<[u8; 33], Bip32Error>;
+}
 
-    /// Derive a child key. Private keys derive private children, public keys derive public
-    /// children.
-    fn derive_child(&self, index: u32) -> Result<Self, Bip32Error>;
+/// A trait for extended keys which can derive private children
+pub trait DerivePrivateChild: XKey {
+    /// Derive a child privkey
+    fn derive_private_child(&self, index: u32) -> Result<Self, Bip32Error>;
 
     /// Derive a series of child indices. Allows traversing several levels of the tree at once.
     /// Accepts an iterator producing u32, or a string.
-    fn derive_path<E, T>(&self, p: &T) -> Result<Self, Bip32Error>
+    fn derive_private_path<E, T>(&self, p: &T) -> Result<Self, Bip32Error>
     where
         E: Into<Bip32Error>,
         T: TryInto<DerivationPath, Error = E> + Clone,
@@ -86,7 +88,33 @@ pub trait XKey: std::marker::Sized + Clone {
 
         let mut current = self.to_owned();
         for index in path.iter() {
-            current = current.derive_child(*index)?;
+            current = current.derive_private_child(*index)?;
+        }
+        Ok(current)
+    }
+}
+
+/// A trait for extended keys which can derive public children
+pub trait DerivePublicChild: XKey {
+    /// Derive a child pubkey
+    fn derive_public_child(&self, index: u32) -> Result<Self, Bip32Error>;
+
+    /// Derive a series of child indices. Allows traversing several levels of the tree at once.
+    /// Accepts an iterator producing u32, or a string.
+    fn derive_public_path<E, T>(&self, p: &T) -> Result<Self, Bip32Error>
+    where
+        E: Into<Bip32Error>,
+        T: TryInto<DerivationPath, Error = E> + Clone,
+    {
+        let path: DerivationPath = p.clone().try_into().map_err(Into::into)?;
+
+        if path.is_empty() {
+            return Ok(self.to_owned());
+        }
+
+        let mut current = self.to_owned();
+        for index in path.iter() {
+            current = current.derive_public_child(*index)?;
         }
         Ok(current)
     }
@@ -94,7 +122,7 @@ pub trait XKey: std::marker::Sized + Clone {
 
 /// Shortcuts for deriving and signing. Generically implemented on any type that impls SigningKey
 /// and XKey
-pub trait XSigning: XKey + SigningKey {
+pub trait XSigning: DerivePrivateChild + SigningKey {
     /// Derive a descendant, and have it sign a digest
     fn descendant_sign_digest<E, T>(
         &self,
@@ -105,7 +133,7 @@ pub trait XSigning: XKey + SigningKey {
         E: Into<Bip32Error>,
         T: TryInto<DerivationPath, Error = E> + Clone,
     {
-        self.derive_path(path)?.sign_digest(digest)
+        self.derive_private_path(path)?.sign_digest(digest)
     }
 
     /// Derive a descendant, and have it sign a digest and produce a recovery ID
@@ -118,7 +146,7 @@ pub trait XSigning: XKey + SigningKey {
         E: Into<Bip32Error>,
         T: TryInto<DerivationPath, Error = E> + Clone,
     {
-        self.derive_path(path)?.sign_digest_recoverable(digest)
+        self.derive_private_path(path)?.sign_digest_recoverable(digest)
     }
 
     /// Derive a descendant, and have it sign a message
@@ -174,7 +202,7 @@ pub trait XSigning: XKey + SigningKey {
 
 /// Shortcuts for deriving and signing. Generically implemented on any type that impls
 /// VerifyingKey and XKey
-pub trait XVerifying: XKey + VerifyingKey {
+pub trait XVerifying: DerivePublicChild + VerifyingKey {
     /// Verify a signature on a digest
     fn descendant_verify_digest<T, E>(
         &self,
@@ -186,7 +214,7 @@ pub trait XVerifying: XKey + VerifyingKey {
         E: Into<Bip32Error>,
         T: TryInto<DerivationPath, Error = E> + Clone,
     {
-        self.derive_path(path)?.verify_digest(digest, sig)
+        self.derive_public_path(path)?.verify_digest(digest, sig)
     }
 
     /// Verify a recoverable signature on a digest.
@@ -262,6 +290,6 @@ pub trait XVerifying: XKey + VerifyingKey {
     }
 }
 
-impl<T> XSigning for T where T: XKey + SigningKey {}
+impl<T> XSigning for T where T: DerivePrivateChild + SigningKey {}
 
-impl<T> XVerifying for T where T: XKey + VerifyingKey {}
+impl<T> XVerifying for T where T: DerivePublicChild + VerifyingKey {}

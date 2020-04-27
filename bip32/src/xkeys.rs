@@ -166,7 +166,13 @@ impl<'a, T: Secp256k1Backend<'a>> XKey for GenericXPriv<'a, T> {
         self.info.hint
     }
 
-    fn derive_child(&self, index: u32) -> Result<GenericXPriv<'a, T>, Bip32Error> {
+    fn pubkey_bytes(&self) -> Result<[u8; 33], Bip32Error> {
+        Ok(self.pubkey()?.pubkey_array())
+    }
+}
+
+impl<'a, T: Secp256k1Backend<'a>> DerivePrivateChild for GenericXPriv<'a, T> {
+    fn derive_private_child(&self, index: u32) -> Result<GenericXPriv<'a, T>, Bip32Error> {
         let hardened = index >= BIP32_HARDEN;
 
         let mut data: Vec<u8> = vec![];
@@ -198,9 +204,6 @@ impl<'a, T: Secp256k1Backend<'a>> XKey for GenericXPriv<'a, T> {
         })
     }
 
-    fn pubkey_bytes(&self) -> Result<[u8; 33], Bip32Error> {
-        Ok(self.pubkey()?.pubkey_array())
-    }
 }
 
 /// A BIP32 Extended pubkey. This key is genericized to accept any compatibile backend.
@@ -267,8 +270,10 @@ impl<'a, T: Secp256k1Backend<'a>> XKey for GenericXPub<'a, T> {
     fn pubkey_bytes(&self) -> Result<[u8; 33], Bip32Error> {
         Ok(self.pubkey_array())
     }
+}
 
-    fn derive_child(&self, index: u32) -> Result<GenericXPub<'a, T>, Bip32Error> {
+impl<'a, T: Secp256k1Backend<'a>> DerivePublicChild for GenericXPub<'a, T> {
+    fn derive_public_child(&self, index: u32) -> Result<GenericXPub<'a, T>, Bip32Error> {
         if index >= BIP32_HARDEN {
             return Err(Bip32Error::HardenedKey);
         }
@@ -278,7 +283,7 @@ impl<'a, T: Secp256k1Backend<'a>> XKey for GenericXPub<'a, T> {
         let (offset, chain_code) = hmac_and_split(&self.chain_code().0, &data);
         // TODO: check for point at infinity
         if offset > CURVE_ORDER {
-            return self.derive_child(index + 1);
+            return self.derive_public_child(index + 1);
         }
 
         let pubkey = self

@@ -44,9 +44,21 @@ impl<T: XKey> XKey for DerivedKey<T> {
     fn pubkey_bytes(&self) -> Result<[u8; 33], Bip32Error> {
         self.key.pubkey_bytes()
     }
-    fn derive_child(&self, index: u32) -> Result<Self, Bip32Error> {
+}
+
+impl<'a, S: DerivePrivateChild> DerivePrivateChild for DerivedKey<S> {
+    fn derive_private_child(&self, index: u32) -> Result<Self, Bip32Error> {
         Ok(Self {
-            key: self.key.derive_child(index)?,
+            key: self.key.derive_private_child(index)?,
+            derivation: self.derivation.extended(index),
+        })
+    }
+}
+
+impl<'a, V: DerivePublicChild> DerivePublicChild for DerivedKey<V> {
+    fn derive_public_child(&self, index: u32) -> Result<Self, Bip32Error> {
+        Ok(Self {
+            key: self.key.derive_public_child(index)?,
             derivation: self.derivation.extended(index),
         })
     }
@@ -100,7 +112,7 @@ where
     Sig: SigSerialize,
     Rec: RecoverableSigSerialize<Signature = Sig>,
     V: VerifyingKey<SigningKey = S, Signature = Sig, RecoverableSignature = Rec>,
-    S: XKey + SigningKey<VerifyingKey = V, Signature = Sig, RecoverableSignature = Rec>,
+    S: DerivePrivateChild + SigningKey<VerifyingKey = V, Signature = Sig, RecoverableSignature = Rec>,
 {
     /// Determine whether `self` is an ancestor of `descendant` by attempting to derive the path
     /// between them. Returns true if both the fingerprint and the parent fingerprint match.
@@ -119,7 +131,7 @@ where
             .path_to_descendant(descendant)
             .expect("pre-flighted by is_possible_ancestor_of");
 
-        let derived = self.derive_path(&path)?.to_verifying_key()?;
+        let derived = self.derive_private_path(&path)?.to_verifying_key()?;
         Ok(derived.pubkey_array()[..] == descendant.pubkey_array()[..])
     }
 }
@@ -129,7 +141,7 @@ where
     Sig: SigSerialize,
     Rec: RecoverableSigSerialize<Signature = Sig>,
     S: SigningKey<VerifyingKey = V, Signature = Sig, RecoverableSignature = Rec>,
-    V: XKey + VerifyingKey<SigningKey = S, Signature = Sig, RecoverableSignature = Rec>,
+    V: DerivePublicChild + VerifyingKey<SigningKey = S, Signature = Sig, RecoverableSignature = Rec>,
 {
     /// Determine whether `self` is an ancestor of `descendant` by attempting to derive the path
     /// between them. Returns true if both the fingerprint and the parent fingerprint match.
@@ -148,7 +160,7 @@ where
             .path_to_descendant(descendant)
             .expect("pre-flighted by is_possible_ancestor_of");
 
-        let derived = self.derive_path(&path)?;
+        let derived = self.derive_public_path(&path)?;
         Ok(derived.pubkey_array()[..] == descendant.pubkey_array()[..])
     }
 }
@@ -217,6 +229,21 @@ pub mod keys {
     pub type DerivedXPub<'a> = DerivedKey<XPub<'a>>;
 
     impl<'a> DerivedXPriv<'a> {
+        /// Instantiate a master node using a custom HMAC key.
+        pub fn custom_master_node(
+            hmac_key: &[u8],
+            data: &[u8],
+            hint: Option<Hint>,
+            backend: &'a Secp256k1,
+        ) -> Result<DerivedXPriv<'a>, Bip32Error> {
+            let key = XPriv::custom_master_node(hmac_key, data, hint, backend)?;
+            let derivation = KeyDerivation {
+                root: key.fingerprint()?,
+                path: vec![].into(),
+            };
+            Ok(Self { key, derivation })
+        }
+
         /// Generate a master node from some seed data. Uses the BIP32-standard hmac key.
         ///
         ///
