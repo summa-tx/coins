@@ -204,7 +204,7 @@ where
 pub use self::keys::{DerivedPrivkey, DerivedPubkey, DerivedXPriv, DerivedXPub};
 
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
-/// Pre-defined shortcuts for derived XPrivs and XPubs using the compiled-in backend
+#[doc(hidden)]
 pub mod keys {
     use super::*;
 

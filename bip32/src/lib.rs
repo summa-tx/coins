@@ -82,13 +82,11 @@ pub use model::*;
 pub use path::{DerivationPath, KeyDerivation};
 
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
-pub use xkeys::{XPriv, XPub};
-
-#[cfg(any(feature = "libsecp", feature = "rust-secp"))]
-pub use curve::{Privkey, Pubkey, RecoverableSignature, Secp256k1, Signature};
-
-#[cfg(any(feature = "libsecp", feature = "rust-secp"))]
-pub use derived::{DerivedPrivkey, DerivedPubkey, DerivedXPriv, DerivedXPub};
+pub use crate::{
+    derived::{DerivedPrivkey, DerivedPubkey, DerivedXPriv, DerivedXPub},
+    curve::{Privkey, Pubkey, RecoverableSignature, Secp256k1, Signature},
+    xkeys::{XPriv, XPub},
+};
 
 use thiserror::Error;
 
