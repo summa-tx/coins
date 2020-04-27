@@ -184,7 +184,9 @@ impl<'a, T: Secp256k1Backend<'a>> XKey for GenericXPriv<'a, T> {
         };
 
         let (tweak, chain_code) = hmac_and_split(&self.chain_code().0, &data);
-        let privkey = self.backend()?.tweak_privkey(&self.privkey, tweak)?;
+        let privkey = self.backend()?
+            .tweak_privkey(&self.privkey, tweak)
+            .map_err(Into::into)?;
 
         Ok(GenericXPriv {
             info: XKeyInfo {
@@ -282,7 +284,9 @@ impl<'a, T: Secp256k1Backend<'a>> XKey for GenericXPub<'a, T> {
             return self.derive_child(index + 1);
         }
 
-        let pubkey = self.backend()?.tweak_pubkey(&self.pubkey, offset)?;
+        let pubkey = self.backend()?
+            .tweak_pubkey(&self.pubkey, offset)
+            .map_err(Into::into)?;
 
         Ok(Self {
             info: XKeyInfo {
@@ -470,7 +474,9 @@ impl<'a, T: Secp256k1Backend<'a>> VerifyingKey for GenericXPub<'a, T> {
 
     /// Verify a signature on a digest
     fn verify_digest(&self, digest: [u8; 32], sig: &Self::Signature) -> Result<(), Bip32Error> {
-        self.backend()?.verify_digest(&self.pubkey, digest, sig)
+        self.backend()?
+            .verify_digest(&self.pubkey, digest, sig)
+            .map_err(Into::into)
     }
 }
 

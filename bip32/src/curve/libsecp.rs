@@ -148,6 +148,7 @@ impl RecoverableSigSerialize for secp256k1::recovery::RecoverableSignature {
 }
 
 impl<'a> Secp256k1Backend<'a> for Secp256k1<'a> {
+    type Error = Bip32Error;
     type Context = secp256k1::Secp256k1<secp256k1::All>;
     type Privkey = Privkey;
     type Pubkey = Pubkey;

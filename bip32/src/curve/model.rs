@@ -194,6 +194,8 @@ pub trait RecoverableSigSerialize: SigSerialize {
 
 /// A minmial curve-math backend interface
 pub trait Secp256k1Backend<'a> {
+    /// An associated error type that can be converted into the crate's error type
+    type Error: std::error::Error + Into<Bip32Error>;
     /// The underlying context type (if any)
     type Context;
     /// A Private Key
@@ -217,14 +219,14 @@ pub trait Secp256k1Backend<'a> {
     fn derive_pubkey(&self, k: &Self::Privkey) -> Self::Pubkey;
 
     /// Add a scalar tweak to a public key. Returns a new key
-    fn tweak_pubkey(&self, k: &Self::Pubkey, tweak: [u8; 32]) -> Result<Self::Pubkey, Bip32Error>;
+    fn tweak_pubkey(&self, k: &Self::Pubkey, tweak: [u8; 32]) -> Result<Self::Pubkey, Self::Error>;
 
     /// Add a scalar tweak to a private key. Returns a new key
     fn tweak_privkey(
         &self,
         k: &Self::Privkey,
         tweak: [u8; 32],
-    ) -> Result<Self::Privkey, Bip32Error>;
+    ) -> Result<Self::Privkey, Self::Error>;
 
     /// Sign a digest
     fn sign_digest(&self, k: &Self::Privkey, digest: [u8; 32]) -> Self::Signature;
@@ -257,7 +259,7 @@ pub trait Secp256k1Backend<'a> {
         k: &Self::Pubkey,
         digest: [u8; 32],
         sig: &Self::Signature,
-    ) -> Result<(), Bip32Error>;
+    ) -> Result<(), Self::Error>;
 
     /// Verify a recoverable signature on a digest
     fn verify_digest_recoverable(
@@ -265,7 +267,7 @@ pub trait Secp256k1Backend<'a> {
         k: &Self::Pubkey,
         digest: [u8; 32],
         sig: &Self::RecoverableSignature,
-    ) -> Result<(), Bip32Error>;
+    ) -> Result<(), Self::Error>;
 
     /// Verify a signature on a message
     fn verify(
@@ -274,7 +276,7 @@ pub trait Secp256k1Backend<'a> {
         message: &[u8],
         hash: &HashFunc,
         sig: &Self::Signature,
-    ) -> Result<(), Bip32Error> {
+    ) -> Result<(), Self::Error> {
         self.verify_digest(k, hash(message), sig)
     }
 
@@ -285,7 +287,7 @@ pub trait Secp256k1Backend<'a> {
         message: &[u8],
         hash: &HashFunc,
         sig: &Self::RecoverableSignature,
-    ) -> Result<(), Bip32Error> {
+    ) -> Result<(), Self::Error> {
         self.verify_digest_recoverable(k, hash(message), sig)
     }
 }

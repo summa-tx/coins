@@ -133,6 +133,7 @@ impl RecoverableSigSerialize for RecoverableSignature {
 }
 
 impl<'a> Secp256k1Backend<'a> for Secp256k1<'a> {
+    type Error = Bip32Error;
     type Context = (
         &'a secp256k1::curve::ECMultContext,
         &'a secp256k1::curve::ECMultGenContext,
