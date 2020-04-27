@@ -165,16 +165,21 @@ pub fn try_kv_pair_as_derived_pubkey(
     key: &PSBTKey,
     val: &PSBTValue,
 ) -> Result<bip32::DerivedPubkey, PSBTError> {
-    if key.len() != 34 {
+    let pubkey = if key.len() == 34 {
+        let mut pubkey = [0u8; 33];
+        pubkey.copy_from_slice(&key[1..34]);
+        bip32::Pubkey::from_pubkey_array(pubkey)?
+    } else if key.len() == 66 {
+        let mut pubkey = [0u8; 65];
+        pubkey.copy_from_slice(&key[1..66]);
+        bip32::Pubkey::from_pubkey_array_uncompressed(pubkey)?
+    }
+    else {
         return Err(PSBTError::WrongKeyLength {
             got: key.len(),
             expected: 34,
         });
-    }
-
-    let mut pubkey = [0u8; 33];
-    pubkey.copy_from_slice(&key[1..34]);
-    let pubkey = bip32::Pubkey::from_pubkey_array(pubkey)?;
+    };
     let deriv = try_val_as_key_derivation(val)?;
     Ok((pubkey, deriv).into())
 }
@@ -228,7 +233,9 @@ pub mod output {
     pub fn validate_bip32_derivations(key: &PSBTKey, val: &PSBTValue) -> Result<(), PSBTError> {
         // 34 = 33-byte pubkey + 1-byte type
         validate_expected_key_type(key, 2)?;
-        validate_fixed_key_length(key, 34)?;
+        if validate_fixed_key_length(key, 34).is_err() {
+            validate_fixed_key_length(key, 66)?;
+        }
         try_val_as_key_derivation(val)?;
         Ok(())
     }
@@ -255,8 +262,10 @@ pub mod input {
     /// Validate a PSBT_IN_PARTIAL_SIG key-value pair in an input map
     pub fn validate_in_partial_sig(key: &PSBTKey, _val: &PSBTValue) -> Result<(), PSBTError> {
         // 34 = 33-byte pubkey + 1-byte type
-        validate_expected_key_type(key, 2)?;
-        validate_fixed_key_length(key, 34)
+        if validate_fixed_key_length(key, 34).is_err() {
+            validate_fixed_key_length(key, 66)?;
+        }
+        validate_expected_key_type(key, 2)
         // TODO: validate val is signature
     }
 
