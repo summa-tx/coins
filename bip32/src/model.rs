@@ -343,24 +343,14 @@ pub trait XKey: std::marker::Sized + Clone {
     fn fingerprint(&self) -> Result<KeyFingerprint, Bip32Error>;
     /// Get the key's depth
     fn depth(&self) -> u8;
-    #[doc(hidden)]
-    fn set_depth(&mut self, depth: u8);
     /// Get the key's parent
     fn parent(&self) -> KeyFingerprint;
-    #[doc(hidden)]
-    fn set_parent(&mut self, parent: KeyFingerprint);
     /// Get the key's index
     fn index(&self) -> u32;
-    #[doc(hidden)]
-    fn set_index(&mut self, index: u32);
     /// Get the key's chain_code
     fn chain_code(&self) -> ChainCode;
-    #[doc(hidden)]
-    fn set_chain_code(&mut self, chain_code: ChainCode);
     /// Get the key's hint
     fn hint(&self) -> Hint;
-    #[doc(hidden)]
-    fn set_hint(&mut self, hint: Hint);
 
     /// Return the 33-byte compressed pubkey representation
     fn pubkey_bytes(&self) -> Result<[u8; 33], Bip32Error>;

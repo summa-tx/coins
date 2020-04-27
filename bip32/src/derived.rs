@@ -28,32 +28,17 @@ impl<T: XKey> XKey for DerivedKey<T> {
     fn depth(&self) -> u8 {
         self.key.depth()
     }
-    fn set_depth(&mut self, depth: u8) {
-        self.key.set_depth(depth)
-    }
     fn parent(&self) -> KeyFingerprint {
         self.key.parent()
-    }
-    fn set_parent(&mut self, parent: KeyFingerprint) {
-        self.key.set_parent(parent)
     }
     fn index(&self) -> u32 {
         self.key.index()
     }
-    fn set_index(&mut self, index: u32) {
-        self.key.set_index(index)
-    }
     fn chain_code(&self) -> ChainCode {
         self.key.chain_code()
     }
-    fn set_chain_code(&mut self, chain_code: ChainCode) {
-        self.key.set_chain_code(chain_code)
-    }
     fn hint(&self) -> Hint {
         self.key.hint()
-    }
-    fn set_hint(&mut self, hint: Hint) {
-        self.key.set_hint(hint)
     }
     fn pubkey_bytes(&self) -> Result<[u8; 33], Bip32Error> {
         self.key.pubkey_bytes()

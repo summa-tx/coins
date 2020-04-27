@@ -23,8 +23,9 @@ fn hmac_and_split(seed: &[u8], data: &[u8]) -> ([u8; 32], ChainCode) {
     (left, ChainCode(right))
 }
 
-/// A BIP32 Extended privkey. This key is genericized to accept any compatibile backend.
-pub struct GenericXPriv<'a, T: Secp256k1Backend<'a>> {
+/// Info associated with an extended key
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
+pub struct XKeyInfo {
     /// The key depth in the HD tree
     depth: u8,
     /// The 4-byte Fingerprint of the parent
@@ -32,12 +33,17 @@ pub struct GenericXPriv<'a, T: Secp256k1Backend<'a>> {
     /// The 4-byte derivation index of the key. If the most-significant byte is set, this key is
     /// hardened
     index: u32,
-    /// The associated secp256k1 key
-    privkey: T::Privkey,
     /// The 32-byte chain code used to generate child keys
     chain_code: ChainCode,
     /// The key's stanadard output type preference
     hint: Hint,
+}
+
+/// A BIP32 Extended privkey. This key is genericized to accept any compatibile backend.
+pub struct GenericXPriv<'a, T: Secp256k1Backend<'a>> {
+    info: XKeyInfo,
+    /// The associated secp256k1 key
+    privkey: T::Privkey,
     #[doc(hidden)]
     backend: Option<&'a T>,
 }
@@ -95,12 +101,14 @@ impl<'a, T: Secp256k1Backend<'a>> GenericXPriv<'a, T> {
         backend: Option<&'a T>,
     ) -> Self {
         Self {
-            depth,
-            parent,
-            index,
+            info: XKeyInfo {
+                depth,
+                parent,
+                index,
+                chain_code,
+                hint,
+            },
             privkey,
-            chain_code,
-            hint,
             backend,
         }
     }
@@ -122,15 +130,11 @@ impl<'a, T: Secp256k1Backend<'a>> GenericXPriv<'a, T> {
 
     /// Derive the corresponding xpub
     pub fn to_xpub(&self) -> Result<GenericXPub<'a, T>, Bip32Error> {
-        Ok(GenericXPub::new(
-            self.depth(),
-            self.parent(),
-            self.index(),
-            self.pubkey()?,
-            self.chain_code(),
-            self.hint(),
-            self.backend,
-        ))
+        Ok(GenericXPub {
+            info: self.info,
+            pubkey: self.pubkey()?,
+            backend: self.backend,
+        })
     }
 }
 
@@ -143,43 +147,23 @@ impl<'a, T: Secp256k1Backend<'a>> XKey for GenericXPriv<'a, T> {
     }
 
     fn depth(&self) -> u8 {
-        self.depth
-    }
-
-    fn set_depth(&mut self, depth: u8) {
-        self.depth = depth
+        self.info.depth
     }
 
     fn parent(&self) -> KeyFingerprint {
-        self.parent
-    }
-
-    fn set_parent(&mut self, parent: KeyFingerprint) {
-        self.parent = parent
+        self.info.parent
     }
 
     fn index(&self) -> u32 {
-        self.index
-    }
-
-    fn set_index(&mut self, index: u32) {
-        self.index = index
+        self.info.index
     }
 
     fn chain_code(&self) -> ChainCode {
-        self.chain_code
-    }
-
-    fn set_chain_code(&mut self, chain_code: ChainCode) {
-        self.chain_code = chain_code
+        self.info.chain_code
     }
 
     fn hint(&self) -> Hint {
-        self.hint
-    }
-
-    fn set_hint(&mut self, hint: Hint) {
-        self.hint = hint
+        self.info.hint
     }
 
     fn derive_child(&self, index: u32) -> Result<GenericXPriv<'a, T>, Bip32Error> {
@@ -199,12 +183,14 @@ impl<'a, T: Secp256k1Backend<'a>> XKey for GenericXPriv<'a, T> {
         let privkey = self.backend()?.tweak_privkey(&self.privkey, tweak)?;
 
         Ok(GenericXPriv {
-            depth: self.depth() + 1,
-            parent: self.fingerprint()?,
-            index,
-            chain_code,
+            info: XKeyInfo {
+                depth: self.depth() + 1,
+                parent: self.fingerprint()?,
+                index,
+                chain_code,
+                hint: self.hint(),
+            },
             privkey,
-            hint: self.hint(),
             backend: self.backend,
         })
     }
@@ -216,19 +202,9 @@ impl<'a, T: Secp256k1Backend<'a>> XKey for GenericXPriv<'a, T> {
 
 /// A BIP32 Extended pubkey. This key is genericized to accept any compatibile backend.
 pub struct GenericXPub<'a, T: Secp256k1Backend<'a>> {
-    /// The key depth in the HD tree
-    depth: u8,
-    /// The 4-byte Fingerprint of the parent
-    parent: KeyFingerprint,
-    /// The 4-byte derivation index of the key. If the most-significant byte is set, this key is
-    /// hardened
-    index: u32,
+    info: XKeyInfo,
     /// The associated secp256k1 key
     pubkey: T::Pubkey,
-    /// The 32-byte chain code used to generate child keys
-    chain_code: ChainCode,
-    /// The key's stanadard output type preference
-    hint: Hint,
     #[doc(hidden)]
     backend: Option<&'a T>,
 }
@@ -266,43 +242,23 @@ impl<'a, T: Secp256k1Backend<'a>> XKey for GenericXPub<'a, T> {
     }
 
     fn depth(&self) -> u8 {
-        self.depth
-    }
-
-    fn set_depth(&mut self, depth: u8) {
-        self.depth = depth
+        self.info.depth
     }
 
     fn parent(&self) -> KeyFingerprint {
-        self.parent
-    }
-
-    fn set_parent(&mut self, parent: KeyFingerprint) {
-        self.parent = parent
+        self.info.parent
     }
 
     fn index(&self) -> u32 {
-        self.index
-    }
-
-    fn set_index(&mut self, index: u32) {
-        self.index = index
+        self.info.index
     }
 
     fn chain_code(&self) -> ChainCode {
-        self.chain_code
-    }
-
-    fn set_chain_code(&mut self, chain_code: ChainCode) {
-        self.chain_code = chain_code
+        self.info.chain_code
     }
 
     fn hint(&self) -> Hint {
-        self.hint
-    }
-
-    fn set_hint(&mut self, hint: Hint) {
-        self.hint = hint
+        self.info.hint
     }
 
     fn pubkey_bytes(&self) -> Result<[u8; 33], Bip32Error> {
@@ -325,12 +281,14 @@ impl<'a, T: Secp256k1Backend<'a>> XKey for GenericXPub<'a, T> {
         let pubkey = self.backend()?.tweak_pubkey(&self.pubkey, offset)?;
 
         Ok(Self {
-            depth: self.depth() + 1,
-            parent: self.fingerprint()?,
-            index,
+            info: XKeyInfo {
+                depth: self.depth() + 1,
+                parent: self.fingerprint()?,
+                index,
+                chain_code,
+                hint: self.hint(),
+            },
             pubkey,
-            chain_code,
-            hint: self.hint(),
             backend: self.backend,
         })
     }
@@ -348,12 +306,14 @@ impl<'a, T: Secp256k1Backend<'a>> GenericXPub<'a, T> {
         backend: Option<&'a T>,
     ) -> Self {
         Self {
-            depth,
-            parent,
-            index,
+            info: XKeyInfo{
+                depth,
+                parent,
+                index,
+                chain_code,
+                hint,
+            },
             pubkey,
-            chain_code,
-            hint,
             backend,
         }
     }
