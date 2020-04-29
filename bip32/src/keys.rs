@@ -1,4 +1,8 @@
-use crate::{curve::Secp256k1Backend, model::*, Bip32Error};
+use crate::{
+    curve::Secp256k1Backend,
+    model::{CanDerivePubkey, HasBackend, HasPrivkey, HasPubkey, SigningKey, VerifyingKey},
+    Bip32Error,
+};
 
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 /// A Private Key using the crate's compiled-in backend.

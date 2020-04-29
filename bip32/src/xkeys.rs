@@ -1,7 +1,12 @@
 use hmac::{Hmac, Mac};
 use sha2::Sha512;
 
-use crate::{curve::model::*, keys::*, model::*, Bip32Error, BIP32_HARDEN, CURVE_ORDER};
+use crate::{
+    curve::model::{ScalarDeserialize, Secp256k1Backend},
+    keys::{GenericPrivkey, GenericPubkey},
+    model::*,
+    Bip32Error, BIP32_HARDEN, CURVE_ORDER,
+};
 
 type HmacSha512 = Hmac<Sha512>;
 
@@ -157,7 +162,7 @@ impl<'a, T: Secp256k1Backend<'a>> DerivePrivateChild<'a, T> for GenericXPriv<'a,
             data.extend(&self.privkey_bytes());
             data.extend(&index.to_be_bytes());
         } else {
-            data.extend(&self.derive_pubkey()?.pubkey_array().to_vec());
+            data.extend(&self.derive_pubkey_bytes()?.to_vec());
             data.extend(&index.to_be_bytes());
         };
 

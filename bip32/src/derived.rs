@@ -1,5 +1,5 @@
 use crate::{
-    curve::model::*,
+    curve::model::{ScalarDeserialize, Secp256k1Backend},
     keys::{GenericPrivkey, GenericPubkey},
     model::*,
     path::KeyDerivation,
@@ -11,15 +11,11 @@ use crate::{
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 pub use self::keys::{DerivedPrivkey, DerivedPubkey, DerivedXPriv, DerivedXPub};
 
-/// A Pubkey coupled with its derivation
-#[derive(Clone, Debug, PartialEq)]
-pub struct GenericDerivedPrivkey<'a, T: Secp256k1Backend<'a>> {
-    /// The underlying Privkey
-    pub privkey: GenericPrivkey<'a, T>,
-    /// Its derivation
-    pub derivation: KeyDerivation,
-}
-
+make_derived_key!(
+    /// A Privkey coupled with its derivation
+    GenericPrivkey,
+    GenericDerivedPrivkey.privkey
+);
 inherit_has_privkey!(GenericDerivedPrivkey.privkey);
 inherit_backend!(GenericDerivedPrivkey.privkey);
 
@@ -36,30 +32,11 @@ impl<'a, T: Secp256k1Backend<'a>> SigningKey<'a, T> for GenericDerivedPrivkey<'a
     }
 }
 
-impl<'a, T: Secp256k1Backend<'a>> DerivedKey for GenericDerivedPrivkey<'a, T> {
-    type Key = GenericPrivkey<'a, T>;
-
-    fn new(k: Self::Key, derivation: KeyDerivation) -> Self {
-        GenericDerivedPrivkey {
-            privkey: k,
-            derivation,
-        }
-    }
-
-    fn derivation(&self) -> &KeyDerivation {
-        &self.derivation
-    }
-}
-
-/// A Pubkey coupled with its derivation
-#[derive(Clone, Debug, PartialEq)]
-pub struct GenericDerivedPubkey<'a, T: Secp256k1Backend<'a>> {
-    /// The underlying Pubkey
-    pub pubkey: GenericPubkey<'a, T>,
-    /// Its derivation
-    pub derivation: KeyDerivation,
-}
-
+make_derived_key!(
+    /// A Pubkey coupled with its derivation
+    GenericPubkey,
+    GenericDerivedPubkey.pubkey
+);
 inherit_has_pubkey!(GenericDerivedPubkey.pubkey);
 inherit_backend!(GenericDerivedPubkey.pubkey);
 
@@ -67,30 +44,11 @@ impl<'a, T: Secp256k1Backend<'a>> VerifyingKey<'a, T> for GenericDerivedPubkey<'
     type SigningKey = GenericDerivedPrivkey<'a, T>;
 }
 
-impl<'a, T: Secp256k1Backend<'a>> DerivedKey for GenericDerivedPubkey<'a, T> {
-    type Key = GenericPubkey<'a, T>;
-
-    fn new(k: Self::Key, derivation: KeyDerivation) -> Self {
-        GenericDerivedPubkey {
-            pubkey: k,
-            derivation,
-        }
-    }
-
-    fn derivation(&self) -> &KeyDerivation {
-        &self.derivation
-    }
-}
-
-/// An XPriv coupled with its derivation
-#[derive(Clone, Debug, PartialEq)]
-pub struct GenericDerivedXPriv<'a, T: Secp256k1Backend<'a>> {
-    /// The underlying Privkey
-    pub xpriv: GenericXPriv<'a, T>,
-    /// Its derivation
-    pub derivation: KeyDerivation,
-}
-
+make_derived_key!(
+    /// An XPriv coupled with its derivation
+    GenericXPriv,
+    GenericDerivedXPriv.xpriv
+);
 inherit_has_privkey!(GenericDerivedXPriv.xpriv);
 inherit_backend!(GenericDerivedXPriv.xpriv);
 inherit_has_xkeyinfo!(GenericDerivedXPriv.xpriv);
@@ -150,7 +108,10 @@ impl<'a, T: Secp256k1Backend<'a>> GenericDerivedXPriv<'a, T> {
     }
 
     /// Check if this XPriv is the private ancestor of some other derived key
-    pub fn is_private_ancestor_of<D: DerivedKey + HasPubkey<'a, T>>(&self, other: &D) -> Result<bool, Bip32Error> {
+    pub fn is_private_ancestor_of<D: DerivedKey + HasPubkey<'a, T>>(
+        &self,
+        other: &D,
+    ) -> Result<bool, Bip32Error> {
         if let Some(path) = self.path_to_descendant(other) {
             let descendant = self.derive_private_path(&path)?;
             let descendant_pk_bytes = descendant.derive_pubkey()?;
@@ -171,21 +132,6 @@ impl<'a, T: Secp256k1Backend<'a>> SigningKey<'a, T> for GenericDerivedXPriv<'a, 
     }
 }
 
-impl<'a, T: Secp256k1Backend<'a>> DerivedKey for GenericDerivedXPriv<'a, T> {
-    type Key = GenericXPriv<'a, T>;
-
-    fn new(k: Self::Key, derivation: KeyDerivation) -> Self {
-        GenericDerivedXPriv {
-            xpriv: k,
-            derivation,
-        }
-    }
-
-    fn derivation(&self) -> &KeyDerivation {
-        &self.derivation
-    }
-}
-
 impl<'a, T: Secp256k1Backend<'a>> DerivePrivateChild<'a, T> for GenericDerivedXPriv<'a, T> {
     fn derive_private_child(&self, index: u32) -> Result<Self, Bip32Error> {
         Ok(Self {
@@ -195,15 +141,11 @@ impl<'a, T: Secp256k1Backend<'a>> DerivePrivateChild<'a, T> for GenericDerivedXP
     }
 }
 
-/// An XPub coupled with its derivation
-#[derive(Clone, Debug, PartialEq)]
-pub struct GenericDerivedXPub<'a, T: Secp256k1Backend<'a>> {
-    /// The underlying XPub
-    pub xpub: GenericXPub<'a, T>,
-    /// Its derivation
-    pub derivation: KeyDerivation,
-}
-
+make_derived_key!(
+    /// An XPub coupled with its derivation
+    GenericXPub,
+    GenericDerivedXPub.xpub
+);
 inherit_has_pubkey!(GenericDerivedXPub.xpub);
 inherit_backend!(GenericDerivedXPub.xpub);
 inherit_has_xkeyinfo!(GenericDerivedXPub.xpub);
@@ -217,7 +159,10 @@ impl<'a, T: Secp256k1Backend<'a>> GenericDerivedXPub<'a, T> {
     }
 
     /// Check if this XPriv is the private ancestor of some other derived key
-    pub fn is_public_ancestor_of<D: DerivedKey + HasPubkey<'a, T>>(&self, other: &D) -> Result<bool, Bip32Error> {
+    pub fn is_public_ancestor_of<D: DerivedKey + HasPubkey<'a, T>>(
+        &self,
+        other: &D,
+    ) -> Result<bool, Bip32Error> {
         if let Some(path) = self.path_to_descendant(other) {
             let descendant = self.derive_public_path(&path)?;
             Ok(descendant.pubkey() == other.pubkey())
@@ -229,21 +174,6 @@ impl<'a, T: Secp256k1Backend<'a>> GenericDerivedXPub<'a, T> {
 
 impl<'a, T: Secp256k1Backend<'a>> VerifyingKey<'a, T> for GenericDerivedXPub<'a, T> {
     type SigningKey = GenericDerivedXPriv<'a, T>;
-}
-
-impl<'a, T: Secp256k1Backend<'a>> DerivedKey for GenericDerivedXPub<'a, T> {
-    type Key = GenericXPub<'a, T>;
-
-    fn new(k: Self::Key, derivation: KeyDerivation) -> Self {
-        GenericDerivedXPub {
-            xpub: k,
-            derivation,
-        }
-    }
-
-    fn derivation(&self) -> &KeyDerivation {
-        &self.derivation
-    }
 }
 
 impl<'a, T: Secp256k1Backend<'a>> DerivePublicChild<'a, T> for GenericDerivedXPub<'a, T> {

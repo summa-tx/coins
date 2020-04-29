@@ -4,9 +4,9 @@ use bitcoin_spv::btcspv::hash256;
 use bs58;
 
 use crate::{
-    curve::model::*,
+    curve::model::{PointDeserialize, ScalarDeserialize, Secp256k1Backend},
     keys::{GenericPrivkey, GenericPubkey},
-    model::*,
+    model::{ChainCode, HasPrivkey, HasPubkey, Hint, KeyFingerprint, XKey},
     xkeys::{GenericXPriv, GenericXPub, XKeyInfo},
     Bip32Error,
 };
@@ -362,33 +362,6 @@ pub trait Encoder {
     {
         let data = decode_b58_check(s)?;
         Self::read_xpub(&mut &data[..], backend)
-    }
-}
-
-macro_rules! params {
-    (
-        $(#[$outer:meta])*
-        $name:ident{
-            bip32: $bip32:expr,
-            bip49: $bip49:expr,
-            bip84: $bip84:expr,
-            bip32_pub: $bip32pub:expr,
-            bip49_pub: $bip49pub:expr,
-            bip84_pub: $bip84pub:expr
-        }
-    ) => {
-        $(#[$outer])*
-        #[derive(Debug, Clone)]
-        pub struct $name;
-
-        impl NetworkParams for $name {
-            const PRIV_VERSION: u32 = $bip32;
-            const BIP49_PRIV_VERSION: u32 = $bip49;
-            const BIP84_PRIV_VERSION: u32 = $bip84;
-            const PUB_VERSION: u32 = $bip32pub;
-            const BIP49_PUB_VERSION: u32 = $bip49pub;
-            const BIP84_PUB_VERSION: u32 = $bip84pub;
-        }
     }
 }
 

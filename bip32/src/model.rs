@@ -3,7 +3,9 @@ use std::convert::TryInto;
 use bitcoin_spv::btcspv::hash256;
 
 use crate::{
-    curve::model::*,
+    curve::model::{
+        HashFunc, PointSerialize, RecoverableSigSerialize, ScalarSerialize, Secp256k1Backend,
+    },
     path::{DerivationPath, KeyDerivation},
     xkeys::XKeyInfo,
     Bip32Error,
@@ -102,6 +104,12 @@ pub trait CanDerivePubkey<'a, T: 'a + Secp256k1Backend<'a>>:
     /// call performs a scalar multiplication, so should be cached if possible.
     fn derive_pubkey(&self) -> Result<T::Pubkey, Bip32Error> {
         Ok(self.backend()?.derive_pubkey(&self.privkey()))
+    }
+
+    /// Derive the public key. Note that this operation may fail if no backend is found. This
+    /// call performs a scalar multiplication, so should be cached if possible.
+    fn derive_pubkey_bytes(&self) -> Result<[u8; 33], Bip32Error> {
+        Ok(self.derive_pubkey()?.pubkey_array())
     }
 
     /// Derive the public key's fingerprint. Note that this operation may fail if no backend is
