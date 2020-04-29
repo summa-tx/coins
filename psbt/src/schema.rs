@@ -5,6 +5,7 @@ use riemann_core::{ser::Ser, types::primitives::PrefixVec};
 use rmn_bip32::{
     self as bip32,
     curve::{PointDeserialize, SigSerialize},
+    model::DerivedKey,
     Bip32Error, Encoder as Bip32Encoder, Secp256k1,
 };
 
@@ -52,7 +53,7 @@ impl KVTypeSchema {
 
 /// Check that a value can be interpreted as a bip32 fingerprint + derivation
 pub fn try_val_as_key_derivation(val: &PSBTValue) -> Result<bip32::KeyDerivation, PSBTError> {
-    if val.len() % 4 != 0 {
+    if val.is_empty() || val.len() % 4 != 0 {
         return Err(PSBTError::InvalidBip32Path);
     }
     let limit = val.len() / 4;
@@ -170,26 +171,31 @@ where
 }
 
 /// Attempt to convert a KV pair into a derived pubkey struct
-pub fn try_kv_pair_as_derived_pubkey(
+pub fn try_kv_pair_as_derived_pubkey<'a>(
     key: &PSBTKey,
     val: &PSBTValue,
-) -> Result<bip32::DerivedPubkey, PSBTError> {
+    backend: Option<&'a Secp256k1<'a>>
+) -> Result<bip32::DerivedPubkey<'a>, PSBTError> {
     let pubkey = if key.len() == 34 {
         let mut pubkey = [0u8; 33];
         pubkey.copy_from_slice(&key[1..34]);
-        bip32::Pubkey::from_pubkey_array(pubkey)?
+        bip32::curve::Pubkey::from_pubkey_array(pubkey)?
     } else if key.len() == 66 {
         let mut pubkey = [0u8; 65];
         pubkey.copy_from_slice(&key[1..66]);
-        bip32::Pubkey::from_pubkey_array_uncompressed(pubkey)?
+        bip32::curve::Pubkey::from_pubkey_array_uncompressed(pubkey)?
     } else {
         return Err(PSBTError::WrongKeyLength {
             got: key.len(),
             expected: 34,
         });
     };
+
     let deriv = try_val_as_key_derivation(val)?;
-    Ok((pubkey, deriv).into())
+
+    let pubkey = bip32::Pubkey{key: pubkey, backend};
+
+    Ok(bip32::DerivedPubkey::new(pubkey, deriv))
 }
 
 /// Validation functions for PSBT Global maps

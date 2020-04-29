@@ -1,6 +1,9 @@
 use bitcoin_spv::btcspv::{hash160, hash256};
 
-use rmn_bip32::{self as bip32, model::XSigning};
+use rmn_bip32::{
+    self as bip32,
+    model::{CanDerivePubkey, DerivedKey, HasBackend, XSigning},
+};
 
 use thiserror::Error;
 
@@ -183,9 +186,9 @@ impl<'a> Bip32Signer<'a> {
     ) -> Result<(), PSBTError> {
         let prevout_tx = input_map.non_witness_utxo()?;
         let paths: Vec<_> = input_map
-            .parsed_pubkey_derivations()
+            .parsed_pubkey_derivations(self.xpriv.backend().ok())
             .iter()
-            .map(|pk| self.xpriv.path_to_descendant(&pk))
+            .map(|pk| self.xpriv.path_to_descendant(pk))
             .filter(Option::is_some)
             .map(Option::unwrap)
             .collect();
@@ -202,7 +205,7 @@ impl<'a> Bip32Signer<'a> {
             // TODO: DRY
             let sighash = tx.sighash(&sighash_args)?;
             let signature = self.xpriv.descendant_sign_digest(path, sighash)?;
-            input_map.insert_partial_sig(self.xpriv.pubkey()?, signature);
+            input_map.insert_partial_sig(self.xpriv.derive_pubkey()?, signature);
         }
 
         Ok(())
@@ -217,9 +220,9 @@ impl<'a> Bip32Signer<'a> {
     ) -> Result<(), PSBTError> {
         let prevout = input_map.witness_utxo()?;
         let paths: Vec<_> = input_map
-            .parsed_pubkey_derivations()
+            .parsed_pubkey_derivations(self.xpriv.backend().ok())
             .iter()
-            .map(|pk| self.xpriv.path_to_descendant(&pk))
+            .map(|pk| self.xpriv.path_to_descendant(pk))
             .filter(Option::is_some)
             .map(Option::unwrap)
             .collect();
@@ -234,8 +237,8 @@ impl<'a> Bip32Signer<'a> {
         // TODO: DRY
         for path in paths.iter() {
             let sighash = tx.sighash(&sighash_args)?;
-            let signature = self.xpriv.descendant_sign_digest(path, sighash)?;
-            input_map.insert_partial_sig(self.xpriv.pubkey()?, signature);
+            let signature = self.xpriv.descendant_sign_digest(path.clone(), sighash)?;
+            input_map.insert_partial_sig(self.xpriv.derive_pubkey()?, signature);
         }
 
         Ok(())
@@ -251,14 +254,14 @@ impl<'a> From<&'a bip32::DerivedXPriv<'a>> for Bip32Signer<'a> {
 impl<'a, A, E> PSTSigner<'a, A, PSBT<A, E>> for Bip32Signer<'a>
 where
     A: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>,
-    E: bip32::Encoder,
+    E: bip32::enc::Encoder,
 {
     type Error = PSBTError;
 
     fn is_change(&self, pst: &PSBT<A, E>, idx: usize) -> bool {
         let output_map = &pst.output_maps()[idx];
 
-        let pubkeys = output_map.parsed_pubkey_derivations();
+        let pubkeys = output_map.parsed_pubkey_derivations(self.xpriv.backend().ok());
         if pubkeys.len() != 1 {
             return false;
         }
@@ -274,7 +277,7 @@ where
         let script = &output.script_pubkey;
         let script_type = script.standard_type();
         if script_type == ScriptType::WPKH || script_type == ScriptType::PKH {
-            let res = self.xpriv.private_ancestor_of(pubkey);
+            let res = self.xpriv.is_private_ancestor_of(pubkey);
             match res {
                 Ok(v) => v,
                 Err(_) => false,

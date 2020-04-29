@@ -1,7 +1,7 @@
 use std::collections::{btree_map, BTreeMap};
 
 use riemann_core::{primitives::PrefixVec, ser::Ser};
-use rmn_bip32::DerivedXPub;
+use rmn_bip32::{model::DerivedKey, DerivedXPub};
 use rmn_btc::types::transactions::LegacyTx;
 
 use crate::{
@@ -91,7 +91,7 @@ impl PSBTGlobal {
         for (k, v) in self.xpubs() {
             let xpub = schema::try_key_as_xpub::<E>(k, backend)?;
             let deriv = schema::try_val_as_key_derivation(v)?;
-            results.push((xpub, deriv).into());
+            results.push(DerivedXPub::new(xpub, deriv));
         }
         Ok(results)
     }

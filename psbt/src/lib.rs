@@ -29,8 +29,8 @@ use std::{
 };
 
 use rmn_bip32::{
-    DerivedXPub, Encoder as Bip32Encoder, KeyFingerprint, MainnetEncoder as Bip32MainnetEncoder,
-    Secp256k1, TestnetEncoder as Bip32TestnetEncoder, XPub,
+    model::DerivedKey, DerivedXPub, Encoder as Bip32Encoder, KeyFingerprint,
+    MainnetEncoder as Bip32MainnetEncoder, Secp256k1, TestnetEncoder as Bip32TestnetEncoder, XPub,
 };
 
 use riemann_core::{
@@ -176,7 +176,10 @@ where
             if deriv.is_err() || xpub.is_err() {
                 continue;
             }
-            results.push((xpub.expect("checked"), deriv.expect("checked")).into());
+            results.push(DerivedXPub::new(
+                xpub.expect("checked"),
+                deriv.expect("checked"),
+            ));
         }
         results
         // self.parsed_xpubs(backend)

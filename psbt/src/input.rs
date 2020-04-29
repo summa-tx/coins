@@ -153,7 +153,7 @@ impl PSBTInput {
     }
 
     /// Inserts a signature into the map
-    pub fn insert_partial_sig(&mut self, pk: bip32::Pubkey, sig: bip32::Signature) {
+    pub fn insert_partial_sig(&mut self, pk: bip32::curve::Pubkey, sig: bip32::Signature) {
         let mut key = vec![InputKey::PARTIAL_SIG as u8];
         key.extend(pk.pubkey_array().iter());
 
@@ -207,9 +207,9 @@ impl PSBTInput {
     }
 
     /// Returns a vec containing parsed public keys. Unparsable keys will be ignored
-    pub fn parsed_pubkey_derivations(&self) -> Vec<DerivedPubkey> {
+    pub fn parsed_pubkey_derivations<'a>(&self, backend: Option<&'a bip32::Secp256k1<'a>>) -> Vec<DerivedPubkey<'a>> {
         self.pubkey_kv_pairs()
-            .map(|(k, v)| schema::try_kv_pair_as_derived_pubkey(k, v))
+            .map(|(k, v)| schema::try_kv_pair_as_derived_pubkey(k, v, backend))
             .filter_map(Result::ok)
             .collect()
     }
