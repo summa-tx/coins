@@ -5,6 +5,7 @@ use crate::{
     curve::model::{ScalarDeserialize, Secp256k1Backend},
     keys::{GenericPrivkey, GenericPubkey},
     model::*,
+    primitives::{ChainCode, Hint, KeyFingerprint, XKeyInfo},
     Bip32Error, BIP32_HARDEN, CURVE_ORDER,
 };
 
@@ -33,40 +34,6 @@ pub(crate) fn hmac_and_split(seed: &[u8], data: &[u8]) -> ([u8; 32], ChainCode) 
     right.copy_from_slice(&result[32..]);
 
     (left, ChainCode(right))
-}
-
-/// Info associated with an extended key
-#[derive(Copy, Clone, Debug, PartialEq)]
-pub struct XKeyInfo {
-    /// The key depth in the HD tree
-    pub depth: u8,
-    /// The 4-byte Fingerprint of the parent
-    pub parent: KeyFingerprint,
-    /// The 4-byte derivation index of the key. If the most-significant byte is set, this key is
-    /// hardened
-    pub index: u32,
-    /// The 32-byte chain code used to generate child keys
-    pub chain_code: ChainCode,
-    /// The key's stanadard output type preference
-    pub hint: Hint,
-}
-
-impl XKey for XKeyInfo {
-    fn depth(&self) -> u8 {
-        self.depth
-    }
-    fn parent(&self) -> KeyFingerprint {
-        self.parent
-    }
-    fn index(&self) -> u32 {
-        self.index
-    }
-    fn chain_code(&self) -> ChainCode {
-        self.chain_code
-    }
-    fn hint(&self) -> Hint {
-        self.hint
-    }
 }
 
 /// A BIP32 Extended privkey. This key is genericized to accept any compatibile backend.

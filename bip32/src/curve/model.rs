@@ -1,6 +1,6 @@
 use bitcoin_spv::btcspv::hash160;
 
-use crate::{model::KeyFingerprint, Bip32Error};
+use crate::{primitives::KeyFingerprint, Bip32Error};
 
 /// A simple hash function type signature
 pub type HashFunc = dyn Fn(&[u8]) -> [u8; 32];

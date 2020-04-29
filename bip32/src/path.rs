@@ -7,7 +7,7 @@ use std::{
 
 use riemann_core::ser::{Ser, SerError};
 
-use crate::{Bip32Error, KeyFingerprint, BIP32_HARDEN};
+use crate::{primitives::KeyFingerprint, Bip32Error, BIP32_HARDEN};
 
 fn try_parse_index(s: &str) -> Result<u32, Bip32Error> {
     let mut index_str = s.to_owned();

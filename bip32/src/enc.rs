@@ -6,8 +6,9 @@ use bs58;
 use crate::{
     curve::model::{PointDeserialize, ScalarDeserialize, Secp256k1Backend},
     keys::{GenericPrivkey, GenericPubkey},
-    model::{ChainCode, HasPrivkey, HasPubkey, Hint, KeyFingerprint, XKey},
-    xkeys::{GenericXPriv, GenericXPub, XKeyInfo},
+    model::{HasPrivkey, HasPubkey, XKey},
+    primitives::{ChainCode, Hint, KeyFingerprint, XKeyInfo},
+    xkeys::{GenericXPriv, GenericXPub},
     Bip32Error,
 };
 

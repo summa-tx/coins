@@ -3,7 +3,8 @@ use crate::{
     keys::{GenericPrivkey, GenericPubkey},
     model::*,
     path::KeyDerivation,
-    xkeys::{hmac_and_split, GenericXPriv, GenericXPub, XKeyInfo, SEED},
+    primitives::{Hint, KeyFingerprint, XKeyInfo},
+    xkeys::{hmac_and_split, GenericXPriv, GenericXPub, SEED},
     Bip32Error, CURVE_ORDER,
 };
 

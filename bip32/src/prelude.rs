@@ -70,7 +70,7 @@ macro_rules! inherit_has_xkeyinfo {
         impl<'a, T: crate::curve::model::Secp256k1Backend<'a>> crate::model::HasXKeyInfo
             for $struct_name<'a, T>
         {
-            fn xkey_info(&self) -> &XKeyInfo {
+            fn xkey_info(&self) -> &crate::primitives::XKeyInfo {
                 self.$attr.xkey_info()
             }
         }
@@ -88,10 +88,10 @@ macro_rules! make_derived_key {
             /// The underlying XPub
             pub $attr: $underlying<'a, T>,
             /// Its derivation
-            pub derivation: KeyDerivation,
+            pub derivation: crate::path::KeyDerivation,
         }
 
-        impl<'a, T: Secp256k1Backend<'a>> DerivedKey for $struct_name<'a, T> {
+        impl<'a, T: Secp256k1Backend<'a>> crate::model::DerivedKey for $struct_name<'a, T> {
             type Key = $underlying<'a, T>;
 
             fn new(k: Self::Key, derivation: KeyDerivation) -> Self {

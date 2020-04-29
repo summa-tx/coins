@@ -7,54 +7,9 @@ use crate::{
         HashFunc, PointSerialize, RecoverableSigSerialize, ScalarSerialize, Secp256k1Backend,
     },
     path::{DerivationPath, KeyDerivation},
-    xkeys::XKeyInfo,
+    primitives::{ChainCode, Hint, KeyFingerprint, XKeyInfo},
     Bip32Error,
 };
-
-/// We treat the xpub/ypub/zpub convention as a hint regarding address type. Users are free to
-/// follow or ignore these hints.
-#[derive(Eq, PartialEq, Debug, Clone, Copy)]
-pub enum Hint {
-    /// Standard Bip32 hint
-    Legacy,
-    /// Bip32 + Bip49 hint for Witness-via-P2SH
-    Compatibility,
-    /// Bip32 + Bip84 hint for Native SegWit
-    SegWit,
-}
-
-/// A 4-byte key fingerprint
-#[derive(Eq, PartialEq, Clone, Copy)]
-pub struct KeyFingerprint(pub [u8; 4]);
-
-impl From<[u8; 4]> for KeyFingerprint {
-    fn from(v: [u8; 4]) -> Self {
-        Self(v)
-    }
-}
-
-impl KeyFingerprint {
-    /// Determines if the slice represents the same key fingerprint
-    pub fn eq_slice(self, other: &[u8]) -> bool {
-        self.0 == other
-    }
-}
-
-impl std::fmt::Debug for KeyFingerprint {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("KeyFingerprint {:x?}", self.0))
-    }
-}
-
-/// A 32-byte chain code
-#[derive(Eq, PartialEq, Debug, Clone, Copy)]
-pub struct ChainCode(pub [u8; 32]);
-
-impl From<[u8; 32]> for ChainCode {
-    fn from(v: [u8; 32]) -> Self {
-        Self(v)
-    }
-}
 
 /// Any type that has access to a Secp256k1 backend.
 pub trait HasBackend<'a, T: Secp256k1Backend<'a>> {
@@ -218,19 +173,19 @@ pub trait XKey: std::marker::Sized + Clone {
 
 impl<T: HasXKeyInfo + std::marker::Sized + Clone> XKey for T {
     fn depth(&self) -> u8 {
-        self.xkey_info().depth()
+        self.xkey_info().depth
     }
     fn parent(&self) -> KeyFingerprint {
-        self.xkey_info().parent()
+        self.xkey_info().parent
     }
     fn index(&self) -> u32 {
-        self.xkey_info().index()
+        self.xkey_info().index
     }
     fn chain_code(&self) -> ChainCode {
-        self.xkey_info().chain_code()
+        self.xkey_info().chain_code
     }
     fn hint(&self) -> Hint {
-        self.xkey_info().hint()
+        self.xkey_info().hint
     }
 }
 

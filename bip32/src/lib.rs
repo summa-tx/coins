@@ -59,6 +59,9 @@ extern crate lazy_static;
 #[macro_use]
 pub(crate) mod prelude;
 
+/// Low-level types
+pub mod primitives;
+
 /// Keys and related functionality
 pub mod keys;
 
@@ -188,6 +191,7 @@ mod test {
     use crate::{
         curve::*,
         enc::{Encoder, MainnetEncoder},
+        primitives::*,
         xkeys::XPriv,
     };
 
