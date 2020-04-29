@@ -77,14 +77,15 @@ pub mod path;
 /// Provides keys that are coupled with their derivation path
 pub mod derived;
 
-// pub use enc::{Encoder, MainnetEncoder, NetworkParams, TestnetEncoder};
+pub use enc::{Encoder, MainnetEncoder, NetworkParams, TestnetEncoder};
 pub use model::*;
 pub use path::{DerivationPath, KeyDerivation};
+
 
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 pub use crate::{
     curve::{RecoverableSignature, Secp256k1, Signature},
-    derived::{DerivedXPriv, DerivedXPub},
+    derived::{DerivedPrivkey, DerivedPubkey, DerivedXPriv, DerivedXPub,},
     keys::{Privkey, Pubkey},
     xkeys::{XPriv, XPub},
 };
