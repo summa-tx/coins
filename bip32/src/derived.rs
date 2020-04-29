@@ -175,8 +175,8 @@ impl<'a, T: Secp256k1Backend<'a>> GenericDerivedXPriv<'a, T> {
     pub fn is_private_ancestor_of<D: DerivedKey + HasPubkey<'a, T>>(&self, other: &D) -> Result<bool, Bip32Error> {
         if let Some(path) = self.path_to_descendant(other) {
             let descendant = self.derive_private_path(&path)?;
-            let descendant_pk_bytes = &descendant.derive_verifying_key()?.pubkey_bytes()[..];
-            Ok(descendant_pk_bytes == &other.pubkey_bytes()[..])
+            let descendant_pk_bytes = descendant.derive_pubkey()?;
+            Ok(&descendant_pk_bytes == other.pubkey())
         } else {
             Ok(false)
         }
@@ -260,8 +260,7 @@ impl<'a, T: Secp256k1Backend<'a>> GenericDerivedXPub<'a, T> {
     pub fn is_public_ancestor_of<D: DerivedKey + HasPubkey<'a, T>>(&self, other: &D) -> Result<bool, Bip32Error> {
         if let Some(path) = self.path_to_descendant(other) {
             let descendant = self.derive_public_path(&path)?;
-            let descendant_pk_bytes = &descendant.pubkey_bytes()[..];
-            Ok(descendant_pk_bytes == &other.pubkey_bytes()[..])
+            Ok(descendant.pubkey() == other.pubkey())
         } else {
             Ok(false)
         }
