@@ -56,6 +56,9 @@
 #[macro_use]
 extern crate lazy_static;
 
+#[macro_use]
+pub(crate) mod prelude;
+
 /// Keys and related functionality
 pub mod keys;
 

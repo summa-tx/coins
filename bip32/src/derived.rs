@@ -20,21 +20,8 @@ pub struct GenericDerivedPrivkey<'a, T: Secp256k1Backend<'a>> {
     pub derivation: KeyDerivation,
 }
 
-impl<'a, T: Secp256k1Backend<'a>> HasPrivkey<'a, T> for GenericDerivedPrivkey<'a, T> {
-    fn privkey(&self) -> &T::Privkey {
-        self.privkey.privkey()
-    }
-}
-
-impl<'a, T: Secp256k1Backend<'a>> HasBackend<'a, T> for GenericDerivedPrivkey<'a, T> {
-    fn set_backend(&mut self, backend: &'a T) {
-        self.privkey.set_backend(backend)
-    }
-
-    fn backend(&self) -> Result<&'a T, Bip32Error> {
-        self.privkey.backend()
-    }
-}
+inherit_has_privkey!(GenericDerivedPrivkey.privkey);
+inherit_backend!(GenericDerivedPrivkey.privkey);
 
 impl<'a, T: Secp256k1Backend<'a>> SigningKey<'a, T> for GenericDerivedPrivkey<'a, T> {
     /// The corresponding verifying key
@@ -73,21 +60,8 @@ pub struct GenericDerivedPubkey<'a, T: Secp256k1Backend<'a>> {
     pub derivation: KeyDerivation,
 }
 
-impl<'a, T: Secp256k1Backend<'a>> HasPubkey<'a, T> for GenericDerivedPubkey<'a, T> {
-    fn pubkey(&self) -> &T::Pubkey {
-        self.pubkey.pubkey()
-    }
-}
-
-impl<'a, T: Secp256k1Backend<'a>> HasBackend<'a, T> for GenericDerivedPubkey<'a, T> {
-    fn set_backend(&mut self, backend: &'a T) {
-        self.pubkey.set_backend(backend)
-    }
-
-    fn backend(&self) -> Result<&'a T, Bip32Error> {
-        self.pubkey.backend()
-    }
-}
+inherit_has_pubkey!(GenericDerivedPubkey.pubkey);
+inherit_backend!(GenericDerivedPubkey.pubkey);
 
 impl<'a, T: Secp256k1Backend<'a>> VerifyingKey<'a, T> for GenericDerivedPubkey<'a, T> {
     type SigningKey = GenericDerivedPrivkey<'a, T>;
@@ -116,6 +90,10 @@ pub struct GenericDerivedXPriv<'a, T: Secp256k1Backend<'a>> {
     /// Its derivation
     pub derivation: KeyDerivation,
 }
+
+inherit_has_privkey!(GenericDerivedXPriv.xpriv);
+inherit_backend!(GenericDerivedXPriv.xpriv);
+inherit_has_xkeyinfo!(GenericDerivedXPriv.xpriv);
 
 impl<'a, T: Secp256k1Backend<'a>> GenericDerivedXPriv<'a, T> {
     /// Instantiate a master node using a custom HMAC key.
@@ -183,28 +161,6 @@ impl<'a, T: Secp256k1Backend<'a>> GenericDerivedXPriv<'a, T> {
     }
 }
 
-impl<'a, T: Secp256k1Backend<'a>> HasXKeyInfo for GenericDerivedXPriv<'a, T> {
-    fn xkey_info(&self) -> &XKeyInfo {
-        self.xpriv.xkey_info()
-    }
-}
-
-impl<'a, T: Secp256k1Backend<'a>> HasPrivkey<'a, T> for GenericDerivedXPriv<'a, T> {
-    fn privkey(&self) -> &T::Privkey {
-        self.xpriv.privkey()
-    }
-}
-
-impl<'a, T: Secp256k1Backend<'a>> HasBackend<'a, T> for GenericDerivedXPriv<'a, T> {
-    fn set_backend(&mut self, backend: &'a T) {
-        self.xpriv.set_backend(backend)
-    }
-
-    fn backend(&self) -> Result<&'a T, Bip32Error> {
-        self.xpriv.backend()
-    }
-}
-
 impl<'a, T: Secp256k1Backend<'a>> SigningKey<'a, T> for GenericDerivedXPriv<'a, T> {
     /// The corresponding verifying key
     type VerifyingKey = GenericDerivedXPub<'a, T>;
@@ -248,6 +204,10 @@ pub struct GenericDerivedXPub<'a, T: Secp256k1Backend<'a>> {
     pub derivation: KeyDerivation,
 }
 
+inherit_has_pubkey!(GenericDerivedXPub.xpub);
+inherit_backend!(GenericDerivedXPub.xpub);
+inherit_has_xkeyinfo!(GenericDerivedXPub.xpub);
+
 impl<'a, T: Secp256k1Backend<'a>> GenericDerivedXPub<'a, T> {
     /// Derive an XPub from an xpriv
     pub fn from_derived_xpriv(
@@ -264,28 +224,6 @@ impl<'a, T: Secp256k1Backend<'a>> GenericDerivedXPub<'a, T> {
         } else {
             Ok(false)
         }
-    }
-}
-
-impl<'a, T: Secp256k1Backend<'a>> HasXKeyInfo for GenericDerivedXPub<'a, T> {
-    fn xkey_info(&self) -> &XKeyInfo {
-        &self.xpub.xkey_info()
-    }
-}
-
-impl<'a, T: Secp256k1Backend<'a>> HasPubkey<'a, T> for GenericDerivedXPub<'a, T> {
-    fn pubkey(&self) -> &T::Pubkey {
-        self.xpub.pubkey()
-    }
-}
-
-impl<'a, T: Secp256k1Backend<'a>> HasBackend<'a, T> for GenericDerivedXPub<'a, T> {
-    fn set_backend(&mut self, backend: &'a T) {
-        self.xpub.set_backend(backend)
-    }
-
-    fn backend(&self) -> Result<&'a T, Bip32Error> {
-        self.xpub.backend()
     }
 }
 

@@ -73,6 +73,9 @@ pub struct GenericXPriv<'a, T: Secp256k1Backend<'a>> {
     pub privkey: GenericPrivkey<'a, T>,
 }
 
+inherit_has_privkey!(GenericXPriv.privkey);
+inherit_backend!(GenericXPriv.privkey);
+
 impl<'a, T: Secp256k1Backend<'a>> GenericXPriv<'a, T> {
     /// Instantiate a master node using a custom HMAC key.
     pub fn custom_master_node(
@@ -134,22 +137,6 @@ impl<'a, T: Secp256k1Backend<'a>> HasXKeyInfo for GenericXPriv<'a, T> {
     }
 }
 
-impl<'a, T: Secp256k1Backend<'a>> HasPrivkey<'a, T> for GenericXPriv<'a, T> {
-    fn privkey(&self) -> &T::Privkey {
-        self.privkey.privkey()
-    }
-}
-
-impl<'a, T: Secp256k1Backend<'a>> HasBackend<'a, T> for GenericXPriv<'a, T> {
-    fn set_backend(&mut self, backend: &'a T) {
-        self.privkey.set_backend(backend)
-    }
-
-    fn backend(&self) -> Result<&'a T, Bip32Error> {
-        self.privkey.backend()
-    }
-}
-
 impl<'a, T: Secp256k1Backend<'a>> SigningKey<'a, T> for GenericXPriv<'a, T> {
     /// The corresponding verifying key
     type VerifyingKey = GenericXPub<'a, T>;
@@ -206,6 +193,9 @@ pub struct GenericXPub<'a, T: Secp256k1Backend<'a>> {
     pub pubkey: GenericPubkey<'a, T>,
 }
 
+inherit_has_pubkey!(GenericXPub.pubkey);
+inherit_backend!(GenericXPub.pubkey);
+
 impl<'a, T: Secp256k1Backend<'a>> GenericXPub<'a, T> {
     /// Derive an XPub from an xpriv
     pub fn from_xpriv(xpriv: &GenericXPriv<'a, T>) -> Result<GenericXPub<'a, T>, Bip32Error> {
@@ -216,22 +206,6 @@ impl<'a, T: Secp256k1Backend<'a>> GenericXPub<'a, T> {
 impl<'a, T: Secp256k1Backend<'a>> HasXKeyInfo for GenericXPub<'a, T> {
     fn xkey_info(&self) -> &XKeyInfo {
         &self.info
-    }
-}
-
-impl<'a, T: Secp256k1Backend<'a>> HasPubkey<'a, T> for GenericXPub<'a, T> {
-    fn pubkey(&self) -> &T::Pubkey {
-        self.pubkey.pubkey()
-    }
-}
-
-impl<'a, T: Secp256k1Backend<'a>> HasBackend<'a, T> for GenericXPub<'a, T> {
-    fn set_backend(&mut self, backend: &'a T) {
-        self.pubkey.set_backend(backend)
-    }
-
-    fn backend(&self) -> Result<&'a T, Bip32Error> {
-        self.pubkey.backend()
     }
 }
 
