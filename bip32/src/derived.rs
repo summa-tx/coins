@@ -1,16 +1,15 @@
 use crate::{
-    CURVE_ORDER,
     curve::model::*,
-    model::*,
     keys::{GenericPrivkey, GenericPubkey},
-    xkeys::{hmac_and_split, SEED, GenericXPriv, GenericXPub, XKeyInfo},
+    model::*,
     path::KeyDerivation,
-    Bip32Error,
+    xkeys::{hmac_and_split, GenericXPriv, GenericXPub, XKeyInfo, SEED},
+    Bip32Error, CURVE_ORDER,
 };
 
 // Re-exports
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
-pub use self::keys::{DerivedPubkey, DerivedPrivkey, DerivedXPriv, DerivedXPub};
+pub use self::keys::{DerivedPrivkey, DerivedPubkey, DerivedXPriv, DerivedXPub};
 
 /// A Pubkey coupled with its derivation
 #[derive(Clone, Debug, PartialEq)]
@@ -28,6 +27,10 @@ impl<'a, T: Secp256k1Backend<'a>> HasPrivkey<'a, T> for GenericDerivedPrivkey<'a
 }
 
 impl<'a, T: Secp256k1Backend<'a>> HasBackend<'a, T> for GenericDerivedPrivkey<'a, T> {
+    fn set_backend(&mut self, backend: &'a T) {
+        self.privkey.set_backend(backend)
+    }
+
     fn backend(&self) -> Result<&'a T, Bip32Error> {
         self.privkey.backend()
     }
@@ -47,6 +50,15 @@ impl<'a, T: Secp256k1Backend<'a>> SigningKey<'a, T> for GenericDerivedPrivkey<'a
 }
 
 impl<'a, T: Secp256k1Backend<'a>> DerivedKey for GenericDerivedPrivkey<'a, T> {
+    type Key = GenericPrivkey<'a, T>;
+
+    fn new(k: Self::Key, derivation: KeyDerivation) -> Self {
+        GenericDerivedPrivkey {
+            privkey: k,
+            derivation,
+        }
+    }
+
     fn derivation(&self) -> &KeyDerivation {
         &self.derivation
     }
@@ -68,6 +80,10 @@ impl<'a, T: Secp256k1Backend<'a>> HasPubkey<'a, T> for GenericDerivedPubkey<'a, 
 }
 
 impl<'a, T: Secp256k1Backend<'a>> HasBackend<'a, T> for GenericDerivedPubkey<'a, T> {
+    fn set_backend(&mut self, backend: &'a T) {
+        self.pubkey.set_backend(backend)
+    }
+
     fn backend(&self) -> Result<&'a T, Bip32Error> {
         self.pubkey.backend()
     }
@@ -78,6 +94,15 @@ impl<'a, T: Secp256k1Backend<'a>> VerifyingKey<'a, T> for GenericDerivedPubkey<'
 }
 
 impl<'a, T: Secp256k1Backend<'a>> DerivedKey for GenericDerivedPubkey<'a, T> {
+    type Key = GenericPubkey<'a, T>;
+
+    fn new(k: Self::Key, derivation: KeyDerivation) -> Self {
+        GenericDerivedPubkey {
+            pubkey: k,
+            derivation,
+        }
+    }
+
     fn derivation(&self) -> &KeyDerivation {
         &self.derivation
     }
@@ -119,8 +144,8 @@ impl<'a, T: Secp256k1Backend<'a>> GenericDerivedXPriv<'a, T> {
             },
             privkey: GenericPrivkey {
                 key: privkey,
-                backend: Some(backend)
-            }
+                backend: Some(backend),
+            },
         })
     }
 
@@ -160,6 +185,10 @@ impl<'a, T: Secp256k1Backend<'a>> HasPrivkey<'a, T> for GenericDerivedXPriv<'a, 
 }
 
 impl<'a, T: Secp256k1Backend<'a>> HasBackend<'a, T> for GenericDerivedXPriv<'a, T> {
+    fn set_backend(&mut self, backend: &'a T) {
+        self.xpriv.set_backend(backend)
+    }
+
     fn backend(&self) -> Result<&'a T, Bip32Error> {
         self.xpriv.backend()
     }
@@ -176,6 +205,15 @@ impl<'a, T: Secp256k1Backend<'a>> SigningKey<'a, T> for GenericDerivedXPriv<'a, 
 }
 
 impl<'a, T: Secp256k1Backend<'a>> DerivedKey for GenericDerivedXPriv<'a, T> {
+    type Key = GenericXPriv<'a, T>;
+
+    fn new(k: Self::Key, derivation: KeyDerivation) -> Self {
+        GenericDerivedXPriv {
+            xpriv: k,
+            derivation,
+        }
+    }
+
     fn derivation(&self) -> &KeyDerivation {
         &self.derivation
     }
@@ -201,7 +239,9 @@ pub struct GenericDerivedXPub<'a, T: Secp256k1Backend<'a>> {
 
 impl<'a, T: Secp256k1Backend<'a>> GenericDerivedXPub<'a, T> {
     /// Derive an XPub from an xpriv
-    pub fn from_derived_xpriv(xpriv: &GenericDerivedXPriv<'a, T>) -> Result<GenericDerivedXPub<'a, T>, Bip32Error> {
+    pub fn from_derived_xpriv(
+        xpriv: &GenericDerivedXPriv<'a, T>,
+    ) -> Result<GenericDerivedXPub<'a, T>, Bip32Error> {
         xpriv.to_derived_xpub()
     }
 }
@@ -219,6 +259,10 @@ impl<'a, T: Secp256k1Backend<'a>> HasPubkey<'a, T> for GenericDerivedXPub<'a, T>
 }
 
 impl<'a, T: Secp256k1Backend<'a>> HasBackend<'a, T> for GenericDerivedXPub<'a, T> {
+    fn set_backend(&mut self, backend: &'a T) {
+        self.xpub.set_backend(backend)
+    }
+
     fn backend(&self) -> Result<&'a T, Bip32Error> {
         self.xpub.backend()
     }
@@ -229,6 +273,15 @@ impl<'a, T: Secp256k1Backend<'a>> VerifyingKey<'a, T> for GenericDerivedXPub<'a,
 }
 
 impl<'a, T: Secp256k1Backend<'a>> DerivedKey for GenericDerivedXPub<'a, T> {
+    type Key = GenericXPub<'a, T>;
+
+    fn new(k: Self::Key, derivation: KeyDerivation) -> Self {
+        GenericDerivedXPub {
+            xpub: k,
+            derivation,
+        }
+    }
+
     fn derivation(&self) -> &KeyDerivation {
         &self.derivation
     }

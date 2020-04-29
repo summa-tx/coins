@@ -1,12 +1,7 @@
 use hmac::{Hmac, Mac};
 use sha2::Sha512;
 
-use crate::{
-    keys::*,
-    curve::model::*,
-    model::*,
-    Bip32Error, BIP32_HARDEN, CURVE_ORDER};
-
+use crate::{curve::model::*, keys::*, model::*, Bip32Error, BIP32_HARDEN, CURVE_ORDER};
 
 type HmacSha512 = Hmac<Sha512>;
 
@@ -50,7 +45,6 @@ pub struct XKeyInfo {
     /// The key's stanadard output type preference
     pub hint: Hint,
 }
-
 
 impl XKey for XKeyInfo {
     fn depth(&self) -> u8 {
@@ -106,8 +100,8 @@ impl<'a, T: Secp256k1Backend<'a>> GenericXPriv<'a, T> {
             },
             privkey: GenericPrivkey {
                 key: privkey,
-                backend: Some(backend)
-            }
+                backend: Some(backend),
+            },
         })
     }
 
@@ -147,6 +141,10 @@ impl<'a, T: Secp256k1Backend<'a>> HasPrivkey<'a, T> for GenericXPriv<'a, T> {
 }
 
 impl<'a, T: Secp256k1Backend<'a>> HasBackend<'a, T> for GenericXPriv<'a, T> {
+    fn set_backend(&mut self, backend: &'a T) {
+        self.privkey.set_backend(backend)
+    }
+
     fn backend(&self) -> Result<&'a T, Bip32Error> {
         self.privkey.backend()
     }
@@ -180,7 +178,10 @@ impl<'a, T: Secp256k1Backend<'a>> DerivePrivateChild<'a, T> for GenericXPriv<'a,
         let privkey = self
             .backend()?
             .tweak_privkey(&self.privkey(), tweak)
-            .map(|k| GenericPrivkey{ key: k, backend: self.backend().ok() })
+            .map(|k| GenericPrivkey {
+                key: k,
+                backend: self.backend().ok(),
+            })
             .map_err(Into::into)?;
 
         Ok(GenericXPriv {
@@ -195,7 +196,6 @@ impl<'a, T: Secp256k1Backend<'a>> DerivePrivateChild<'a, T> for GenericXPriv<'a,
         })
     }
 }
-
 
 /// A BIP32 Extended privkey. This key is genericized to accept any compatibile backend.
 #[derive(Clone, Debug, PartialEq)]
@@ -226,6 +226,10 @@ impl<'a, T: Secp256k1Backend<'a>> HasPubkey<'a, T> for GenericXPub<'a, T> {
 }
 
 impl<'a, T: Secp256k1Backend<'a>> HasBackend<'a, T> for GenericXPub<'a, T> {
+    fn set_backend(&mut self, backend: &'a T) {
+        self.pubkey.set_backend(backend)
+    }
+
     fn backend(&self) -> Result<&'a T, Bip32Error> {
         self.pubkey.backend()
     }
@@ -252,7 +256,10 @@ impl<'a, T: Secp256k1Backend<'a>> DerivePublicChild<'a, T> for GenericXPub<'a, T
         let pubkey = self
             .backend()?
             .tweak_pubkey(&self.pubkey(), offset)
-            .map(|k| GenericPubkey{key: k, backend: self.backend().ok()})
+            .map(|k| GenericPubkey {
+                key: k,
+                backend: self.backend().ok(),
+            })
             .map_err(Into::into)?;
 
         Ok(Self {

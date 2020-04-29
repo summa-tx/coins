@@ -1,10 +1,5 @@
 use criterion::{criterion_group, criterion_main, Criterion};
-use rmn_bip32::{
-    Secp256k1,
-    curve::model::*,
-    model::*,
-    xkeys::XPriv,
-};
+use rmn_bip32::{curve::model::*, model::*, xkeys::XPriv, Secp256k1};
 
 fn derive_10_times(key: &XPriv) {
     let path: [u32; 10] = [

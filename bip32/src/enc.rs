@@ -5,8 +5,8 @@ use bs58;
 
 use crate::{
     curve::model::*,
-    model::*,
     keys::{GenericPrivkey, GenericPubkey},
+    model::*,
     xkeys::{GenericXPriv, GenericXPub, XKeyInfo},
     Bip32Error,
 };
@@ -159,12 +159,9 @@ pub trait Encoder {
                 parent,
                 index,
                 chain_code,
-                hint
+                hint,
             },
-            privkey: GenericPrivkey {
-                key,
-                backend
-            }
+            privkey: GenericPrivkey { key, backend },
         })
     }
 
@@ -237,12 +234,9 @@ pub trait Encoder {
                 parent,
                 index,
                 chain_code,
-                hint
+                hint,
             },
-            pubkey: GenericPubkey {
-                key,
-                backend
-            }
+            pubkey: GenericPubkey { key, backend },
         })
     }
 

@@ -1,6 +1,6 @@
-use bitcoin_spv::btcspv::{hash160};
+use bitcoin_spv::btcspv::hash160;
 
-use crate::{Bip32Error, model::KeyFingerprint};
+use crate::{model::KeyFingerprint, Bip32Error};
 
 /// A simple hash function type signature
 pub type HashFunc = dyn Fn(&[u8]) -> [u8; 32];
@@ -179,7 +179,7 @@ pub trait PointDeserialize: std::marker::Sized + std::fmt::Debug {
 // }
 
 /// A Serializable Signature
-pub trait SigSerialize: Clone + std::fmt::Debug  {
+pub trait SigSerialize: Clone + std::fmt::Debug {
     /// Serialize to DER
     fn to_der(&self) -> Vec<u8>;
 

@@ -81,11 +81,10 @@ pub use enc::{Encoder, MainnetEncoder, NetworkParams, TestnetEncoder};
 pub use model::*;
 pub use path::{DerivationPath, KeyDerivation};
 
-
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 pub use crate::{
     curve::{RecoverableSignature, Secp256k1, Signature},
-    derived::{DerivedPrivkey, DerivedPubkey, DerivedXPriv, DerivedXPub,},
+    derived::{DerivedPrivkey, DerivedPubkey, DerivedXPriv, DerivedXPub},
     keys::{Privkey, Pubkey},
     xkeys::{XPriv, XPub},
 };
@@ -186,7 +185,7 @@ mod test {
     use crate::{
         curve::*,
         enc::{Encoder, MainnetEncoder},
-        xkeys::{XPriv},
+        xkeys::XPriv,
     };
 
     use hex;

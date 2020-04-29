@@ -1,8 +1,13 @@
 use std::convert::TryInto;
 
-use bitcoin_spv::btcspv::{hash256};
+use bitcoin_spv::btcspv::hash256;
 
-use crate::{curve::model::*, path::{DerivationPath, KeyDerivation}, xkeys::XKeyInfo, Bip32Error};
+use crate::{
+    curve::model::*,
+    path::{DerivationPath, KeyDerivation},
+    xkeys::XKeyInfo,
+    Bip32Error,
+};
 
 /// We treat the xpub/ypub/zpub convention as a hint regarding address type. Users are free to
 /// follow or ignore these hints.
@@ -49,9 +54,12 @@ impl From<[u8; 32]> for ChainCode {
     }
 }
 
-
 /// Any type that has access to a Secp256k1 backend.
 pub trait HasBackend<'a, T: Secp256k1Backend<'a>> {
+    /// Set the backend. Useful if you have created a backend after making a key with a `None`
+    /// backend.
+    fn set_backend(&mut self, backend: &'a T);
+
     /// Return a reference to the associated backend
     fn backend(&self) -> Result<&'a T, Bip32Error>;
 }
@@ -69,7 +77,6 @@ pub trait HasPrivkey<'a, T: Secp256k1Backend<'a>> {
 
 /// Any type that contains a public key
 pub trait HasPubkey<'a, T: Secp256k1Backend<'a>> {
-
     /// Return the associated public key
     fn pubkey(&self) -> &T::Pubkey;
 
@@ -88,7 +95,9 @@ pub trait HasPubkey<'a, T: Secp256k1Backend<'a>> {
 
 /// Any type that has a private key and a backend may derive a public key.
 /// This type is auto-implemented on any type that impls `HasPrivkey` and `HasBackend`
-pub trait DerivesPubkey<'a, T: 'a + Secp256k1Backend<'a>>: HasPrivkey<'a, T> + HasBackend<'a, T> {
+pub trait CanDerivePubkey<'a, T: 'a + Secp256k1Backend<'a>>:
+    HasPrivkey<'a, T> + HasBackend<'a, T>
+{
     /// Derive the public key. Note that this operation may fail if no backend is found. This
     /// call performs a scalar multiplication, so should be cached if possible.
     fn derive_pubkey(&self) -> Result<T::Pubkey, Bip32Error> {
@@ -102,14 +111,17 @@ pub trait DerivesPubkey<'a, T: 'a + Secp256k1Backend<'a>>: HasPrivkey<'a, T> + H
     }
 }
 
-impl<'a, T, K> DerivesPubkey<'a, T> for K
+impl<'a, T, K> CanDerivePubkey<'a, T> for K
 where
     T: 'a + Secp256k1Backend<'a>,
-    K: HasPrivkey<'a, T> + HasBackend<'a, T>
-{}
+    K: HasPrivkey<'a, T> + HasBackend<'a, T>,
+{
+}
 
 /// Any type that has a private key and a backend may derive a public key
-pub trait SigningKey<'a, T: 'a + Secp256k1Backend<'a>>: HasPrivkey<'a, T> + HasBackend<'a, T> + std::marker::Sized {
+pub trait SigningKey<'a, T: 'a + Secp256k1Backend<'a>>:
+    HasPrivkey<'a, T> + HasBackend<'a, T> + std::marker::Sized
+{
     /// The corresponding verifying key
     type VerifyingKey: VerifyingKey<'a, T, SigningKey = Self>;
 
@@ -126,15 +138,13 @@ pub trait SigningKey<'a, T: 'a + Secp256k1Backend<'a>>: HasPrivkey<'a, T> + HasB
         &self,
         digest: [u8; 32],
     ) -> Result<T::RecoverableSignature, Bip32Error> {
-        Ok(self.backend()?.sign_digest_recoverable(&self.privkey(), digest))
+        Ok(self
+            .backend()?
+            .sign_digest_recoverable(&self.privkey(), digest))
     }
 
     /// Sign a message
-    fn sign_with_hash(
-        &self,
-        message: &[u8],
-        hash: &HashFunc,
-    ) -> Result<T::Signature, Bip32Error> {
+    fn sign_with_hash(&self, message: &[u8], hash: &HashFunc) -> Result<T::Signature, Bip32Error> {
         self.sign_digest(hash(message))
     }
 
@@ -159,7 +169,9 @@ pub trait SigningKey<'a, T: 'a + Secp256k1Backend<'a>>: HasPrivkey<'a, T> + HasB
 }
 
 /// Any type that has a pubkey and a backend can verify signatures.
-pub trait VerifyingKey<'a, T: 'a + Secp256k1Backend<'a>>: HasPubkey<'a, T> + HasBackend<'a, T> + std::marker::Sized {
+pub trait VerifyingKey<'a, T: 'a + Secp256k1Backend<'a>>:
+    HasPubkey<'a, T> + HasBackend<'a, T> + std::marker::Sized
+{
     /// The corresponding signing key type.
     type SigningKey: SigningKey<'a, T, VerifyingKey = Self>;
 
@@ -240,7 +252,9 @@ pub trait DerivePrivateChild<'a, T: Secp256k1Backend<'a>>: XKey + HasPrivkey<'a,
     }
 }
 
-/// A trait for extended keys which can derive public children
+/// A trait for extended keys which can derive public children.
+/// This is generically implemented for any type that implements `SigningKey` and
+/// `DerivePrivateChild`
 pub trait DerivePublicChild<'a, T: Secp256k1Backend<'a>>: XKey + HasPubkey<'a, T> {
     /// Derive a child pubkey
     fn derive_public_child(&self, index: u32) -> Result<Self, Bip32Error>;
@@ -269,7 +283,9 @@ pub trait DerivePublicChild<'a, T: Secp256k1Backend<'a>>: XKey + HasPubkey<'a, T
 /// Shortcuts for deriving and signing.
 ///
 /// This trait is implemented on all types that impl `DerivePublicChild` and `VerifyingKey`
-pub trait XSigning<'a, T: 'a + Secp256k1Backend<'a>>: DerivePrivateChild<'a, T> + SigningKey<'a, T> {
+pub trait XSigning<'a, T: 'a + Secp256k1Backend<'a>>:
+    DerivePrivateChild<'a, T> + SigningKey<'a, T>
+{
     /// Derive a descendant, and have it sign a digest
     fn descendant_sign_digest<E, P>(
         &self,
@@ -293,7 +309,8 @@ pub trait XSigning<'a, T: 'a + Secp256k1Backend<'a>>: DerivePrivateChild<'a, T> 
         E: Into<Bip32Error>,
         P: TryInto<DerivationPath, Error = E>,
     {
-        self.derive_private_path(path)?.sign_digest_recoverable(digest)
+        self.derive_private_path(path)?
+            .sign_digest_recoverable(digest)
     }
 
     /// Derive a descendant, and have it sign a message
@@ -350,7 +367,9 @@ pub trait XSigning<'a, T: 'a + Secp256k1Backend<'a>>: DerivePrivateChild<'a, T> 
 /// Shortcuts for deriving and signing.
 ///
 /// This trait is implemented on all types that impl `DerivePublicChild` and `VerifyingKey`
-pub trait XVerifying<'a, T: 'a + Secp256k1Backend<'a>>: DerivePublicChild<'a, T> + VerifyingKey<'a, T> {
+pub trait XVerifying<'a, T: 'a + Secp256k1Backend<'a>>:
+    DerivePublicChild<'a, T> + VerifyingKey<'a, T>
+{
     /// Verify a signature on a digest
     fn descendant_verify_digest<P, E>(
         &self,
@@ -442,16 +461,24 @@ impl<'a, T, K> XSigning<'a, T> for K
 where
     T: 'a + Secp256k1Backend<'a>,
     K: DerivePrivateChild<'a, T> + SigningKey<'a, T>,
-{}
+{
+}
 
 impl<'a, T, K> XVerifying<'a, T> for K
 where
     T: 'a + Secp256k1Backend<'a>,
     K: DerivePublicChild<'a, T> + VerifyingKey<'a, T>,
-{}
+{
+}
 
 /// Comparison operations on keys based on their derivations
 pub trait DerivedKey {
+    /// The underlying key type
+    type Key;
+
+    /// instantiate a new derived key from the key and a derivation
+    fn new(k: Self::Key, derivation: KeyDerivation) -> Self;
+
     /// Return this key's derivation
     fn derivation(&self) -> &KeyDerivation;
 
@@ -462,15 +489,16 @@ pub trait DerivedKey {
     }
 
     /// `true` if this key is an ancestor of other, `false` otherwise. Note that on key
-   /// fingerprints, which may collide accidentally, or be intentionally collided.
-   fn is_possible_ancestor_of<K: DerivedKey>(&self, other: &K) -> bool {
-       self.derivation().is_possible_ancestor_of(&other.derivation())
-   }
+    /// fingerprints, which may collide accidentally, or be intentionally collided.
+    fn is_possible_ancestor_of<K: DerivedKey>(&self, other: &K) -> bool {
+        self.derivation()
+            .is_possible_ancestor_of(&other.derivation())
+    }
 
-   /// Returns the path to the decendant, or `None` if `descendant` is definitely not a
-   /// descendant.
-   /// This is useful for determining the path to rech some descendant from some ancestor.
-   fn path_to_descendant<K: DerivedKey>(&self, other: &K)-> Option<DerivationPath> {
-       self.derivation().path_to_descendant(&other.derivation())
-   }
+    /// Returns the path to the decendant, or `None` if `descendant` is definitely not a
+    /// descendant.
+    /// This is useful for determining the path to rech some descendant from some ancestor.
+    fn path_to_descendant<K: DerivedKey>(&self, other: &K) -> Option<DerivationPath> {
+        self.derivation().path_to_descendant(&other.derivation())
+    }
 }

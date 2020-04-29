@@ -1,8 +1,4 @@
-use crate::{
-    Bip32Error,
-    model::*,
-    curve::{Secp256k1Backend}
-};
+use crate::{curve::Secp256k1Backend, model::*, Bip32Error};
 
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 /// A Private Key using the crate's compiled-in backend.
@@ -29,6 +25,10 @@ impl<'a, T: Secp256k1Backend<'a>> HasPrivkey<'a, T> for GenericPrivkey<'a, T> {
 }
 
 impl<'a, T: Secp256k1Backend<'a>> HasBackend<'a, T> for GenericPrivkey<'a, T> {
+    fn set_backend(&mut self, backend: &'a T) {
+        self.backend = Some(backend);
+    }
+
     fn backend(&self) -> Result<&'a T, Bip32Error> {
         self.backend.ok_or(Bip32Error::NoBackend)
     }
@@ -63,6 +63,10 @@ impl<'a, T: Secp256k1Backend<'a>> HasPubkey<'a, T> for GenericPubkey<'a, T> {
 }
 
 impl<'a, T: Secp256k1Backend<'a>> HasBackend<'a, T> for GenericPubkey<'a, T> {
+    fn set_backend(&mut self, backend: &'a T) {
+        self.backend = Some(backend);
+    }
+
     fn backend(&self) -> Result<&'a T, Bip32Error> {
         self.backend.ok_or(Bip32Error::NoBackend)
     }

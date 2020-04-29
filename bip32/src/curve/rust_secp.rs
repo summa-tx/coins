@@ -134,7 +134,7 @@ impl RecoverableSigSerialize for RecoverableSignature {
 
 impl Clone for Secp256k1<'_> {
     fn clone(&self) -> Self {
-      Secp256k1(self.0, self.1)
+        Secp256k1(self.0, self.1)
     }
 }
 
