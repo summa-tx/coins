@@ -255,6 +255,17 @@ impl<'a, T: Secp256k1Backend<'a>> GenericDerivedXPub<'a, T> {
     ) -> Result<GenericDerivedXPub<'a, T>, Bip32Error> {
         xpriv.to_derived_xpub()
     }
+
+    /// Check if this XPriv is the private ancestor of some other derived key
+    pub fn is_public_ancestor_of<D: DerivedKey + HasPubkey<'a, T>>(&self, other: &D) -> Result<bool, Bip32Error> {
+        if let Some(path) = self.path_to_descendant(other) {
+            let descendant = self.derive_public_path(&path)?;
+            let descendant_pk_bytes = &descendant.pubkey_bytes()[..];
+            Ok(descendant_pk_bytes == &other.pubkey_bytes()[..])
+        } else {
+            Ok(false)
+        }
+    }
 }
 
 impl<'a, T: Secp256k1Backend<'a>> HasXKeyInfo for GenericDerivedXPub<'a, T> {
