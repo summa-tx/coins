@@ -28,6 +28,6 @@ serde = "1.0.105"
 path = "../bitcoin"
 default-features = false
 
-[features]
-default = ["wasm"]
-wasm = ["rmn-btc/rust-secp"]
+# [features]
+# default = ["wasm"]
+# wasm = ["rmn-btc/rust-secp"]
