@@ -1,282 +1,264 @@
 use crate::{
+    CURVE_ORDER,
     curve::model::*,
     model::*,
-    path::{DerivationPath, KeyDerivation},
+    keys::{GenericPrivkey, GenericPubkey},
+    xkeys::{hmac_and_split, SEED, GenericXPriv, GenericXPub, XKeyInfo},
+    path::KeyDerivation,
     Bip32Error,
 };
 
-#[doc(hidden)]
-#[derive(Debug, Clone, Eq, PartialEq)]
-pub struct DerivedKey<T> {
-    /// A key coupled with its derivation
-    pub key: T,
+// Re-exports
+#[cfg(any(feature = "libsecp", feature = "rust-secp"))]
+pub use self::keys::{DerivedPubkey, DerivedPrivkey, DerivedXPriv, DerivedXPub};
+
+/// A Pubkey coupled with its derivation
+#[derive(Clone, Debug, PartialEq)]
+pub struct GenericDerivedPrivkey<'a, T: Secp256k1Backend<'a>> {
+    /// The underlying Privkey
+    pub privkey: GenericPrivkey<'a, T>,
+    /// Its derivation
     pub derivation: KeyDerivation,
 }
 
-impl<T> From<(T, KeyDerivation)> for DerivedKey<T> {
-    fn from(tuple: (T, KeyDerivation)) -> Self {
-        Self {
-            key: tuple.0,
-            derivation: tuple.1,
-        }
+impl<'a, T: Secp256k1Backend<'a>> HasPrivkey<'a, T> for GenericDerivedPrivkey<'a, T> {
+    fn privkey(&self) -> &T::Privkey {
+        self.privkey.privkey()
     }
 }
 
-impl<T: XKey> XKey for DerivedKey<T> {
-    fn fingerprint(&self) -> Result<KeyFingerprint, Bip32Error> {
-        self.key.fingerprint()
-    }
-    fn depth(&self) -> u8 {
-        self.key.depth()
-    }
-    fn parent(&self) -> KeyFingerprint {
-        self.key.parent()
-    }
-    fn index(&self) -> u32 {
-        self.key.index()
-    }
-    fn chain_code(&self) -> ChainCode {
-        self.key.chain_code()
-    }
-    fn hint(&self) -> Hint {
-        self.key.hint()
-    }
-    fn pubkey_bytes(&self) -> Result<[u8; 33], Bip32Error> {
-        self.key.pubkey_bytes()
+impl<'a, T: Secp256k1Backend<'a>> HasBackend<'a, T> for GenericDerivedPrivkey<'a, T> {
+    fn backend(&self) -> Result<&'a T, Bip32Error> {
+        self.privkey.backend()
     }
 }
 
-impl<'a, S: DerivePrivateChild> DerivePrivateChild for DerivedKey<S> {
-    fn derive_private_child(&self, index: u32) -> Result<Self, Bip32Error> {
-        Ok(Self {
-            key: self.key.derive_private_child(index)?,
-            derivation: self.derivation.extended(index),
-        })
-    }
-}
+impl<'a, T: Secp256k1Backend<'a>> SigningKey<'a, T> for GenericDerivedPrivkey<'a, T> {
+    /// The corresponding verifying key
+    type VerifyingKey = GenericDerivedPubkey<'a, T>;
 
-impl<'a, V: DerivePublicChild> DerivePublicChild for DerivedKey<V> {
-    fn derive_public_child(&self, index: u32) -> Result<Self, Bip32Error> {
-        Ok(Self {
-            key: self.key.derive_public_child(index)?,
-            derivation: self.derivation.extended(index),
-        })
-    }
-}
-
-impl<T> DerivedKey<T> {
-    /// `true` if the keys share a root fingerprint, `false` otherwise. Note that on key
-    /// fingerprints, which may collide accidentally, or be intentionally collided.
-    pub fn same_root<K>(&self, other: &DerivedKey<K>) -> bool {
-        self.derivation.same_root(&other.derivation)
-    }
-
-    /// `true` if this key is an ancestor of other, `false` otherwise. Note that on key
-    /// fingerprints, which may collide accidentally, or be intentionally collided.
-    pub fn is_possible_ancestor_of<K>(&self, other: &DerivedKey<K>) -> bool {
-        self.derivation.is_possible_ancestor_of(&other.derivation)
-    }
-
-    /// Returns the path to the decendant, or `None` if `descendant` is definitely not a
-    /// descendant.
-    /// This is useful for determining the path to rech some descendant from some ancestor.
-    pub fn path_to_descendant<K>(&self, descendant: &DerivedKey<K>) -> Option<DerivationPath> {
-        self.derivation.path_to_descendant(&descendant.derivation)
-    }
-}
-
-impl<K> PointSerialize for DerivedKey<K>
-where
-    K: PointSerialize,
-{
-    fn pubkey_array(&self) -> [u8; 33] {
-        self.key.pubkey_array()
-    }
-
-    fn pubkey_array_uncompressed(&self) -> [u8; 65] {
-        self.key.pubkey_array_uncompressed()
-    }
-}
-
-impl<K> ScalarSerialize for DerivedKey<K>
-where
-    K: ScalarSerialize,
-{
-    fn privkey_array(&self) -> [u8; 32] {
-        self.key.privkey_array()
-    }
-}
-
-impl<'a, S, V, Sig, Rec> DerivedKey<S>
-where
-    Sig: SigSerialize,
-    Rec: RecoverableSigSerialize<Signature = Sig>,
-    V: VerifyingKey<SigningKey = S, Signature = Sig, RecoverableSignature = Rec>,
-    S: DerivePrivateChild + SigningKey<VerifyingKey = V, Signature = Sig, RecoverableSignature = Rec>,
-{
-    /// Determine whether `self` is an ancestor of `descendant` by attempting to derive the path
-    /// between them. Returns true if both the fingerprint and the parent fingerprint match.
-    ///
-    /// Note that a malicious party can fool this by trying 2**64 derivations (2**32 derivations)
-    /// in a birthday attack setting).
-    pub fn private_ancestor_of<K: PointSerialize>(
-        &self,
-        descendant: &DerivedKey<K>,
-    ) -> Result<bool, Bip32Error> {
-        if !self.is_possible_ancestor_of(descendant) {
-            return Ok(false);
-        }
-
-        let path = self
-            .path_to_descendant(descendant)
-            .expect("pre-flighted by is_possible_ancestor_of");
-
-        let derived = self.derive_private_path(&path)?.to_verifying_key()?;
-        Ok(derived.pubkey_array()[..] == descendant.pubkey_array()[..])
-    }
-}
-
-impl<S, V, Sig, Rec> DerivedKey<V>
-where
-    Sig: SigSerialize,
-    Rec: RecoverableSigSerialize<Signature = Sig>,
-    S: SigningKey<VerifyingKey = V, Signature = Sig, RecoverableSignature = Rec>,
-    V: DerivePublicChild + VerifyingKey<SigningKey = S, Signature = Sig, RecoverableSignature = Rec>,
-{
-    /// Determine whether `self` is an ancestor of `descendant` by attempting to derive the path
-    /// between them. Returns true if both the fingerprint and the parent fingerprint match.
-    ///
-    /// Note that a malicious party can fool this by trying 2**64 derivations (2**32 derivations)
-    /// in a birthday attack setting).
-    pub fn public_ancestor_of<K: PointSerialize>(
-        &self,
-        descendant: &DerivedKey<K>,
-    ) -> Result<bool, Bip32Error> {
-        if !self.is_possible_ancestor_of(descendant) {
-            return Ok(false);
-        }
-
-        let path = self
-            .path_to_descendant(descendant)
-            .expect("pre-flighted by is_possible_ancestor_of");
-
-        let derived = self.derive_public_path(&path)?;
-        Ok(derived.pubkey_array()[..] == descendant.pubkey_array()[..])
-    }
-}
-
-impl<'a, S, V, Sig, Rec> SigningKey for DerivedKey<S>
-where
-    Sig: SigSerialize,
-    Rec: RecoverableSigSerialize<Signature = Sig>,
-    V: VerifyingKey<SigningKey = S, Signature = Sig, RecoverableSignature = Rec>,
-    S: SigningKey<VerifyingKey = V, Signature = Sig, RecoverableSignature = Rec>,
-{
-    type VerifyingKey = DerivedKey<V>;
-    type Signature = Sig;
-    type RecoverableSignature = Rec;
-
-    fn to_verifying_key(&self) -> Result<Self::VerifyingKey, Bip32Error> {
-        Ok(DerivedKey {
-            key: self.key.to_verifying_key()?,
+    /// Derive the corresponding pubkey
+    fn derive_verifying_key(&self) -> Result<Self::VerifyingKey, Bip32Error> {
+        Ok(GenericDerivedPubkey {
+            pubkey: self.privkey.derive_verifying_key()?,
             derivation: self.derivation.clone(),
         })
     }
+}
 
-    fn sign_digest(&self, message: [u8; 32]) -> Result<Self::Signature, Bip32Error> {
-        self.key.sign_digest(message)
-    }
-
-    fn sign_digest_recoverable(&self, message: [u8; 32]) -> Result<Rec, Bip32Error> {
-        self.key.sign_digest_recoverable(message)
+impl<'a, T: Secp256k1Backend<'a>> DerivedKey for GenericDerivedPrivkey<'a, T> {
+    fn derivation(&self) -> &KeyDerivation {
+        &self.derivation
     }
 }
 
-impl<S, V, Sig, Rec> VerifyingKey for DerivedKey<V>
-where
-    Sig: SigSerialize,
-    Rec: RecoverableSigSerialize<Signature = Sig>,
-    V: VerifyingKey<SigningKey = S, Signature = Sig, RecoverableSignature = Rec>,
-    S: SigningKey<VerifyingKey = V, Signature = Sig, RecoverableSignature = Rec>,
-{
-    type SigningKey = DerivedKey<S>;
-    type Signature = Sig;
-    type RecoverableSignature = Rec;
+/// A Pubkey coupled with its derivation
+#[derive(Clone, Debug, PartialEq)]
+pub struct GenericDerivedPubkey<'a, T: Secp256k1Backend<'a>> {
+    /// The underlying Pubkey
+    pub pubkey: GenericPubkey<'a, T>,
+    /// Its derivation
+    pub derivation: KeyDerivation,
+}
 
-    fn from_signing_key(key: &Self::SigningKey) -> Result<Self, Bip32Error> {
-        Ok(key.to_verifying_key()?)
-    }
-
-    fn verify_digest(&self, digest: [u8; 32], sig: &Sig) -> Result<(), Bip32Error> {
-        self.key.verify_digest(digest, sig)
+impl<'a, T: Secp256k1Backend<'a>> HasPubkey<'a, T> for GenericDerivedPubkey<'a, T> {
+    fn pubkey(&self) -> &T::Pubkey {
+        self.pubkey.pubkey()
     }
 }
 
-#[cfg(any(feature = "libsecp", feature = "rust-secp"))]
-pub use self::keys::{DerivedPrivkey, DerivedPubkey, DerivedXPriv, DerivedXPub};
+impl<'a, T: Secp256k1Backend<'a>> HasBackend<'a, T> for GenericDerivedPubkey<'a, T> {
+    fn backend(&self) -> Result<&'a T, Bip32Error> {
+        self.pubkey.backend()
+    }
+}
+
+impl<'a, T: Secp256k1Backend<'a>> VerifyingKey<'a, T> for GenericDerivedPubkey<'a, T> {
+    type SigningKey = GenericDerivedPrivkey<'a, T>;
+}
+
+impl<'a, T: Secp256k1Backend<'a>> DerivedKey for GenericDerivedPubkey<'a, T> {
+    fn derivation(&self) -> &KeyDerivation {
+        &self.derivation
+    }
+}
+
+/// An XPriv coupled with its derivation
+#[derive(Clone, Debug, PartialEq)]
+pub struct GenericDerivedXPriv<'a, T: Secp256k1Backend<'a>> {
+    /// The underlying Privkey
+    pub xpriv: GenericXPriv<'a, T>,
+    /// Its derivation
+    pub derivation: KeyDerivation,
+}
+
+impl<'a, T: Secp256k1Backend<'a>> GenericDerivedXPriv<'a, T> {
+    /// Instantiate a master node using a custom HMAC key.
+    pub fn custom_master_node(
+        hmac_key: &[u8],
+        data: &[u8],
+        hint: Option<Hint>,
+        backend: &'a T,
+    ) -> Result<GenericXPriv<'a, T>, Bip32Error> {
+        if data.len() < 16 {
+            return Err(Bip32Error::SeedTooShort);
+        }
+        let parent = KeyFingerprint([0u8; 4]);
+        let (key, chain_code) = hmac_and_split(hmac_key, data);
+        if key == [0u8; 32] || key > CURVE_ORDER {
+            return Err(Bip32Error::InvalidKey);
+        }
+        let privkey = T::Privkey::from_privkey_array(key)?;
+        Ok(GenericXPriv {
+            info: XKeyInfo {
+                depth: 0,
+                parent,
+                index: 0,
+                chain_code,
+                hint: hint.unwrap_or(Hint::SegWit),
+            },
+            privkey: GenericPrivkey {
+                key: privkey,
+                backend: Some(backend)
+            }
+        })
+    }
+
+    /// Generate a master node from some seed data. Uses the BIP32-standard hmac key.
+    ///
+    ///
+    /// # Important:
+    ///
+    /// Use a seed of AT LEAST 128 bits.
+    pub fn root_from_seed(
+        data: &[u8],
+        hint: Option<Hint>,
+        backend: &'a T,
+    ) -> Result<GenericXPriv<'a, T>, Bip32Error> {
+        Self::custom_master_node(SEED, data, hint, backend)
+    }
+
+    /// Derive the corresponding xpub
+    pub fn to_derived_xpub(&self) -> Result<GenericDerivedXPub<'a, T>, Bip32Error> {
+        Ok(GenericDerivedXPub {
+            xpub: self.xpriv.derive_verifying_key()?,
+            derivation: self.derivation.clone(),
+        })
+    }
+}
+
+impl<'a, T: Secp256k1Backend<'a>> HasXKeyInfo for GenericDerivedXPriv<'a, T> {
+    fn xkey_info(&self) -> &XKeyInfo {
+        self.xpriv.xkey_info()
+    }
+}
+
+impl<'a, T: Secp256k1Backend<'a>> HasPrivkey<'a, T> for GenericDerivedXPriv<'a, T> {
+    fn privkey(&self) -> &T::Privkey {
+        self.xpriv.privkey()
+    }
+}
+
+impl<'a, T: Secp256k1Backend<'a>> HasBackend<'a, T> for GenericDerivedXPriv<'a, T> {
+    fn backend(&self) -> Result<&'a T, Bip32Error> {
+        self.xpriv.backend()
+    }
+}
+
+impl<'a, T: Secp256k1Backend<'a>> SigningKey<'a, T> for GenericDerivedXPriv<'a, T> {
+    /// The corresponding verifying key
+    type VerifyingKey = GenericDerivedXPub<'a, T>;
+
+    /// Derive the corresponding pubkey
+    fn derive_verifying_key(&self) -> Result<Self::VerifyingKey, Bip32Error> {
+        self.to_derived_xpub()
+    }
+}
+
+impl<'a, T: Secp256k1Backend<'a>> DerivedKey for GenericDerivedXPriv<'a, T> {
+    fn derivation(&self) -> &KeyDerivation {
+        &self.derivation
+    }
+}
+
+impl<'a, T: Secp256k1Backend<'a>> DerivePrivateChild<'a, T> for GenericDerivedXPriv<'a, T> {
+    fn derive_private_child(&self, index: u32) -> Result<Self, Bip32Error> {
+        Ok(Self {
+            xpriv: self.xpriv.derive_private_child(index)?,
+            derivation: self.derivation.extended(index),
+        })
+    }
+}
+
+/// An XPub coupled with its derivation
+#[derive(Clone, Debug, PartialEq)]
+pub struct GenericDerivedXPub<'a, T: Secp256k1Backend<'a>> {
+    /// The underlying XPub
+    pub xpub: GenericXPub<'a, T>,
+    /// Its derivation
+    pub derivation: KeyDerivation,
+}
+
+impl<'a, T: Secp256k1Backend<'a>> GenericDerivedXPub<'a, T> {
+    /// Derive an XPub from an xpriv
+    pub fn from_derived_xpriv(xpriv: &GenericDerivedXPriv<'a, T>) -> Result<GenericDerivedXPub<'a, T>, Bip32Error> {
+        xpriv.to_derived_xpub()
+    }
+}
+
+impl<'a, T: Secp256k1Backend<'a>> HasXKeyInfo for GenericDerivedXPub<'a, T> {
+    fn xkey_info(&self) -> &XKeyInfo {
+        &self.xpub.xkey_info()
+    }
+}
+
+impl<'a, T: Secp256k1Backend<'a>> HasPubkey<'a, T> for GenericDerivedXPub<'a, T> {
+    fn pubkey(&self) -> &T::Pubkey {
+        self.xpub.pubkey()
+    }
+}
+
+impl<'a, T: Secp256k1Backend<'a>> HasBackend<'a, T> for GenericDerivedXPub<'a, T> {
+    fn backend(&self) -> Result<&'a T, Bip32Error> {
+        self.xpub.backend()
+    }
+}
+
+impl<'a, T: Secp256k1Backend<'a>> VerifyingKey<'a, T> for GenericDerivedXPub<'a, T> {
+    type SigningKey = GenericDerivedXPriv<'a, T>;
+}
+
+impl<'a, T: Secp256k1Backend<'a>> DerivedKey for GenericDerivedXPub<'a, T> {
+    fn derivation(&self) -> &KeyDerivation {
+        &self.derivation
+    }
+}
+
+impl<'a, T: Secp256k1Backend<'a>> DerivePublicChild<'a, T> for GenericDerivedXPub<'a, T> {
+    fn derive_public_child(&self, index: u32) -> Result<Self, Bip32Error> {
+        Ok(Self {
+            xpub: self.xpub.derive_public_child(index)?,
+            derivation: self.derivation.extended(index),
+        })
+    }
+}
 
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 #[doc(hidden)]
 pub mod keys {
     use super::*;
 
-    use crate::{Privkey, Pubkey, Secp256k1, XKey, XPriv, XPub};
-
-    /// An XPriv coupled with its (purported) derivation path
-    pub type DerivedXPriv<'a> = DerivedKey<XPriv<'a>>;
-
-    /// An XPub coupled with its (purported) derivation path
-    pub type DerivedXPub<'a> = DerivedKey<XPub<'a>>;
-
-    impl<'a> DerivedXPriv<'a> {
-        /// Instantiate a master node using a custom HMAC key.
-        pub fn custom_master_node(
-            hmac_key: &[u8],
-            data: &[u8],
-            hint: Option<Hint>,
-            backend: &'a Secp256k1,
-        ) -> Result<DerivedXPriv<'a>, Bip32Error> {
-            let key = XPriv::custom_master_node(hmac_key, data, hint, backend)?;
-            let derivation = KeyDerivation {
-                root: key.fingerprint()?,
-                path: vec![].into(),
-            };
-            Ok(Self { key, derivation })
-        }
-
-        /// Generate a master node from some seed data. Uses the BIP32-standard hmac key.
-        ///
-        ///
-        /// # Important:
-        ///
-        /// Use a seed of AT LEAST 128 bits.
-        pub fn root_from_seed(
-            data: &[u8],
-            hint: Option<Hint>,
-            backend: &'a Secp256k1,
-        ) -> Result<Self, Bip32Error> {
-            let key = XPriv::root_from_seed(data, hint, backend)?;
-            let derivation = KeyDerivation {
-                root: key.fingerprint()?,
-                path: vec![].into(),
-            };
-            Ok(Self { key, derivation })
-        }
-
-        /// Return a `Pubkey` corresponding to the private key
-        pub fn pubkey(&self) -> Result<Pubkey, Bip32Error> {
-            self.key.pubkey()
-        }
-
-        /// Return the secret key as an array
-        pub fn secret_key(&self) -> [u8; 32] {
-            self.key.secret_key()
-        }
-    }
+    use crate::Secp256k1;
 
     /// A Privkey coupled with its (purported) derivation path
-    pub type DerivedPrivkey = DerivedKey<Privkey>;
+    pub type DerivedPrivkey<'a> = GenericDerivedPrivkey<'a, Secp256k1<'a>>;
 
     /// A Pubkey coupled with its (purported) derivation path
-    pub type DerivedPubkey = DerivedKey<Pubkey>;
+    pub type DerivedPubkey<'a> = GenericDerivedPubkey<'a, Secp256k1<'a>>;
+
+    /// An XPriv coupled with its (purported) derivation path
+    pub type DerivedXPriv<'a> = GenericDerivedXPriv<'a, Secp256k1<'a>>;
+
+    /// An XPub coupled with its (purported) derivation path
+    pub type DerivedXPub<'a> = GenericDerivedXPub<'a, Secp256k1<'a>>;
 }

@@ -10,25 +10,12 @@ lazy_static! {
 }
 
 /// A Secp256k1Backend struct
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Secp256k1<'a>(&'a secp256k1::Secp256k1<secp256k1::All>);
 
 /// A Private Key
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Privkey(secp256k1::SecretKey);
-
-impl Clone for Privkey {
-    fn clone(&self) -> Self {
-        Self::from_privkey_array(self.privkey_array()).expect("Key must be valid")
-    }
-}
-
-impl std::cmp::Eq for Privkey {}
-
-impl std::cmp::PartialEq for Privkey {
-    fn eq(&self, other: &Self) -> bool {
-        self.privkey_array() == other.privkey_array()
-    }
-}
 
 impl ScalarSerialize for Privkey {
     fn privkey_array(&self) -> [u8; 32] {
@@ -51,22 +38,8 @@ impl From<secp256k1::SecretKey> for Privkey {
 }
 
 /// A Public Key
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Pubkey(secp256k1::PublicKey);
-
-impl Clone for Pubkey {
-    fn clone(&self) -> Self {
-        Self::from_pubkey_array(self.pubkey_array()).expect("Key must be valid")
-    }
-}
-
-impl std::cmp::Eq for Pubkey {}
-
-impl std::cmp::PartialEq for Pubkey {
-    fn eq(&self, other: &Self) -> bool {
-        self.pubkey_array()[..] == other.pubkey_array()[..]
-    }
-}
 
 impl From<secp256k1::PublicKey> for Pubkey {
     fn from(k: secp256k1::PublicKey) -> Self {
@@ -120,7 +93,6 @@ impl SigSerialize for secp256k1::recovery::RecoverableSignature {
 /// Type alias for underlyin RecoverableSigSerialize signature type
 pub type RecoverableSignature = secp256k1::recovery::RecoverableSignature;
 
-/// A serializable RecoverableSignature
 impl RecoverableSigSerialize for secp256k1::recovery::RecoverableSignature {
     type Signature = secp256k1::Signature;
 

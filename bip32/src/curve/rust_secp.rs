@@ -132,6 +132,24 @@ impl RecoverableSigSerialize for RecoverableSignature {
     }
 }
 
+impl Clone for Secp256k1<'_> {
+    fn clone(&self) -> Self {
+      Secp256k1(self.0, self.1)
+    }
+}
+
+impl std::cmp::PartialEq for Secp256k1<'_> {
+    fn eq(&self, _other: &Self) -> bool {
+        true
+    }
+}
+
+impl std::fmt::Debug for Secp256k1<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("Secp256k1Backend: libsecp bindings")
+    }
+}
+
 impl<'a> Secp256k1Backend<'a> for Secp256k1<'a> {
     type Error = Bip32Error;
     type Context = (

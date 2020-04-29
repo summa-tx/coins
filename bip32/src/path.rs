@@ -24,17 +24,16 @@ fn try_parse_index(s: &str) -> Result<u32, Bip32Error> {
         .map_err(|_| Bip32Error::MalformattedIndex(s.to_owned()))
 }
 
-fn try_parse_path(path: &str) -> Result<DerivationPath, Bip32Error> {
+fn try_parse_path(path: &str) -> Result<Vec<u32>, Bip32Error> {
     path.to_owned()
         .split('/')
         .filter(|v| v != &"m")
         .map(try_parse_index)
         .collect::<Result<Vec<u32>, Bip32Error>>()
-        .map(Into::into)
 }
 
 /// A Bip32 derivation path
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct DerivationPath(Vec<u32>);
 
 impl DerivationPath {
@@ -89,6 +88,35 @@ impl DerivationPath {
     }
 }
 
+impl From<Vec<u32>> for DerivationPath {
+    fn from(v: Vec<u32>) -> Self {
+        Self(v)
+    }
+}
+
+impl From<&[u32]> for DerivationPath {
+    fn from(v: &[u32]) -> Self {
+        Self(Vec::from(v))
+    }
+}
+
+impl FromIterator<u32> for DerivationPath {
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = u32>,
+    {
+        Vec::from_iter(iter).into()
+    }
+}
+
+impl TryFrom<&str> for DerivationPath {
+    type Error = Bip32Error;
+
+    fn try_from(s: &str) -> Result<Self, Self::Error> {
+        try_parse_path(s).map(Into::into)
+    }
+}
+
 /// A Derivation Path for a bip32 key
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct KeyDerivation {
@@ -122,35 +150,6 @@ impl KeyDerivation {
             root: self.root,
             path: self.path.extended(idx),
         }
-    }
-}
-
-impl From<Vec<u32>> for DerivationPath {
-    fn from(v: Vec<u32>) -> Self {
-        Self(v)
-    }
-}
-
-impl From<&[u32]> for DerivationPath {
-    fn from(v: &[u32]) -> Self {
-        Self(v.to_owned())
-    }
-}
-
-impl TryFrom<&str> for DerivationPath {
-    type Error = Bip32Error;
-
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
-        try_parse_path(s)
-    }
-}
-
-impl FromIterator<u32> for DerivationPath {
-    fn from_iter<T>(iter: T) -> Self
-    where
-        T: IntoIterator<Item = u32>,
-    {
-        Vec::from_iter(iter).into()
     }
 }
 

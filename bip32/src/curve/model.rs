@@ -1,6 +1,6 @@
-use bitcoin_spv::btcspv::hash256;
+use bitcoin_spv::btcspv::{hash160};
 
-use crate::Bip32Error;
+use crate::{Bip32Error, model::KeyFingerprint};
 
 /// A simple hash function type signature
 pub type HashFunc = dyn Fn(&[u8]) -> [u8; 32];
@@ -12,7 +12,7 @@ pub trait ScalarSerialize {
 }
 
 /// A deserializable 32-byte scalar
-pub trait ScalarDeserialize: std::marker::Sized {
+pub trait ScalarDeserialize: std::marker::Sized + std::fmt::Debug {
     /// Get a scalar from an array
     fn from_privkey_array(buf: [u8; 32]) -> Result<Self, Bip32Error>;
 }
@@ -31,10 +31,20 @@ pub trait PointSerialize {
         buf.copy_from_slice(&self.pubkey_array_uncompressed()[1..]);
         buf
     }
+
+    /// Calculate the key fingerprint of the associated public key. This is the first 4 bytes of
+    /// the Bitcoin HASH_160 of the compressed representation of the public key.
+    /// For signing keys, this causes a pubkey derivation, which may fail.
+    fn fingerprint(&self) -> KeyFingerprint {
+        let digest = hash160(&self.pubkey_array());
+        let mut buf = [0u8; 4];
+        buf.copy_from_slice(&digest[..4]);
+        buf.into()
+    }
 }
 
 /// A deserializable curve point
-pub trait PointDeserialize: std::marker::Sized {
+pub trait PointDeserialize: std::marker::Sized + std::fmt::Debug {
     /// Instantiate from a 33-byte uncompressed pubkey as a u8 array
     fn from_pubkey_array(buf: [u8; 33]) -> Result<Self, Bip32Error>;
 
@@ -49,127 +59,127 @@ pub trait PointDeserialize: std::marker::Sized {
     }
 }
 
-/// A secp256k1 signing key
-pub trait SigningKey: std::marker::Sized + ScalarSerialize {
-    /// The corresponding verifying key
-    type VerifyingKey: VerifyingKey<
-        Signature = Self::Signature,
-        RecoverableSignature = Self::RecoverableSignature,
-    >;
-
-    /// The signature produced
-    type Signature: SigSerialize;
-
-    /// The recoverable signature produced
-    type RecoverableSignature: RecoverableSigSerialize<Signature = Self::Signature>;
-
-    /// Derive the corresponding pubkey
-    fn to_verifying_key(&self) -> Result<Self::VerifyingKey, Bip32Error>;
-
-    /// Sign a digest
-    fn sign_digest(&self, digest: [u8; 32]) -> Result<Self::Signature, Bip32Error>;
-
-    /// Sign a digest and produce a recovery ID
-    fn sign_digest_recoverable(
-        &self,
-        digest: [u8; 32],
-    ) -> Result<Self::RecoverableSignature, Bip32Error>;
-
-    /// Sign a message
-    fn sign_with_hash(
-        &self,
-        message: &[u8],
-        hash: &HashFunc,
-    ) -> Result<Self::Signature, Bip32Error> {
-        self.sign_digest(hash(message))
-    }
-
-    /// Sign a message and produce a recovery ID
-    fn sign_recoverable_with_hash(
-        &self,
-        message: &[u8],
-        hash: &HashFunc,
-    ) -> Result<Self::RecoverableSignature, Bip32Error> {
-        self.sign_digest_recoverable(hash(message))
-    }
-
-    /// Produce a signature on `sha2(sha2(message))`
-    fn sign(&self, message: &[u8]) -> Result<Self::Signature, Bip32Error> {
-        self.sign_with_hash(message, &|m| hash256(&[m]))
-    }
-
-    /// Produce a recoverable signature on `sha2(sha2(message))`
-    fn sign_recoverable(&self, message: &[u8]) -> Result<Self::RecoverableSignature, Bip32Error> {
-        self.sign_recoverable_with_hash(message, &|m| hash256(&[m]))
-    }
-}
-
-/// A secp256k1 verifying key
-pub trait VerifyingKey: std::marker::Sized + PointSerialize {
-    /// The corresponding signing key
-    type SigningKey: SigningKey<
-        Signature = Self::Signature,
-        RecoverableSignature = Self::RecoverableSignature,
-    >;
-
-    /// The signature verified
-    type Signature: SigSerialize;
-
-    /// The recoverable signature verified
-    type RecoverableSignature: RecoverableSigSerialize<Signature = Self::Signature>;
-
-    /// Instantiate `Self` from the corresponding signing key
-    fn from_signing_key(key: &Self::SigningKey) -> Result<Self, Bip32Error>;
-
-    /// Verify a signature on a digest
-    fn verify_digest(&self, digest: [u8; 32], sig: &Self::Signature) -> Result<(), Bip32Error>;
-
-    /// Verify a recoverable signature on a digest.
-    fn verify_digest_recoverable(
-        &self,
-        digest: [u8; 32],
-        sig: &Self::RecoverableSignature,
-    ) -> Result<(), Bip32Error> {
-        self.verify_digest(digest, &sig.without_recovery())
-    }
-
-    /// Verify a signature on a message
-    fn verify_with_hash(
-        &self,
-        message: &[u8],
-        hash: &HashFunc,
-        sig: &Self::Signature,
-    ) -> Result<(), Bip32Error> {
-        self.verify_digest(hash(message), sig)
-    }
-
-    /// Verify a recoverable signature on a message.
-    fn verify_recoverable_with_hash(
-        &self,
-        message: &[u8],
-        hash: &HashFunc,
-        sig: &Self::RecoverableSignature,
-    ) -> Result<(), Bip32Error> {
-        self.verify_digest(hash(message), &sig.without_recovery())
-    }
-
-    /// Produce a signature on `sha2(sha2(message))`
-    fn verify(&self, message: &[u8], sig: &Self::Signature) -> Result<(), Bip32Error> {
-        self.verify_with_hash(message, &|m| hash256(&[m]), sig)
-    }
-
-    /// Produce a recoverable signature on `sha2(sha2(message))`
-    fn verify_recoverable(
-        &self,
-        message: &[u8],
-        sig: &Self::RecoverableSignature,
-    ) -> Result<(), Bip32Error> {
-        self.verify_recoverable_with_hash(message, &|m| hash256(&[m]), sig)
-    }
-}
+// /// A secp256k1 signing key
+// pub trait SigningKey: std::marker::Sized + ScalarSerialize {
+//     /// The corresponding verifying key
+//     type VerifyingKey: VerifyingKey<
+//         Signature = Self::Signature,
+//         RecoverableSignature = Self::RecoverableSignature,
+//     >;
+//
+//     /// The signature produced
+//     type Signature: SigSerialize;
+//
+//     /// The recoverable signature produced
+//     type RecoverableSignature: RecoverableSigSerialize<Signature = Self::Signature>;
+//
+//     /// Derive the corresponding pubkey
+//     fn to_verifying_key(&self) -> Result<Self::VerifyingKey, Bip32Error>;
+//
+//     /// Sign a digest
+//     fn sign_digest(&self, digest: [u8; 32]) -> Result<Self::Signature, Bip32Error>;
+//
+//     /// Sign a digest and produce a recovery ID
+//     fn sign_digest_recoverable(
+//         &self,
+//         digest: [u8; 32],
+//     ) -> Result<Self::RecoverableSignature, Bip32Error>;
+//
+//     /// Sign a message
+//     fn sign_with_hash(
+//         &self,
+//         message: &[u8],
+//         hash: &HashFunc,
+//     ) -> Result<Self::Signature, Bip32Error> {
+//         self.sign_digest(hash(message))
+//     }
+//
+//     /// Sign a message and produce a recovery ID
+//     fn sign_recoverable_with_hash(
+//         &self,
+//         message: &[u8],
+//         hash: &HashFunc,
+//     ) -> Result<Self::RecoverableSignature, Bip32Error> {
+//         self.sign_digest_recoverable(hash(message))
+//     }
+//
+//     /// Produce a signature on `sha2(sha2(message))`
+//     fn sign(&self, message: &[u8]) -> Result<Self::Signature, Bip32Error> {
+//         self.sign_with_hash(message, &|m| hash256(&[m]))
+//     }
+//
+//     /// Produce a recoverable signature on `sha2(sha2(message))`
+//     fn sign_recoverable(&self, message: &[u8]) -> Result<Self::RecoverableSignature, Bip32Error> {
+//         self.sign_recoverable_with_hash(message, &|m| hash256(&[m]))
+//     }
+// }
+//
+// /// A secp256k1 verifying key
+// pub trait VerifyingKey: std::marker::Sized + PointSerialize {
+//     /// The corresponding signing key
+//     type SigningKey: SigningKey<
+//         Signature = Self::Signature,
+//         RecoverableSignature = Self::RecoverableSignature,
+//     >;
+//
+//     /// The signature verified
+//     type Signature: SigSerialize;
+//
+//     /// The recoverable signature verified
+//     type RecoverableSignature: RecoverableSigSerialize<Signature = Self::Signature>;
+//
+//     /// Instantiate `Self` from the corresponding signing key
+//     fn from_signing_key(key: &Self::SigningKey) -> Result<Self, Bip32Error>;
+//
+//     /// Verify a signature on a digest
+//     fn verify_digest(&self, digest: [u8; 32], sig: &Self::Signature) -> Result<(), Bip32Error>;
+//
+//     /// Verify a recoverable signature on a digest.
+//     fn verify_digest_recoverable(
+//         &self,
+//         digest: [u8; 32],
+//         sig: &Self::RecoverableSignature,
+//     ) -> Result<(), Bip32Error> {
+//         self.verify_digest(digest, &sig.without_recovery())
+//     }
+//
+//     /// Verify a signature on a message
+//     fn verify_with_hash(
+//         &self,
+//         message: &[u8],
+//         hash: &HashFunc,
+//         sig: &Self::Signature,
+//     ) -> Result<(), Bip32Error> {
+//         self.verify_digest(hash(message), sig)
+//     }
+//
+//     /// Verify a recoverable signature on a message.
+//     fn verify_recoverable_with_hash(
+//         &self,
+//         message: &[u8],
+//         hash: &HashFunc,
+//         sig: &Self::RecoverableSignature,
+//     ) -> Result<(), Bip32Error> {
+//         self.verify_digest(hash(message), &sig.without_recovery())
+//     }
+//
+//     /// Produce a signature on `sha2(sha2(message))`
+//     fn verify(&self, message: &[u8], sig: &Self::Signature) -> Result<(), Bip32Error> {
+//         self.verify_with_hash(message, &|m| hash256(&[m]), sig)
+//     }
+//
+//     /// Produce a recoverable signature on `sha2(sha2(message))`
+//     fn verify_recoverable(
+//         &self,
+//         message: &[u8],
+//         sig: &Self::RecoverableSignature,
+//     ) -> Result<(), Bip32Error> {
+//         self.verify_recoverable_with_hash(message, &|m| hash256(&[m]), sig)
+//     }
+// }
 
 /// A Serializable Signature
-pub trait SigSerialize: Clone {
+pub trait SigSerialize: Clone + std::fmt::Debug  {
     /// Serialize to DER
     fn to_der(&self) -> Vec<u8>;
 
@@ -193,7 +203,7 @@ pub trait RecoverableSigSerialize: SigSerialize {
 }
 
 /// A minmial curve-math backend interface
-pub trait Secp256k1Backend<'a> {
+pub trait Secp256k1Backend<'a>: Clone + std::fmt::Debug + PartialEq {
     /// An associated error type that can be converted into the crate's error type
     type Error: std::error::Error + Into<Bip32Error>;
     /// The underlying context type (if any)

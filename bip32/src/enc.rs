@@ -6,7 +6,8 @@ use bs58;
 use crate::{
     curve::model::*,
     model::*,
-    xkeys::{GenericXPriv, GenericXPub},
+    keys::{GenericPrivkey, GenericPubkey},
+    xkeys::{GenericXPriv, GenericXPub, XKeyInfo},
     Bip32Error,
 };
 
@@ -152,9 +153,19 @@ pub trait Encoder {
         reader.read_exact(&mut buf)?;
         let key = T::Privkey::from_privkey_array(buf)?;
 
-        Ok(GenericXPriv::new(
-            depth, parent, index, key, chain_code, hint, backend,
-        ))
+        Ok(GenericXPriv {
+            info: XKeyInfo {
+                depth,
+                parent,
+                index,
+                chain_code,
+                hint
+            },
+            privkey: GenericPrivkey {
+                key,
+                backend
+            }
+        })
     }
 
     #[doc(hidden)]
@@ -220,9 +231,19 @@ pub trait Encoder {
         reader.read_exact(&mut buf)?;
         let key = T::Pubkey::from_pubkey_array(buf)?;
 
-        Ok(GenericXPub::new(
-            depth, parent, index, key, chain_code, hint, backend,
-        ))
+        Ok(GenericXPub {
+            info: XKeyInfo {
+                depth,
+                parent,
+                index,
+                chain_code,
+                hint
+            },
+            pubkey: GenericPubkey {
+                key,
+                backend
+            }
+        })
     }
 
     #[doc(hidden)]
@@ -419,7 +440,7 @@ impl<P: NetworkParams> Encoder for BitcoinEncoder<P> {
         };
         let mut written = writer.write(&version.to_be_bytes())?;
         written += Self::write_key_details(writer, key)?;
-        written += writer.write(&key.pubkey_array())?;
+        written += writer.write(&key.pubkey_bytes())?;
         Ok(written)
     }
 
@@ -437,7 +458,7 @@ impl<P: NetworkParams> Encoder for BitcoinEncoder<P> {
         let mut written = writer.write(&version.to_be_bytes())?;
         written += Self::write_key_details(writer, key)?;
         written += writer.write(&[0])?;
-        written += writer.write(&key.secret_key())?;
+        written += writer.write(&key.privkey_bytes())?;
         Ok(written)
     }
 

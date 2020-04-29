@@ -1,8 +1,9 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use rmn_bip32::{
-    backends::curve::Secp256k1,
-    model::Secp256k1Backend,
-    xkeys::{Hint, XKey, XPriv},
+    Secp256k1,
+    curve::model::*,
+    model::*,
+    xkeys::XPriv,
 };
 
 fn derive_10_times(key: &XPriv) {
@@ -18,7 +19,7 @@ fn derive_10_times(key: &XPriv) {
         0x8000_0004,
         0x8000_0005,
     ];
-    key.derive_path(&path[..]).unwrap();
+    key.derive_private_path(&path[..]).unwrap();
 }
 
 pub fn bench_10(c: &mut Criterion) {
