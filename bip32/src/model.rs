@@ -120,7 +120,7 @@ where
 
 /// Any type that has a private key and a backend may derive a public key
 pub trait SigningKey<'a, T: 'a + Secp256k1Backend<'a>>:
-    HasPrivkey<'a, T> + HasBackend<'a, T> + std::marker::Sized
+    CanDerivePubkey<'a, T> + std::marker::Sized
 {
     /// The corresponding verifying key
     type VerifyingKey: VerifyingKey<'a, T, SigningKey = Self>;
