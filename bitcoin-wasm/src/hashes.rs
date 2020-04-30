@@ -1,8 +1,7 @@
 //! This module holds `MarkedDigest` types used by Bitcoin transactions. Currently we represent
 //! only `TXID`s and `WTXID`s. In the future we may also represent sighash digests this way.
 
-use js_sys;
-use serde::ser::{Serialize, SerializeStruct, Serializer};
+use serde::ser::{SerializeStruct, Serializer};
 use wasm_bindgen::prelude::*;
 
 use bitcoin_spv::types::Hash256Digest;

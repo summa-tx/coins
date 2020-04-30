@@ -1,12 +1,11 @@
 //! Defines parameterized Bitcoin encoders for Mainnet, Testnet, and Signet.
 
-use js_sys;
 use serde::ser::{Serialize, Serializer};
 use wasm_bindgen::prelude::*;
 
 use riemann_core::{enc::AddressEncoder, primitives::PrefixVec};
 
-use rmn_btc::{enc, script};
+use rmn_btc::{enc, types::script};
 
 use crate::errors::WasmError;
 

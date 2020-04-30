@@ -1,7 +1,6 @@
 //! Transaction outputs, their components, and the output vector.
 
-use js_sys;
-use serde::ser::{Serialize, SerializeStruct, Serializer};
+use serde::ser::{SerializeStruct, Serializer};
 use wasm_bindgen::prelude::*;
 
 use riemann_core::{ser::Ser, types::primitives::PrefixVec};

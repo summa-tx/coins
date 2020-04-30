@@ -1,12 +1,10 @@
 //! Transaction types.
 
-use js_sys;
-use serde::ser::{Serialize, SerializeStruct, Serializer};
+use serde::ser::{SerializeStruct, Serializer};
 use wasm_bindgen::prelude::*;
 
 use rmn_btc::{
-    script,
-    transactions::{self, Sighash, WitnessTransaction},
+    types::{script, transactions::{self, Sighash, WitnessTransaction}},
 };
 
 use riemann_core::{

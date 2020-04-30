@@ -45,7 +45,7 @@ macro_rules! wrap_struct {
             }
         }
 
-        impl Serialize for $name {
+        impl serde::ser::Serialize for $name {
             fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
             where
                 S: Serializer
