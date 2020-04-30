@@ -485,3 +485,15 @@ impl<P: NetworkParams> Encoder for BitcoinEncoder<P> {
 pub type MainnetEncoder = BitcoinEncoder<Main>;
 /// Encoder for Testnet xkeys
 pub type TestnetEncoder = BitcoinEncoder<Test>;
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::xkeys::XPriv;
+
+    #[test]
+    fn it_can_read_keys_without_a_backend() {
+        let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
+        let _xpriv: XPriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, None).unwrap();
+    }
+}

@@ -61,7 +61,7 @@ impl<'a, T: Secp256k1Backend<'a>> GenericDerivedXPriv<'a, T> {
         data: &[u8],
         hint: Option<Hint>,
         backend: &'a T,
-    ) -> Result<GenericXPriv<'a, T>, Bip32Error> {
+    ) -> Result<GenericDerivedXPriv<'a, T>, Bip32Error> {
         if data.len() < 16 {
             return Err(Bip32Error::SeedTooShort);
         }
@@ -70,19 +70,32 @@ impl<'a, T: Secp256k1Backend<'a>> GenericDerivedXPriv<'a, T> {
         if key == [0u8; 32] || key > CURVE_ORDER {
             return Err(Bip32Error::InvalidKey);
         }
-        let privkey = T::Privkey::from_privkey_array(key)?;
-        Ok(GenericXPriv {
-            info: XKeyInfo {
-                depth: 0,
-                parent,
-                index: 0,
-                chain_code,
-                hint: hint.unwrap_or(Hint::SegWit),
+        let key = T::Privkey::from_privkey_array(key)?;
+
+        let info = XKeyInfo {
+            depth: 0,
+            parent,
+            index: 0,
+            chain_code,
+            hint: hint.unwrap_or(Hint::SegWit),
+        };
+
+        let privkey = GenericPrivkey {
+            key,
+            backend: Some(backend),
+        };
+
+        let derivation = KeyDerivation {
+            root: privkey.derive_fingerprint()?,
+            path: vec![].into()
+        };
+
+        Ok(GenericDerivedXPriv {
+            xpriv: GenericXPriv {
+                info,
+                privkey,
             },
-            privkey: GenericPrivkey {
-                key: privkey,
-                backend: Some(backend),
-            },
+            derivation,
         })
     }
 
@@ -96,7 +109,7 @@ impl<'a, T: Secp256k1Backend<'a>> GenericDerivedXPriv<'a, T> {
         data: &[u8],
         hint: Option<Hint>,
         backend: &'a T,
-    ) -> Result<GenericXPriv<'a, T>, Bip32Error> {
+    ) -> Result<GenericDerivedXPriv<'a, T>, Bip32Error> {
         Self::custom_master_node(SEED, data, hint, backend)
     }
 
@@ -204,4 +217,148 @@ pub mod keys {
 
     /// An XPub coupled with its (purported) derivation path
     pub type DerivedXPub<'a> = GenericDerivedXPub<'a, Secp256k1<'a>>;
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::{
+        curve::*,
+        enc::{Encoder, MainnetEncoder},
+        primitives::*,
+        path::DerivationPath,
+        BIP32_HARDEN,
+    };
+
+    use hex;
+
+    struct KeyDeriv<'a> {
+        pub path: &'a [u32],
+    }
+
+    fn validate_descendant<'a>(d: &KeyDeriv, m: &DerivedXPriv<'a>) {
+        let path: DerivationPath = d.path.into();
+
+        let m_pub = m.derive_verifying_key().unwrap();
+
+        let xpriv = m.derive_private_path(&path).unwrap();
+        let xpub = xpriv.derive_verifying_key().unwrap();
+        assert!(m.same_root(&xpriv));
+        assert!(m.same_root(&xpub));
+        assert!(m.is_possible_ancestor_of(&xpriv));
+        assert!(m.is_possible_ancestor_of(&xpub));
+
+        let result = m.is_private_ancestor_of(&xpub).expect("should work");
+
+        if !result {
+            assert!(false, "failed validate_descendant is_private_ancestor_of");
+        }
+
+        let result = m_pub.is_public_ancestor_of(&xpub);
+
+        match result {
+            Ok(true) => {},
+            Ok(false) => assert!(false, "failed validate_descendant is_public_ancestor_of"),
+            Err(_) => {
+                let path: crate::path::DerivationPath = d.path.into();
+                assert!(path.last_hardened().1.is_some(), "is_public_ancestor_of failed for unhardened path")
+            }
+        }
+
+        let derived_path = m.path_to_descendant(&xpriv).expect("expected a path to descendant");
+        assert_eq!(&path, &derived_path, "derived path is not as expected");
+    }
+
+    #[test]
+    fn bip32_vector_1() {
+        let seed: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
+        let backend = Secp256k1::init();
+
+        let xpriv = DerivedXPriv::root_from_seed(&seed, Some(Hint::Legacy), &backend).unwrap();
+
+        let descendants = [
+            KeyDeriv {
+                path: &[0 + BIP32_HARDEN],
+            },
+            KeyDeriv {
+                path: &[0 + BIP32_HARDEN, 1],
+            },
+            KeyDeriv {
+                path: &[0 + BIP32_HARDEN, 1, 2 + BIP32_HARDEN],
+            },
+            KeyDeriv {
+                path: &[0 + BIP32_HARDEN, 1, 2 + BIP32_HARDEN, 2],
+            },
+            KeyDeriv {
+                path: &[0 + BIP32_HARDEN, 1, 2 + BIP32_HARDEN, 2, 1000000000],
+            },
+        ];
+
+        for case in descendants.iter() {
+            validate_descendant(&case, &xpriv);
+        }
+    }
+
+    #[test]
+    fn bip32_vector_2() {
+        let seed = hex::decode(&"fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542").unwrap();
+        let backend = Secp256k1::init();
+
+        let xpriv = DerivedXPriv::root_from_seed(&seed, Some(Hint::Legacy), &backend).unwrap();
+
+        let descendants = [
+            KeyDeriv {
+                path: &[0],
+            },
+            KeyDeriv {
+                path: &[0, 2147483647 + BIP32_HARDEN],
+            },
+            KeyDeriv {
+                path: &[0, 2147483647 + BIP32_HARDEN, 1],
+            },
+            KeyDeriv {
+                path: &[0, 2147483647 + BIP32_HARDEN, 1, 2147483646 + BIP32_HARDEN],
+            },
+            KeyDeriv {
+                path: &[0, 2147483647 + BIP32_HARDEN, 1, 2147483646 + BIP32_HARDEN, 2],
+            },
+        ];
+
+        for case in descendants.iter() {
+            validate_descendant(&case, &xpriv);
+        }
+    }
+
+    #[test]
+    fn bip32_vector_3() {
+        let seed = hex::decode(&"4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be").unwrap();
+        let backend = Secp256k1::init();
+
+        let xpriv = DerivedXPriv::root_from_seed(&seed, Some(Hint::Legacy), &backend).unwrap();
+
+        let descendants = [
+            KeyDeriv {
+                path: &[0 + BIP32_HARDEN],
+            },
+        ];
+
+        for case in descendants.iter() {
+            validate_descendant(&case, &xpriv);
+        }
+    }
+
+    #[test]
+    fn it_can_sign_and_verify() {
+        let digest = [1u8; 32];
+        let backend = Secp256k1::init();
+        let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
+
+        let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, Some(&backend)).unwrap();
+
+        let child = xpriv.derive_private_child(33).unwrap();
+        let sig = child.sign_digest(digest).unwrap();
+
+        let child_xpub = child.derive_verifying_key().unwrap();
+        child_xpub.verify_digest(digest, &sig).unwrap();
+    }
 }

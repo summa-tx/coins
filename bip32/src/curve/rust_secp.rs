@@ -241,4 +241,9 @@ impl<'a> Secp256k1Backend<'a> for Secp256k1<'a> {
             Err(libsecp256k1_core::Error::InvalidSignature.into())
         }
     }
+
+    fn recover_pubkey(&self, digest: [u8; 32], sig: &Self::RecoverableSignature) -> Result<Self::Pubkey, Bip32Error> {
+        let m = secp256k1::Message::parse(&digest);
+        Ok(secp256k1::recover_with_context(&m, &sig.sig, &sig.recovery_id, self.0)?.into())
+    }
 }

@@ -21,7 +21,7 @@ fn try_parse_index(s: &str) -> Result<u32, Bip32Error> {
     index_str
         .parse::<u32>()
         .map(|v| if harden { v + BIP32_HARDEN } else { v })
-        .map_err(|_| Bip32Error::MalformattedIndex(s.to_owned()))
+        .map_err(|_| Bip32Error::MalformattedDerivation(s.to_owned()))
 }
 
 fn try_parse_path(path: &str) -> Result<Vec<u32>, Bip32Error> {
@@ -30,6 +30,7 @@ fn try_parse_path(path: &str) -> Result<Vec<u32>, Bip32Error> {
         .filter(|v| v != &"m")
         .map(try_parse_index)
         .collect::<Result<Vec<u32>, Bip32Error>>()
+        .map_err(|_| Bip32Error::MalformattedDerivation(path.to_owned()))
 }
 
 /// A Bip32 derivation path
@@ -59,7 +60,7 @@ impl DerivationPath {
 
     /// Remove a prefix from a derivation. Return a new DerivationPath without the prefix.
     /// This is useful for determining the path to rech some descendant from some ancestor.
-    pub fn remove_prefix(&self, prefix: &Self) -> Option<DerivationPath> {
+    pub fn without_prefix(&self, prefix: &Self) -> Option<DerivationPath> {
         if !self.starts_with(prefix) {
             None
         } else {
@@ -147,7 +148,7 @@ impl KeyDerivation {
 
     /// Returns the path to the decendant.
     pub fn path_to_descendant(&self, descendant: &Self) -> Option<DerivationPath> {
-        descendant.path.remove_prefix(&self.path)
+        descendant.path.without_prefix(&self.path)
     }
 
     /// Append an additional derivation to the end, return a clone
@@ -208,5 +209,116 @@ impl Ser for KeyDerivation {
             length += writer.write(&i.to_le_bytes())?;
         }
         Ok(length)
+    }
+}
+
+#[cfg(test)]
+pub mod test {
+    use super::*;
+    use std::convert::TryInto;
+
+    #[test]
+    fn it_parses_index_strings() {
+        let cases = [
+            ("32", 32),
+            ("32h", 32 + BIP32_HARDEN),
+            ("0h", BIP32_HARDEN),
+
+        ];
+        for case in cases.iter() {
+            match try_parse_index(&case.0) {
+                Ok(v) => assert_eq!(v, case.1),
+                Err(e) => assert!(false, "unexpected error {}", e),
+            }
+        }
+    }
+
+    #[test]
+    fn it_handles_malformatted_indices() {
+        let cases = [
+            "-",
+            "h",
+            "toast",
+            "憂鬱",
+        ];
+        for case in cases.iter() {
+            match try_parse_index(&case) {
+                Ok(_) => assert!(false, "expected an error"),
+                Err(Bip32Error::MalformattedDerivation(e)) => assert_eq!(&e, case),
+                Err(e) => assert!(false, "unexpected error {}", e),
+            }
+        }
+    }
+
+    #[test]
+    fn it_parses_derivation_strings() {
+        let cases = [
+            ("m/32", vec![32]),
+            ("m/32h", vec![32 + BIP32_HARDEN]),
+            ("m/0h/32/5/5/5", vec![BIP32_HARDEN, 32, 5, 5, 5]),
+            ("32", vec![32]),
+            ("32h", vec![32 + BIP32_HARDEN]),
+            ("0h/32/5/5/5", vec![BIP32_HARDEN, 32, 5, 5, 5]),
+        ];
+        for case in cases.iter() {
+            match try_parse_path(&case.0) {
+                Ok(v) => assert_eq!(v, case.1),
+                Err(e) => assert!(false, "unexpected error {}", e),
+            }
+        }
+    }
+
+    #[test]
+    fn it_handles_malformatted_derivations() {
+        let cases = [
+            "//",
+            "m/",
+            "-",
+            "h",
+            "toast",
+            "憂鬱",
+        ];
+        for case in cases.iter() {
+            match try_parse_path(&case) {
+                Ok(_) => assert!(false, "expected an error"),
+                Err(Bip32Error::MalformattedDerivation(e)) => assert_eq!(&e, case),
+                Err(e) => assert!(false, "unexpected error {}", e),
+            }
+        }
+    }
+
+    #[test]
+    fn it_removes_prefixes_from_derivations() {
+        // express each row in a separate instantiation syntax :)
+        let cases = [
+            (DerivationPath(vec![1, 2, 3]), DerivationPath(vec![1]), Some(DerivationPath(vec![2, 3]))),
+            (vec![1, 2, 3].into(), vec![1, 2].into(), Some(vec![3].into())),
+            ((1u32..=3).collect(), (1u32..=3).collect(), Some((0..0).collect())),
+            (DerivationPath(vec![1, 2, 3]), vec![1, 3].into(), None),
+        ];
+        for case in cases.iter() {
+            assert_eq!(case.0.without_prefix(&case.1), case.2);
+        }
+    }
+
+    #[test]
+    fn it_proudces_paths_from_strings() {
+        let cases = [
+            "//",
+            "m/",
+            "-",
+            "h",
+            "toast",
+            "憂鬱",
+        ];
+
+        for case in cases.iter() {
+            let path: Result<DerivationPath, _> = case.to_owned().try_into().map_err(Into::into);
+            match path {
+                Ok(_) => assert!(false, "expected an error"),
+                Err(Bip32Error::MalformattedDerivation(e)) => assert_eq!(&e, case),
+                Err(e) => assert!(false, "unexpected error {}", e),
+            }
+        }
     }
 }

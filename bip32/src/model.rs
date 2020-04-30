@@ -235,6 +235,10 @@ pub trait DerivePublicChild<'a, T: Secp256k1Backend<'a>>: XKey + HasPubkey<'a, T
             return Ok(self.to_owned());
         }
 
+        if let (_, Some(_)) = path.last_hardened() {
+            return Err(Bip32Error::HardenedDerivationFailed)
+        }
+
         let mut current = self.to_owned();
         for index in path.iter() {
             current = current.derive_public_child(*index)?;

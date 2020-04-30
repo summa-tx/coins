@@ -188,4 +188,9 @@ impl<'a> Secp256k1Backend<'a> for Secp256k1<'a> {
         let m = secp256k1::Message::from_slice(&digest).expect("digest is 32 bytes");
         Ok(self.0.verify(&m, &sig.to_standard(), &k.0)?)
     }
+
+    fn recover_pubkey(&self, digest: [u8; 32], sig: &Self::RecoverableSignature) -> Result<Self::Pubkey, Bip32Error> {
+        let m = secp256k1::Message::from_slice(&digest).expect("digest is 32 bytes");
+        Ok(self.0.recover(&m, sig)?.into())
+    }
 }

@@ -60,6 +60,17 @@ pub struct GenericPubkey<'a, T: Secp256k1Backend<'a>> {
     pub backend: Option<&'a T>,
 }
 
+impl<'a, T: Secp256k1Backend<'a>> GenericPubkey<'a, T> {
+
+    /// Recover a public key from a signed digest
+    pub fn recover_from_signed_digest(backend: &'a T, digest: [u8; 32], sig: &T::RecoverableSignature) -> Result<Self, Bip32Error> {
+        Ok(Self {
+            key: backend.recover_pubkey(digest, sig)?,
+            backend: Some(backend)
+        })
+    }
+}
+
 impl<'a, T: Secp256k1Backend<'a>> HasPubkey<'a, T> for GenericPubkey<'a, T> {
     fn pubkey(&self) -> &T::Pubkey {
         &self.key

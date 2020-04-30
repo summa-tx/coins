@@ -144,7 +144,10 @@ pub trait Secp256k1Backend<'a>: Clone + std::fmt::Debug + PartialEq {
         self.sign_digest_recoverable(k, hash(message))
     }
 
-    /// Verify a signature on a digest
+    /// Verify a signature on a digest.
+    ///
+    /// *Warning* it is NOT SECURE to use this function without also verifying the method by which
+    /// the digest was produced. Doing so can result in forgery attacks.
     fn verify_digest(
         &self,
         k: &Self::Pubkey,
@@ -153,6 +156,9 @@ pub trait Secp256k1Backend<'a>: Clone + std::fmt::Debug + PartialEq {
     ) -> Result<(), Self::Error>;
 
     /// Verify a recoverable signature on a digest
+    ///
+    /// *Warning* it is NOT SECURE to use this function without also verifying the method by which
+    /// the digest was produced. Doing so can result in forgery attacks.
     fn verify_digest_recoverable(
         &self,
         k: &Self::Pubkey,
@@ -181,4 +187,7 @@ pub trait Secp256k1Backend<'a>: Clone + std::fmt::Debug + PartialEq {
     ) -> Result<(), Self::Error> {
         self.verify_digest_recoverable(k, hash(message), sig)
     }
+
+    /// Recover the public key that produced a `RecoverableSignature` on a certain digest.
+    fn recover_pubkey(&self, digest: [u8; 32], sig: &Self::RecoverableSignature) -> Result<Self::Pubkey, Bip32Error>;
 }
