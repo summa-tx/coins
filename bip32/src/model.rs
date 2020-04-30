@@ -149,6 +149,50 @@ pub trait VerifyingKey<'a, T: 'a + Secp256k1Backend<'a>>:
             .verify_digest(&self.pubkey(), digest, sig)
             .map_err(Into::into)
     }
+
+
+    /// Verify a recoverable signature on a digest.
+    fn verify_digest_recoverable(
+        &self,
+        digest: [u8; 32],
+        sig: &T::RecoverableSignature,
+    ) -> Result<(), Bip32Error> {
+        self.verify_digest(digest, &sig.without_recovery())
+    }
+
+    /// Verify a signature on a message
+    fn verify_with_hash(
+        &self,
+        message: &[u8],
+        hash: &HashFunc,
+        sig: &T::Signature,
+    ) -> Result<(), Bip32Error> {
+        self.verify_digest(hash(message), sig)
+    }
+
+    /// Verify a recoverable signature on a message.
+    fn verify_recoverable_with_hash(
+        &self,
+        message: &[u8],
+        hash: &HashFunc,
+        sig: &T::RecoverableSignature,
+    ) -> Result<(), Bip32Error> {
+        self.verify_digest(hash(message), &sig.without_recovery())
+    }
+
+    /// Produce a signature on `sha2(sha2(message))`
+    fn verify(&self, message: &[u8], sig: &T::Signature) -> Result<(), Bip32Error> {
+        self.verify_with_hash(message, &|m| hash256(&[m]), sig)
+    }
+
+    /// Produce a recoverable signature on `sha2(sha2(message))`
+    fn verify_recoverable(
+        &self,
+        message: &[u8],
+        sig: &T::RecoverableSignature,
+    ) -> Result<(), Bip32Error> {
+        self.verify_recoverable_with_hash(message, &|m| hash256(&[m]), sig)
+    }
 }
 
 /// Information about the extended key

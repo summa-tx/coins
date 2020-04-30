@@ -225,7 +225,8 @@ impl<'a, T: Secp256k1Backend<'a>> DerivePublicChild<'a, T> for GenericXPub<'a, T
 mod test {
     use super::*;
     use crate::{
-        curve::*,
+        curve::Secp256k1,
+        keys::Pubkey,
         enc::{Encoder, MainnetEncoder},
         primitives::*,
     };
@@ -414,7 +415,6 @@ mod test {
         let digest = [1u8; 32];
         let backend = Secp256k1::init();
         let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
-
         let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, Some(&backend)).unwrap();
 
         let child = xpriv.derive_private_child(33).unwrap();
@@ -422,6 +422,24 @@ mod test {
 
         let child_xpub = child.to_xpub().unwrap();
         child_xpub.verify_digest(digest, &sig).unwrap();
+    }
+
+    #[test]
+    fn it_can_verify_and_recover_from_signatures() {
+        let digest = [1u8; 32];
+        let backend = Secp256k1::init();
+        let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
+        let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, Some(&backend)).unwrap();
+
+        let child = xpriv.derive_private_child(33).unwrap();
+
+        let sig = child.sign_digest_recoverable(digest).unwrap();
+
+        let child_xpub = child.to_xpub().unwrap();
+        child_xpub.verify_digest_recoverable(digest, &sig).unwrap();
+
+        let recovered = Pubkey::recover_from_signed_digest(xpriv.backend().unwrap(), digest, &sig).unwrap();
+        assert_eq!(&recovered.pubkey(), &child_xpub.pubkey());
     }
 
     #[test]
