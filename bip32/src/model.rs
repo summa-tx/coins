@@ -157,7 +157,9 @@ pub trait VerifyingKey<'a, T: 'a + Secp256k1Backend<'a>>:
         digest: [u8; 32],
         sig: &T::RecoverableSignature,
     ) -> Result<(), Bip32Error> {
-        self.verify_digest(digest, &sig.without_recovery())
+        self.backend()?
+            .verify_digest_recoverable(&self.pubkey(), digest, sig)
+            .map_err(Into::into)
     }
 
     /// Verify a signature on a message

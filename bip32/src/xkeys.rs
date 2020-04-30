@@ -62,6 +62,7 @@ impl<'a, T: Secp256k1Backend<'a>> GenericXPriv<'a, T> {
         let parent = KeyFingerprint([0u8; 4]);
         let (key, chain_code) = hmac_and_split(hmac_key, data);
         if key == [0u8; 32] || key > CURVE_ORDER {
+            // This can only be tested by mocking hmac_and_split
             return Err(Bip32Error::InvalidKey);
         }
         let privkey = T::Privkey::from_privkey_array(key)?;

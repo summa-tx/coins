@@ -101,6 +101,12 @@ impl From<Vec<u32>> for DerivationPath {
     }
 }
 
+impl From<&Vec<u32>> for DerivationPath {
+    fn from(v: &Vec<u32>) -> Self {
+        Self(v.clone())
+    }
+}
+
 impl From<&[u32]> for DerivationPath {
     fn from(v: &[u32]) -> Self {
         Self(Vec::from(v))

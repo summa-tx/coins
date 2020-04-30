@@ -57,6 +57,7 @@
 extern crate lazy_static;
 
 #[macro_use]
+#[cfg_attr(tarpaulin, skip)]
 pub(crate) mod prelude;
 
 /// Low-level types
@@ -72,6 +73,7 @@ pub mod xkeys;
 pub mod enc;
 
 /// The curve-math backend, selected at compile time. Defaults to native libsecp256k1 bindings.
+#[cfg_attr(tarpaulin, skip)]
 pub mod curve;
 
 /// Traits and other high-level model description.

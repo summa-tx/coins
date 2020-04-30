@@ -5,6 +5,7 @@ use crate::{curve::model::*, Bip32Error};
 
 pub(crate) type Error = secp256k1::Error;
 
+#[cfg_attr(tarpaulin, skip)]
 lazy_static! {
     static ref CONTEXT: secp256k1::Secp256k1<secp256k1::All> = { secp256k1::Secp256k1::new() };
 }
@@ -192,5 +193,15 @@ impl<'a> Secp256k1Backend<'a> for Secp256k1<'a> {
     fn recover_pubkey(&self, digest: [u8; 32], sig: &Self::RecoverableSignature) -> Result<Self::Pubkey, Bip32Error> {
         let m = secp256k1::Message::from_slice(&digest).expect("digest is 32 bytes");
         Ok(self.0.recover(&m, sig)?.into())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn it_instantiates_a_backend_from_a_context() {
+        let context: secp256k1::Secp256k1<secp256k1::All> = { secp256k1::Secp256k1::new() };
+        Secp256k1::from_context(&context);
     }
 }
