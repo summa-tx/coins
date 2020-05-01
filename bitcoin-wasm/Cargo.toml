@@ -18,16 +18,9 @@ opt-level = 'z'
 
 [dependencies]
 riemann-core = {path = "../core"}
+rmn-btc = {path = "../bitcoin"}
 wasm-bindgen = "0.2.60"
 js-sys = "0.3.37"
 bitcoin-spv = "2.0.0"
 thiserror = "1.0"
 serde = "1.0.105"
-
-[dependencies.rmn-btc]
-path = "../bitcoin"
-default-features = false
-
-# [features]
-# default = ["wasm"]
-# wasm = ["rmn-btc/rust-secp"]

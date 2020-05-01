@@ -10,8 +10,16 @@
 //! Useful traits will need to be imported from the `enc` or `model` modules. Most users will want
 //! `model::SigningKey`, `model::VerifyingKey`, `enc::Encoder`, and `enc::HasPubkey`.
 //!
-//! The objects provided need a backend. They can be instantiated without one, but many basic
-//! operations (e.g. signing, verifying, key derivation) will fail. Simple usage:
+//! # Warnings:
+//!
+//! - This crate is NOT designed to be used in adversarial environments.
+//! - This crate has NOT had a comprehensive security review.
+//! - It is not clear whether the rust-secp backend's functions are constant-time.
+//!
+//! # Usage
+//!
+//! Most key objects need a backend. They can be instantiated without one, but most operations
+//! you want (e.g. signing, verifying, key derivation) will fail at runtime. Simple usage:
 //!
 //! ```
 //! use rmn_bip32::{
@@ -23,15 +31,21 @@
 //!
 //! # fn main() -> Result<(), Bip32Error> {
 //! let digest = [1u8; 32];
+//!
+//! // `init` sets up a new `lazy_static` backend. Successive calls will re-use that backend
+//! // without needing to re-initialize it.
 //! let backend = Secp256k1::init();
 //! let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
 //!
+//! // Encoders are network specific due to the bip32 version byte spec
 //! let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, Some(&backend))?;
 //!
-//! let child = xpriv.derive_private_child(33)?;
-//! let sig = child.sign_digest(digest)?;
+//! let child_xpriv = xpriv.derive_private_child(33)?;
+//! let sig = child_xpriv.sign_digest(digest)?;
 //!
-//! let child_xpub = child.to_xpub()?;
+//! // Signing key types are associated with verifying key types. You can always derive a pubkey
+//! // from a privkey using `derive_verifying_key()`.
+//! let child_xpub = child_xpriv.derive_verifying_key()?;
 //! child_xpub.verify_digest(digest, &sig);
 //!
 //! sig.to_der(); // serialize to der-encoded byte-array
@@ -52,6 +66,7 @@
 //! contexts via `Secp256k1Backend::init()`. This has a 1-time cost. The
 //! `rust-secp-static-context` allows for compilation-time generation of the context, but must
 //! be used with the `rust-secp` backend.
+
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]

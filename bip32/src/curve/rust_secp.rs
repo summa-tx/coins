@@ -21,7 +21,7 @@ pub struct Secp256k1<'a>(
 
 impl<'a> Secp256k1<'a> {
     /// Instantiate a backend from a context. Useful for managing your own backend lifespan
-    pub fn from_context(context: &'a Self::Context) -> Self {
+    pub fn from_context(context: &'a <Self as Secp256k1Backend<'a>>::Context) -> Self {
         Self(context.0, context.1)
     }
 
