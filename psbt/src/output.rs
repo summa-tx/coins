@@ -2,7 +2,7 @@ use std::collections::{btree_map, BTreeMap};
 
 use riemann_core::{primitives::PrefixVec, ser::Ser};
 
-use rmn_bip32::{self as bip32, DerivedPubkey};
+use rmn_bip32::{self as bip32, derived::DerivedPubkey};
 
 use rmn_btc::types::script::Script;
 

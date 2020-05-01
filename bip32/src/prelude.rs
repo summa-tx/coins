@@ -85,9 +85,9 @@ macro_rules! make_derived_key {
         $(#[$outer])*
         #[derive(Clone, Debug, PartialEq)]
         pub struct $struct_name<'a, T: Secp256k1Backend<'a>> {
-            /// The underlying XPub
+            /// The underlying key
             pub $attr: $underlying<'a, T>,
-            /// Its derivation
+            /// Its derivation from some master key
             pub derivation: crate::path::KeyDerivation,
         }
 

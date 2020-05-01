@@ -501,16 +501,22 @@ pub trait DerivedKey {
         self.derivation().same_root(&other.derivation())
     }
 
-    /// `true` if this key is an ancestor of other, `false` otherwise. Note that on key
-    /// fingerprints, which may collide accidentally, or be intentionally collided.
+    /// `true` if this key is a possible ancestor of the argument, `false` otherwise.
+    ///
+    /// Warning: this check is cheap, but imprecise. It simply compares the root fingerprints
+    /// (which may collide) and checks that `self.path` is a prefix of `other.path`. This may be
+    /// deliberately foold by an attacker. For a precise check, use
+    /// `GenericDerivedXPriv::is_private_ancestor_of()` or
+    /// `GenericDerivedXPub::is_public_ancestor_of()`
     fn is_possible_ancestor_of<K: DerivedKey>(&self, other: &K) -> bool {
         self.derivation()
             .is_possible_ancestor_of(&other.derivation())
     }
 
-    /// Returns the path to the decendant, or `None` if `descendant` is definitely not a
+    /// Returns the path to the descendant, or `None` if the argument is [definitely not a
     /// descendant.
-    /// This is useful for determining the path to rech some descendant from some ancestor.
+    ///
+    /// This is useful for determining the path to reach some descendant from some ancestor.
     fn path_to_descendant<K: DerivedKey>(&self, other: &K) -> Option<DerivationPath> {
         self.derivation().path_to_descendant(&other.derivation())
     }

@@ -4,8 +4,9 @@ use riemann_core::{primitives::PrefixVec, ser::Ser};
 
 use rmn_bip32::{
     self as bip32,
-    curve::{PointSerialize, SigSerialize},
-    DerivedPubkey,
+    model::HasPubkey,
+    curve::{model::Secp256k1Backend, SigSerialize},
+    derived::DerivedPubkey,
 };
 
 use rmn_btc::types::{
@@ -153,9 +154,9 @@ impl PSBTInput {
     }
 
     /// Inserts a signature into the map
-    pub fn insert_partial_sig(&mut self, pk: bip32::curve::Pubkey, sig: bip32::Signature) {
+    pub fn insert_partial_sig<'a, T: Secp256k1Backend<'a>, K: HasPubkey<'a, T>>(&mut self, pk: K, sig: T::Signature) {
         let mut key = vec![InputKey::PARTIAL_SIG as u8];
-        key.extend(pk.pubkey_array().iter());
+        key.extend(pk.pubkey_bytes().iter());
 
         let mut val = vec![];
         val.extend(sig.to_der());

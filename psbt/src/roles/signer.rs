@@ -2,7 +2,7 @@ use bitcoin_spv::btcspv::{hash160, hash256};
 
 use rmn_bip32::{
     self as bip32,
-    model::{CanDerivePubkey, DerivedKey, HasBackend, XSigning},
+    model::{DerivedKey, HasBackend, SigningKey, XSigning},
 };
 
 use thiserror::Error;
@@ -205,7 +205,7 @@ impl<'a> Bip32Signer<'a> {
             // TODO: DRY
             let sighash = tx.sighash(&sighash_args)?;
             let signature = self.xpriv.descendant_sign_digest(path, sighash)?;
-            input_map.insert_partial_sig(self.xpriv.derive_pubkey()?, signature);
+            input_map.insert_partial_sig(self.xpriv.derive_verifying_key()?, signature);
         }
 
         Ok(())
@@ -238,7 +238,7 @@ impl<'a> Bip32Signer<'a> {
         for path in paths.iter() {
             let sighash = tx.sighash(&sighash_args)?;
             let signature = self.xpriv.descendant_sign_digest(path.clone(), sighash)?;
-            input_map.insert_partial_sig(self.xpriv.derive_pubkey()?, signature);
+            input_map.insert_partial_sig(self.xpriv.derive_verifying_key()?, signature);
         }
 
         Ok(())

@@ -13,11 +13,36 @@ lazy_static! {
         { secp256k1::curve::ECMultGenContext::new_boxed() };
 }
 
-/// A Secp256k1Backend struct
+/// A Secp256k1Backend struct using the Parity Rust implementation of Secp256k1.
 pub struct Secp256k1<'a>(
     &'a secp256k1::curve::ECMultContext,
     &'a secp256k1::curve::ECMultGenContext,
 );
+
+impl<'a> Secp256k1<'a> {
+    /// Instantiate a backend from a context. Useful for managing your own backend lifespan
+    pub fn from_context(context: &'a Self::Context) -> Self {
+        Self(context.0, context.1)
+    }
+
+    /// Init a backend, setting up any context necessary. This is implemented as a lazy_static
+    /// context initialized on the first call. As such, the first call to init will be expensive,
+    /// while successive calls will be cheap.
+    #[cfg(feature = "rust-secp-static-context")]
+    pub fn init() -> Self {
+        Self(&secp256k1::ECMULT_CONTEXT, &secp256k1::ECMULT_GEN_CONTEXT)
+    }
+
+    /// Init a backend, setting up any context necessary. This is implemented as a lazy_static
+    /// context initialized on the first call. As such, the first call to init will be expensive,
+    /// while successive calls will be cheap.
+    #[cfg(not(feature = "rust-secp-static-context"))]
+    pub fn init() -> Self {
+        Self(&EC_MULT, &EC_MULT_GEN)
+    }
+
+}
+
 
 /// A Private Key
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -160,20 +185,6 @@ impl<'a> Secp256k1Backend<'a> for Secp256k1<'a> {
     type Pubkey = Pubkey;
     type Signature = secp256k1::Signature;
     type RecoverableSignature = RecoverableSignature;
-
-    fn from_context(context: &'a Self::Context) -> Self {
-        Self(context.0, context.1)
-    }
-
-    #[cfg(feature = "rust-secp-static-context")]
-    fn init() -> Self {
-        Self(&secp256k1::ECMULT_CONTEXT, &secp256k1::ECMULT_GEN_CONTEXT)
-    }
-
-    #[cfg(not(feature = "rust-secp-static-context"))]
-    fn init() -> Self {
-        Self(&EC_MULT, &EC_MULT_GEN)
-    }
 
     fn derive_pubkey(&self, k: &Self::Privkey) -> Self::Pubkey {
         secp256k1::PublicKey::from_secret_key_with_context(&k.0, self.1).into()

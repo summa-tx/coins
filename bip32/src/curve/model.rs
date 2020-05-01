@@ -98,14 +98,6 @@ pub trait Secp256k1Backend<'a>: Clone + std::fmt::Debug + PartialEq {
     /// A Recoverage signature
     type RecoverableSignature: RecoverableSigSerialize<Signature = Self::Signature>;
 
-    /// Instantiate a backend from a context. Useful for managing your own backend lifespan
-    fn from_context(context: &'a Self::Context) -> Self;
-
-    /// Init a backend, setting up any context necessary. This is implemented as a lazy_static
-    /// context initialized on the first call. As such, the first call to init will be expensive,
-    /// while successive calls will be cheap.
-    fn init() -> Self;
-
     /// Derive a public key from a private key
     fn derive_pubkey(&self, k: &Self::Privkey) -> Self::Pubkey;
 

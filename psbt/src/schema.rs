@@ -4,9 +4,12 @@ use riemann_core::{ser::Ser, types::primitives::PrefixVec};
 
 use rmn_bip32::{
     self as bip32,
-    curve::{PointDeserialize, SigSerialize},
+    XPub,
+    curve::{PointDeserialize, SigSerialize, Signature},
+    path::KeyDerivation,
+    derived::DerivedPubkey,
     model::DerivedKey,
-    Bip32Error, Encoder as Bip32Encoder, Secp256k1,
+    Bip32Error, Secp256k1,
 };
 
 use rmn_btc::types::{
@@ -52,12 +55,12 @@ impl KVTypeSchema {
 }
 
 /// Check that a value can be interpreted as a bip32 fingerprint + derivation
-pub fn try_val_as_key_derivation(val: &PSBTValue) -> Result<bip32::KeyDerivation, PSBTError> {
+pub fn try_val_as_key_derivation(val: &PSBTValue) -> Result<KeyDerivation, PSBTError> {
     if val.is_empty() || val.len() % 4 != 0 {
         return Err(PSBTError::InvalidBip32Path);
     }
     let limit = val.len() / 4;
-    Ok(bip32::KeyDerivation::deserialize(&mut val.items(), limit)?)
+    Ok(KeyDerivation::deserialize(&mut val.items(), limit)?)
 }
 
 /// Validate that a key is a fixed length
@@ -142,9 +145,9 @@ pub fn try_val_as_sighash(val: &PSBTValue) -> Result<Sighash, PSBTError> {
 }
 
 /// Attempt to deserialize a value as a signature
-pub fn try_val_as_signature(val: &PSBTValue) -> Result<(bip32::Signature, Sighash), PSBTError> {
+pub fn try_val_as_signature(val: &PSBTValue) -> Result<(Signature, Sighash), PSBTError> {
     let items = val.items();
-    let sig = bip32::Signature::try_from_der(&items[..items.len() - 1])?;
+    let sig = Signature::try_from_der(&items[..items.len() - 1])?;
     Ok((sig, Sighash::from_u8(items[items.len()])?))
 }
 
@@ -158,9 +161,9 @@ pub fn try_val_as_witness(val: &PSBTValue) -> Result<Witness, PSBTError> {
 pub fn try_key_as_xpub<'a, E>(
     key: &PSBTKey,
     backend: Option<&'a Secp256k1>,
-) -> Result<bip32::XPub<'a>, PSBTError>
+) -> Result<XPub<'a>, PSBTError>
 where
-    E: Bip32Encoder,
+    E: bip32::enc::Encoder,
 {
     if key.len() < 2 {
         return Err(Bip32Error::BadXPubVersionBytes([0u8; 4]).into());
@@ -175,7 +178,7 @@ pub fn try_kv_pair_as_derived_pubkey<'a>(
     key: &PSBTKey,
     val: &PSBTValue,
     backend: Option<&'a Secp256k1<'a>>
-) -> Result<bip32::DerivedPubkey<'a>, PSBTError> {
+) -> Result<DerivedPubkey<'a>, PSBTError> {
     let pubkey = if key.len() == 34 {
         let mut pubkey = [0u8; 33];
         pubkey.copy_from_slice(&key[1..34]);
@@ -193,9 +196,9 @@ pub fn try_kv_pair_as_derived_pubkey<'a>(
 
     let deriv = try_val_as_key_derivation(val)?;
 
-    let pubkey = bip32::Pubkey{key: pubkey, backend};
+    let pubkey = bip32::keys::Pubkey{key: pubkey, backend};
 
-    Ok(bip32::DerivedPubkey::new(pubkey, deriv))
+    Ok(DerivedPubkey::new(pubkey, deriv))
 }
 
 /// Validation functions for PSBT Global maps

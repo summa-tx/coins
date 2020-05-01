@@ -8,12 +8,45 @@ use crate::{
     Bip32Error,
 };
 
-// Re-exports
+/// A GenericDerivedPrivkey using the compiled-in default backend, coupled with its (purported)
+/// derivation path.
+///
+/// For interface documentation see the page for
+///  [GenericDerivedPrivkey](struct.GenericDerivedPrivkey.html).
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
-pub use self::keys::{DerivedPrivkey, DerivedPubkey, DerivedXPriv, DerivedXPub};
+pub type DerivedPrivkey<'a> = GenericDerivedPrivkey<'a, crate::curve::Secp256k1<'a>>;
+
+/// A GenericDerivedPubkey using the compiled-in default backend, coupled with its (purported)
+/// derivation path.
+///
+/// For interface documentation see the page for
+///  [GenericDerivedPubkey](struct.GenericDerivedPubkey.html).
+#[cfg(any(feature = "libsecp", feature = "rust-secp"))]
+pub type DerivedPubkey<'a> = GenericDerivedPubkey<'a, crate::curve::Secp256k1<'a>>;
+
+/// A GenericDerivedXPriv using the compiled-in default backend, coupled with its (purported)
+/// derivation path.
+///
+/// For interface documentation see the page for
+///  [GenericDerivedXPriv](struct.GenericDerivedXPriv.html).
+#[cfg(any(feature = "libsecp", feature = "rust-secp"))]
+pub type DerivedXPriv<'a> = GenericDerivedXPriv<'a, crate::curve::Secp256k1<'a>>;
+
+/// A GenericDerivedXPub using the compiled-in default backend, coupled with its (purported)
+/// derivation path.
+///
+/// For interface documentation see the page for
+///  [GenericDerivedXPub](struct.GenericDerivedXPub.html).
+#[cfg(any(feature = "libsecp", feature = "rust-secp"))]
+pub type DerivedXPub<'a> = GenericDerivedXPub<'a, crate::curve::Secp256k1<'a>>;
 
 make_derived_key!(
-    /// A Privkey coupled with its derivation
+    /// A `Privkey` coupled with its (purported) derivation path. Generally this struct
+    /// should be used over Privkey wherever possible, in order to preserve information ancestry
+    /// relationship information.
+    ///
+    /// Warning: derivation paths from untrusted sources may be faulty. Make sure to check
+    /// ancestry using the `DerivedKey` trait methods.
     GenericPrivkey,
     GenericDerivedPrivkey.privkey
 );
@@ -21,10 +54,8 @@ inherit_has_privkey!(GenericDerivedPrivkey.privkey);
 inherit_backend!(GenericDerivedPrivkey.privkey);
 
 impl<'a, T: Secp256k1Backend<'a>> SigningKey<'a, T> for GenericDerivedPrivkey<'a, T> {
-    /// The corresponding verifying key
     type VerifyingKey = GenericDerivedPubkey<'a, T>;
 
-    /// Derive the corresponding pubkey
     fn derive_verifying_key(&self) -> Result<Self::VerifyingKey, Bip32Error> {
         Ok(GenericDerivedPubkey {
             pubkey: self.privkey.derive_verifying_key()?,
@@ -34,7 +65,12 @@ impl<'a, T: Secp256k1Backend<'a>> SigningKey<'a, T> for GenericDerivedPrivkey<'a
 }
 
 make_derived_key!(
-    /// A Pubkey coupled with its derivation
+    /// A `GenericPubkey` coupled with its (purported) derivation path. Generally this struct
+    /// should be used over Pubkey wherever possible, in order to preserve information ancestry
+    /// relationship information.
+    ///
+    /// Warning: derivation paths from untrusted sources may be faulty. Make sure to check
+    /// ancestry using the `DerivedKey` trait methods.
     GenericPubkey,
     GenericDerivedPubkey.pubkey
 );
@@ -46,7 +82,12 @@ impl<'a, T: Secp256k1Backend<'a>> VerifyingKey<'a, T> for GenericDerivedPubkey<'
 }
 
 make_derived_key!(
-    /// An XPriv coupled with its derivation
+    /// A `GenericXPriv` coupled with its (purported) derivation path. Generally this struct
+    /// should be used over XPriv wherever possible, in order to preserve information ancestry
+    /// relationship information.
+    ///
+    /// Warning: derivation paths from untrusted sources may be faulty. Make sure to check
+    /// ancestry using the `DerivedKey` trait methods.
     GenericXPriv,
     GenericDerivedXPriv.xpriv
 );
@@ -132,7 +173,12 @@ impl<'a, T: Secp256k1Backend<'a>> DerivePrivateChild<'a, T> for GenericDerivedXP
 }
 
 make_derived_key!(
-    /// An XPub coupled with its derivation
+    /// A `GenericXPub` coupled with its (purported) derivation path. Generally this struct
+    /// should be used over XPub wherever possible, in order to preserve information ancestry
+    /// relationship information.
+    ///
+    /// Warning: derivation paths from untrusted sources may be faulty. Make sure to check
+    /// ancestry using the `DerivedKey` trait methods.
     GenericXPub,
     GenericDerivedXPub.xpub
 );
@@ -166,26 +212,6 @@ impl<'a, T: Secp256k1Backend<'a>> DerivePublicChild<'a, T> for GenericDerivedXPu
             derivation: self.derivation.extended(index),
         })
     }
-}
-
-#[cfg(any(feature = "libsecp", feature = "rust-secp"))]
-#[doc(hidden)]
-pub mod keys {
-    use super::*;
-
-    use crate::Secp256k1;
-
-    /// A Privkey coupled with its (purported) derivation path
-    pub type DerivedPrivkey<'a> = GenericDerivedPrivkey<'a, Secp256k1<'a>>;
-
-    /// A Pubkey coupled with its (purported) derivation path
-    pub type DerivedPubkey<'a> = GenericDerivedPubkey<'a, Secp256k1<'a>>;
-
-    /// An XPriv coupled with its (purported) derivation path
-    pub type DerivedXPriv<'a> = GenericDerivedXPriv<'a, Secp256k1<'a>>;
-
-    /// An XPub coupled with its (purported) derivation path
-    pub type DerivedXPub<'a> = GenericDerivedXPub<'a, Secp256k1<'a>>;
 }
 
 #[cfg(test)]

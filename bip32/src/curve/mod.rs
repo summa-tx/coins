@@ -1,25 +1,31 @@
-/// The backend model
+/// The backend model. Contains the `Secp256k1Backend` trait, and related traits.
 pub mod model;
 
 /// Contains a backend for performing operations on curve points. Uses libsecp256k1.
 #[cfg(all(feature = "libsecp", not(feature = "rust-secp")))]
+#[doc(hidden)]
 pub mod libsecp;
 
 /// Contains a backend for performing operations on curve points. Uses rust secp256k1.
 #[cfg(all(feature = "rust-secp", not(feature = "libsecp")))]
+#[doc(hidden)]
 pub mod rust_secp;
 
 pub use model::*;
 
 #[cfg(all(feature = "rust-secp", not(feature = "libsecp")))]
+#[doc(hidden)]
 pub use rust_secp as backend;
 
 #[cfg(all(feature = "libsecp", not(feature = "rust-secp")))]
+#[doc(hidden)]
 pub use libsecp as backend;
 
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
+#[doc(hidden)]
 pub use backend::*;
 
+pub use backend::Secp256k1;
 
 #[cfg(test)]
 mod test {

@@ -29,8 +29,9 @@ use std::{
 };
 
 use rmn_bip32::{
-    model::DerivedKey, DerivedXPub, Encoder as Bip32Encoder, KeyFingerprint,
-    MainnetEncoder as Bip32MainnetEncoder, Secp256k1, TestnetEncoder as Bip32TestnetEncoder, XPub,
+    self as bip32,
+    model::DerivedKey, DerivedXPub, enc::Encoder as Bip32Encoder, KeyFingerprint,
+    Secp256k1, XPub,
 };
 
 use riemann_core::{
@@ -343,10 +344,10 @@ where
 }
 
 /// A PSBT Parameterized for mainnet
-pub type MainnetPSBT = PSBT<MainnetEncoder, Bip32MainnetEncoder>;
+pub type MainnetPSBT = PSBT<MainnetEncoder, bip32::enc::MainnetEncoder>;
 
 /// A PSBT Parameterized for testnet
-pub type TestnetPSBT = PSBT<TestnetEncoder, Bip32TestnetEncoder>;
+pub type TestnetPSBT = PSBT<TestnetEncoder, bip32::enc::TestnetEncoder>;
 
 #[cfg(test)]
 mod test {

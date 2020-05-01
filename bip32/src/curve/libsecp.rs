@@ -10,9 +10,23 @@ lazy_static! {
     static ref CONTEXT: secp256k1::Secp256k1<secp256k1::All> = { secp256k1::Secp256k1::new() };
 }
 
-/// A Secp256k1Backend struct
+/// A Secp256k1Backend struct using Sipa's C implementation of Secp256k1.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Secp256k1<'a>(&'a secp256k1::Secp256k1<secp256k1::All>);
+
+impl<'a> Secp256k1<'a> {
+    /// Instantiate a backend from a context. Useful for managing your own backend lifespan
+    pub fn from_context(context: &'a secp256k1::Secp256k1<secp256k1::All>) -> Self {
+        Self(context)
+    }
+
+    /// Init a backend, setting up any context necessary. This is implemented as a lazy_static
+    /// context initialized on the first call. As such, the first call to init will be expensive,
+    /// while successive calls will be cheap.
+    pub fn init() -> Self {
+        Self(&CONTEXT)
+    }
+}
 
 /// A Private Key
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -127,14 +141,6 @@ impl<'a> Secp256k1Backend<'a> for Secp256k1<'a> {
     type Pubkey = Pubkey;
     type Signature = secp256k1::Signature;
     type RecoverableSignature = secp256k1::recovery::RecoverableSignature;
-
-    fn from_context(context: &'a secp256k1::Secp256k1<secp256k1::All>) -> Self {
-        Self(context)
-    }
-
-    fn init() -> Self {
-        Self(&CONTEXT)
-    }
 
     fn derive_pubkey(&self, k: &Self::Privkey) -> Self::Pubkey {
         secp256k1::PublicKey::from_secret_key(&self.0, &k.0).into()

@@ -9,7 +9,7 @@ use crate::{
     schema,
 };
 
-use rmn_bip32::{Encoder as Bip32Encoder, Secp256k1};
+use rmn_bip32::{self as bip32, Secp256k1};
 
 psbt_map!(PSBTGlobal);
 
@@ -85,7 +85,7 @@ impl PSBTGlobal {
         backend: Option<&'a Secp256k1>,
     ) -> Result<Vec<DerivedXPub<'a>>, PSBTError>
     where
-        E: Bip32Encoder,
+        E: bip32::enc::Encoder,
     {
         let mut results = vec![];
         for (k, v) in self.xpubs() {

@@ -11,18 +11,20 @@ use crate::{
 
 type HmacSha512 = Hmac<Sha512>;
 
-/// A BIP32 Extended privkey using the library's compiled-in secp256k1 backend.
+/// A BIP32 Extended privkey using the library's compiled-in secp256k1 backend. This type is
+/// available whenever a compiled-in backend is used.
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 pub type XPriv<'a> = GenericXPriv<'a, crate::curve::Secp256k1<'a>>;
 
-/// A BIP32 Extended pubkey using the library's compiled-in secp256k1 backend.
+/// A BIP32 Extended pubkey using the library's compiled-in secp256k1 backend. This type is
+/// available whenever a compiled-in backend is used.
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 pub type XPub<'a> = GenericXPub<'a, crate::curve::Secp256k1<'a>>;
 
 /// Default BIP32
 pub const SEED: &[u8; 12] = b"Bitcoin seed";
 
-pub(crate) fn hmac_and_split(seed: &[u8], data: &[u8]) -> ([u8; 32], ChainCode) {
+fn hmac_and_split(seed: &[u8], data: &[u8]) -> ([u8; 32], ChainCode) {
     let mut mac = HmacSha512::new_varkey(seed).expect("key length is ok");
     mac.input(data);
     let result = mac.result().code();

@@ -59,7 +59,6 @@ pub struct XKeyInfo {
     pub hint: Hint,
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;

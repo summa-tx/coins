@@ -2,20 +2,23 @@
 //! backends. It can be easily adapted to support other networks, using the paramaterizable
 //! encoder.
 //!
-//! Typically, users will want to use the `MainnetEncoder`, `XPub`, `XPriv` objects, which are
-//! available at the crate root.
+//! Typically, users will want to use the `MainnetEncoder`, `DerivedXPub`, `DerivedXPriv` types,
+//! which are available at the crate root. If key derivations are unknown, use the `XPub` and
+//! `XPriv` objects instead. These may be deserialized using a network-specific `Encoder` from the
+//! `enc` module.
+//!
+//! Useful traits will need to be imported from the `enc` or `model` modules. Most users will want
+//! `model::SigningKey`, `model::VerifyingKey`, `enc::Encoder`, and `enc::HasPubkey`.
 //!
 //! The objects provided need a backend. They can be instantiated without one, but many basic
 //! operations (e.g. signing, verifying, key derivation) will fail. Simple usage:
 //!
 //! ```
 //! use rmn_bip32::{
-//!     Bip32Error,
-//!     Secp256k1,
+//!     Bip32Error, Secp256k1, XPub, XPriv,
 //!     enc::{Encoder, MainnetEncoder},
 //!     model::*,
 //!     curve::model::*,
-//!     xkeys::{XPub, XPriv},
 //! };
 //!
 //! # fn main() -> Result<(), Bip32Error> {
@@ -39,13 +42,15 @@
 //!
 //! The backend is configurable. By default, it uses bindings to Pieter Wuille's C `libsecp256k1`.
 //! Turning off standard features, and compiling with the `rust-secp` feature will use a pure rust
-//! backend. Users can provide their own backend by implementing the `Secp256k1Backend` trait.
-//! These backends are mutually exclusive. So to use `rust-secp` you must disable default features
+//! backend. Users can provide their own backend by implementing the `Secp256k1Backend` trait. In
+//! this case, you will need to use the `Generic` variants of the structs found in the `keys`,
+//! `xkeys`, and `derived modules.` These backends are mutually exclusive. So to use `rust-secp`
+//! you must disable default features. Compilation will fail otherwise.
 //!
 //! Additionally, both provided backends allow user-provided context objects via the
-//! `Secp256k1Backend::from_context` method. We also provide access to `lazy_static` on-demand
+//! `Secp256k1Backend::from_context()` method. We also provide access to `lazy_static` on-demand
 //! contexts via `Secp256k1Backend::init()`. This has a 1-time cost. The
-//! `rust-secp-static-context` allows for compilation-timem generation of the context, but must
+//! `rust-secp-static-context` allows for compilation-time generation of the context, but must
 //! be used with the `rust-secp` backend.
 
 #![forbid(unsafe_code)]
@@ -56,8 +61,8 @@
 #[macro_use]
 extern crate lazy_static;
 
-#[macro_use]
 #[cfg_attr(tarpaulin, skip)]
+#[macro_use]
 pub(crate) mod prelude;
 
 /// Low-level types
@@ -69,14 +74,16 @@ pub mod keys;
 /// Extended keys and related functionality
 pub mod xkeys;
 
-/// Network-differentiated encoders for xkeys
+/// Network-differentiated encoders for extended keys.
 pub mod enc;
 
-/// The curve-math backend, selected at compile time. Defaults to native libsecp256k1 bindings.
+/// The Secp256k1 backend and its associated traits. Compiled-in backends may be selected using
+/// crate features. Generally, this module's traits shouldn't be used directly, with the notable
+/// exception of `SigSerialize` and `RecoverableSigSerialize`.
 #[cfg_attr(tarpaulin, skip)]
 pub mod curve;
 
-/// Traits and other high-level model description.
+/// Traits and other high-level model description for Bip32 keys.
 pub mod model;
 
 /// `DerivationPath` type and tooling for parsing it from strings
@@ -86,15 +93,13 @@ pub mod path;
 pub mod derived;
 
 pub use primitives::{KeyFingerprint};
-pub use enc::{Encoder, MainnetEncoder, NetworkParams, TestnetEncoder};
+pub use enc::{MainnetEncoder};
 pub use model::*;
-pub use path::{DerivationPath, KeyDerivation};
 
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 pub use crate::{
-    curve::{RecoverableSignature, Secp256k1, Signature},
-    derived::{DerivedPrivkey, DerivedPubkey, DerivedXPriv, DerivedXPub},
-    keys::{Privkey, Pubkey},
+    curve::{Secp256k1},
+    derived::{DerivedXPriv, DerivedXPub},
     xkeys::{XPriv, XPub},
 };
 
