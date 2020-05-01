@@ -13,11 +13,17 @@ type HmacSha512 = Hmac<Sha512>;
 
 /// A BIP32 Extended privkey using the library's compiled-in secp256k1 backend. This type is
 /// available whenever a compiled-in backend is used.
+///
+/// For interface documentation see the page for
+/// [GenericXPriv](struct.GenericXPriv.html).
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 pub type XPriv<'a> = GenericXPriv<'a, crate::curve::Secp256k1<'a>>;
 
 /// A BIP32 Extended pubkey using the library's compiled-in secp256k1 backend. This type is
 /// available whenever a compiled-in backend is used.
+///
+/// For interface documentation see the page for
+/// [GenericXPub](struct.GenericXPub.html).
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 pub type XPub<'a> = GenericXPub<'a, crate::curve::Secp256k1<'a>>;
 

@@ -51,7 +51,8 @@ pub trait HasPubkey<'a, T: Secp256k1Backend<'a>> {
 }
 
 /// Any type that has a private key and a backend may derive a public key.
-/// This type is auto-implemented on any type that impls `HasPrivkey` and `HasBackend`
+///
+/// This is generically implemented for any type that implements `HasPrivkey` and `HasBackend`.
 pub trait CanDerivePubkey<'a, T: 'a + Secp256k1Backend<'a>>:
     HasPrivkey<'a, T> + HasBackend<'a, T>
 {
@@ -197,7 +198,7 @@ pub trait VerifyingKey<'a, T: 'a + Secp256k1Backend<'a>>:
     }
 }
 
-/// Information about the extended key
+#[doc(hidden)]
 pub trait HasXKeyInfo {
     /// Return the `XKeyInfo` object associated with the key
     fn xkey_info(&self) -> &XKeyInfo;
@@ -236,6 +237,9 @@ impl<T: HasXKeyInfo + std::marker::Sized + Clone> XKey for T {
 }
 
 /// A trait for extended keys which can derive private children
+///
+/// This is generically implemented for any type that implements `SigningKey` and
+/// `DerivePrivateChild`
 pub trait DerivePrivateChild<'a, T: Secp256k1Backend<'a>>: XKey + HasPrivkey<'a, T> {
     /// Derive a child privkey
     fn derive_private_child(&self, index: u32) -> Result<Self, Bip32Error>;
@@ -262,8 +266,9 @@ pub trait DerivePrivateChild<'a, T: Secp256k1Backend<'a>>: XKey + HasPrivkey<'a,
 }
 
 /// A trait for extended keys which can derive public children.
-/// This is generically implemented for any type that implements `SigningKey` and
-/// `DerivePrivateChild`
+///
+/// This is generically implemented for any type that implements `VerifyingKey` and
+/// `DerivePublicChild`
 pub trait DerivePublicChild<'a, T: Secp256k1Backend<'a>>: XKey + HasPubkey<'a, T> {
     /// Derive a child pubkey
     fn derive_public_child(&self, index: u32) -> Result<Self, Bip32Error>;

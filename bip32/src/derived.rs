@@ -12,7 +12,7 @@ use crate::{
 /// derivation path.
 ///
 /// For interface documentation see the page for
-///  [GenericDerivedPrivkey](struct.GenericDerivedPrivkey.html).
+/// [GenericDerivedPrivkey](struct.GenericDerivedPrivkey.html).
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 pub type DerivedPrivkey<'a> = GenericDerivedPrivkey<'a, crate::curve::Secp256k1<'a>>;
 
@@ -20,7 +20,7 @@ pub type DerivedPrivkey<'a> = GenericDerivedPrivkey<'a, crate::curve::Secp256k1<
 /// derivation path.
 ///
 /// For interface documentation see the page for
-///  [GenericDerivedPubkey](struct.GenericDerivedPubkey.html).
+/// [GenericDerivedPubkey](struct.GenericDerivedPubkey.html).
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 pub type DerivedPubkey<'a> = GenericDerivedPubkey<'a, crate::curve::Secp256k1<'a>>;
 

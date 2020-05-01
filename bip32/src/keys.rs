@@ -7,10 +7,17 @@ use crate::{
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 /// A Private Key using the crate's compiled-in backend.
 /// This type is available whenever a compiled-in backend is used.
+///
+/// For interface documentation see the page for
+/// [GenericPrivkey](struct.GenericPrivkey.html).
 pub type Privkey<'a> = GenericPrivkey<'a, crate::Secp256k1<'a>>;
+
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 /// A Public Key using the crate's compiled-in backend.
 /// This type is available whenever a compiled-in backend is used.
+///
+/// For interface documentation see the page for
+/// [GenericPubkey](struct.GenericPubkey.html).
 pub type Pubkey<'a> = GenericPubkey<'a, crate::Secp256k1<'a>>;
 
 /// A Private key with a reference to its associated backend

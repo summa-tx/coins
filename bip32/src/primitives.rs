@@ -1,5 +1,6 @@
-/// We treat the xpub/ypub/zpub convention as a hint regarding address type. Users are free to
-/// follow or ignore these hints.
+/// We treat the bip32 xpub bip49 ypub and bip84 zpub convention as a hint regarding address type.
+/// Downstream crates are free to follow or ignore these hints when generating addresses from
+/// extended keys.
 #[derive(Eq, PartialEq, Debug, Clone, Copy)]
 pub enum Hint {
     /// Standard Bip32 hint
