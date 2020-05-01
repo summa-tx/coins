@@ -96,12 +96,12 @@ macro_rules! impl_script_conversion {
     ($t1:ty, $t2:ty) => {
         impl From<&$t2> for $t1 {
             fn from(t: &$t2) -> $t1 {
-                <$t1>::from_script(t.0.clone())
+                <$t1>::from_script(&t.0)
             }
         }
         impl From<&$t1> for $t2 {
             fn from(t: &$t1) -> $t2 {
-                <$t2>::from_script(t.0.clone())
+                <$t2>::from_script(&t.0)
             }
         }
     };

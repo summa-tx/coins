@@ -7,6 +7,7 @@
 
 #[macro_use]
 #[doc(hidden)]
+#[cfg_attr(tarpaulin, skip)]
 pub mod prelude;
 
 pub mod builder;

@@ -63,7 +63,7 @@ pub trait WitTxBuilder<'a>: BitcoinBuilder<'a> {
 /// Transactions. Its associated types are the standard Bitcoin `LegacyTx`, and `WitnessTx`, and
 /// the WitnessBuilder. It is parameterized with an address encoder, so that the same struct and
 /// logic can be used on mainnet and testnet.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct LegacyBuilder<T: AddressEncoder> {
     version: u32,
     vin: Vec<BitcoinTxIn>,
@@ -76,7 +76,7 @@ pub struct LegacyBuilder<T: AddressEncoder> {
 /// `WitnessBuilder` and `LegacyBuilder` is that `WitnessBuilder` builds Witness transactions.
 /// This is implemented by having `WitnessBuilder` contain an internal `LegacyBuilder` which all
 /// non-witness updates are applied to.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct WitnessBuilder<T: AddressEncoder> {
     builder: LegacyBuilder<T>,
     witnesses: Vec<Witness>,
@@ -341,6 +341,7 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::types::BitcoinOutpoint;
 
     const TX_HEX: &'static str = "01000000000101f1e46af69e3ab97a3b195dbc34af1e2131ec31d53a6e331ab714504d27b6bd940400000000ffffffff03e0a57e000000000017a914e88869b88866281ab166541ad8aafba8f8aba47a8780841e00000000001976a9140e5c3c8d420c7f11e88d76f7b860d471e6517a4488aca31843a7380000002200201bf8a1831db5443b42a44f30a121d1b616d011ab15df62b588722a845864cc990400483045022100a74e04708f8032ce177c09642556945a5f5938de821edfa5df959c0ca61cb00d02207ea3b9353e0250a8a1440809a24a1d73c1c26d2c46e12dd96c7564ea4f8c6ee001473044022066611fd52c104f8be623cca6195ab0aa5dfc58408297744ff0d7b32da218c7d002200302be14cc76abaab271d848448d0b3cd3083d4dea76af495d1b1137d129d3120169522102489ec44d0358045c4be092978c40e574790820ebbc3bf069bffc12bda57af27d2102a4bf3a2bdbbcf2e68bbf04566052bbaf45dfe230a7a6de18d97c242fd85e9abc21038d4d2936c6e57f2093c2a43cb17fcf582afb1d312a1e129f900156075a490ae753ae00000000";
 
@@ -357,31 +358,51 @@ mod test {
 
 
         builder = builder
-            .insert_output(0, output.clone())
-            .extend_outputs(vec![output])
             .insert_input(2, input.clone())
-            .extend_inputs(vec![input])
-            .extend_witnesses(vec![witness])
+            .extend_inputs(vec![input.clone()])
+            .spend(BitcoinOutpoint::null(), 100)
+            .insert_output(0, output.clone())
+            .extend_outputs(vec![output.clone()])
+            .pay(0x8000_0000, &Address::PKH("12JvxPk4mT4PKMVHuHc1aQGBZpotQWQwF6".to_owned())).unwrap()
+            .extend_witnesses(vec![witness.clone()])
             .as_witness()
             .version(2)
-            .locktime(33)
-            .pay(0x8000_0000, &Address::PKH("12JvxPk4mT4PKMVHuHc1aQGBZpotQWQwF6".to_owned()))
-            .unwrap();
+            .locktime(33);
 
-        assert_eq!(builder.builder.version, 2);
-        assert_eq!(builder.builder.locktime, 33);
-        assert_eq!(builder.witnesses.len(), 2);
-        assert_eq!(builder.builder.vin.len(), 3);
-        assert_eq!(builder.builder.vout.len(), 6);
-
-        builder = builder.as_legacy().as_witness();
-        assert_eq!(builder.witnesses.len(), 0);
-
-        let tx = builder.build();
+        let tx = builder.clone().build();
+        let without_witnesses = builder.clone().as_legacy().build();
         assert_eq!(tx.version(), 2);
         assert_eq!(tx.locktime(), 33);
-        assert_eq!(tx.witnesses().len(), 0);
-        assert_eq!(tx.inputs().len(), 3);
+        assert_eq!(tx.witnesses().len(), 2);
+        assert_eq!(tx.inputs().len(), 4);
         assert_eq!(tx.outputs().len(), 6);
+        assert_eq!(&tx.without_witness(), &without_witnesses);
+
+        let mut legacy_builder = builder
+            .clone()
+            .as_legacy();
+
+        legacy_builder = legacy_builder
+            .insert_input(2, input.clone())
+            .extend_inputs(vec![input])
+            .spend(BitcoinOutpoint::null(), 100)
+            .insert_output(0, output.clone())
+            .extend_outputs(vec![output])
+            .pay(0x8000_0000, &Address::PKH("12JvxPk4mT4PKMVHuHc1aQGBZpotQWQwF6".to_owned())).unwrap()
+            .locktime(1000)
+            .version(1);
+
+        println!("{:?}", legacy_builder);
+
+        let legacy_tx = legacy_builder.clone().build();
+        let c = legacy_builder.clone().as_witness().as_legacy();
+        assert_eq!(&legacy_tx, &c.build());
+        assert_eq!(legacy_tx.version(), 1);
+        assert_eq!(legacy_tx.locktime(), 1000);
+        assert_eq!(legacy_tx.inputs().len(), 7);
+        assert_eq!(legacy_tx.outputs().len(), 9);
+
+        let legacy_tx = legacy_builder.clone().extend_witnesses(vec![witness]).build();
+        assert_eq!(legacy_tx.witnesses().len(), 1);
     }
 }

@@ -28,7 +28,7 @@ use riemann_core::types::{
 /// A wrapped script.
 pub trait BitcoinScript {
     /// Instantiate a new wrapped script
-    fn from_script(v: ConcretePrefixVec<u8>) -> Self;
+    fn from_script(v: &ConcretePrefixVec<u8>) -> Self;
 }
 
 wrap_prefixed_byte_vector!(
@@ -66,26 +66,26 @@ wrap_prefixed_byte_vector!(
 );
 
 impl BitcoinScript for Script {
-    fn from_script(s: ConcretePrefixVec<u8>) -> Self {
-        Self(s)
+    fn from_script(s: &ConcretePrefixVec<u8>) -> Self {
+        Self(s.clone())
     }
 }
 
 impl BitcoinScript for ScriptPubkey {
-    fn from_script(s: ConcretePrefixVec<u8>) -> Self {
-        Self(s)
+    fn from_script(s: &ConcretePrefixVec<u8>) -> Self {
+        Self(s.clone())
     }
 }
 
 impl BitcoinScript for ScriptSig {
-    fn from_script(s: ConcretePrefixVec<u8>) -> Self {
-        Self(s)
+    fn from_script(s: &ConcretePrefixVec<u8>) -> Self {
+        Self(s.clone())
     }
 }
 
 impl BitcoinScript for WitnessStackItem {
-    fn from_script(s: ConcretePrefixVec<u8>) -> Self {
-        Self(s)
+    fn from_script(s: &ConcretePrefixVec<u8>) -> Self {
+        Self(s.clone())
     }
 }
 
@@ -138,7 +138,7 @@ impl ScriptPubkey {
             }
             0x17 => {
                 // SH
-                if items[0..2] == [0xa9, 0x14] && items[0x15..] == [0x87] {
+                if items[0..2] == [0xa9, 0x14] && items[0x16..] == [0x87] {
                     ScriptType::SH
                 } else {
                     ScriptType::NonStandard
@@ -218,6 +218,55 @@ mod test {
             assert_eq!(prevout_script.serialize_hex().unwrap(), case.1);
             assert_eq!(prevout_script.len(), case.2);
             assert_eq!(prevout_script.is_empty(), case.2 == 0);
+        }
+    }
+
+    #[test]
+    fn it_converts_between_bitcoin_script_types() {
+        let si = WitnessStackItem::new(hex::decode("0014758ce550380d964051086798d6546bebdca27a73").unwrap());
+        let sc = Script::from_script(&si.0);
+        let spk = ScriptPubkey::from_script(&si.0);
+        let ss = ScriptSig::from_script(&si.0);
+        WitnessStackItem::from_script(&si.0);
+
+        WitnessStackItem::from(&sc);
+        WitnessStackItem::from(&spk);
+        WitnessStackItem::from(&ss);
+
+        Script::from(&si);
+        Script::from(&spk);
+        Script::from(&ss);
+
+        ScriptPubkey::from(&si);
+        ScriptPubkey::from(&sc);
+        ScriptPubkey::from(&ss);
+
+        ScriptSig::from(&si);
+        ScriptSig::from(&sc);
+        ScriptSig::from(&spk);
+    }
+
+    #[test]
+    fn it_determines_script_pubkey_types_accurately() {
+        let cases = [
+            (ScriptPubkey::new(hex::decode("a914e88869b88866281ab166541ad8aafba8f8aba47a87").unwrap()), ScriptType::SH),
+            (ScriptPubkey::new(hex::decode("a914e88869b88866281ab166541ad8aafba8f8aba47a89").unwrap()), ScriptType::NonStandard), // wrong last byte
+            (ScriptPubkey::new(hex::decode("aa14e88869b88866281ab166541ad8aafba8f8aba47a87").unwrap()), ScriptType::NonStandard), // wrong first byte
+            (ScriptPubkey::new(hex::decode("76a9140e5c3c8d420c7f11e88d76f7b860d471e6517a4488ac").unwrap()), ScriptType::PKH),
+            (ScriptPubkey::new(hex::decode("76a9140e5c3c8d420c7f11e88d76f7b860d471e6517a4488ad").unwrap()), ScriptType::NonStandard), // wrong last byte
+            (ScriptPubkey::new(hex::decode("77a9140e5c3c8d420c7f11e88d76f7b860d471e6517a4488ac").unwrap()), ScriptType::NonStandard), // wrong first byte
+            (ScriptPubkey::new(hex::decode("00201bf8a1831db5443b42a44f30a121d1b616d011ab15df62b588722a845864cc99").unwrap()), ScriptType::WSH),
+            (ScriptPubkey::new(hex::decode("01201bf8a1831db5443b42a44f30a121d1b616d011ab15df62b588722a845864cc99").unwrap()), ScriptType::NonStandard), // wrong witness program version
+            (ScriptPubkey::new(hex::decode("00141bf8a1831db5443b42a44f30a121d1b616d011ab").unwrap()), ScriptType::WPKH),
+            (ScriptPubkey::new(hex::decode("01141bf8a1831db5443b42a44f30a121d1b616d011ab").unwrap()), ScriptType::NonStandard), // wrong witness program version
+            (ScriptPubkey::new(hex::decode("0011223344").unwrap()), ScriptType::NonStandard), // junk
+            (ScriptPubkey::new(hex::decode("deadbeefdeadbeefdeadbeefdeadbeef").unwrap()), ScriptType::NonStandard), // junk
+            (ScriptPubkey::new(hex::decode("02031bf8a1831db5443b42a44f30a121d1b616d011ab15df62b588722a845864cc99041bf8a1831db5443b42a44f30a121d1b616d011ab15df62b588722a845864cc9902af").unwrap()), ScriptType::NonStandard), // Raw msig
+        ];
+
+        for case in cases.iter() {
+            let (script, t) = case;
+            assert_eq!(script.standard_type(), *t);
         }
     }
 }

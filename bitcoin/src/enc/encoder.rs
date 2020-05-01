@@ -50,7 +50,7 @@ pub trait NetworkParams {
 
 /// The standard encoder for Bitcoin networks. Parameterized by a `NetworkParams` type and an
 /// `rmn_bip32::Encoder`. It exposes
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct BitcoinEncoder<P: NetworkParams>(PhantomData<*const P>);
 
 impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {

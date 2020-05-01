@@ -746,6 +746,7 @@ mod tests {
         // pulled from riemann helpers
         let tx_hex = "0100000001813f79011acb80925dfe69b3def355fe914bd1d96a3f5f71bf8303c6a989c7d1000000006b483045022100ed81ff192e75a3fd2304004dcadb746fa5e24c5031ccfcf21320b0277457c98f02207a986d955c6e0cb35d446a89d3f56100f4d7f67801c31967743a9c8e10615bed01210349fc4e631e3624a545de3f89f5d8684c7b8138bd94bdd531d2e213bf016b278afeffffff02a135ef01000000001976a914bc3b654dca7e56b04dca18f2566cdaf02e8d9ada88ac99c39800000000001976a9141c4bc762dd5423e332166702cb75f40df79fea1288ac19430600";
         let tx = LegacyTx::deserialize_hex(tx_hex).unwrap();
+        assert_eq!(tx.serialized_length(), tx_hex.len() / 2);
 
         let prevout_script_hex = "17a91424d6008f143af0cca57344069c46661aa4fcea2387";
         let prevout_script = Script::deserialize_hex(prevout_script_hex).unwrap();
@@ -793,6 +794,7 @@ mod tests {
         // pulled from riemann helpers
         let tx_hex = "02000000000101ee9242c89e79ab2aa537408839329895392b97505b3496d5543d6d2f531b94d20000000000fdffffff0173d301000000000017a914bba5acbec4e6e3374a0345bf3609fa7cfea825f18700cafd0700";
         let tx = WitnessTx::deserialize_hex(tx_hex).unwrap();
+        assert_eq!(tx.serialized_length(), tx_hex.len() / 2);
 
         let prevout_script_hex = "160014758ce550380d964051086798d6546bebdca27a73";
         let prevout_script = Script::deserialize_hex(prevout_script_hex).unwrap();
@@ -844,6 +846,7 @@ mod tests {
         // from riemann
         let tx_hex = "02000000000102ee9242c89e79ab2aa537408839329895392b97505b3496d5543d6d2f531b94d20000000000fdffffffee9242c89e79ab2aa537408839329895392b97505b3496d5543d6d2f531b94d20000000000fdffffff0273d301000000000017a914bba5acbec4e6e3374a0345bf3609fa7cfea825f18773d301000000000017a914bba5acbec4e6e3374a0345bf3609fa7cfea825f1870000cafd0700";
         let tx = WitnessTx::deserialize_hex(tx_hex).unwrap();
+        assert_eq!(tx.serialized_length(), tx_hex.len() / 2);
 
         let prevout_script_hex = "160014758ce550380d964051086798d6546bebdca27a73";
         let prevout_script = Script::deserialize_hex(prevout_script_hex).unwrap();
@@ -895,6 +898,7 @@ mod tests {
         // from riemann
         let tx_hex = "0200000002ee9242c89e79ab2aa537408839329895392b97505b3496d5543d6d2f531b94d20000000000fdffffffee9242c89e79ab2aa537408839329895392b97505b3496d5543d6d2f531b94d20000000000fdffffff0273d301000000000017a914bba5acbec4e6e3374a0345bf3609fa7cfea825f18773d301000000000017a914bba5acbec4e6e3374a0345bf3609fa7cfea825f18700000000";
         let tx = LegacyTx::deserialize_hex(tx_hex).unwrap();
+        assert_eq!(tx.serialized_length(), tx_hex.len() / 2);
 
         let prevout_script_hex = "160014758ce550380d964051086798d6546bebdca27a73";
         let prevout_script = Script::deserialize_hex(prevout_script_hex).unwrap();
