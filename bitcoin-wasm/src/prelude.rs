@@ -78,7 +78,7 @@ macro_rules! wrap_struct {
 
             /// Deserialize from hex.
             pub fn deserialize_hex(s: String) -> Result<$name, JsValue> {
-                $module::$name::deserialize_hex(s)
+                $module::$name::deserialize_hex(&s)
                     .map(Self::from)
                     .map_err(WasmError::from)
                     .map_err(JsValue::from)
@@ -93,7 +93,7 @@ macro_rules! wrap_struct {
 
             /// Deserialize from base64.
             pub fn deserialize_base64(s: String) -> Result<$name, JsValue> {
-                $module::$name::deserialize_base64(s)
+                $module::$name::deserialize_base64(&s)
                     .map(Self::from)
                     .map_err(WasmError::from)
                     .map_err(JsValue::from)
@@ -264,7 +264,7 @@ macro_rules! impl_builders {
             }
 
             pub fn from_hex_tx(hex: String) -> $leg {
-                builder::LegacyBuilder::from_hex_tx(hex).unwrap().into()
+                builder::LegacyBuilder::from_hex_tx(&hex).unwrap().into()
             }
 
             /// Set the builder version
@@ -335,7 +335,7 @@ macro_rules! impl_builders {
             }
 
             pub fn from_hex_tx(hex: String) -> $wit {
-                builder::WitnessBuilder::from_hex_tx(hex).unwrap().into()
+                builder::WitnessBuilder::from_hex_tx(&hex).unwrap().into()
             }
 
             /// Set the builder version
