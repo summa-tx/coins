@@ -59,6 +59,11 @@ pub trait Network<'a> {
         Self::Builder::new()
     }
 
+    /// Instantiate a builder from a hex-serialized transaction
+    fn builder_from_hex(hex_tx: &str) -> Result<Self::Builder, <Self::Tx as Transaction<'a>>::TxError> {
+        Self::Builder::from_hex_tx(hex_tx)
+    }
+
     /// Encode an address using the network's `Address` semantics
     fn encode_address(a: &Self::RecipientIdentifier) -> Result<Self::Address, Self::Error> {
         Self::Encoder::encode_address(&a)

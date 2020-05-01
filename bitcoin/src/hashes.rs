@@ -26,7 +26,7 @@ mod test {
             "0000000000000000000000000000000000000000000000000000000000000000",
         )];
         for case in cases.iter() {
-            let digest = TXID::deserialize_hex(case.1.to_owned()).unwrap();
+            let digest = TXID::deserialize_hex(case.1).unwrap();
             assert_eq!(digest.serialized_length(), 32);
             assert_eq!(digest, case.0);
             assert_eq!(digest.serialize_hex().unwrap(), case.1);

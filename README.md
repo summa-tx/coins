@@ -1,5 +1,7 @@
 # riemann-rs
 
+[![Coverage Status](https://coveralls.io/repos/github/summa-tx/riemann-rs/badge.svg?branch=master)](https://coveralls.io/github/summa-tx/riemann-rs?branch=master)
+
 `riemann-rs` is a set of transaction construction libraries for UTXO-based
 chains. It aims to provide high-quality tooling for constructing
 transactions, and to enable use in the browser via wasm bindings.
@@ -20,6 +22,9 @@ We have provided a `rmn-btc` crate with a Bitcoin-targeted implementation. See
 its documentation for usage instruction and details. We have also provided wasm
 bindings to `rmn-btc` via `wasm-bindgen`.
 
+`rmn-bip32` provides tooling for BIP32 HDKey derivation, and `rmn-psbt`
+implements the BIP174 partially-signed transaction format.
+
 ## Getting started
 
 If building a Rust app, use `rmn-btc` in the `./bitcoin/` directory. If
@@ -32,13 +37,12 @@ Once there, you can build and view the documentation using
 ## Building & running tests
 
 - install [rustup](https://rustup.rs/)
-- `$ cargo build`
-- `$ cargo test`
+- Run _all_ the tests `$ ./build.sh`
 - build the docs: `$ cargo rustdoc`
 
 ## Implementing a new chain
 
-This is a high-level guide to implementing a riemann library for a new chain.
+This is a high-level guide to implementing a library for a new chain.
 
 ### Implementing Inputs
 An input consumes some TXO referenced by its ID.

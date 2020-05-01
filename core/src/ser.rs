@@ -192,7 +192,7 @@ pub trait Ser {
         Self: std::marker::Sized;
 
     /// Decodes a hex string to a `Vec<u8>`, deserializes an instance of `Self` from that vector.
-    fn deserialize_hex(s: String) -> Result<Self, Self::Error>
+    fn deserialize_hex(s: &str) -> Result<Self, Self::Error>
     where
         Self: std::marker::Sized,
     {
@@ -202,7 +202,7 @@ pub trait Ser {
     }
 
     /// Serialize `self` to a base64 string, using standard RFC4648 non-url safe characters
-    fn deserialize_base64(s: String) -> Result<Self, Self::Error>
+    fn deserialize_base64(s: &str) -> Result<Self, Self::Error>
     where
         Self: std::marker::Sized,
     {

@@ -61,7 +61,7 @@ mod test {
         assert_eq!(
             w.finish(),
             Hash256Digest::deserialize_hex(
-                "1406e05881e299367766d313e26c05564ec91bf721d31726bd6e46e60689539a".to_owned()
+                "1406e05881e299367766d313e26c05564ec91bf721d31726bd6e46e60689539a"
             )
             .unwrap()
         );

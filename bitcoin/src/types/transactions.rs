@@ -745,30 +745,30 @@ mod tests {
     fn it_calculates_legacy_sighashes_and_txids() {
         // pulled from riemann helpers
         let tx_hex = "0100000001813f79011acb80925dfe69b3def355fe914bd1d96a3f5f71bf8303c6a989c7d1000000006b483045022100ed81ff192e75a3fd2304004dcadb746fa5e24c5031ccfcf21320b0277457c98f02207a986d955c6e0cb35d446a89d3f56100f4d7f67801c31967743a9c8e10615bed01210349fc4e631e3624a545de3f89f5d8684c7b8138bd94bdd531d2e213bf016b278afeffffff02a135ef01000000001976a914bc3b654dca7e56b04dca18f2566cdaf02e8d9ada88ac99c39800000000001976a9141c4bc762dd5423e332166702cb75f40df79fea1288ac19430600";
-        let tx = LegacyTx::deserialize_hex(tx_hex.to_owned()).unwrap();
+        let tx = LegacyTx::deserialize_hex(tx_hex).unwrap();
 
         let prevout_script_hex = "17a91424d6008f143af0cca57344069c46661aa4fcea2387";
-        let prevout_script = Script::deserialize_hex(prevout_script_hex.to_owned()).unwrap();
+        let prevout_script = Script::deserialize_hex(prevout_script_hex).unwrap();
 
         let all = Hash256Digest::deserialize_hex(
-            "b85c4f8d1377cc138225dd9b319d0a4ca547f7884270640f44c5fcdf269e0fe8".to_owned(),
+            "b85c4f8d1377cc138225dd9b319d0a4ca547f7884270640f44c5fcdf269e0fe8",
         )
         .unwrap();
         let all_anyonecanpay = Hash256Digest::deserialize_hex(
-            "3b67a5114cc9fc837ddd6f6ec11bde38db5f68c34ab6ece2a043d7b25f2cf8bb".to_owned(),
+            "3b67a5114cc9fc837ddd6f6ec11bde38db5f68c34ab6ece2a043d7b25f2cf8bb",
         )
         .unwrap();
         let single = Hash256Digest::deserialize_hex(
-            "1dab67d768be0380fc800098005d1f61744ffe585b0852f8d7adc12121a86938".to_owned(),
+            "1dab67d768be0380fc800098005d1f61744ffe585b0852f8d7adc12121a86938",
         )
         .unwrap();
         let single_anyonecanpay = Hash256Digest::deserialize_hex(
-            "d4687b93c0a9090dc0a3384cd3a594ce613834bb37abc56f6032e96c597547e3".to_owned(),
+            "d4687b93c0a9090dc0a3384cd3a594ce613834bb37abc56f6032e96c597547e3",
         )
         .unwrap();
 
         let txid = Hash256Digest::deserialize_hex(
-            "03ee4f7a4e68f802303bc659f8f817964b4b74fe046facc3ae1be4679d622c45".to_owned(),
+            "03ee4f7a4e68f802303bc659f8f817964b4b74fe046facc3ae1be4679d622c45",
         )
         .unwrap();
         assert_eq!(tx.txid(), txid.into());
@@ -792,30 +792,30 @@ mod tests {
     fn it_calculates_witness_sighashes_and_txids() {
         // pulled from riemann helpers
         let tx_hex = "02000000000101ee9242c89e79ab2aa537408839329895392b97505b3496d5543d6d2f531b94d20000000000fdffffff0173d301000000000017a914bba5acbec4e6e3374a0345bf3609fa7cfea825f18700cafd0700";
-        let tx = WitnessTx::deserialize_hex(tx_hex.to_owned()).unwrap();
+        let tx = WitnessTx::deserialize_hex(tx_hex).unwrap();
 
         let prevout_script_hex = "160014758ce550380d964051086798d6546bebdca27a73";
-        let prevout_script = Script::deserialize_hex(prevout_script_hex.to_owned()).unwrap();
+        let prevout_script = Script::deserialize_hex(prevout_script_hex).unwrap();
 
         let all = Hash256Digest::deserialize_hex(
-            "135754ab872e4943f7a9c30d6143c4c7187e33d0f63c75ec82a7f9a15e2f2d00".to_owned(),
+            "135754ab872e4943f7a9c30d6143c4c7187e33d0f63c75ec82a7f9a15e2f2d00",
         )
         .unwrap();
         let all_anyonecanpay = Hash256Digest::deserialize_hex(
-            "cc7438d5b15e93ba612dcd227cf1937c35273675b3aa7d1b771573667376ddf6".to_owned(),
+            "cc7438d5b15e93ba612dcd227cf1937c35273675b3aa7d1b771573667376ddf6",
         )
         .unwrap();
         let single = Hash256Digest::deserialize_hex(
-            "d04631d2742e6fd8e80e2e4309dece65becca41d37fd6bc0bcba041c52d824d5".to_owned(),
+            "d04631d2742e6fd8e80e2e4309dece65becca41d37fd6bc0bcba041c52d824d5",
         )
         .unwrap();
         let single_anyonecanpay = Hash256Digest::deserialize_hex(
-            "ffea9cdda07170af9bc9967cedf485e9fe15b78a622e0c196c0b6fc64f40c615".to_owned(),
+            "ffea9cdda07170af9bc9967cedf485e9fe15b78a622e0c196c0b6fc64f40c615",
         )
         .unwrap();
 
         let txid = Hash256Digest::deserialize_hex(
-            "9e77087321b870859ebf08976d665c42d9f98cad18fff6a05a91c1d2da6d6c41".to_owned(),
+            "9e77087321b870859ebf08976d665c42d9f98cad18fff6a05a91c1d2da6d6c41",
         )
         .unwrap();
         assert_eq!(tx.txid(), txid.into());
@@ -843,30 +843,30 @@ mod tests {
     fn it_passes_more_witness_sighash_tests() {
         // from riemann
         let tx_hex = "02000000000102ee9242c89e79ab2aa537408839329895392b97505b3496d5543d6d2f531b94d20000000000fdffffffee9242c89e79ab2aa537408839329895392b97505b3496d5543d6d2f531b94d20000000000fdffffff0273d301000000000017a914bba5acbec4e6e3374a0345bf3609fa7cfea825f18773d301000000000017a914bba5acbec4e6e3374a0345bf3609fa7cfea825f1870000cafd0700";
-        let tx = WitnessTx::deserialize_hex(tx_hex.to_owned()).unwrap();
+        let tx = WitnessTx::deserialize_hex(tx_hex).unwrap();
 
         let prevout_script_hex = "160014758ce550380d964051086798d6546bebdca27a73";
-        let prevout_script = Script::deserialize_hex(prevout_script_hex.to_owned()).unwrap();
+        let prevout_script = Script::deserialize_hex(prevout_script_hex).unwrap();
 
         let all = Hash256Digest::deserialize_hex(
-            "75385c87ece4980b581cfd71bc5814f607801a87f6e0973c63dc9fda465c19c4".to_owned(),
+            "75385c87ece4980b581cfd71bc5814f607801a87f6e0973c63dc9fda465c19c4",
         )
         .unwrap();
         let all_anyonecanpay = Hash256Digest::deserialize_hex(
-            "bc55c4303c82cdcc8e290c597a00d662ab34414d79ec15d63912b8be7fe2ca3c".to_owned(),
+            "bc55c4303c82cdcc8e290c597a00d662ab34414d79ec15d63912b8be7fe2ca3c",
         )
         .unwrap();
         let single = Hash256Digest::deserialize_hex(
-            "9d57bf7af01a4e0baa57e749aa193d37a64e3bbc08eb88af93944f41af8dfc70".to_owned(),
+            "9d57bf7af01a4e0baa57e749aa193d37a64e3bbc08eb88af93944f41af8dfc70",
         )
         .unwrap();
         let single_anyonecanpay = Hash256Digest::deserialize_hex(
-            "ffea9cdda07170af9bc9967cedf485e9fe15b78a622e0c196c0b6fc64f40c615".to_owned(),
+            "ffea9cdda07170af9bc9967cedf485e9fe15b78a622e0c196c0b6fc64f40c615",
         )
         .unwrap();
 
         let txid = Hash256Digest::deserialize_hex(
-            "184e7bce099679b27ed958213c97d2fb971e227c6517bca11f06ccbb97dcdc30".to_owned(),
+            "184e7bce099679b27ed958213c97d2fb971e227c6517bca11f06ccbb97dcdc30",
         )
         .unwrap();
         assert_eq!(tx.txid(), txid.into());
@@ -894,30 +894,30 @@ mod tests {
     fn it_passes_more_legacy_sighash_tests() {
         // from riemann
         let tx_hex = "0200000002ee9242c89e79ab2aa537408839329895392b97505b3496d5543d6d2f531b94d20000000000fdffffffee9242c89e79ab2aa537408839329895392b97505b3496d5543d6d2f531b94d20000000000fdffffff0273d301000000000017a914bba5acbec4e6e3374a0345bf3609fa7cfea825f18773d301000000000017a914bba5acbec4e6e3374a0345bf3609fa7cfea825f18700000000";
-        let tx = LegacyTx::deserialize_hex(tx_hex.to_owned()).unwrap();
+        let tx = LegacyTx::deserialize_hex(tx_hex).unwrap();
 
         let prevout_script_hex = "160014758ce550380d964051086798d6546bebdca27a73";
-        let prevout_script = Script::deserialize_hex(prevout_script_hex.to_owned()).unwrap();
+        let prevout_script = Script::deserialize_hex(prevout_script_hex).unwrap();
 
         let all = Hash256Digest::deserialize_hex(
-            "3ab40bf1287b7be9a5c67ed0f97f80b38c5f68e53ec93bffd3893901eaaafdb2".to_owned(),
+            "3ab40bf1287b7be9a5c67ed0f97f80b38c5f68e53ec93bffd3893901eaaafdb2",
         )
         .unwrap();
         let all_anyonecanpay = Hash256Digest::deserialize_hex(
-            "2d5802fed31e1ef6a857346cc0a9085ea452daeeb3a0b5afcb16a2203ce5689d".to_owned(),
+            "2d5802fed31e1ef6a857346cc0a9085ea452daeeb3a0b5afcb16a2203ce5689d",
         )
         .unwrap();
         let single = Hash256Digest::deserialize_hex(
-            "ea52b62b26c1f0db838c952fa50806fb8e39ba4c92a9a88d1b4ba7e9c094517d".to_owned(),
+            "ea52b62b26c1f0db838c952fa50806fb8e39ba4c92a9a88d1b4ba7e9c094517d",
         )
         .unwrap();
         let single_anyonecanpay = Hash256Digest::deserialize_hex(
-            "9e2aca0a04afa6e1e5e00ff16b06a247a0da1e7bbaa7cd761c066a82bb3b07d0".to_owned(),
+            "9e2aca0a04afa6e1e5e00ff16b06a247a0da1e7bbaa7cd761c066a82bb3b07d0",
         )
         .unwrap();
 
         let txid = Hash256Digest::deserialize_hex(
-            "40157948972c5c97a2bafff861ee2f8745151385c7f9fbd03991ddf59b76ac81".to_owned(),
+            "40157948972c5c97a2bafff861ee2f8745151385c7f9fbd03991ddf59b76ac81",
         )
         .unwrap();
         assert_eq!(tx.txid(), txid.into());

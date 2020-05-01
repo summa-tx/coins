@@ -174,7 +174,7 @@ mod test {
         let cases = [
             (
                 Script::new(
-                    hex::decode("0014758ce550380d964051086798d6546bebdca27a73".to_owned()).unwrap(),
+                    hex::decode("0014758ce550380d964051086798d6546bebdca27a73").unwrap(),
                 ),
                 "160014758ce550380d964051086798d6546bebdca27a73",
                 22,
@@ -183,7 +183,7 @@ mod test {
             (Script::null(), "00", 0),
         ];
         for case in cases.iter() {
-            let prevout_script = Script::deserialize_hex(case.1.to_owned()).unwrap();
+            let prevout_script = Script::deserialize_hex(case.1).unwrap();
             assert_eq!(case.0.serialize_hex().unwrap(), case.1);
             assert_eq!(case.0.len(), case.2);
             assert_eq!(case.0.is_empty(), case.2 == 0);
@@ -200,7 +200,7 @@ mod test {
         let cases = [
             (
                 WitnessStackItem::new(
-                    hex::decode("0014758ce550380d964051086798d6546bebdca27a73".to_owned()).unwrap(),
+                    hex::decode("0014758ce550380d964051086798d6546bebdca27a73").unwrap(),
                 ),
                 "160014758ce550380d964051086798d6546bebdca27a73",
                 22,
@@ -209,7 +209,7 @@ mod test {
             (WitnessStackItem::null(), "00", 0),
         ];
         for case in cases.iter() {
-            let prevout_script = WitnessStackItem::deserialize_hex(case.1.to_owned()).unwrap();
+            let prevout_script = WitnessStackItem::deserialize_hex(case.1).unwrap();
             assert_eq!(case.0.serialize_hex().unwrap(), case.1);
             assert_eq!(case.0.len(), case.2);
             assert_eq!(case.0.is_empty(), case.2 == 0);
