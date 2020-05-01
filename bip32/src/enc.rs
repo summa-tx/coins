@@ -1,7 +1,6 @@
 use std::marker::PhantomData;
 
 use bitcoin_spv::btcspv::hash256;
-use bs58;
 
 use crate::{
     curve::model::{PointDeserialize, ScalarDeserialize, Secp256k1Backend},

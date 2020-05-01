@@ -6,6 +6,6 @@ before_script:
   - rustup component add clippy
   - rustup target add wasm32-unknown-unknown
 script:
-  - cargo clippy -- -D clippy::all
+  - cargo clippy -- -D clippy::all || travis_terminate 1
   - chmod +x ./build.sh
   - ./build.sh

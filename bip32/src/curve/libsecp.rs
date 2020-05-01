@@ -1,6 +1,4 @@
 // Wuille's secp
-use secp256k1;
-
 use crate::{curve::model::*, Bip32Error};
 
 pub(crate) type Error = secp256k1::Error;
