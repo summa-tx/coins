@@ -658,8 +658,7 @@ impl<'a> WitnessTransaction<'a> for WitnessTx {
         args.prevout_script.serialize(writer)?;
         Self::write_u64_le(writer, args.prevout_value)?;
         Self::write_u32_le(writer, input.sequence)?;
-        self.hash_outputs(args.index, args.sighash_flag)?
-            .serialize(writer)?;
+        self.hash_outputs(args.index, args.sighash_flag)?.serialize(writer)?;
         Self::write_u32_le(writer, self.legacy_tx.locktime)?;
         Self::write_u32_le(writer, args.sighash_flag as u32)?;
         Ok(())
@@ -882,15 +881,19 @@ mod tests {
         };
 
         assert_eq!(tx.sighash(&args).unwrap(), all);
+        assert_eq!(tx.witness_sighash(&args).unwrap(), all);
 
         args.sighash_flag = Sighash::AllACP;
         assert_eq!(tx.sighash(&args).unwrap(), all_anyonecanpay);
+        assert_eq!(tx.witness_sighash(&args).unwrap(), all_anyonecanpay);
 
         args.sighash_flag = Sighash::Single;
         assert_eq!(tx.sighash(&args).unwrap(), single);
+        assert_eq!(tx.witness_sighash(&args).unwrap(), single);
 
         args.sighash_flag = Sighash::SingleACP;
         assert_eq!(tx.sighash(&args).unwrap(), single_anyonecanpay);
+        assert_eq!(tx.witness_sighash(&args).unwrap(), single_anyonecanpay);
     }
 
     #[test]
@@ -942,5 +945,144 @@ mod tests {
 
         args.sighash_flag = Sighash::SingleACP;
         assert_eq!(tx.sighash(&args).unwrap(), single_anyonecanpay);
+    }
+
+    #[test]
+    fn it_calculates_witness_txid() {
+        // from mainnet: 3c7fb4af9b7bd2ba6f155318e0bc8a50432d4732ab6e36293ef45b304567b46a
+        let tx_hex = "01000000000101b77bebb3ac480e99c0d95a4c812137b116e65e2f3b3a66a36d0e252928d460180100000000ffffffff03982457000000000017a91417b8e0f150215cc70bf2fb58070041d655b162dd8740e133000000000017a9142535e444f7d55f0500c1f86609d6cfc289576b698747abfb0100000000220020701a8d401c84fb13e6baf169d59684e17abd9fa216c8cc5b9fc63d622ff8c58d040047304402205c6a889efa26955bef7ce2b08792e63e25eac9859080f0d83912b0ea833d7eb402205f859f4640f1600db5012b467ec05bb4ae1779640c1b5fadc8908960740e52b30147304402201c239ea25cfeadfa9493a1b0d136d70f50f821385972b7188c4329c2bf2d23a302201ee790e4b6794af6567f85a226a387d5b0222c3dc90d2fc558d09e08062b8271016952210375e00eb72e29da82b89367947f29ef34afb75e8654f6ea368e0acdfd92976b7c2103a1b26313f430c4b15bb1fdce663207659d8cac749a0e53d70eff01874496feff2103c96d495bfdd5ba4145e3e046fee45e84a8a48ad05bd8dbb395c011a32cf9f88053ae00000000";
+        let wtxid = Hash256Digest::deserialize_hex(
+            "84d85ce82c728e072bb11f379a6ed0b9127aa43905b7bae14b254bfcdce63549"
+        ).unwrap();
+
+        let tx = WitnessTx::deserialize_hex(tx_hex).unwrap();
+
+        assert_eq!(tx.wtxid(), wtxid.into());
+    }
+
+    #[test]
+    fn it_rejects_sighash_none() {
+        let tx_hex = "02000000000102ee9242c89e79ab2aa537408839329895392b97505b3496d5543d6d2f531b94d20000000000fdffffffee9242c89e79ab2aa537408839329895392b97505b3496d5543d6d2f531b94d20000000000fdffffff0273d301000000000017a914bba5acbec4e6e3374a0345bf3609fa7cfea825f18773d301000000000017a914bba5acbec4e6e3374a0345bf3609fa7cfea825f1870000cafd0700";
+        let tx = WitnessTx::deserialize_hex(tx_hex).unwrap();
+
+        let args = WitnessSighashArgs {
+            index: 0,
+            sighash_flag: Sighash::None,
+            prevout_script: &vec![].into(),
+            prevout_value: 120000,
+        };
+
+        match tx.sighash(&args) {
+            Err(TxError::NoneUnsupported) => {}
+            _ => assert!(false, "expected sighash none unsupported")
+        }
+    }
+
+    #[test]
+    fn it_rejects_sighash_single_bug() {
+        let tx_hex = "02000000000102ee9242c89e79ab2aa537408839329895392b97505b3496d5543d6d2f531b94d20000000000fdffffffee9242c89e79ab2aa537408839329895392b97505b3496d5543d6d2f531b94d20000000000fdffffff0173d301000000000017a914bba5acbec4e6e3374a0345bf3609fa7cfea825f1870000cafd0700";
+        let tx = WitnessTx::deserialize_hex(tx_hex).unwrap();
+
+        let args = WitnessSighashArgs {
+            index: 1,
+            sighash_flag: Sighash::Single,
+            prevout_script: &vec![].into(),
+            prevout_value: 120000,
+        };
+
+        match tx.sighash(&args) {
+            Err(TxError::SighashSingleBug) => {}
+            _ => assert!(false, "expected sighash single bug unsupported")
+        }
+    }
+
+    #[test]
+    fn it_calculates_legacy_sighash_of_witness_txns() {
+        // pulled from riemann helpers
+        let tx_hex = "01000000000101813f79011acb80925dfe69b3def355fe914bd1d96a3f5f71bf8303c6a989c7d1000000006b483045022100ed81ff192e75a3fd2304004dcadb746fa5e24c5031ccfcf21320b0277457c98f02207a986d955c6e0cb35d446a89d3f56100f4d7f67801c31967743a9c8e10615bed01210349fc4e631e3624a545de3f89f5d8684c7b8138bd94bdd531d2e213bf016b278afeffffff02a135ef01000000001976a914bc3b654dca7e56b04dca18f2566cdaf02e8d9ada88ac99c39800000000001976a9141c4bc762dd5423e332166702cb75f40df79fea1288ac0019430600";
+        let tx = WitnessTx::deserialize_hex(tx_hex).unwrap();
+        assert_eq!(tx.clone().without_witness().into_witness(), tx);
+        assert_eq!(tx.serialized_length(), tx_hex.len() / 2);
+
+        let prevout_script_hex = "17a91424d6008f143af0cca57344069c46661aa4fcea2387";
+        let prevout_script = Script::deserialize_hex(prevout_script_hex).unwrap();
+
+        let all = Hash256Digest::deserialize_hex(
+            "b85c4f8d1377cc138225dd9b319d0a4ca547f7884270640f44c5fcdf269e0fe8",
+        )
+        .unwrap();
+        let all_anyonecanpay = Hash256Digest::deserialize_hex(
+            "3b67a5114cc9fc837ddd6f6ec11bde38db5f68c34ab6ece2a043d7b25f2cf8bb",
+        )
+        .unwrap();
+        let single = Hash256Digest::deserialize_hex(
+            "1dab67d768be0380fc800098005d1f61744ffe585b0852f8d7adc12121a86938",
+        )
+        .unwrap();
+        let single_anyonecanpay = Hash256Digest::deserialize_hex(
+            "d4687b93c0a9090dc0a3384cd3a594ce613834bb37abc56f6032e96c597547e3",
+        )
+        .unwrap();
+
+        let txid = Hash256Digest::deserialize_hex(
+            "03ee4f7a4e68f802303bc659f8f817964b4b74fe046facc3ae1be4679d622c45",
+        )
+        .unwrap();
+        assert_eq!(tx.txid(), txid.into());
+
+        let mut args = LegacySighashArgs {
+            index: 0,
+            sighash_flag: Sighash::All,
+            prevout_script: &prevout_script,
+        };
+
+        assert_eq!(tx.legacy_sighash(&args).unwrap(), all);
+        args.sighash_flag = Sighash::AllACP;
+        assert_eq!(tx.legacy_sighash(&args).unwrap(), all_anyonecanpay);
+        args.sighash_flag = Sighash::Single;
+        assert_eq!(tx.legacy_sighash(&args).unwrap(), single);
+        args.sighash_flag = Sighash::SingleACP;
+        assert_eq!(tx.legacy_sighash(&args).unwrap(), single_anyonecanpay);
+    }
+
+    #[test]
+    fn it_gets_sighash_flags_from_u8s() {
+        let cases = [
+            (0x01, Sighash::All),
+            (0x02, Sighash::None),
+            (0x3, Sighash::Single),
+            (0x81, Sighash::AllACP),
+            (0x82, Sighash::NoneACP),
+            (0x83, Sighash::SingleACP),
+        ];
+        let errors = [
+            (0x84, TxError::UnknownSighash(0x84)),
+            (0x16, TxError::UnknownSighash(0x16)),
+            (0x34, TxError::UnknownSighash(0x34)),
+            (0xab, TxError::UnknownSighash(0xab)),
+            (0x39, TxError::UnknownSighash(0x39)),
+            (0x00, TxError::UnknownSighash(0x00)),
+            (0x30, TxError::UnknownSighash(0x30)),
+            (0x4, TxError::UnknownSighash(0x4)),
+        ];
+        for case in cases.iter() {
+            assert_eq!(Sighash::from_u8(case.0).unwrap(), case.1)
+        }
+        for case in errors.iter() {
+            match Sighash::from_u8(case.0) {
+                Err(TxError::UnknownSighash(v)) => assert_eq!(case.0, v),
+                _ => assert!(false, "expected err unknown sighash"),
+            }
+        }
+    }
+
+    #[test]
+    fn it_json_serializes_a_tx() {
+        let tx_hex = "01000000000101813f79011acb80925dfe69b3def355fe914bd1d96a3f5f71bf8303c6a989c7d1000000006b483045022100ed81ff192e75a3fd2304004dcadb746fa5e24c5031ccfcf21320b0277457c98f02207a986d955c6e0cb35d446a89d3f56100f4d7f67801c31967743a9c8e10615bed01210349fc4e631e3624a545de3f89f5d8684c7b8138bd94bdd531d2e213bf016b278afeffffff02a135ef01000000001976a914bc3b654dca7e56b04dca18f2566cdaf02e8d9ada88ac99c39800000000001976a9141c4bc762dd5423e332166702cb75f40df79fea1288ac0019430600";
+        let tx = WitnessTx::deserialize_hex(tx_hex).unwrap();
+        assert_eq!(tx.to_json(), "{\"version\": 1, \"vin\": {\"length\": 1, \"items\": [{\"outpoint\": {\"txid\": \"0x813f79011acb80925dfe69b3def355fe914bd1d96a3f5f71bf8303c6a989c7d1\", \"idx\": 0}, \"script_sig\": {\"length\": 107, \"items\": [72, 48, 69, 2, 33, 0, 237, 129, 255, 25, 46, 117, 163, 253, 35, 4, 0, 77, 202, 219, 116, 111, 165, 226, 76, 80, 49, 204, 252, 242, 19, 32, 176, 39, 116, 87, 201, 143, 2, 32, 122, 152, 109, 149, 92, 110, 12, 179, 93, 68, 106, 137, 211, 245, 97, 0, 244, 215, 246, 120, 1, 195, 25, 103, 116, 58, 156, 142, 16, 97, 91, 237, 1, 33, 3, 73, 252, 78, 99, 30, 54, 36, 165, 69, 222, 63, 137, 245, 216, 104, 76, 123, 129, 56, 189, 148, 189, 213, 49, 210, 226, 19, 191, 1, 107, 39, 138]}, \"sequence\": 4294967294}]}, \"vout\": {\"length\": 2, \"items\": [{\"value\": \"0xa135ef0100000000\", \"script_pubkey\": {\"length\": 25, \"items\": [118, 169, 20, 188, 59, 101, 77, 202, 126, 86, 176, 77, 202, 24, 242, 86, 108, 218, 240, 46, 141, 154, 218, 136, 172]}}, {\"value\": \"0x99c3980000000000\", \"script_pubkey\": {\"length\": 25, \"items\": [118, 169, 20, 28, 75, 199, 98, 221, 84, 35, 227, 50, 22, 103, 2, 203, 117, 244, 13, 247, 159, 234, 18, 136, 172]}}]}, \"witnesses\": [{\"length\": 0, \"items\": []}], \"locktime\": 410393}");
+
+        let legacy_tx = tx.without_witness();
+        assert_eq!(legacy_tx.to_json(), "{\"version\": 1, \"vin\": {\"length\": 1, \"items\": [{\"outpoint\": {\"txid\": \"0x813f79011acb80925dfe69b3def355fe914bd1d96a3f5f71bf8303c6a989c7d1\", \"idx\": 0}, \"script_sig\": {\"length\": 107, \"items\": [72, 48, 69, 2, 33, 0, 237, 129, 255, 25, 46, 117, 163, 253, 35, 4, 0, 77, 202, 219, 116, 111, 165, 226, 76, 80, 49, 204, 252, 242, 19, 32, 176, 39, 116, 87, 201, 143, 2, 32, 122, 152, 109, 149, 92, 110, 12, 179, 93, 68, 106, 137, 211, 245, 97, 0, 244, 215, 246, 120, 1, 195, 25, 103, 116, 58, 156, 142, 16, 97, 91, 237, 1, 33, 3, 73, 252, 78, 99, 30, 54, 36, 165, 69, 222, 63, 137, 245, 216, 104, 76, 123, 129, 56, 189, 148, 189, 213, 49, 210, 226, 19, 191, 1, 107, 39, 138]}, \"sequence\": 4294967294}]}, \"vout\": {\"length\": 2, \"items\": [{\"value\": \"0xa135ef0100000000\", \"script_pubkey\": {\"length\": 25, \"items\": [118, 169, 20, 188, 59, 101, 77, 202, 126, 86, 176, 77, 202, 24, 242, 86, 108, 218, 240, 46, 141, 154, 218, 136, 172]}}, {\"value\": \"0x99c3980000000000\", \"script_pubkey\": {\"length\": 25, \"items\": [118, 169, 20, 28, 75, 199, 98, 221, 84, 35, 227, 50, 22, 103, 2, 203, 117, 244, 13, 247, 159, 234, 18, 136, 172]}}]}, \"locktime\": 410393}");
     }
 }

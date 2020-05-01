@@ -172,5 +172,60 @@ mod test {
         for case in cases.iter() {
             assert_eq!(MainnetEncoder::string_to_address(&case.0).unwrap(), case.1);
         }
+
+        let errors = [
+            "hello",
+            "this isn't a real address",
+            "bc10pu8s7rc0pu8s7rc0putt44am", // valid bech32, bad length
+        ];
+        for case in errors.iter() {
+            match MainnetEncoder::string_to_address(case) {
+                Err(EncodingError::UnknownScriptType) => {},
+                _ => assert!(false, "expected err UnknownScriptType"),
+            }
+        }
+    }
+
+    #[test]
+    fn it_encodes_addresses() {
+        let cases = [
+            (ScriptPubkey::new(hex::decode("a914e88869b88866281ab166541ad8aafba8f8aba47a87").unwrap()), Address::SH("3NtY7BrF3xrcb31JXXaYCKVcz1cH3Azo5y".to_owned())),
+            (ScriptPubkey::new(hex::decode("76a9140e5c3c8d420c7f11e88d76f7b860d471e6517a4488ac").unwrap()), Address::PKH("12JvxPk4mT4PKMVHuHc1aQGBZpotQWQwF6".to_owned())),
+            (ScriptPubkey::new(hex::decode("00201bf8a1831db5443b42a44f30a121d1b616d011ab15df62b588722a845864cc99").unwrap()), Address::WSH("bc1qr0u2rqcak4zrks4yfuc2zgw3kctdqydtzh0k9dvgwg4ggkryejvsy49jvz".to_owned())),
+            (ScriptPubkey::new(hex::decode("00141bf8a1831db5443b42a44f30a121d1b616d011ab").unwrap()), Address::WPKH("bc1qr0u2rqcak4zrks4yfuc2zgw3kctdqydt3wy5yh".to_owned())),
+        ];
+        for case in cases.iter() {
+            assert_eq!(MainnetEncoder::encode_address(&case.0).unwrap(), case.1);
+        }
+        let errors = [
+            (ScriptPubkey::new(hex::decode("01201bf8a1831db5443b42a44f30a121d1b616d011ab15df62b588722a845864cc99").unwrap())), // wrong witness program version
+            (ScriptPubkey::new(hex::decode("a914e88869b88866281ab166541ad8aafba8f8aba47a89").unwrap())), // wrong last byte
+            (ScriptPubkey::new(hex::decode("aa14e88869b88866281ab166541ad8aafba8f8aba47a87").unwrap())), // wrong first byte
+            (ScriptPubkey::new(hex::decode("76a9140e5c3c8d420c7f11e88d76f7b860d471e6517a4488ad").unwrap())), // wrong last byte
+            (ScriptPubkey::new(hex::decode("77a9140e5c3c8d420c7f11e88d76f7b860d471e6517a4488ac").unwrap())), // wrong first byte
+            (ScriptPubkey::new(hex::decode("01141bf8a1831db5443b42a44f30a121d1b616d011ab").unwrap())), // wrong witness program version
+            (ScriptPubkey::new(hex::decode("0011223344").unwrap())), // junk
+            (ScriptPubkey::new(hex::decode("deadbeefdeadbeefdeadbeefdeadbeef").unwrap())), // junk
+            (ScriptPubkey::new(hex::decode("02031bf8a1831db5443b42a44f30a121d1b616d011ab15df62b588722a845864cc99041bf8a1831db5443b42a44f30a121d1b616d011ab15df62b588722a845864cc9902af").unwrap())), // Raw msig
+        ];
+        for case in errors.iter() {
+            match MainnetEncoder::encode_address(case) {
+                Err(EncodingError::UnknownScriptType) => {},
+                _ => assert!(false, "expected err UnknownScriptType"),
+            }
+        }
+    }
+
+    #[test]
+    fn it_allows_you_to_unwrap_strings_from_addresses() {
+        let cases = [
+            ("3NtY7BrF3xrcb31JXXaYCKVcz1cH3Azo5y".to_owned(), Address::SH("3NtY7BrF3xrcb31JXXaYCKVcz1cH3Azo5y".to_owned())),
+            ("12JvxPk4mT4PKMVHuHc1aQGBZpotQWQwF6".to_owned(), Address::PKH("12JvxPk4mT4PKMVHuHc1aQGBZpotQWQwF6".to_owned())),
+            ("bc1qr0u2rqcak4zrks4yfuc2zgw3kctdqydtzh0k9dvgwg4ggkryejvsy49jvz".to_owned(), Address::WSH("bc1qr0u2rqcak4zrks4yfuc2zgw3kctdqydtzh0k9dvgwg4ggkryejvsy49jvz".to_owned())),
+            ("bc1qr0u2rqcak4zrks4yfuc2zgw3kctdqydt3wy5yh".to_owned(), Address::WPKH("bc1qr0u2rqcak4zrks4yfuc2zgw3kctdqydt3wy5yh".to_owned())),
+        ];
+        for case in cases.iter() {
+            assert_eq!(case.1.as_string(), case.0);
+        }
     }
 }

@@ -391,9 +391,6 @@ mod test {
             .pay(0x8000_0000, &Address::PKH("12JvxPk4mT4PKMVHuHc1aQGBZpotQWQwF6".to_owned())).unwrap()
             .locktime(1000)
             .version(1);
-
-        println!("{:?}", legacy_builder);
-
         let legacy_tx = legacy_builder.clone().build();
         let c = legacy_builder.clone().as_witness().as_legacy();
         assert_eq!(&legacy_tx, &c.build());

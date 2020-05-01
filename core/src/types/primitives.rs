@@ -64,8 +64,8 @@ where
     fn to_json(&self) -> String {
         let items: Vec<String> = self.items().iter().map(Ser::to_json).collect();
         format!(
-            "{{\"prefix_bytes\": {}, \"items\": [{}]}}",
-            self.len_prefix(),
+            "{{\"length\": {}, \"items\": [{}]}}",
+            self.len(),
             items.join(", ")
         )
     }
