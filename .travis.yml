@@ -4,6 +4,7 @@ rust:
   - stable
 before_script:
   - rustup component add clippy
+  - rustup target add wasm32-unknown-unknown
 script:
   - cargo clippy -- -D clippy::all
   - chmod +x ./build.sh
