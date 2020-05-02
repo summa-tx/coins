@@ -94,7 +94,7 @@ mod test {
 
     #[test]
     fn it_has_sensible_syntax() {
-        let b = BitcoinMainnet::tx_builder()
+        let tx_hex = BitcoinMainnet::tx_builder()
             .version(2)
             .spend(BitcoinOutpoint::default(), 0xaabbccdd)
             .pay(
@@ -108,10 +108,18 @@ mod test {
             )
             .unwrap()
             .build()
-            .serialize_hex();
-        println!("{:?}", b);
-        // let u = BitcoinMainnet::decode_address(Address::WPKH("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned().to_uppercase()));
-        // println!("({:?})", &u);
-        // assert_eq!(true, false, "u is an error");
+            .serialize_hex()
+            .unwrap();
+        BitcoinMainnet::builder_from_hex(&tx_hex).unwrap();
+        // println!("{:?}", b);
+    }
+
+    #[test]
+    fn it_exposes_encoder_interface() {
+        let addr_string = "bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned();
+        let address = Address::WPKH(addr_string.clone());
+        assert_eq!(&address, &BitcoinMainnet::string_to_address(&addr_string).unwrap());
+        let u = BitcoinMainnet::decode_address(&address).unwrap();
+        assert_eq!(&address, &BitcoinMainnet::encode_address(&u).unwrap())
     }
 }
