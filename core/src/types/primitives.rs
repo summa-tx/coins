@@ -7,7 +7,7 @@ use std::{
 use crate::ser::{self, Ser, SerError};
 
 /// A vector of items prefixed by a Bitcoin-style VarInt. The VarInt is encoded only as the length
-/// of the vector, and the serialized length of the VarInt.
+/// of the vector, and minimal VarInts are mandatory.
 ///
 /// The `PrefixVec` is a common Bitcoin datastructure, used throughout transactions and blocks.
 pub trait PrefixVec: Ser {
@@ -202,5 +202,36 @@ impl<T> IntoIterator for ConcretePrefixVec<T> {
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
+    }
+}
+
+impl<T: Ser> std::iter::FromIterator<T> for ConcretePrefixVec<T> {
+    fn from_iter<I: IntoIterator<Item=T>>(iter: I) -> Self {
+        Vec::from_iter(iter).into()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn basic_functionality() {
+        let mut c = ConcretePrefixVec::<u8>::null();
+        c.push(0);
+        assert_eq!(c[0], 0);
+
+        // IntoIterator and FromIterator
+        c = c.into_iter().chain(std::iter::once(1)).collect();
+        assert_eq!(c[0], 0);
+        assert_eq!(c[1], 1);
+
+        // extend
+        c.extend(c.clone());
+
+        // insert
+        c.insert(2, 2);
+
+        // range indexing
+        assert_eq!(c[0..5], [0, 1, 2, 0, 1]);
     }
 }
