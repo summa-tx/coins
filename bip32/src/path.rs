@@ -33,11 +33,33 @@ fn try_parse_path(path: &str) -> Result<Vec<u32>, Bip32Error> {
         .map_err(|_| Bip32Error::MalformattedDerivation(path.to_owned()))
 }
 
+fn encode_index(idx: u32, harden: char) -> String {
+    let mut s = (idx % BIP32_HARDEN).to_string();
+    if idx >= BIP32_HARDEN { s.push(harden); }
+    s
+}
+
 /// A Bip32 derivation path
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct DerivationPath(Vec<u32>);
 
 impl DerivationPath {
+    #[doc(hidden)]
+    pub fn custom_string(&self, root: &str, joiner: char, harden: char) -> String {
+        std::iter::once(root.to_owned())
+            .chain(
+                self.0.iter()
+                .map(|s| encode_index(*s, harden))
+            )
+            .collect::<Vec<String>>()
+            .join(&joiner.to_string())
+    }
+
+    /// Converts the path to a standard bip32 string. e.g `"m/44'/0'/0/32"`.
+    pub fn derivation_string(&self, ) -> String {
+        self.custom_string("m", '/', '\'')
+    }
+
     /// Returns `True` if there are no indices in the path
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
@@ -260,11 +282,11 @@ pub mod test {
     fn it_parses_derivation_strings() {
         let cases = [
             ("m/32", vec![32]),
-            ("m/32h", vec![32 + BIP32_HARDEN]),
-            ("m/0h/32/5/5/5", vec![BIP32_HARDEN, 32, 5, 5, 5]),
+            ("m/32'", vec![32 + BIP32_HARDEN]),
+            ("m/0'/32/5/5/5", vec![BIP32_HARDEN, 32, 5, 5, 5]),
             ("32", vec![32]),
-            ("32h", vec![32 + BIP32_HARDEN]),
-            ("0h/32/5/5/5", vec![BIP32_HARDEN, 32, 5, 5, 5]),
+            ("32'", vec![32 + BIP32_HARDEN]),
+            ("0'/32/5/5/5", vec![BIP32_HARDEN, 32, 5, 5, 5]),
         ];
         for case in cases.iter() {
             match try_parse_path(&case.0) {
@@ -325,6 +347,17 @@ pub mod test {
                 Err(Bip32Error::MalformattedDerivation(e)) => assert_eq!(&e, case),
                 Err(e) => assert!(false, "unexpected error {}", e),
             }
+        }
+    }
+
+    #[test]
+    fn it_stringifies_derivation_paths() {
+        let cases = [
+            (DerivationPath(vec![1, 2, 3]), "m/1/2/3"),
+            (vec![BIP32_HARDEN, BIP32_HARDEN, BIP32_HARDEN].into(), "m/0'/0'/0'"),
+        ];
+        for case in cases.iter() {
+            assert_eq!(&case.0.derivation_string(), case.1);
         }
     }
 }
