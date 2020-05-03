@@ -113,6 +113,7 @@ macro_rules! impl_simple_getter {
     ($class:ident, $prop:ident, $type:ty) => {
         #[wasm_bindgen]
         impl $class {
+            /// A simple property getter
             #[wasm_bindgen(method, getter)]
             pub fn $prop(&self) -> $type {
                 (self.0).$prop
@@ -125,6 +126,7 @@ macro_rules! impl_getter_passthrough {
     ($class:ident, $prop:ident, $type:ty) => {
         #[wasm_bindgen]
         impl $class {
+            /// A passthrough getter for a calculated property
             #[wasm_bindgen(method, getter)]
             pub fn $prop(&self) -> $type {
                 (self.0).$prop()
@@ -137,6 +139,7 @@ macro_rules! impl_wrapped_getter {
     ($class:ident, $prop:ident, $type:ident) => {
         #[wasm_bindgen]
         impl $class {
+            /// A property getter that wraps the result in a JS-friendly object
             #[wasm_bindgen(method, getter)]
             pub fn $prop(&self) -> $type {
                 (self.0).$prop.into()
@@ -149,6 +152,7 @@ macro_rules! impl_wrapped_getter_passthrough {
     ($class:ident, $prop:ident, $type:ident) => {
         #[wasm_bindgen]
         impl $class {
+            /// A calculated property getter that wraps the result in a JS-friendly object
             #[wasm_bindgen(method, getter)]
             pub fn $prop(&self) -> $type {
                 (self.0).$prop().into()
@@ -162,37 +166,45 @@ macro_rules! impl_prefix_vec_access {
         #[wasm_bindgen]
         impl $class {
             #[wasm_bindgen(constructor)]
+            /// Simple JS constructor. Passes through to `null`
             pub fn new() -> $class {
                 Self::null()
             }
 
+            /// Instantiate an empty prefixed vector
             pub fn null() -> $class {
                 $class($module::$class::null())
             }
 
             #[wasm_bindgen(method, getter)]
+            /// Get the length of the vector
             pub fn length(&self) -> usize {
                 self.0.len()
             }
 
             #[wasm_bindgen(method, getter)]
+            /// Get the length of the CompactInt prefix
             pub fn len_prefix(&self) -> u8 {
                 self.0.len_prefix()
             }
 
+            /// Push input to the vector
             pub fn push(&mut self, input: &$inner_class) {
                 self.0.push(input.0.clone())
             }
 
+            /// Get the element at `index`
             pub fn get(&self, index: usize) -> $inner_class {
                 self.0[index].clone().into()
             }
 
+            /// Overwrite the element at `index`
             pub fn set(&mut self, index: usize, item: &$inner_class) {
                 self.0[index] = item.clone().into()
             }
 
             #[wasm_bindgen(method, getter)]
+            /// Return an array containing clones of the underlying items
             pub fn items(&self) -> js_sys::Array {
                 self.0
                     .items()
@@ -259,12 +271,17 @@ macro_rules! impl_builders {
                 builder::LegacyBuilder::new().into()
             }
 
+            /// Instantate a builder from a tx
             pub fn from_tx(tx: &LegacyTx) -> $leg {
                 builder::LegacyBuilder::from_tx(&tx.inner()).into()
             }
 
-            pub fn from_hex_tx(hex: String) -> $leg {
-                builder::LegacyBuilder::from_hex_tx(&hex).unwrap().into()
+            /// Instantate a builder from a hex-encoded tx
+            pub fn from_hex_tx(hex: String) -> Result<$leg, JsValue> {
+                builder::LegacyBuilder::from_hex_tx(&hex)
+                    .map(Into::into)
+                    .map_err(WasmError::from)
+                    .map_err(JsValue::from)
             }
 
             /// Set the builder version
@@ -330,12 +347,17 @@ macro_rules! impl_builders {
                 builder::WitnessBuilder::new().into()
             }
 
+            /// Instantate a builder from a tx
             pub fn from_tx(tx: &WitnessTx) -> $wit {
                 builder::WitnessBuilder::from_tx(&tx.inner()).into()
             }
 
-            pub fn from_hex_tx(hex: String) -> $wit {
-                builder::WitnessBuilder::from_hex_tx(&hex).unwrap().into()
+            /// Instantate a builder from a hex-encoded tx
+            pub fn from_hex_tx(hex: String) -> Result<$wit, JsValue> {
+                builder::WitnessBuilder::from_hex_tx(&hex)
+                    .map(Into::into)
+                    .map_err(WasmError::from)
+                    .map_err(JsValue::from)
             }
 
             /// Set the builder version
@@ -439,6 +461,7 @@ macro_rules! impl_network {
         $(#[$outer:meta])*
         $network_name:ident, $builder_name:ident, $encoder_name:ident
     ) => {
+        /// A Network object. This
         #[wasm_bindgen(inspectable)]
         #[derive(Debug)]
         pub struct $network_name;
@@ -448,6 +471,12 @@ macro_rules! impl_network {
             /// Return a new transaction builder for this network.
             pub fn tx_builder() -> $builder_name {
                 $builder_name::new()
+            }
+
+            /// Instantiate a transaction builder from a hex-serialized transaction
+            /// Throws if the hex-string is not a properly-formatted bitcoin transaction
+            pub fn builder_from_hex(hex_tx: String) -> Result<$builder_name, JsValue> {
+                $builder_name::from_hex_tx(hex_tx)
             }
 
             /// Encode a Uint8Array as an address with this network's version info.
