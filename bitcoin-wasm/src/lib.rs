@@ -3,7 +3,7 @@
 //! resulting wasm libraries can be run in a browser and in node.js.
 //!
 //!
-//! This crate is under active development, and the API may change.
+//! **This crate is under active development, and the API may change.**
 //!
 //! The interface aims to be as faithful to `riemann-bitcoin` as possible, however
 //! a few compromises have been made.
@@ -51,9 +51,24 @@ pub mod enc;
 pub mod hashes;
 pub mod nets;
 pub mod types;
+//
+// pub use builder::*;
+// pub use enc::*;
+// pub use hashes::*;
+// pub use nets::*;
+// pub use types::*;
 
-pub use builder::*;
-pub use enc::*;
-pub use hashes::*;
-pub use nets::*;
-pub use types::*;
+#[cfg(test)]
+pub mod test {
+    use wasm_bindgen_test::*;
+
+    #[wasm_bindgen_test]
+    fn pass() {
+        assert_eq!(1, 1);
+    }
+
+    #[wasm_bindgen_test]
+    fn fail() {
+        assert_eq!(1, 2);
+    }
+}

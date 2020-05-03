@@ -7,7 +7,7 @@ use riemann_core::{enc::AddressEncoder, primitives::PrefixVec};
 
 use rmn_btc::{enc, types::script};
 
-use crate::errors::WasmError;
+use crate::types::errors::WasmError;
 
 /// A wrapper type for Bitcoin addresses. Contains an instance of the address enum.
 #[wasm_bindgen]

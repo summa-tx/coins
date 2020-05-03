@@ -14,12 +14,15 @@ pub enum WasmError {
     /// An unknown error.
     #[error("Unknown error in wasm")]
     UnknownError,
+
     /// An error related to serailization.
     #[error(transparent)]
     SerError(#[from] SerError),
+
     /// An error related to TX operations. Usually itself a wrapped `SerError`
     #[error(transparent)]
     TxError(#[from] TxError),
+
     /// An error related to Address encoding/decoding. Often a wrapped error from
     /// base58check or bech32 crates. Sometimes a version or HRP mismatch.
     #[error(transparent)]

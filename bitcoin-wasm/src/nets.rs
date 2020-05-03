@@ -17,12 +17,14 @@ impl_network!(
     MainnetLegacyBuilder,
     MainnetEncoder
 );
+
 impl_network!(
     /// A fully-parameterized BitcoinTestnet. This is the main interface for accessing the library.
     BitcoinTestnet,
     TestnetLegacyBuilder,
     TestnetEncoder
 );
+
 impl_network!(
     /// A fully-parameterized BitcoinSignet. This is the main interface for accessing the library.
     BitcoinSignet,

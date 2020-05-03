@@ -19,7 +19,7 @@ use rmn_btc::{
     types::{script, txin, txout},
 };
 
-use crate::{
+use crate::types::{
     errors::WasmError,
     script::TxWitness,
     transactions::{LegacyTx, WitnessTx},

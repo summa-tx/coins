@@ -13,11 +13,13 @@ use riemann_core::{
 };
 
 use crate::{
-    errors::WasmError,
     hashes::{TXID, WTXID},
-    script::{TxWitness, Witness},
-    txin::{BitcoinTxIn, Vin},
-    txout::{TxOut, Vout},
+    types::{
+        errors::WasmError,
+        script::{TxWitness, Witness},
+        txin::{BitcoinTxIn, Vin},
+        txout::{TxOut, Vout},
+    },
 };
 
 wrap_struct!(
