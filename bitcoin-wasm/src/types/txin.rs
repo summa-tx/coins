@@ -6,7 +6,7 @@ use wasm_bindgen::prelude::*;
 use riemann_core::{ser::Ser, types::primitives::PrefixVec};
 use rmn_btc::types::{script, txin};
 
-use crate::{types::errors::WasmError, hashes::TXID};
+use crate::hashes::TXID;
 
 wrap_struct!(
     /// An Outpoint. This is a unique identifier for a UTXO, and is composed of a transaction ID (in

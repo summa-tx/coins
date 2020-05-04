@@ -11,16 +11,16 @@
 
 use wasm_bindgen::prelude::*;
 
-use riemann_core::{builder::TxBuilder, enc::AddressEncoder};
+use riemann_core::{
+    builder::TxBuilder,
+    enc::AddressEncoder,
+};
 
 use rmn_btc::{
-    builder::{self, BitcoinBuilder, WitTxBuilder},
-    enc,
-    types::{script, txin, txout},
+    builder::{BitcoinBuilder, WitTxBuilder},
 };
 
 use crate::types::{
-    errors::WasmError,
     script::TxWitness,
     transactions::{LegacyTx, WitnessTx},
     txin::{BitcoinOutpoint, Vin},

@@ -5,9 +5,7 @@ use wasm_bindgen::prelude::*;
 
 use riemann_core::{enc::AddressEncoder, primitives::PrefixVec};
 
-use rmn_btc::{enc, types::script};
-
-use crate::types::errors::WasmError;
+use rmn_btc::enc;
 
 /// A wrapper type for Bitcoin addresses. Contains an instance of the address enum.
 #[wasm_bindgen]
@@ -45,13 +43,13 @@ impl Serialize for Address {
 
 impl_encoder!(
     /// An encoder for Bitcoin Mainnet
-    enc::MainnetEncoder
+    MainnetEncoder
 );
 impl_encoder!(
     /// An encoder for Bitcoin Tesnet
-    enc::TestnetEncoder
+    TestnetEncoder
 );
 impl_encoder!(
     /// An encoder for Bitcoin Signet
-    enc::SignetEncoder
+    SignetEncoder
 );

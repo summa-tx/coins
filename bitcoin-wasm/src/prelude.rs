@@ -63,7 +63,7 @@ macro_rules! wrap_struct {
             pub fn deserialize(buf: &[u8]) -> Result<$name, JsValue> {
                 $module::$name::deserialize(&mut buf.as_ref(), 0)
                     .map(Self::from)
-                    .map_err(WasmError::from)
+                    .map_err(crate::types::errors::WasmError::from)
                     .map_err(JsValue::from)
             }
 
@@ -71,7 +71,7 @@ macro_rules! wrap_struct {
             pub fn serialize(&self) -> Result<js_sys::Uint8Array, JsValue> {
                 let mut v = vec![];
                 self.0.serialize(&mut v)
-                    .map_err(WasmError::from)
+                    .map_err(crate::types::errors::WasmError::from)
                     .map_err(JsValue::from)?;
                 Ok(js_sys::Uint8Array::from(&v[..]))
             }
@@ -80,14 +80,14 @@ macro_rules! wrap_struct {
             pub fn deserialize_hex(s: String) -> Result<$name, JsValue> {
                 $module::$name::deserialize_hex(&s)
                     .map(Self::from)
-                    .map_err(WasmError::from)
+                    .map_err(crate::types::errors::WasmError::from)
                     .map_err(JsValue::from)
             }
 
             /// Serialize to a hex string.
             pub fn serialize_hex(&self) -> Result<String, JsValue> {
                 self.0.serialize_hex()
-                    .map_err(WasmError::from)
+                    .map_err(crate::types::errors::WasmError::from)
                     .map_err(JsValue::from)
             }
 
@@ -95,14 +95,14 @@ macro_rules! wrap_struct {
             pub fn deserialize_base64(s: String) -> Result<$name, JsValue> {
                 $module::$name::deserialize_base64(&s)
                     .map(Self::from)
-                    .map_err(WasmError::from)
+                    .map_err(crate::types::errors::WasmError::from)
                     .map_err(JsValue::from)
             }
 
             /// Serialize to a base64 string.
             pub fn serialize_base64(&self) -> Result<String, JsValue> {
                 self.0.serialize_base64()
-                    .map_err(WasmError::from)
+                    .map_err(crate::types::errors::WasmError::from)
                     .map_err(JsValue::from)
             }
         }
@@ -229,7 +229,7 @@ macro_rules! impl_builders {
         /// via `extend_witnesses`.
         #[wasm_bindgen(inspectable)]
         #[derive(Debug, Clone)]
-        pub struct $leg(builder::LegacyBuilder<enc::$enc>);
+        pub struct $leg(rmn_btc::builder::LegacyBuilder<rmn_btc::enc::$enc>);
 
         /// WitnessBuilder implements `TxBuilder` and `WitTxBuilder`. The only difference between
         /// `WitnessBuilder` and `LegacyBuilder` is that `WitnessBuilder` builds Witness transactions.
@@ -237,16 +237,16 @@ macro_rules! impl_builders {
         /// non-witness updates are applied to.
         #[wasm_bindgen(inspectable)]
         #[derive(Debug, Clone)]
-        pub struct $wit(builder::WitnessBuilder<enc::$enc>);
+        pub struct $wit(rmn_btc::builder::WitnessBuilder<rmn_btc::enc::$enc>);
 
-        impl From<builder::LegacyBuilder<enc::$enc>> for $leg {
-            fn from(b: builder::LegacyBuilder<enc::$enc>) -> $leg {
+        impl From<rmn_btc::builder::LegacyBuilder<rmn_btc::enc::$enc>> for $leg {
+            fn from(b: rmn_btc::builder::LegacyBuilder<rmn_btc::enc::$enc>) -> $leg {
                 Self(b)
             }
         }
 
-        impl From<builder::WitnessBuilder<enc::$enc>> for $wit {
-            fn from(b: builder::WitnessBuilder<enc::$enc>) -> $wit {
+        impl From<rmn_btc::builder::WitnessBuilder<rmn_btc::enc::$enc>> for $wit {
+            fn from(b: rmn_btc::builder::WitnessBuilder<rmn_btc::enc::$enc>) -> $wit {
                 Self(b)
             }
         }
@@ -268,19 +268,19 @@ macro_rules! impl_builders {
             #[wasm_bindgen(constructor)]
             /// Instantiate a new builder
             pub fn new() -> $leg {
-                builder::LegacyBuilder::new().into()
+                rmn_btc::builder::LegacyBuilder::new().into()
             }
 
             /// Instantate a builder from a tx
             pub fn from_tx(tx: &LegacyTx) -> $leg {
-                builder::LegacyBuilder::from_tx(&tx.inner()).into()
+                rmn_btc::builder::LegacyBuilder::from_tx(&tx.inner()).into()
             }
 
             /// Instantate a builder from a hex-encoded tx
             pub fn from_hex_tx(hex: String) -> Result<$leg, JsValue> {
-                builder::LegacyBuilder::from_hex_tx(&hex)
+                rmn_btc::builder::LegacyBuilder::from_hex_tx(&hex)
                     .map(Into::into)
-                    .map_err(WasmError::from)
+                    .map_err(crate::types::errors::WasmError::from)
                     .map_err(JsValue::from)
             }
 
@@ -296,24 +296,24 @@ macro_rules! impl_builders {
 
             /// Pay an address
             pub fn pay(self, value: u64, address: &str) -> Result<$leg, JsValue> {
-                let addr = enc::$enc::string_to_address(address)
-                    .map_err(WasmError::from)
+                let addr = rmn_btc::enc::$enc::string_to_address(address)
+                    .map_err(crate::types::errors::WasmError::from)
                     .map_err(JsValue::from)?;
                 self.0
                     .pay(value, &addr)
                     .map($leg::from)
-                    .map_err(WasmError::from)
+                    .map_err(crate::types::errors::WasmError::from)
                     .map_err(JsValue::from)
             }
 
             /// Extend the vin with several inputs
             pub fn extend_inputs(self, inputs: Vin) -> $leg {
-                self.0.extend_inputs(txin::Vin::from(inputs)).into()
+                self.0.extend_inputs(rmn_btc::types::txin::Vin::from(inputs)).into()
             }
 
             /// Extend the vout with several outputs
             pub fn extend_outputs(self, outputs: Vout) -> $leg {
-                self.0.extend_outputs(txout::Vout::from(outputs)).into()
+                self.0.extend_outputs(rmn_btc::types::txout::Vout::from(outputs)).into()
             }
 
             /// Set the locktime
@@ -324,7 +324,7 @@ macro_rules! impl_builders {
             /// Add witnesses and implicitly convert to a witness builder.
             pub fn extend_witnesses(self, witnesses: TxWitness) -> $wit {
                 self.0
-                    .extend_witnesses(Vec::<script::Witness>::from(witnesses))
+                    .extend_witnesses(Vec::<rmn_btc::types::script::Witness>::from(witnesses))
                     .into()
             }
 
@@ -344,19 +344,19 @@ macro_rules! impl_builders {
         impl $wit {
             /// Instantiate a new builder#[wasm_bindgen(constructor)]
             pub fn new() -> $wit {
-                builder::WitnessBuilder::new().into()
+                rmn_btc::builder::WitnessBuilder::new().into()
             }
 
             /// Instantate a builder from a tx
             pub fn from_tx(tx: &WitnessTx) -> $wit {
-                builder::WitnessBuilder::from_tx(&tx.inner()).into()
+                rmn_btc::builder::WitnessBuilder::from_tx(&tx.inner()).into()
             }
 
             /// Instantate a builder from a hex-encoded tx
             pub fn from_hex_tx(hex: String) -> Result<$wit, JsValue> {
-                builder::WitnessBuilder::from_hex_tx(&hex)
+                rmn_btc::builder::WitnessBuilder::from_hex_tx(&hex)
                     .map(Into::into)
-                    .map_err(WasmError::from)
+                    .map_err(crate::types::errors::WasmError::from)
                     .map_err(JsValue::from)
             }
 
@@ -372,24 +372,24 @@ macro_rules! impl_builders {
 
             /// Pay an address
             pub fn pay(self, value: u64, address: &str) -> Result<$wit, JsValue> {
-                let addr = enc::$enc::string_to_address(address)
-                    .map_err(WasmError::from)
+                let addr = rmn_btc::enc::$enc::string_to_address(address)
+                    .map_err(crate::types::errors::WasmError::from)
                     .map_err(JsValue::from)?;
                 self.0
                     .pay(value, &addr)
                     .map($wit::from)
-                    .map_err(WasmError::from)
+                    .map_err(crate::types::errors::WasmError::from)
                     .map_err(JsValue::from)
             }
 
             /// Extend the vin with several inputs
             pub fn extend_inputs(self, inputs: Vin) -> $wit {
-                self.0.extend_inputs(txin::Vin::from(inputs)).into()
+                self.0.extend_inputs(rmn_btc::types::txin::Vin::from(inputs)).into()
             }
 
             /// Extend the vout with several outputs
             pub fn extend_outputs(self, outputs: Vout) -> $wit {
-                self.0.extend_outputs(txout::Vout::from(outputs)).into()
+                self.0.extend_outputs(rmn_btc::types::txout::Vout::from(outputs)).into()
             }
 
             /// Set the locktime
@@ -400,7 +400,7 @@ macro_rules! impl_builders {
             /// Add witnesses
             pub fn extend_witnesses(self, witnesses: TxWitness) -> $wit {
                 self.0
-                    .extend_witnesses(Vec::<script::Witness>::from(witnesses))
+                    .extend_witnesses(Vec::<rmn_btc::types::script::Witness>::from(witnesses))
                     .into()
             }
 
@@ -421,7 +421,7 @@ macro_rules! impl_builders {
 macro_rules! impl_encoder {
     (
         $(#[$outer:meta])*
-        $module:ident::$enc_name:ident
+        $enc_name:ident
     ) => {
         $(#[$outer])*
         #[wasm_bindgen]
@@ -431,25 +431,25 @@ macro_rules! impl_encoder {
         impl $enc_name {
             /// Attempt to encode a `RecipientIdentifier` as an `Address`.
             pub fn encode_address(s: &[u8]) -> Result<Address, JsValue> {
-                $module::$enc_name::encode_address(&script::ScriptPubkey::from(s))
+                rmn_btc::enc::$enc_name::encode_address(&rmn_btc::types::script::ScriptPubkey::from(s))
                     .map(Address::from)
-                    .map_err(WasmError::from)
+                    .map_err(crate::types::errors::WasmError::from)
                     .map_err(JsValue::from)
             }
 
             /// Attempt to decode a `RecipientIdentifier` from an `Address`.
             pub fn decode_address(addr: Address) -> Result<js_sys::Uint8Array, JsValue> {
-                let decoded = $module::$enc_name::decode_address(&addr.into())
-                    .map_err(WasmError::from)
+                let decoded = rmn_btc::enc::$enc_name::decode_address(&addr.into())
+                    .map_err(crate::types::errors::WasmError::from)
                     .map_err(JsValue::from)?;
                 Ok(js_sys::Uint8Array::from(decoded.items()))
             }
 
             /// Attempt to convert a string into an `Address`.
             pub fn string_to_address(s: &str) -> Result<Address, JsValue> {
-                $module::$enc_name::string_to_address(s)
+                rmn_btc::enc::$enc_name::string_to_address(s)
                     .map(Address::from)
-                    .map_err(WasmError::from)
+                    .map_err(crate::types::errors::WasmError::from)
                     .map_err(JsValue::from)
             }
         }

@@ -6,8 +6,6 @@ use wasm_bindgen::prelude::*;
 use riemann_core::{ser::Ser, types::primitives::PrefixVec};
 use rmn_btc::types::script;
 
-use crate::types::errors::WasmError;
-
 wrap_struct!(
     /// An item in an input witness's stack.
     script::WitnessStackItem

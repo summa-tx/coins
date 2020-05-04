@@ -9,8 +9,6 @@ use bitcoin_spv::types::Hash256Digest;
 use riemann_core::{hashes::marked::MarkedDigest, ser::Ser};
 use rmn_btc::hashes;
 
-use crate::types::errors::WasmError;
-
 wrap_struct!(
     /// A marked Hash256Digest representing transaction IDs
     hashes::TXID

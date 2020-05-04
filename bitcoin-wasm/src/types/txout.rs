@@ -6,8 +6,6 @@ use wasm_bindgen::prelude::*;
 use riemann_core::{ser::Ser, types::primitives::PrefixVec};
 use rmn_btc::types::{script, txout};
 
-use crate::types::errors::WasmError;
-
 wrap_struct!(
     /// An Output. This describes a new UTXO to be created. The value is encoded as an LE u64. The
     /// script pubkey encodes the spending constraints.
