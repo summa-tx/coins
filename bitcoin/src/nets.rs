@@ -9,7 +9,7 @@
 //! use riemann_core::{
 //!     nets::Network,
 //!     builder::TxBuilder,
-//!     ser::Ser,
+//!     ser::ByteFormat,
 //! };
 //!
 //! let address = BitcoinMainnet::string_to_address("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy").unwrap();
@@ -90,7 +90,7 @@ pub type BitcoinSignet<'a> = Bitcoin<SignetEncoder>;
 mod test {
     use super::*;
     use crate::types::txin::BitcoinOutpoint;
-    use riemann_core::{builder::TxBuilder, ser::Ser};
+    use riemann_core::{builder::TxBuilder, ser::ByteFormat};
 
     #[test]
     fn it_has_sensible_syntax() {

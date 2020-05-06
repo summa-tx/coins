@@ -4,9 +4,8 @@ use std::io::{Read, Write};
 
 use riemann_core::{
     hashes::marked::MarkedDigest,
-    ser::{Ser, SerError, SerResult},
+    ser::{ByteFormat, SerError, SerResult},
     types::{
-        primitives::ConcretePrefixVec,
         tx::{Input, TXOIdentifier},
     },
 };
@@ -47,6 +46,11 @@ where
             idx: 0xffff_ffff,
         }
     }
+
+    /// Return the BE txid as hex, suitable for block explorers
+    pub fn txid_be_hex(&self) -> String {
+        self.txid.internal().serialize_hex().expect("no IO errors")
+    }
 }
 
 impl<M> Default for Outpoint<M>
@@ -58,43 +62,34 @@ where
     }
 }
 
-impl<M> Ser for Outpoint<M>
+impl<M> ByteFormat for Outpoint<M>
 where
-    M: MarkedDigest + Ser,
+    M: MarkedDigest + ByteFormat,
 {
     type Error = SerError;
-
-    fn to_json(&self) -> String {
-        format!(
-            "{{\"txid\": {}, \"idx\": {}}}",
-            self.txid.to_json(),
-            self.idx
-        )
-    }
 
     fn serialized_length(&self) -> usize {
         36
     }
 
-    fn deserialize<T>(reader: &mut T, _limit: usize) -> SerResult<Self>
+    fn read_from<T>(reader: &mut T, _limit: usize) -> SerResult<Self>
     where
         T: Read,
         Self: std::marker::Sized,
     {
         Ok(Outpoint {
-            txid: M::deserialize(reader, 0)
+            txid: M::read_from(reader, 0)
                 .map_err(|e| SerError::ComponentError(format!("{}", e)))?,
             idx: Self::read_u32_le(reader)?,
         })
     }
 
-    fn serialize<T>(&self, writer: &mut T) -> SerResult<usize>
+    fn write_to<T>(&self, writer: &mut T) -> SerResult<usize>
     where
         T: Write,
     {
-        let mut len = self
-            .txid
-            .serialize(writer)
+        let mut len = self.txid
+            .write_to(writer)
             .map_err(|e| SerError::ComponentError(format!("{}", e)))?;
         len += Self::write_u32_le(writer, self.idx)?;
         Ok(len)
@@ -147,20 +142,11 @@ where
     }
 }
 
-impl<M> Ser for TxInput<M>
+impl<M> ByteFormat for TxInput<M>
 where
-    M: MarkedDigest + Ser,
+    M: MarkedDigest + ByteFormat,
 {
     type Error = SerError;
-
-    fn to_json(&self) -> String {
-        format!(
-            "{{\"outpoint\": {}, \"script_sig\": {}, \"sequence\": {}}}",
-            self.outpoint.to_json(),
-            self.script_sig.to_json(),
-            self.sequence
-        )
-    }
 
     fn serialized_length(&self) -> usize {
         let mut len = self.outpoint.serialized_length();
@@ -169,24 +155,24 @@ where
         len
     }
 
-    fn deserialize<T>(reader: &mut T, _limit: usize) -> SerResult<Self>
+    fn read_from<T>(reader: &mut T, _limit: usize) -> SerResult<Self>
     where
         T: Read,
         Self: std::marker::Sized,
     {
         Ok(TxInput {
-            outpoint: Outpoint::deserialize(reader, 0)?,
-            script_sig: ScriptSig::deserialize(reader, 0)?,
+            outpoint: Outpoint::read_from(reader, 0)?,
+            script_sig: ScriptSig::read_from(reader, 0)?,
             sequence: Self::read_u32_le(reader)?,
         })
     }
 
-    fn serialize<T>(&self, writer: &mut T) -> SerResult<usize>
+    fn write_to<T>(&self, writer: &mut T) -> SerResult<usize>
     where
         T: Write,
     {
-        let mut len = self.outpoint.serialize(writer)?;
-        len += self.script_sig.serialize(writer)?;
+        let mut len = self.outpoint.write_to(writer)?;
+        len += self.script_sig.write_to(writer)?;
         len += Self::write_u32_le(writer, self.sequence)?;
         Ok(len)
     }
@@ -198,14 +184,14 @@ pub type BitcoinOutpoint = Outpoint<TXID>;
 /// A simple type alias for an input type that will be repeated throughout the `bitcoin` module.
 pub type BitcoinTxIn = TxInput<TXID>;
 
-/// Vin is a type alias for `ConcretePrefixVec<TxInput>`. A transaction's Vin is the Vector of
+/// Vin is a type alias for `Vec<TxInput>`. A transaction's Vin is the Vector of
 /// INputs, with a length prefix.
-pub type Vin = ConcretePrefixVec<BitcoinTxIn>;
+pub type Vin = Vec<BitcoinTxIn>;
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use riemann_core::{ser::Ser, types::primitives::PrefixVec};
+    use riemann_core::{ser::ByteFormat};
 
     static NULL_OUTPOINT: &str =
         "0000000000000000000000000000000000000000000000000000000000000000ffffffff";

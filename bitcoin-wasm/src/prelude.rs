@@ -51,7 +51,8 @@ macro_rules! wrap_struct {
                 S: Serializer
             {
                 let mut i = serializer.serialize_struct(stringify!($name), 1)?;
-                i.serialize_field(stringify!($name), &self.0.to_json())?;
+                // TODO: fix the unwrap?
+                i.serialize_field(stringify!($name), &self.serialize_hex().unwrap())?;
                 i.end()
             }
         }
@@ -60,17 +61,17 @@ macro_rules! wrap_struct {
         impl $name {
             /// Deserialize from a `Uint8Array`
             #[allow(clippy::useless_asref)]
-            pub fn deserialize(buf: &[u8]) -> Result<$name, JsValue> {
-                $module::$name::deserialize(&mut buf.as_ref(), 0)
+            pub fn read_from(buf: &[u8]) -> Result<$name, JsValue> {
+                $module::$name::read_from(&mut buf.as_ref(), 0)
                     .map(Self::from)
                     .map_err(crate::types::errors::WasmError::from)
                     .map_err(JsValue::from)
             }
 
             /// Serialize to a `Uint8Array`
-            pub fn serialize(&self) -> Result<js_sys::Uint8Array, JsValue> {
+            pub fn write_bytes(&self) -> Result<js_sys::Uint8Array, JsValue> {
                 let mut v = vec![];
-                self.0.serialize(&mut v)
+                self.0.write_to(&mut v)
                     .map_err(crate::types::errors::WasmError::from)
                     .map_err(JsValue::from)?;
                 Ok(js_sys::Uint8Array::from(&v[..]))
@@ -173,7 +174,7 @@ macro_rules! impl_prefix_vec_access {
 
             /// Instantiate an empty prefixed vector
             pub fn null() -> $class {
-                $class($module::$class::null())
+                $class($module::$class::default())
             }
 
             #[wasm_bindgen(method, getter)]
@@ -184,8 +185,9 @@ macro_rules! impl_prefix_vec_access {
 
             #[wasm_bindgen(method, getter)]
             /// Get the length of the CompactInt prefix
+            /// Determine the byte-length of the vector length prefix
             pub fn len_prefix(&self) -> u8 {
-                self.0.len_prefix()
+                riemann_core::ser::prefix_byte_len(self.length() as u64)
             }
 
             /// Push input to the vector
@@ -207,7 +209,6 @@ macro_rules! impl_prefix_vec_access {
             /// Return an array containing clones of the underlying items
             pub fn items(&self) -> js_sys::Array {
                 self.0
-                    .items()
                     .iter()
                     .map(Clone::clone)
                     .map($inner_class::from)

@@ -3,9 +3,8 @@
 use std::io::{Read, Write};
 
 use riemann_core::{
-    ser::{Ser, SerError, SerResult},
+    ser::{ByteFormat, SerError, SerResult},
     types::{
-        primitives::{ConcretePrefixVec, PrefixVec},
         tx::Output,
     },
 };
@@ -58,16 +57,8 @@ impl TxOut {
     }
 }
 
-impl Ser for TxOut {
+impl ByteFormat for TxOut {
     type Error = SerError;
-
-    fn to_json(&self) -> String {
-        format!(
-            "{{\"value\": \"0x{}\", \"script_pubkey\": {}}}",
-            hex::encode(self.value.to_le_bytes()), // to avoid loosing fidelity to JS
-            self.script_pubkey.to_json(),
-        )
-    }
 
     fn serialized_length(&self) -> usize {
         let mut len = 8; // value
@@ -75,41 +66,41 @@ impl Ser for TxOut {
         len
     }
 
-    fn deserialize<T>(reader: &mut T, _limit: usize) -> SerResult<Self>
+    fn read_from<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
     where
-        T: Read,
+        R: Read,
         Self: std::marker::Sized,
     {
         let value = Self::read_u64_le(reader)?;
         Ok(TxOut {
             value,
-            script_pubkey: ScriptPubkey::deserialize(reader, 0)?,
+            script_pubkey: ScriptPubkey::read_from(reader, 0)?,
         })
     }
 
-    fn serialize<T>(&self, writer: &mut T) -> SerResult<usize>
+    fn write_to<W>(&self, writer: &mut W) -> SerResult<usize>
     where
-        T: Write,
+        W: Write,
     {
         let mut len = Self::write_u64_le(writer, self.value)?;
-        len += self.script_pubkey.serialize(writer)?;
+        len += self.script_pubkey.write_to(writer)?;
         Ok(len)
     }
 }
 
-/// Vout is a type alias for `ConcretePrefixVec<TxOut>`. A transaction's Vout is the Vector of
+/// Vout is a type alias for `Vec<TxOut>`. A transaction's Vout is the Vector of
 /// OUTputs, with a length prefix.
-pub type Vout = ConcretePrefixVec<TxOut>;
+pub type Vout = Vec<TxOut>;
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use riemann_core::ser::Ser;
+    use riemann_core::ser::ByteFormat;
 
     #[test]
     fn it_serializes_and_derializes_outputs() {
         let cases = [
-            (TxOut::new(0, ""), "000000000000000000", 9),
+            (TxOut::new(0, vec![]), "000000000000000000", 9),
             (TxOut::null(), "ffffffffffffffff00", 9),
         ];
         for case in cases.iter() {

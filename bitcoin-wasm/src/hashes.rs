@@ -6,7 +6,7 @@ use wasm_bindgen::prelude::*;
 
 use bitcoin_spv::types::Hash256Digest;
 
-use riemann_core::{hashes::marked::MarkedDigest, ser::Ser};
+use riemann_core::{hashes::marked::MarkedDigest, ser::ByteFormat};
 use rmn_btc::hashes;
 
 wrap_struct!(

@@ -2,7 +2,7 @@ use std::{collections::btree_map, io::Error as IOError, ops::RangeBounds};
 
 use thiserror::Error;
 
-use riemann_core::{ser::SerError, types::primitives::PrefixVec};
+use riemann_core::{ser::SerError};
 
 use rmn_btc::{types::transactions::TxError, wrap_prefixed_byte_vector};
 
@@ -110,7 +110,7 @@ wrap_prefixed_byte_vector!(
 impl PSBTKey {
     /// The BIP174 type of the key (its first byte)
     pub fn key_type(&self) -> u8 {
-        if self.len() == 0 {
+        if self.is_empty() {
             0
         } else {
             self[0]

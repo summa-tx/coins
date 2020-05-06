@@ -5,7 +5,7 @@ use std::{
     slice::Iter,
 };
 
-use riemann_core::ser::{Ser, SerError};
+use riemann_core::ser::{ByteFormat, SerError};
 
 use crate::{primitives::KeyFingerprint, Bip32Error, BIP32_HARDEN};
 
@@ -188,18 +188,14 @@ impl KeyDerivation {
     }
 }
 
-impl Ser for KeyDerivation {
+impl ByteFormat for KeyDerivation {
     type Error = Bip32Error;
-
-    fn to_json(&self) -> String {
-        unimplemented!()
-    }
 
     fn serialized_length(&self) -> usize {
         4 + 4 * self.path.len()
     }
 
-    fn deserialize<T>(reader: &mut T, limit: usize) -> Result<Self, Self::Error>
+    fn read_from<T>(reader: &mut T, limit: usize) -> Result<Self, Self::Error>
     where
         T: Read,
         Self: std::marker::Sized,
@@ -228,7 +224,7 @@ impl Ser for KeyDerivation {
         })
     }
 
-    fn serialize<T>(&self, writer: &mut T) -> Result<usize, Self::Error>
+    fn write_to<T>(&self, writer: &mut T) -> Result<usize, Self::Error>
     where
         T: Write,
     {

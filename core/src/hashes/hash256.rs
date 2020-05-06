@@ -52,7 +52,7 @@ impl MarkedDigestWriter<Hash256Digest> for Hash256Writer {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::ser::Ser;
+    use crate::ser::ByteFormat;
     #[test]
     fn it_ignores_flush() {
         let mut w = Hash256Writer::default();

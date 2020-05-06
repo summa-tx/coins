@@ -8,8 +8,8 @@ use rmn_btc::{
 };
 
 use riemann_core::{
-    ser::Ser,
-    types::{primitives::PrefixVec, tx::Transaction},
+    ser::ByteFormat,
+    types::tx::Transaction,
 };
 
 use crate::{
@@ -45,7 +45,7 @@ impl LegacyTx {
     /// Instantiate a new Legacy Tx.
     #[wasm_bindgen(constructor)]
     pub fn new(version: u32, vin: Vin, vout: Vout, locktime: u32) -> Self {
-        transactions::LegacyTx::new(version, vin.inner().items(), vout.inner().items(), locktime)
+        transactions::LegacyTx::new(version, vin.inner(), vout.inner(), locktime)
             .into()
     }
 
@@ -99,14 +99,14 @@ impl LegacyTx {
 
 #[wasm_bindgen]
 impl WitnessTx {
-    /// Instantiate a new Legacy Tx.zs
+    /// Instantiate a new Legacy Tx.
     #[wasm_bindgen(constructor)]
     pub fn new(version: u32, vin: Vin, vout: Vout, witnesses: TxWitness, locktime: u32) -> Self {
         // disambiguate `new`
         <transactions::WitnessTx as transactions::WitnessTransaction>::new(
             version,
-            vin.inner().items(),
-            vout.inner().items(),
+            vin.inner(),
+            vout.inner(),
             witnesses,
             locktime,
         )

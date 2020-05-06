@@ -30,7 +30,7 @@ a few compromises have been made.
 You should use the standard network interface:
 
 ```js
-const btc = require('@summa-tx/rmn-btc-wasm');
+const btc = require('@summa-tx/rmn-btc');
 
 const addr = "bc1q....";
 
@@ -48,3 +48,10 @@ let tx = btc.BitcoinMainnet.tx_builder()
 - `wasm-pack build`
   - specify `--target nodejs` for use in node.
 - build the docs: `$ cargo rustdoc`
+
+## Building for release
+- `wasm-pack build`
+- edit `package.json`
+  - bump the version
+  - `"name": "@summa-tx/rmn-btc",`
+  - add `"rmn-btc_bg.js",` to the files list

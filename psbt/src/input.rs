@@ -1,7 +1,5 @@
 use std::collections::{btree_map, BTreeMap};
 
-use riemann_core::{primitives::PrefixVec, ser::Ser};
-
 use rmn_bip32::{
     self as bip32,
     model::HasPubkey,
@@ -244,6 +242,6 @@ impl PSBTInput {
     /// - Returns a ``PSBTError::SerError`` if deserialization fails
     pub fn por_commitment(&self) -> Result<Vec<u8>, PSBTError> {
         let por_bytes = self.must_get(&InputKey::POR_COMMITMENT.into())?.items();
-        Ok(por_bytes.into())
+        Ok(por_bytes.to_vec())
     }
 }

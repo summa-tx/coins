@@ -3,7 +3,7 @@
 use serde::ser::{SerializeStruct, Serializer};
 use wasm_bindgen::prelude::*;
 
-use riemann_core::{ser::Ser, types::primitives::PrefixVec};
+use riemann_core::{ser::ByteFormat};
 use rmn_btc::types::{script, txout};
 
 wrap_struct!(

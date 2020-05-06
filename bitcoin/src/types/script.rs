@@ -1,11 +1,11 @@
 //! Simple types for Bitcoin Script Witness stack datastructures, each of which are treated as
-//! opaque, wrapped `ConcretePrefixVec<u8>` instance.
+//! opaque, wrapped `Vec<u8>` instance.
 //!
 //! We do not handle assembly, disassembly, or Script execution in riemann. Scripts are treated as
 //! opaque bytes vectors with no semantics.
 //!
 //! Scripts can be freely converted between eachother using `From` and `Into`. This merely rewraps
-//! the underlying `ConcretePrefixVec<u8>` in the new type.
+//! the underlying `Vec<u8>` in the new type.
 //!
 //! For a complete Script builder solution see
 //! [rust-bitcoin's](https://github.com/rust-bitcoin/rust-bitcoin) builder.
@@ -21,18 +21,14 @@
 //! let script = rmn_btc::types::Script::from(script.into_bytes());
 //! ```
 use riemann_core::types::{
-    primitives::{ConcretePrefixVec, PrefixVec},
     tx::RecipientIdentifier,
 };
 
 /// A wrapped script.
-pub trait BitcoinScript {
-    /// Instantiate a new wrapped script
-    fn from_script(v: &ConcretePrefixVec<u8>) -> Self;
-}
+pub trait BitcoinScript {}
 
 wrap_prefixed_byte_vector!(
-    /// A Script is marked ConcretePrefixVec<u8> for use as an opaque `Script` in `SighashArgs`
+    /// A Script is marked Vec<u8> for use as an opaque `Script` in `SighashArgs`
     /// structs.
     ///
     /// `Script::null()` and `Script::default()` return the empty byte vector with a 0
@@ -40,14 +36,14 @@ wrap_prefixed_byte_vector!(
     Script
 );
 wrap_prefixed_byte_vector!(
-    /// A ScriptSig is a marked ConcretePrefixVec<u8> for use in the script_sig.
+    /// A ScriptSig is a marked Vec<u8> for use in the script_sig.
     ///
     /// `ScriptSig::null()` and `ScriptSig::default()` return the empty byte vector with a 0
     /// prefix, which represents numerical 0, boolean `false`, or null bytestring.
     ScriptSig
 );
 wrap_prefixed_byte_vector!(
-    /// A WitnessStackItem is a marked `ConcretePrefixVec<u8>` intended for use in witnesses. Each
+    /// A WitnessStackItem is a marked `Vec<u8>` intended for use in witnesses. Each
     /// Witness is a `PrefixVec<WitnessStackItem>`. The Transactions `witnesses` is a non-prefixed
     /// `Vec<Witness>.`
     ///
@@ -57,7 +53,7 @@ wrap_prefixed_byte_vector!(
     WitnessStackItem
 );
 wrap_prefixed_byte_vector!(
-    /// A ScriptPubkey is a marked ConcretePrefixVec<u8> for use as a `RecipientIdentifier` in
+    /// A ScriptPubkey is a marked Vec<u8> for use as a `RecipientIdentifier` in
     /// Bitcoin TxOuts.
     ///
     /// `ScriptPubkey::null()` and `ScriptPubkey::default()` return the empty byte vector with a 0
@@ -65,29 +61,13 @@ wrap_prefixed_byte_vector!(
     ScriptPubkey
 );
 
-impl BitcoinScript for Script {
-    fn from_script(s: &ConcretePrefixVec<u8>) -> Self {
-        Self(s.clone())
-    }
-}
+impl BitcoinScript for Script {}
 
-impl BitcoinScript for ScriptPubkey {
-    fn from_script(s: &ConcretePrefixVec<u8>) -> Self {
-        Self(s.clone())
-    }
-}
+impl BitcoinScript for ScriptPubkey {}
 
-impl BitcoinScript for ScriptSig {
-    fn from_script(s: &ConcretePrefixVec<u8>) -> Self {
-        Self(s.clone())
-    }
-}
+impl BitcoinScript for ScriptSig {}
 
-impl BitcoinScript for WitnessStackItem {
-    fn from_script(s: &ConcretePrefixVec<u8>) -> Self {
-        Self(s.clone())
-    }
-}
+impl BitcoinScript for WitnessStackItem {}
 
 impl_script_conversion!(Script, ScriptPubkey);
 impl_script_conversion!(Script, ScriptSig);
@@ -103,7 +83,7 @@ impl RecipientIdentifier for ScriptPubkey {}
 /// # Note
 ///
 /// The transaction's witness is composed of many of these `Witness`es in an UNPREFIXED vector.
-pub type Witness = ConcretePrefixVec<WitnessStackItem>;
+pub type Witness = Vec<WitnessStackItem>;
 
 /// A TxWitness is the UNPREFIXED vector of witnesses
 pub type TxWitness = Vec<Witness>;
@@ -126,7 +106,7 @@ pub enum ScriptType {
 impl ScriptPubkey {
     /// Inspect the `Script` to determine its type.
     pub fn standard_type(&self) -> ScriptType {
-        let items = self.0.items();
+        let items = &self.0;
         match self.0.len() {
             0x19 => {
                 // PKH;
@@ -167,7 +147,7 @@ impl ScriptPubkey {
 #[cfg(test)]
 mod test {
     use super::*;
-    use riemann_core::{ser::Ser, types::primitives::PrefixVec};
+    use riemann_core::ser::ByteFormat;
 
     #[test]
     fn it_serializes_and_derializes_scripts() {
@@ -224,10 +204,10 @@ mod test {
     #[test]
     fn it_converts_between_bitcoin_script_types() {
         let si = WitnessStackItem::new(hex::decode("0014758ce550380d964051086798d6546bebdca27a73").unwrap());
-        let sc = Script::from_script(&si.0);
-        let spk = ScriptPubkey::from_script(&si.0);
-        let ss = ScriptSig::from_script(&si.0);
-        WitnessStackItem::from_script(&si.0);
+        let sc = Script::from(si.items());
+        let spk = ScriptPubkey::from(si.items());
+        let ss = ScriptSig::from(si.items());
+        WitnessStackItem::from(si.items());
 
         WitnessStackItem::from(&sc);
         WitnessStackItem::from(&spk);

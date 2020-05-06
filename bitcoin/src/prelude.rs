@@ -9,46 +9,88 @@ macro_rules! wrap_prefixed_byte_vector {
     ) => {
         $(#[$outer])*
         #[derive(Clone, Debug, Eq, PartialEq, Default, Ord, PartialOrd)]
-        pub struct $wrapper_name(riemann_core::primitives::ConcretePrefixVec<u8>);
+        pub struct $wrapper_name(Vec<u8>);
 
-        impl riemann_core::primitives::PrefixVec for $wrapper_name {
-            type Item = u8;
+        impl riemann_core::ser::ByteFormat for $wrapper_name {
+            type Error = riemann_core::ser::SerError;
 
-            fn null() -> Self {
-                Self(Default::default())
+            fn serialized_length(&self) -> usize {
+                let mut length = self.len();
+                length += self.len_prefix() as usize;
+                length
             }
 
-            fn set_items(&mut self, v: Vec<Self::Item>) {
-                self.0.set_items(v)
+            fn read_from<R>(reader: &mut R, _limit: usize) -> Result<Self, Self::Error>
+            where
+                R: std::io::Read
+            {
+                Ok(Self::read_prefix_vec(reader)?.into())
             }
 
-            fn push(&mut self, i: Self::Item) {
+            fn write_to<W>(&self, writer: &mut W) -> Result<usize, Self::Error>
+            where
+                W: std::io::Write
+            {
+                Ok(Self::write_prefix_vec(writer, &self.0)?)
+            }
+        }
+
+        impl $wrapper_name {
+            /// Instantate a new wrapped vector
+            pub fn new(v: Vec<u8>) -> Self {
+                Self(v)
+            }
+
+            /// Construct an empty wrapped vector instance.
+            pub fn null() -> Self {
+                Self(vec![])
+            }
+
+            /// Return a reference to the underlying bytes
+            pub fn items(&self) -> &[u8] {
+                &self.0
+            }
+
+            /// Set the underlying items vector.
+            pub fn set_items(&mut self, v: Vec<u8>) {
+                self.0 = v
+            }
+
+            /// Push an item to the item vector.
+            pub fn push(&mut self, i: u8) {
                 self.0.push(i)
             }
 
-            fn len(&self) -> usize {
+            /// Return the length of the item vector.
+            pub fn len(&self) -> usize {
                 self.0.len()
             }
 
-            fn len_prefix(&self) -> u8 {
-                self.0.len_prefix()
+            /// Return true if the length of the item vector is 0.
+            pub fn is_empty(&self) -> bool {
+                self.len() == 0
             }
 
-            fn items(&self) -> &[Self::Item] {
-                self.0.items()
+            /// Determine the byte-length of the vector length prefix
+            pub fn len_prefix(&self) -> u8 {
+                riemann_core::ser::prefix_byte_len(self.len() as u64)
             }
 
-            fn insert(&mut self, index: usize, i: Self::Item) {
+            /// Insert an item at the specified index.
+            pub fn insert(&mut self, index: usize, i: u8) {
                 self.0.insert(index, i)
             }
         }
 
-        impl<T> From<T> for $wrapper_name
-        where
-            T: Into<riemann_core::types::primitives::ConcretePrefixVec<u8>>
-        {
-            fn from(v: T) -> Self {
-                Self(v.into())
+        impl From<&[u8]> for $wrapper_name {
+            fn from(v: &[u8]) -> Self {
+                Self(v.to_vec())
+            }
+        }
+
+        impl From<Vec<u8>> for $wrapper_name {
+            fn from(v: Vec<u8>) -> Self {
+                Self(v)
             }
         }
 
@@ -96,12 +138,12 @@ macro_rules! impl_script_conversion {
     ($t1:ty, $t2:ty) => {
         impl From<&$t2> for $t1 {
             fn from(t: &$t2) -> $t1 {
-                <$t1>::from_script(&t.0)
+                t.0.clone().into()
             }
         }
         impl From<&$t1> for $t2 {
             fn from(t: &$t1) -> $t2 {
-                <$t2>::from_script(&t.0)
+                t.0.clone().into()
             }
         }
     };
@@ -115,18 +157,14 @@ macro_rules! mark_hash256 {
         $(#[$outer])*
         #[derive(Copy, Clone, Default, Debug, Eq, PartialEq)]
         pub struct $hash_name(pub Hash256Digest);
-        impl riemann_core::ser::Ser for $hash_name {
+        impl riemann_core::ser::ByteFormat for $hash_name {
             type Error = riemann_core::ser::SerError;
-
-            fn to_json(&self) -> String {
-                format!("\"0x{}\"", self.serialize_hex().unwrap())
-            }
 
             fn serialized_length(&self) -> usize {
                 32
             }
 
-            fn deserialize<R>(reader: &mut R, _limit: usize) -> riemann_core::ser::SerResult<Self>
+            fn read_from<R>(reader: &mut R, _limit: usize) -> riemann_core::ser::SerResult<Self>
             where
                 R: std::io::Read,
                 Self: std::marker::Sized
@@ -136,7 +174,7 @@ macro_rules! mark_hash256 {
                 Ok(Self(buf))
             }
 
-            fn serialize<W>(&self, writer: &mut W) -> riemann_core::ser::SerResult<usize>
+            fn write_to<W>(&self, writer: &mut W) -> riemann_core::ser::SerResult<usize>
             where
                 W: std::io::Write
             {

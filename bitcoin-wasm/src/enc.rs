@@ -3,7 +3,7 @@
 use serde::ser::{Serialize, Serializer};
 use wasm_bindgen::prelude::*;
 
-use riemann_core::{enc::AddressEncoder, primitives::PrefixVec};
+use riemann_core::{enc::AddressEncoder};
 
 use rmn_btc::enc;
 

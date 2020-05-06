@@ -7,11 +7,11 @@
 //!
 //! A Bitcoin implementation of all types is provided in the `bitcoin` crate.
 
-/// Contains a set of traits useful for representing and serializing transactions.
-pub mod primitives;
+// /// Contains a set of traits useful for representing and serializing transactions.
+// pub mod primitives;
 
 /// Contains the abstract `Transaction` trait.
 pub mod tx;
 
-pub use primitives::*;
+// pub use primitives::*;
 pub use tx::*;

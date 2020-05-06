@@ -1,15 +1,15 @@
 use bitcoin_spv::types::Hash256Digest;
 use std::io::Write;
 
-use crate::ser::Ser;
+use crate::ser::ByteFormat;
 
 /// Marks a hash function digest.
-pub trait Digest: Default + Ser {}
+pub trait Digest: Default + ByteFormat + Copy {}
 impl Digest for Hash256Digest {}
 
 /// A trait describing the interface for wrapped hashes. We wrap digests in this trait and name
 /// them based on their function to prevent type-confusion between many different 32-byte digests.
-pub trait MarkedDigest: Default + Ser {
+pub trait MarkedDigest: Default + ByteFormat {
     /// The associated Digest type that is marked.
     type Digest: Digest;
     /// Wrap a digest of the appropriate type in the marker.

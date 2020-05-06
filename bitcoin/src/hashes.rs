@@ -17,7 +17,7 @@ mark_hash256!(
 #[cfg(test)]
 mod test {
     use super::*;
-    use riemann_core::ser::Ser;
+    use riemann_core::ser::ByteFormat;
 
     #[test]
     fn it_serializes_and_derializes_hash256digests() {

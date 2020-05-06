@@ -2,7 +2,7 @@
 
 use std::marker::PhantomData;
 
-use riemann_core::{enc::AddressEncoder, types::primitives::PrefixVec};
+use riemann_core::enc::AddressEncoder;
 
 use crate::{
     enc::bases::{

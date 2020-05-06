@@ -7,7 +7,7 @@ use rmn_bip32::{
 
 use thiserror::Error;
 
-use riemann_core::{enc::AddressEncoder, primitives::PrefixVec, types::Transaction};
+use riemann_core::{enc::AddressEncoder, types::Transaction};
 
 use crate::{input::PSBTInput, PSBTError, PSBT, PST};
 use rmn_btc::{

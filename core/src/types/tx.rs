@@ -2,7 +2,7 @@ use std::io::Write;
 
 use crate::{
     hashes::marked::{Digest, MarkedDigest, MarkedDigestWriter},
-    ser::{Ser, SerError},
+    ser::{ByteFormat, SerError},
 };
 
 /// A `TXOIdentifier` represents the network's unique identifier an output. In Bitcoin this is an
@@ -34,9 +34,9 @@ pub trait Output {
 /// transaction specificies which types it considers to be inputs and outputs, and a struct that
 /// contains its Sighash arguments. This allows others to define custom transaction types with
 /// unique functionality.
-pub trait Transaction<'a>: Ser {
+pub trait Transaction<'a>: ByteFormat {
     /// An associated error type, using in Results returned by the Transaction.
-    type TxError: From<SerError> + From<<Self as Ser>::Error>;
+    type TxError: From<SerError> + From<<Self as ByteFormat>::Error>;
     /// A Digest type that underlies the associated marked hash, and is returned by `sighash()`.
     type Digest: Digest;
     /// The Input type for the transaction
@@ -72,7 +72,7 @@ pub trait Transaction<'a>: Ser {
     /// serialized transaction.
     fn txid(&self) -> Self::TXID {
         let mut w = Self::HashWriter::default();
-        self.serialize(&mut w)
+        self.write_to(&mut w)
             .expect("No IOError from hash functions");
         w.finish_marked()
     }

@@ -3,7 +3,7 @@
 
 use crate::{
     enc::AddressEncoder,
-    ser::Ser,
+    ser::ByteFormat,
     types::tx::{Input, Output, Transaction},
 };
 use std::io::Read;
@@ -26,13 +26,13 @@ pub trait TxBuilder<'a>: std::marker::Sized {
     fn from_tx(tx: &Self::Transaction) -> Self;
 
     /// Instantiate a new builder from a `std::io::Read` that contains a serialized tx
-    fn from_serialized_tx<R>(
+    fn read_from_tx<R>(
         reader: &mut R,
     ) -> Result<Self, <Self::Transaction as Transaction<'a>>::TxError>
     where
         R: Read,
     {
-        let tx = Self::Transaction::deserialize(reader, 0)?;
+        let tx = Self::Transaction::read_from(reader, 0)?;
         Ok(Self::from_tx(&tx))
     }
 

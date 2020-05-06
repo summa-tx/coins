@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use riemann_core::{ser::Ser, types::primitives::PrefixVec};
+use riemann_core::{ser::ByteFormat};
 
 use rmn_bip32::{
     self as bip32,
@@ -60,7 +60,8 @@ pub fn try_val_as_key_derivation(val: &PSBTValue) -> Result<KeyDerivation, PSBTE
         return Err(PSBTError::InvalidBip32Path);
     }
     let limit = val.len() / 4;
-    Ok(KeyDerivation::deserialize(&mut val.items(), limit)?)
+    let mut deriv_bytes = &val.items()[..];
+    Ok(KeyDerivation::read_from(&mut deriv_bytes, limit)?)
 }
 
 /// Validate that a key is a fixed length
@@ -121,14 +122,14 @@ pub fn validate_xpub_depth(key: &PSBTKey, val: &PSBTValue) -> Result<(), PSBTErr
 
 /// Attempt to deserialize a value as a as transaction
 pub fn try_val_as_tx(val: &PSBTValue) -> Result<LegacyTx, PSBTError> {
-    let mut tx_bytes = val.items();
-    Ok(LegacyTx::deserialize(&mut tx_bytes, 0)?)
+    let mut tx_bytes = &val.items()[..];
+    Ok(LegacyTx::read_from(&mut tx_bytes, 0)?)
 }
 
 /// Attempt to deserialize a value as a Bitcoin Output
 pub fn try_val_as_tx_out(val: &PSBTValue) -> Result<TxOut, PSBTError> {
-    let mut out_bytes = val.items();
-    Ok(TxOut::deserialize(&mut out_bytes, 0)?)
+    let mut out_bytes = &val.items()[..];
+    Ok(TxOut::read_from(&mut out_bytes, 0)?)
 }
 
 /// Attempt to deserialize a value as a sighash flag
@@ -146,15 +147,15 @@ pub fn try_val_as_sighash(val: &PSBTValue) -> Result<Sighash, PSBTError> {
 
 /// Attempt to deserialize a value as a signature
 pub fn try_val_as_signature(val: &PSBTValue) -> Result<(Signature, Sighash), PSBTError> {
-    let items = val.items();
+    let items = &val.items()[..];
     let sig = Signature::try_from_der(&items[..items.len() - 1])?;
     Ok((sig, Sighash::from_u8(items[items.len()])?))
 }
 
 /// Attempt to deserialize a value as a script Witness
 pub fn try_val_as_witness(val: &PSBTValue) -> Result<Witness, PSBTError> {
-    let mut wit_bytes = val.items();
-    Ok(Witness::deserialize(&mut wit_bytes, 0)?)
+    let mut wit_bytes = &val.items()[..];
+    Ok(Witness::read_from(&mut wit_bytes, 0)?)
 }
 
 /// Attempt to parse a key as a valid extended pubkey

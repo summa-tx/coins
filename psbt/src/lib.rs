@@ -35,7 +35,7 @@ use rmn_bip32::{
 };
 
 use riemann_core::{
-    builder::TxBuilder, enc::AddressEncoder, primitives::PrefixVec, ser::Ser, tx::Transaction,
+    builder::TxBuilder, enc::AddressEncoder, ser::ByteFormat, tx::Transaction,
 };
 
 use rmn_btc::{
@@ -118,7 +118,7 @@ where
         let b = <Self as PST<T>>::TxBuilder::from_tx(&self.tx()?);
         let tx = b.insert_input(index, tx_in).build();
         let mut buf = vec![];
-        tx.serialize(&mut buf)?;
+        tx.write_to(&mut buf)?;
         self.global_map_mut()
             .insert(GlobalKey::UNSIGNED_TX.into(), buf.into());
         self.input_maps_mut().insert(index, Default::default());
@@ -131,7 +131,7 @@ where
         let b = <Self as PST<T>>::TxBuilder::from_tx(&self.tx()?);
         let tx = b.insert_output(index, tx_out).build();
         let mut buf = vec![];
-        tx.serialize(&mut buf)?;
+        tx.write_to(&mut buf)?;
         self.global_map_mut()
             .insert(GlobalKey::UNSIGNED_TX.into(), buf.into());
         self.output_maps_mut().insert(index, Default::default());
@@ -273,16 +273,12 @@ where
     }
 }
 
-impl<'a, T, E> Ser for PSBT<T, E>
+impl<'a, T, E> ByteFormat for PSBT<T, E>
 where
     T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>,
     E: Bip32Encoder,
 {
     type Error = PSBTError;
-
-    fn to_json(&self) -> String {
-        unimplemented!("TODO")
-    }
 
     fn serialized_length(&self) -> usize {
         let mut length: usize = 5;
@@ -300,7 +296,7 @@ where
         length
     }
 
-    fn deserialize<R>(reader: &mut R, _limit: usize) -> Result<Self, PSBTError>
+    fn read_from<R>(reader: &mut R, _limit: usize) -> Result<Self, PSBTError>
     where
         R: Read,
         Self: std::marker::Sized,
@@ -311,12 +307,12 @@ where
             return Err(PSBTError::BadPrefix);
         }
 
-        let global = PSBTGlobal::deserialize(reader, 0)?;
+        let global = PSBTGlobal::read_from(reader, 0)?;
 
         let tx = global.tx()?;
 
-        let inputs = Vec::<PSBTInput>::deserialize(reader, tx.inputs().len())?;
-        let outputs = Vec::<PSBTOutput>::deserialize(reader, tx.outputs().len())?;
+        let inputs = Vec::<PSBTInput>::read_from(reader, tx.inputs().len())?;
+        let outputs = Vec::<PSBTOutput>::read_from(reader, tx.outputs().len())?;
 
         let result = PSBT {
             global,
@@ -329,16 +325,16 @@ where
         Ok(result)
     }
 
-    fn serialize<W>(&self, writer: &mut W) -> Result<usize, Self::Error>
+    fn write_to<W>(&self, writer: &mut W) -> Result<usize, Self::Error>
     where
         W: Write,
     {
         self.validate()?;
         let mut len = writer.write(&<PSBT<T, E> as PST<T>>::MAGIC_BYTES)?;
         len += writer.write(&[0xff])?;
-        len += self.global_map().serialize(writer)?;
-        len += self.input_maps().serialize(writer)?;
-        len += self.output_maps().serialize(writer)?;
+        len += self.global_map().write_to(writer)?;
+        len += self.input_maps().write_to(writer)?;
+        len += self.output_maps().write_to(writer)?;
         Ok(len)
     }
 }

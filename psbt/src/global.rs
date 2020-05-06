@@ -1,6 +1,6 @@
 use std::collections::{btree_map, BTreeMap};
 
-use riemann_core::{primitives::PrefixVec, ser::Ser};
+use riemann_core::ser::ByteFormat;
 use rmn_bip32::{model::DerivedKey, DerivedXPub};
 use rmn_btc::types::transactions::LegacyTx;
 
@@ -99,7 +99,7 @@ impl PSBTGlobal {
     /// Get the global PSBT version
     pub fn version(&self) -> Result<u32, PSBTError> {
         let version_key: PSBTKey = GlobalKey::VERSION.into();
-        let mut version_bytes = self.must_get(&version_key)?.items();
+        let mut version_bytes = &self.must_get(&version_key)?.items()[..];
         Self::read_u32_le(&mut version_bytes)
     }
 }

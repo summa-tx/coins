@@ -48,12 +48,8 @@ macro_rules! psbt_map {
             }
         }
 
-        impl Ser for $name {
+        impl riemann_core::ser::ByteFormat for $name {
             type Error = PSBTError;
-
-            fn to_json(&self) -> String {
-                unimplemented!("TODO")
-            }
 
             fn serialized_length(&self) -> usize {
                 let kv_length: usize = self
@@ -63,7 +59,7 @@ macro_rules! psbt_map {
                 kv_length + 1 // terminates in a 0 byte (null key)
             }
 
-            fn deserialize<R>(reader: &mut R, _limit: usize) -> Result<Self, PSBTError>
+            fn read_from<R>(reader: &mut R, _limit: usize) -> Result<Self, crate::common::PSBTError>
             where
                 R: std::io::Read,
                 Self: std::marker::Sized,
@@ -73,26 +69,26 @@ macro_rules! psbt_map {
                 };
 
                 loop {
-                    let key = PSBTKey::deserialize(reader, 0)?;
+                    let key = PSBTKey::read_from(reader, 0)?;
                     if key.len() == 0 {
                         break;
                     }
-                    let value = PSBTValue::deserialize(reader, 0)?;
+                    let value = PSBTValue::read_from(reader, 0)?;
                     map.insert(key, value);
                 }
                 Ok(map)
             }
 
-            fn serialize<W>(&self, writer: &mut W) -> Result<usize, PSBTError>
+            fn write_to<W>(&self, writer: &mut W) -> Result<usize, crate::common::PSBTError>
             where
                 W: std::io::Write,
             {
                 let mut length: usize = 0;
                 for (k, v) in self.iter() {
-                    length += k.serialize(writer)?;
-                    length += v.serialize(writer)?;
+                    length += k.write_to(writer)?;
+                    length += v.write_to(writer)?;
                 }
-                length += (0u8).serialize(writer)?;
+                length += (0u8).write_to(writer)?;
                 Ok(length)
             }
         }
