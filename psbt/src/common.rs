@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use riemann_core::{ser::SerError};
 
-use rmn_btc::{types::transactions::TxError, wrap_prefixed_byte_vector};
+use rmn_btc::{types::transactions::TxError, wrap_prefixed_byte_vector, impl_hex_serde};
 
 use crate::{roles::signer::SignerError, schema};
 

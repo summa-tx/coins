@@ -1,6 +1,5 @@
 //! Simple type wrappers for `WitnessStackItem` `Witness` and `TxWitness`.
 
-use serde::ser::{SerializeStruct, Serializer};
 use wasm_bindgen::prelude::*;
 
 use riemann_core::ser::ByteFormat;

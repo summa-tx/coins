@@ -11,11 +11,11 @@ riemann-core = { path = "../core"}
 rmn-btc = { path = "../bitcoin"}
 bitcoin-spv = "2.0.0"
 thiserror = "1.0"
+serde = "1.0.105"
 
 [dependencies.rmn-bip32]
 path = "../bip32"
 default-features = false
-
 
 [features]
 default = ["libsecp"]

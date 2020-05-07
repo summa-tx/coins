@@ -23,7 +23,7 @@ macro_rules! wrap_struct {
     ) => {
         $(#[$outer])*
         #[wasm_bindgen(inspectable)]
-        #[derive(Clone, Debug, Default)]
+        #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Default)]
         pub struct $name($module::$name);
 
         impl $name {
@@ -42,18 +42,6 @@ macro_rules! wrap_struct {
         impl From<$name> for $module::$name {
             fn from(f: $name) -> Self {
                 f.0
-            }
-        }
-
-        impl serde::ser::Serialize for $name {
-            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-            where
-                S: Serializer
-            {
-                let mut i = serializer.serialize_struct(stringify!($name), 1)?;
-                // TODO: fix the unwrap?
-                i.serialize_field(stringify!($name), &self.serialize_hex().unwrap())?;
-                i.end()
             }
         }
 

@@ -1,6 +1,5 @@
 //! Transaction types.
 
-use serde::ser::{SerializeStruct, Serializer};
 use wasm_bindgen::prelude::*;
 
 use rmn_btc::{

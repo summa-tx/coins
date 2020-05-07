@@ -1,6 +1,5 @@
 //! Transaction outputs, their components, and the output vector.
 
-use serde::ser::{SerializeStruct, Serializer};
 use wasm_bindgen::prelude::*;
 
 use riemann_core::{ser::ByteFormat};

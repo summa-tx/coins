@@ -1,7 +1,36 @@
 //! Contains macros for use in this crate
+
+/// Implement `serde::Serialize` and `serde::Deserialize` by passing through to the hex
 #[macro_export]
+macro_rules! impl_hex_serde {
+    ($item:ty) => {
+        impl serde::Serialize for $item {
+            fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+            where
+                S: serde::Serializer,
+            {
+                let s = riemann_core::ser::ByteFormat::serialize_hex(self)
+                    .map_err(|e| serde::ser::Error::custom(e.to_string()))?;
+                serializer.serialize_str(&s)
+            }
+        }
+
+        impl<'de> serde::Deserialize<'de> for $item {
+            fn deserialize<D>(deserializer: D) -> Result<$item, D::Error>
+            where
+                D: serde::Deserializer<'de>,
+            {
+                let s: &str = serde::Deserialize::deserialize(deserializer)?;
+                <$item as riemann_core::ser::ByteFormat>::deserialize_hex(s)
+                    .map_err(|e| serde::de::Error::custom(e.to_string()))
+            }
+        }
+    }
+}
+
 /// Wrap a prefixed vector of bytes (`u8`) in a newtype, and implement convenience functions for
 /// it.
+#[macro_export]
 macro_rules! wrap_prefixed_byte_vector {
     (
         $(#[$outer:meta])*
@@ -34,6 +63,8 @@ macro_rules! wrap_prefixed_byte_vector {
                 Ok(Self::write_prefix_vec(writer, &self.0)?)
             }
         }
+
+        impl_hex_serde!($wrapper_name);
 
         impl $wrapper_name {
             /// Instantate a new wrapped vector
@@ -181,6 +212,8 @@ macro_rules! mark_hash256 {
                 Ok(writer.write(&self.0)?)
             }
         }
+
+        impl_hex_serde!($hash_name);
 
         impl riemann_core::hashes::MarkedDigest for $hash_name {
             type Digest = Hash256Digest;

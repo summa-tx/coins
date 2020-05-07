@@ -768,7 +768,7 @@ mod tests {
         args.sighash_flag = Sighash::SingleACP;
         assert_eq!(tx.sighash(&args).unwrap(), single_anyonecanpay);
     }
-    
+
     #[test]
     fn it_calculates_witness_sighashes_and_txids() {
         // pulled from riemann helpers
