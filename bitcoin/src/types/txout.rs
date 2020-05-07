@@ -17,7 +17,7 @@ use crate::types::script::ScriptPubkey;
 /// `TxOut::null()` and `TxOut::default()` return the "null" TxOut, which has a value of
 /// 0xffff_ffff_ffff_ffff, and an empty `script_pubkey`. This null output is used within legacy
 /// sighash calculations.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct TxOut {
     /// The value of the output in satoshis
     pub value: u64,

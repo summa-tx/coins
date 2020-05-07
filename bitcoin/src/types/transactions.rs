@@ -203,7 +203,7 @@ pub struct LegacySighashArgs<'a> {
 }
 
 /// A Legacy (non-witness) Transaction.
-#[derive(Clone, Debug, Eq, PartialEq, Default)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Eq, PartialEq, Default)]
 pub struct LegacyTx {
     /// The version number. Usually 1 or 2.
     version: u32,
@@ -435,7 +435,7 @@ pub struct WitnessSighashArgs<'a> {
 }
 
 /// A witness transaction. Any transaction that contains 1 or more witnesses.
-#[derive(Clone, Debug, Eq, PartialEq, Default)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Eq, PartialEq, Default)]
 pub struct WitnessTx {
     legacy_tx: LegacyTx,
     witnesses: Vec<Witness>,

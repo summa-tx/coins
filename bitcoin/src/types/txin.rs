@@ -17,7 +17,7 @@ use crate::{hashes::TXID, types::script::ScriptSig};
 ///
 /// `Outpoint::null()` and `Outpoint::default()` return the null Outpoint, which references a txid
 /// of all 0, and a index 0xffff_ffff. This null outpoint is used in every coinbase transaction.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(serde::Serialize, serde::Deserialize, Copy, Clone, Debug, Eq, PartialEq)]
 pub struct Outpoint<M>
 where
     M: MarkedDigest,
@@ -105,7 +105,7 @@ where
 ///
 /// Sequence encoding is complex and the field also encodes information about locktimes and RBF.
 /// See [my blogpost on the subject](https://prestwi.ch/bitcoin-time-locks/).
-#[derive(Clone, Debug, Eq, PartialEq, Default)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Eq, PartialEq, Default)]
 pub struct TxInput<M>
 where
     M: MarkedDigest,
