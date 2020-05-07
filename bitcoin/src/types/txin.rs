@@ -49,7 +49,14 @@ where
 
     /// Return the BE txid as hex, suitable for block explorers
     pub fn txid_be_hex(&self) -> String {
-        self.txid.internal().serialize_hex().expect("no IO errors")
+        let mut buf = self.txid.bytes();
+        buf.reverse();
+        buf.serialize_hex().expect("no IO errors")
+    }
+
+    /// Instantiate an outpoint from the Block Explore (big-endian) TXID format and integer index
+    pub fn from_explorer_format(txid_be: M, idx: u32) -> Self {
+        Self {txid: txid_be.reversed(), idx}
     }
 }
 

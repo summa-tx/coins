@@ -16,6 +16,14 @@ pub trait MarkedDigest: Default + ByteFormat {
     fn new(hash: Self::Digest) -> Self;
     /// Return a copy of the internal digest.
     fn internal(&self) -> Self::Digest;
+    /// Return the underlying bytes
+    fn bytes(&self) -> Vec<u8>;
+    /// Return a clone in reverse byte order
+    fn reversed(&self) -> Self {
+        let mut digest = self.bytes();
+        digest.reverse();
+        Self::read_from(&mut digest.as_slice(), 0).unwrap()
+    }
 }
 
 /// An interface for a haser that can be written to. Parameterized by the digest that it outputs.

@@ -222,6 +222,10 @@ macro_rules! mark_hash256 {
             fn internal(&self) -> Hash256Digest {
                 self.0
             }
+
+            fn bytes(&self) -> Vec<u8> {
+                self.0.to_vec()
+            }
         }
         impl From<Hash256Digest> for $hash_name {
             fn from(h: Hash256Digest) -> Self {
