@@ -28,10 +28,10 @@
 //! ```
 use std::marker::PhantomData;
 
-use riemann_core::{enc::AddressEncoder, nets::Network};
+use riemann_core::{enc::AddressEncoder, nets::Network, builder::TxBuilder, types::tx::Transaction};
 
 use crate::{
-    builder::LegacyBuilder,
+    builder::{LegacyBuilder, WitnessBuilder},
     enc::{
         bases::EncodingError,
         encoder::{Address, MainnetEncoder, SignetEncoder, TestnetEncoder},
@@ -49,6 +49,24 @@ use crate::{
 pub trait BitcoinNetwork<'a>: Network<'a> {
     /// An associated witness transaction type.
     type WTx: WitnessTransaction<'a, TxIn = Self::TxIn, TxOut = Self::TxOut>;
+
+    /// A builder for the witness transaction type
+    type WitnessBuilder: TxBuilder<'a, Encoder = Self::Encoder, Transaction = Self::WTx>;
+
+    /// Returns a new instance of the associated transaction builder.
+    fn witness_tx_builder() -> Self::WitnessBuilder {
+        Self::WitnessBuilder::new()
+    }
+
+    /// Instantiate a builder from a tx object
+    fn witness_builder_from_tx(tx: &Self::WTx) -> Self::WitnessBuilder {
+        Self::WitnessBuilder::from_tx(tx)
+    }
+
+    /// Instantiate a builder from a hex-serialized transaction
+    fn witness_builder_from_hex(hex_tx: &str) -> Result<Self::WitnessBuilder, <Self::WTx as Transaction<'a>>::TxError> {
+        Self::WitnessBuilder::from_hex_tx(hex_tx)
+    }
 }
 
 /// A newtype for Bitcoin networks, parameterized by an encoder. We change the encoder to
@@ -75,6 +93,7 @@ where
     T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>,
 {
     type WTx = WitnessTx;
+    type WitnessBuilder = WitnessBuilder<T>;
 }
 
 /// A fully-parameterized BitcoinMainnet. This is the main interface for accessing the library.
