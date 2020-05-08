@@ -59,6 +59,11 @@ pub trait Network<'a> {
         Self::Builder::new()
     }
 
+    /// Instantiate a builder from a tx object
+    fn builder_from_tx(tx: &Self::Tx) -> Self::Builder {
+        Self::Builder::from_tx(tx)
+    }
+
     /// Instantiate a builder from a hex-serialized transaction
     fn builder_from_hex(hex_tx: &str) -> Result<Self::Builder, <Self::Tx as Transaction<'a>>::TxError> {
         Self::Builder::from_hex_tx(hex_tx)
