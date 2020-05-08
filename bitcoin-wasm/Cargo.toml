@@ -9,7 +9,7 @@ license = "LGPL-3.0-or-later"
 publish = false
 
 [lib]
-crate-type = ["cdylib"]
+crate-type = ["cdylib", "rlib"]
 
 # Recommended when packing the wasm for release
 [profile.release]

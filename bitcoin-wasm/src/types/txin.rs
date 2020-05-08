@@ -45,6 +45,19 @@ impl BitcoinOutpoint {
         txin::BitcoinOutpoint::null().into()
     }
 
+    /// Return the BE txid as hex, suitable for block explorers
+    pub fn txid_be_hex(&self) -> String {
+        self.0.txid_be_hex()
+    }
+
+    /// Instantiate an outpoint from the Block Explore (big-endian) TXID format and integer index
+    pub fn from_explorer_format(txid_be: String, idx: u32) -> Self {
+        txin::BitcoinOutpoint::from_explorer_format(
+            TXID::deserialize_hex(txid_be).unwrap().into(),
+            idx
+        ).into()
+    }
+
     /// Returns a new Outpoint from a digest and index
     #[wasm_bindgen(constructor)]
     pub fn new(txid: &TXID, idx: u32) -> Self {
