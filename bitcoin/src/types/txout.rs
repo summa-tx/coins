@@ -55,6 +55,21 @@ impl TxOut {
             script_pubkey: ScriptPubkey::null(),
         }
     }
+
+    /// Instantiate an OP_RETURN output with some data. Discards all but the first 75 bytes.
+    pub fn op_return(data: &[u8]) -> Self {
+        let mut data = data.to_vec();
+        data.truncate(75);
+
+        let mut payload = vec![];
+        payload.push(0x6a);
+        payload.push(data.len() as u8);
+        payload.extend(data);
+        TxOut {
+            value: 0,
+            script_pubkey: ScriptPubkey::from(payload)
+        }
+    }
 }
 
 impl ByteFormat for TxOut {
