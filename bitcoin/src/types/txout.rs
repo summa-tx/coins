@@ -70,6 +70,11 @@ impl TxOut {
             script_pubkey: ScriptPubkey::from(payload)
         }
     }
+
+    /// Extract the op return payload. None if not an op return.
+    pub fn extract_op_return_data(&self) -> Option<Vec<u8>> {
+        self.script_pubkey.extract_op_return_data()
+    }
 }
 
 impl ByteFormat for TxOut {

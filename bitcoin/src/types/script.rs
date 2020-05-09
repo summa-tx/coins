@@ -99,13 +99,33 @@ pub enum ScriptType {
     WPKH,
     /// Pay to Witness Scripthash.
     WSH,
+    /// OP_RETURN
+    #[allow(non_camel_case_types)]
+    OP_RETURN,
     /// Nonstandard or unknown `Script` type. May be a newer witness version.
     NonStandard,
 }
 
 impl ScriptPubkey {
+    /// Extract the op return payload. None if not an op return.
+    pub fn extract_op_return_data(&self) -> Option<Vec<u8>> {
+        // check before indexing to avoid potential panic on malformed input
+        if self.len() < 2 {
+            return None;
+        }
+
+        if self[0] == 0x6a && self[1] as usize == (self.len() - 2) {
+            return Some(self.0[2..].to_vec())
+        }
+        None
+    }
+
     /// Inspect the `Script` to determine its type.
     pub fn standard_type(&self) -> ScriptType {
+        if self.extract_op_return_data().is_some() {
+            return ScriptType::OP_RETURN;
+        }
+
         let items = &self.0;
         match self.0.len() {
             0x19 => {

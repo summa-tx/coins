@@ -41,6 +41,10 @@ pub enum EncodingError {
     /// Bubbled up error from bech32 library
     #[error("BechError: {:?}", .0)]
     BechError(#[from] BechError),
+
+    /// Op Return ScriptPubkey was passed to encoder
+    #[error("Can't encode op return scripts as addresses")]
+    NullDataScript
 }
 
 /// Impl explicitly because FromBase58CheckError doesn't implement the std error format

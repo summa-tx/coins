@@ -15,7 +15,7 @@
 //!    class's `txid()` method;
 //! - `impl_prefix_vec_access` generates getters and setters for prefix vecs
 
-// This macro wraps and implements a wrapper around the `Ser` trait
+/// This macro wraps and implements a wrapper around the `Ser` trait
 macro_rules! wrap_struct {
     (
         $(#[$outer:meta])*
@@ -98,6 +98,8 @@ macro_rules! wrap_struct {
     }
 }
 
+/// Implements a getter
+#[macro_export]
 macro_rules! impl_simple_getter {
     ($class:ident, $prop:ident, $type:ty) => {
         #[wasm_bindgen]
@@ -111,6 +113,8 @@ macro_rules! impl_simple_getter {
     };
 }
 
+/// Implements a getter calling an underlying getter function
+#[macro_export]
 macro_rules! impl_getter_passthrough {
     ($class:ident, $prop:ident, $type:ty) => {
         #[wasm_bindgen]
@@ -124,8 +128,10 @@ macro_rules! impl_getter_passthrough {
     };
 }
 
+/// Implements a getter that returns a wasm-wrapped struct
+#[macro_export]
 macro_rules! impl_wrapped_getter {
-    ($class:ident, $prop:ident, $type:ident) => {
+    ($class:ident, $prop:ident, $type:ty) => {
         #[wasm_bindgen]
         impl $class {
             /// A property getter that wraps the result in a JS-friendly object
@@ -137,8 +143,10 @@ macro_rules! impl_wrapped_getter {
     };
 }
 
+/// Implements a getter that calls an underlying getter function and returns a wasm-wrapped struct
+#[macro_export]
 macro_rules! impl_wrapped_getter_passthrough {
-    ($class:ident, $prop:ident, $type:ident) => {
+    ($class:ident, $prop:ident, $type:ty) => {
         #[wasm_bindgen]
         impl $class {
             /// A calculated property getter that wraps the result in a JS-friendly object

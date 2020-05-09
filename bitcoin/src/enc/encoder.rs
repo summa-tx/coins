@@ -73,6 +73,7 @@ impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
             }
             ScriptType::WSH => Ok(Address::WSH(encode_bech32(P::HRP, &s.items())?)),
             ScriptType::WPKH => Ok(Address::WPKH(encode_bech32(P::HRP, &s.items())?)),
+            ScriptType::OP_RETURN => Err(EncodingError::NullDataScript),
             ScriptType::NonStandard => Err(EncodingError::UnknownScriptType),
         }
     }
