@@ -107,14 +107,15 @@ pub enum ScriptType {
 }
 
 impl ScriptPubkey {
-    /// Extract the op return payload. None if not an op return.
+    /// Extract the op return payload. None if not an op return. Does not extract OP_RETURN blobs
+    /// larger than 75 bytes.
     pub fn extract_op_return_data(&self) -> Option<Vec<u8>> {
         // check before indexing to avoid potential panic on malformed input
         if self.len() < 2 {
             return None;
         }
 
-        if self[0] == 0x6a && self[1] as usize == (self.len() - 2) {
+        if self[0] == 0x6a && self[1] <= 75 && self[1] as usize == (self.len() - 2) {
             return Some(self.0[2..].to_vec())
         }
         None
