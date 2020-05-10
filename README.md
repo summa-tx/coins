@@ -12,6 +12,16 @@ While this is feature-complete, and there are some tests, **this is essentially
 alpha software**. There will be rough edges, and the interfaces are subject to
 change.
 
+Specificallly:
+- `core` and `bitcoin` are RC1.
+- `bip32`
+  - wasm features are awaiting parity secp version bump.
+  - libsecp (default) features are RC1.
+  - the backends will eventually be broken into a separate module.
+- `bitcoin-wasm` is near-ready, but some `bitcoin` functionality is not yet
+  exposed.
+- `psbt` is early alpha.
+
 ## Project Architecture
 
 The project is built around the `riemann-core` crate which defines high-level

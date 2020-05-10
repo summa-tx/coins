@@ -1,5 +1,5 @@
 [package]
-name = "rmn-bip32"
+name = "rmn-bip32-beta.0"
 version = "0.1.0"
 authors = ["James Prestwich <james@prestwi.ch>"]
 edition = "2018"

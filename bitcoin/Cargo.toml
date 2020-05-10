@@ -1,6 +1,6 @@
 [package]
 name = "rmn-btc"
-version = "0.1.0"
+version = "0.1.0-rc.1"
 authors = ["James Prestwich <james@prestwi.ch>"]
 edition = "2018"
 description = "Bitcoin transaction construction in Rust"
