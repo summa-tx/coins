@@ -203,7 +203,7 @@ pub enum APDUResponseCodes {
 
 impl std::fmt::Display for APDUResponseCodes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({}, {})", *self as u16, self.description())
+        write!(f, "Response {:x}: {})", *self as u16, self.description())
     }
 }
 
