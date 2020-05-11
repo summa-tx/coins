@@ -55,3 +55,15 @@ These changes are as follows:
 - Remove bip44 crates
 - Significant refactoring to all other crates
 - Crates have been moved to be modules of a single crate
+- Refactor APDUErrorCodes
+- Refactor APDUCommand to move towards no_std support. They hold &'a [u8]
+  instead of vectors
+- Refactor APDUAnswer to move towards no_std support and avoid unnecessary
+  copies. It is now a thin wrapper around a &[u8]
+- Change exchange functions to accept a mutable buffer. The caller must allocate
+  space for the response packet
+- `wasm_bindgen` bindings for JS ledger transports
+- Conditional compilation based abstraction of transport type
+  - Native HID if not wasm32
+  - Feature flags for browser or node if wasm32
+- Break out integration tests
