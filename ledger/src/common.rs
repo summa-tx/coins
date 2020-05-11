@@ -1,7 +1,7 @@
 use thiserror::Error;
 
 /// APDU-related errors
-#[derive(Debug, Error)]
+#[derive(Debug, Clone, Error)]
 pub enum APDUError {
     /// APDU Response was too short
     #[error("Response too short. Expected at least 2 bytes. Got {0:?}")]
@@ -21,15 +21,14 @@ impl From<APDUResponseCodes> for APDUError {
 /// APDU data blob, limited to 255 bytes. For simplicity, this data does not support 3-byte APDU
 /// prefixes.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct APDUData(Vec<u8>);
+pub struct APDUData<'a>(&'a [u8]);
 
-impl APDUData {
-    /// Instantiate a APDUData by truncating the vector to at most 255 bytes and wrapping it.
-    pub fn new(mut v: Vec<u8>) -> Self {
-        if v.len() > 255 {
-            v.resize(255, 0);
-        }
-        APDUData(v)
+impl<'a> APDUData<'a> {
+    /// Instantiate a APDUData from a slice. If the slice contains more than 255 bytes, only the
+    /// first 255 are used.
+    pub fn new(buf: &'a [u8]) -> Self {
+        let length = std::cmp::min(255, buf.len());
+        APDUData(&buf[..length])
     }
 
     /// Return the data length in bytes
@@ -37,26 +36,20 @@ impl APDUData {
         self.0.len()
     }
 
-    /// True if the underlying vector is empty, else false.
+    /// True if the underlying slice is empty, else false.
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
 }
 
-impl From<&Vec<u8>> for APDUData {
-    fn from(v: &Vec<u8>) -> Self {
+impl<'a> From<&'a [u8]> for APDUData<'a> {
+    fn from(v: &'a [u8]) -> Self {
         let length = std::cmp::min(v.len(), 256);
-        APDUData(v[..length].to_vec())
+        APDUData(&v[..length])
     }
 }
 
-impl From<Vec<u8>> for APDUData {
-    fn from(v: Vec<u8>) -> Self {
-        Self::new(v)
-    }
-}
-
-impl AsRef<[u8]> for APDUData {
+impl<'a> AsRef<[u8]> for APDUData<'a> {
     #[inline]
     fn as_ref(&self) -> &[u8] {
         &self.0[..]
@@ -67,7 +60,7 @@ impl AsRef<[u8]> for APDUData {
 /// See [wikipedia](https://en.wikipedia.org/wiki/Smart_card_application_protocol_data_unit) for
 /// additional format details
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct APDUCommand {
+pub struct APDUCommand<'a> {
     /// The instruction class.
     pub cla: u8,
     /// The instruction code.
@@ -77,12 +70,12 @@ pub struct APDUCommand {
     /// Instruction parameter 2
     pub p2: u8,
     /// Command data
-    pub data: APDUData,
+    pub data: APDUData<'a>,
     /// The requested response length.
     pub response_len: Option<u8>,
 }
 
-impl APDUCommand {
+impl<'a> APDUCommand<'a> {
     /// Return the serialized length of the APDU packet
     pub fn serialized_length(&self) -> usize {
         let mut length = 4;
@@ -137,7 +130,7 @@ impl<'a> APDUAnswer<'a> {
         self.response.len()
     }
 
-    /// True if the underlying vector is empty, else false.
+    /// True if the underlying slice is empty, else false.
     pub fn is_empty(&self) -> bool {
         self.response.is_empty()
     }
@@ -269,7 +262,7 @@ mod test {
 
     #[test]
     fn serialize() {
-        let data = &vec![0, 0, 0, 1, 0, 0, 0, 1];
+        let data: &[u8] = &[0, 0, 0, 1, 0, 0, 0, 1];
 
         let command = APDUCommand {
             cla: 0x56,

@@ -1,11 +1,16 @@
 use thiserror::Error;
 
 /// Transport Error
-#[derive(Copy, Clone, Debug, Eq, Error, PartialEq)]
+#[derive(Debug, Error)]
 pub enum LedgerTransportError {
     /// Transport specific error
     #[error("APDU Exchange Error")]
     APDUExchangeError,
+
+    /// Native transport error type
+    #[error(transparent)]
+    #[cfg(not(target_arch = "wasm32"))]
+    NativeTransportError(#[from] crate::transports::hid::NativeTransportError)
 }
 
 /*******************************************************************************

@@ -15,11 +15,11 @@ impl NativeTransport {
 
     /// Send an APDU command to the device, and receive a response
     #[allow(clippy::needless_lifetimes)]
-    pub async fn exchange<'a>(&self, command: &APDUCommand, buf: &'a mut [u8]) -> Result<APDUAnswer<'a>, LedgerTransportError> {
+    pub async fn exchange<'a>(&self, command: &APDUCommand<'_>, buf: &'a mut [u8]) -> Result<APDUAnswer<'a>, LedgerTransportError> {
         self
             .0
             .exchange(command, buf)
-            .map_err(|_| LedgerTransportError::APDUExchangeError)
+            .map_err(Into::into)
     }
 }
 

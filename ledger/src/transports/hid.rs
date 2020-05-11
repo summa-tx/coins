@@ -38,6 +38,7 @@ const LEDGER_PACKET_SIZE: u8 = 64;
 const LEDGER_TIMEOUT: i32 = 10_000_000;
 
 /// Ledger transport errors
+#[cfg(not(target_arch = "wasm32"))]
 #[derive(Error, Debug)]
 pub enum NativeTransportError {
     /// Device not found error
