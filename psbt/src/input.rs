@@ -2,9 +2,9 @@ use std::collections::{btree_map, BTreeMap};
 
 use rmn_bip32::{
     self as bip32,
-    model::HasPubkey,
     curve::{model::Secp256k1Backend, SigSerialize},
     derived::DerivedPubkey,
+    model::HasPubkey,
 };
 
 use rmn_btc::types::{
@@ -152,7 +152,11 @@ impl PSBTInput {
     }
 
     /// Inserts a signature into the map
-    pub fn insert_partial_sig<'a, T: Secp256k1Backend<'a>, K: HasPubkey<'a, T>>(&mut self, pk: K, sig: T::Signature) {
+    pub fn insert_partial_sig<'a, T: Secp256k1Backend<'a>, K: HasPubkey<'a, T>>(
+        &mut self,
+        pk: K,
+        sig: T::Signature,
+    ) {
         let mut key = vec![InputKey::PARTIAL_SIG as u8];
         key.extend(pk.pubkey_bytes().iter());
 
@@ -206,7 +210,10 @@ impl PSBTInput {
     }
 
     /// Returns a vec containing parsed public keys. Unparsable keys will be ignored
-    pub fn parsed_pubkey_derivations<'a>(&self, backend: Option<&'a bip32::Secp256k1<'a>>) -> Vec<DerivedPubkey<'a>> {
+    pub fn parsed_pubkey_derivations<'a>(
+        &self,
+        backend: Option<&'a bip32::Secp256k1<'a>>,
+    ) -> Vec<DerivedPubkey<'a>> {
         self.pubkey_kv_pairs()
             .map(|(k, v)| schema::try_kv_pair_as_derived_pubkey(k, v, backend))
             .filter_map(Result::ok)

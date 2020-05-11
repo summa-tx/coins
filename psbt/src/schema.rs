@@ -1,15 +1,14 @@
 use std::collections::HashMap;
 
-use riemann_core::{ser::ByteFormat};
+use riemann_core::ser::ByteFormat;
 
 use rmn_bip32::{
     self as bip32,
-    XPub,
     curve::{PointDeserialize, SigSerialize, Signature},
-    path::KeyDerivation,
     derived::DerivedPubkey,
     model::DerivedKey,
-    Bip32Error, Secp256k1,
+    path::KeyDerivation,
+    Bip32Error, Secp256k1, XPub,
 };
 
 use rmn_btc::types::{
@@ -178,7 +177,7 @@ where
 pub fn try_kv_pair_as_derived_pubkey<'a>(
     key: &PSBTKey,
     val: &PSBTValue,
-    backend: Option<&'a Secp256k1<'a>>
+    backend: Option<&'a Secp256k1<'a>>,
 ) -> Result<DerivedPubkey<'a>, PSBTError> {
     let pubkey = if key.len() == 34 {
         let mut pubkey = [0u8; 33];
@@ -197,7 +196,10 @@ pub fn try_kv_pair_as_derived_pubkey<'a>(
 
     let deriv = try_val_as_key_derivation(val)?;
 
-    let pubkey = bip32::keys::Pubkey{key: pubkey, backend};
+    let pubkey = bip32::keys::Pubkey {
+        key: pubkey,
+        backend,
+    };
 
     Ok(DerivedPubkey::new(pubkey, deriv))
 }

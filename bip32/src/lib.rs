@@ -67,7 +67,6 @@
 //! `rust-secp-static-context` allows for compilation-time generation of the context, but must
 //! be used with the `rust-secp` backend.
 
-
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
 #![warn(unused_extern_crates)]
@@ -107,13 +106,13 @@ pub mod path;
 /// Provides keys that are coupled with their derivation path
 pub mod derived;
 
-pub use primitives::{KeyFingerprint};
-pub use enc::{MainnetEncoder};
+pub use enc::MainnetEncoder;
 pub use model::*;
+pub use primitives::KeyFingerprint;
 
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 pub use crate::{
-    curve::{Secp256k1},
+    curve::Secp256k1,
     derived::{DerivedXPriv, DerivedXPub},
     xkeys::{XPriv, XPub},
 };

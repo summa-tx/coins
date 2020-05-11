@@ -25,7 +25,7 @@ macro_rules! impl_hex_serde {
                     .map_err(|e| serde::de::Error::custom(e.to_string()))
             }
         }
-    }
+    };
 }
 
 /// Wrap a prefixed vector of bytes (`u8`) in a newtype, and implement convenience functions for

@@ -181,5 +181,9 @@ pub trait Secp256k1Backend<'a>: Clone + std::fmt::Debug + PartialEq {
     }
 
     /// Recover the public key that produced a `RecoverableSignature` on a certain digest.
-    fn recover_pubkey(&self, digest: [u8; 32], sig: &Self::RecoverableSignature) -> Result<Self::Pubkey, Bip32Error>;
+    fn recover_pubkey(
+        &self,
+        digest: [u8; 32],
+        sig: &Self::RecoverableSignature,
+    ) -> Result<Self::Pubkey, Bip32Error>;
 }

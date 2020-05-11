@@ -84,9 +84,12 @@ impl PSBTOutput {
     }
 
     /// Returns a vec containing parsed public keys. Unparsable keys will be ignored
-    pub fn parsed_pubkey_derivations<'a>(&self, backend: Option<&'a bip32::Secp256k1<'a>>) -> Vec<DerivedPubkey<'a>> {
+    pub fn parsed_pubkey_derivations<'a>(
+        &self,
+        backend: Option<&'a bip32::Secp256k1<'a>>,
+    ) -> Vec<DerivedPubkey<'a>> {
         self.pubkey_kv_pairs()
-        .map(|(k, v)| schema::try_kv_pair_as_derived_pubkey(k, v, backend))
+            .map(|(k, v)| schema::try_kv_pair_as_derived_pubkey(k, v, backend))
             .filter_map(Result::ok)
             .collect()
     }

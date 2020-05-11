@@ -639,7 +639,8 @@ impl<'a> WitnessTransaction<'a> for WitnessTx {
         args.prevout_script.write_to(writer)?;
         Self::write_u64_le(writer, args.prevout_value)?;
         Self::write_u32_le(writer, input.sequence)?;
-        self.hash_outputs(args.index, args.sighash_flag)?.write_to(writer)?;
+        self.hash_outputs(args.index, args.sighash_flag)?
+            .write_to(writer)?;
         Self::write_u32_le(writer, self.legacy_tx.locktime)?;
         Self::write_u32_le(writer, args.sighash_flag as u32)?;
         Ok(())
@@ -933,8 +934,9 @@ mod tests {
         // from mainnet: 3c7fb4af9b7bd2ba6f155318e0bc8a50432d4732ab6e36293ef45b304567b46a
         let tx_hex = "01000000000101b77bebb3ac480e99c0d95a4c812137b116e65e2f3b3a66a36d0e252928d460180100000000ffffffff03982457000000000017a91417b8e0f150215cc70bf2fb58070041d655b162dd8740e133000000000017a9142535e444f7d55f0500c1f86609d6cfc289576b698747abfb0100000000220020701a8d401c84fb13e6baf169d59684e17abd9fa216c8cc5b9fc63d622ff8c58d040047304402205c6a889efa26955bef7ce2b08792e63e25eac9859080f0d83912b0ea833d7eb402205f859f4640f1600db5012b467ec05bb4ae1779640c1b5fadc8908960740e52b30147304402201c239ea25cfeadfa9493a1b0d136d70f50f821385972b7188c4329c2bf2d23a302201ee790e4b6794af6567f85a226a387d5b0222c3dc90d2fc558d09e08062b8271016952210375e00eb72e29da82b89367947f29ef34afb75e8654f6ea368e0acdfd92976b7c2103a1b26313f430c4b15bb1fdce663207659d8cac749a0e53d70eff01874496feff2103c96d495bfdd5ba4145e3e046fee45e84a8a48ad05bd8dbb395c011a32cf9f88053ae00000000";
         let wtxid = Hash256Digest::deserialize_hex(
-            "84d85ce82c728e072bb11f379a6ed0b9127aa43905b7bae14b254bfcdce63549"
-        ).unwrap();
+            "84d85ce82c728e072bb11f379a6ed0b9127aa43905b7bae14b254bfcdce63549",
+        )
+        .unwrap();
 
         let tx = WitnessTx::deserialize_hex(tx_hex).unwrap();
 
@@ -955,7 +957,7 @@ mod tests {
 
         match tx.sighash(&args) {
             Err(TxError::NoneUnsupported) => {}
-            _ => assert!(false, "expected sighash none unsupported")
+            _ => assert!(false, "expected sighash none unsupported"),
         }
     }
 
@@ -973,7 +975,7 @@ mod tests {
 
         match tx.sighash(&args) {
             Err(TxError::SighashSingleBug) => {}
-            _ => assert!(false, "expected sighash single bug unsupported")
+            _ => assert!(false, "expected sighash single bug unsupported"),
         }
     }
 

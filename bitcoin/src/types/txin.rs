@@ -5,9 +5,7 @@ use std::io::{Read, Write};
 use riemann_core::{
     hashes::marked::MarkedDigest,
     ser::{ByteFormat, SerError, SerResult},
-    types::{
-        tx::{Input, TXOIdentifier},
-    },
+    types::tx::{Input, TXOIdentifier},
 };
 
 use crate::{hashes::TXID, types::script::ScriptSig};
@@ -56,7 +54,10 @@ where
 
     /// Instantiate an outpoint from the Block Explore (big-endian) TXID format and integer index
     pub fn from_explorer_format(txid_be: M, idx: u32) -> Self {
-        Self {txid: txid_be.reversed(), idx}
+        Self {
+            txid: txid_be.reversed(),
+            idx,
+        }
     }
 }
 
@@ -95,7 +96,8 @@ where
     where
         T: Write,
     {
-        let mut len = self.txid
+        let mut len = self
+            .txid
             .write_to(writer)
             .map_err(|e| SerError::ComponentError(format!("{}", e)))?;
         len += Self::write_u32_le(writer, self.idx)?;
@@ -198,7 +200,7 @@ pub type Vin = Vec<BitcoinTxIn>;
 #[cfg(test)]
 mod test {
     use super::*;
-    use riemann_core::{ser::ByteFormat};
+    use riemann_core::ser::ByteFormat;
 
     static NULL_OUTPOINT: &str =
         "0000000000000000000000000000000000000000000000000000000000000000ffffffff";
@@ -218,10 +220,7 @@ mod test {
         for case in cases.iter() {
             assert_eq!(case.0.serialized_length(), case.1.len() / 2);
             assert_eq!(case.0.serialize_hex().unwrap(), case.1);
-            assert_eq!(
-                Outpoint::<TXID>::deserialize_hex(&case.1).unwrap(),
-                case.0
-            );
+            assert_eq!(Outpoint::<TXID>::deserialize_hex(&case.1).unwrap(), case.0);
         }
     }
 
@@ -245,10 +244,7 @@ mod test {
         for case in cases.iter() {
             assert_eq!(case.0.serialized_length(), case.1.len() / 2);
             assert_eq!(case.0.serialize_hex().unwrap(), case.1);
-            assert_eq!(
-                BitcoinTxIn::deserialize_hex(&case.1).unwrap(),
-                case.0
-            );
+            assert_eq!(BitcoinTxIn::deserialize_hex(&case.1).unwrap(), case.0);
         }
     }
 }

@@ -235,8 +235,8 @@ mod test {
     use super::*;
     use crate::{
         curve::Secp256k1,
-        keys::Pubkey,
         enc::{Encoder, MainnetEncoder},
+        keys::Pubkey,
         primitives::*,
     };
 
@@ -447,7 +447,8 @@ mod test {
         let child_xpub = child.to_xpub().unwrap();
         child_xpub.verify_digest_recoverable(digest, &sig).unwrap();
 
-        let recovered = Pubkey::recover_from_signed_digest(xpriv.backend().unwrap(), digest, &sig).unwrap();
+        let recovered =
+            Pubkey::recover_from_signed_digest(xpriv.backend().unwrap(), digest, &sig).unwrap();
         assert_eq!(&recovered.pubkey(), &child_xpub.pubkey());
     }
 

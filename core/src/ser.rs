@@ -161,7 +161,10 @@ pub trait ByteFormat {
     }
 
     /// Convenience function for writing a Bitcoin-style VarInt
-    fn write_comapct_int<W>(writer: &mut W, number: u64) -> Result<usize, <Self as ByteFormat>::Error>
+    fn write_comapct_int<W>(
+        writer: &mut W,
+        number: u64,
+    ) -> Result<usize, <Self as ByteFormat>::Error>
     where
         W: Write,
     {
@@ -179,11 +182,14 @@ pub trait ByteFormat {
     }
 
     /// Convenience function to write a length-prefixed vector.
-    fn write_prefix_vec<W, E, I>(writer: &mut W, vector: &[I]) -> Result<usize, <Self as ByteFormat>::Error>
+    fn write_prefix_vec<W, E, I>(
+        writer: &mut W,
+        vector: &[I],
+    ) -> Result<usize, <Self as ByteFormat>::Error>
     where
         W: Write,
         E: Into<Self::Error> + From<SerError> + From<IOError> + std::error::Error,
-        I: ByteFormat<Error = E>
+        I: ByteFormat<Error = E>,
     {
         let mut written = Self::write_comapct_int(writer, vector.len() as u64)?;
         for i in vector.iter() {
@@ -191,7 +197,6 @@ pub trait ByteFormat {
         }
         Ok(written)
     }
-
 
     /// Deserializes an instance of `Self` from a `std::io::Read`.
     /// The `limit` argument is used only when deserializing collections, and  specifies a maximum

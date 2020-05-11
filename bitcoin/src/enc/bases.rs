@@ -44,7 +44,7 @@ pub enum EncodingError {
 
     /// Op Return ScriptPubkey was passed to encoder
     #[error("Can't encode op return scripts as addresses")]
-    NullDataScript
+    NullDataScript,
 }
 
 /// Impl explicitly because FromBase58CheckError doesn't implement the std error format

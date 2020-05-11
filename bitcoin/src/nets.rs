@@ -28,7 +28,9 @@
 //! ```
 use std::marker::PhantomData;
 
-use riemann_core::{enc::AddressEncoder, nets::Network, builder::TxBuilder, types::tx::Transaction};
+use riemann_core::{
+    builder::TxBuilder, enc::AddressEncoder, nets::Network, types::tx::Transaction,
+};
 
 use crate::{
     builder::{LegacyBuilder, WitnessBuilder},
@@ -64,7 +66,9 @@ pub trait BitcoinNetwork<'a>: Network<'a> {
     }
 
     /// Instantiate a builder from a hex-serialized transaction
-    fn witness_builder_from_hex(hex_tx: &str) -> Result<Self::WitnessBuilder, <Self::WTx as Transaction<'a>>::TxError> {
+    fn witness_builder_from_hex(
+        hex_tx: &str,
+    ) -> Result<Self::WitnessBuilder, <Self::WTx as Transaction<'a>>::TxError> {
         Self::WitnessBuilder::from_hex_tx(hex_tx)
     }
 }
@@ -137,7 +141,10 @@ mod test {
     fn it_exposes_encoder_interface() {
         let addr_string = "bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned();
         let address = Address::WPKH(addr_string.clone());
-        assert_eq!(&address, &BitcoinMainnet::string_to_address(&addr_string).unwrap());
+        assert_eq!(
+            &address,
+            &BitcoinMainnet::string_to_address(&addr_string).unwrap()
+        );
         let u = BitcoinMainnet::decode_address(&address).unwrap();
         assert_eq!(&address, &BitcoinMainnet::encode_address(&u).unwrap())
     }

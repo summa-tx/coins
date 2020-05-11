@@ -7,7 +7,6 @@ pub mod transactions;
 pub mod txin;
 pub mod txout;
 
-
 pub use script::*;
 pub use transactions::*;
 pub use txin::*;

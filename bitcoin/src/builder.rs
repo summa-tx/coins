@@ -266,7 +266,11 @@ where
         index: usize,
         input: <Self::Transaction as Transaction<'a>>::TxIn,
     ) -> Self {
-        let idx = if index > self.builder.vin.len() { 0 } else { index };
+        let idx = if index > self.builder.vin.len() {
+            0
+        } else {
+            index
+        };
         self.builder.vin.insert(idx, input);
         self
     }
@@ -284,7 +288,11 @@ where
         index: usize,
         output: <Self::Transaction as Transaction<'a>>::TxOut,
     ) -> Self {
-        let idx = if index > self.builder.vout.len() { 0 } else { index };
+        let idx = if index > self.builder.vout.len() {
+            0
+        } else {
+            index
+        };
         self.builder.vout.insert(idx, output);
         self
     }
@@ -347,7 +355,8 @@ mod test {
 
     #[test]
     fn basic_builder_routines() {
-        let mut builder = WitnessBuilder::<crate::enc::MainnetEncoder>::from_hex_tx(TX_HEX).unwrap();
+        let mut builder =
+            WitnessBuilder::<crate::enc::MainnetEncoder>::from_hex_tx(TX_HEX).unwrap();
         let input = builder.builder.vin[0].clone();
         let output = builder.builder.vout[0].clone();
         let witness = builder.witnesses[0].clone();
@@ -356,14 +365,17 @@ mod test {
         assert_eq!(builder.builder.vin.len(), 1);
         assert_eq!(builder.builder.vout.len(), 3);
 
-
         builder = builder
             .insert_input(2, input.clone())
             .extend_inputs(vec![input.clone()])
             .spend(BitcoinOutpoint::null(), 100)
             .insert_output(0, output.clone())
             .extend_outputs(vec![output.clone()])
-            .pay(0x8000_0000, &Address::PKH("12JvxPk4mT4PKMVHuHc1aQGBZpotQWQwF6".to_owned())).unwrap()
+            .pay(
+                0x8000_0000,
+                &Address::PKH("12JvxPk4mT4PKMVHuHc1aQGBZpotQWQwF6".to_owned()),
+            )
+            .unwrap()
             .extend_witnesses(vec![witness.clone()])
             .as_witness()
             .version(2)
@@ -378,9 +390,7 @@ mod test {
         assert_eq!(tx.outputs().len(), 6);
         assert_eq!(&tx.without_witness(), &without_witnesses);
 
-        let mut legacy_builder = builder
-            .clone()
-            .as_legacy();
+        let mut legacy_builder = builder.clone().as_legacy();
 
         legacy_builder = legacy_builder
             .insert_input(2, input.clone())
@@ -388,7 +398,11 @@ mod test {
             .spend(BitcoinOutpoint::null(), 100)
             .insert_output(0, output.clone())
             .extend_outputs(vec![output])
-            .pay(0x8000_0000, &Address::PKH("12JvxPk4mT4PKMVHuHc1aQGBZpotQWQwF6".to_owned())).unwrap()
+            .pay(
+                0x8000_0000,
+                &Address::PKH("12JvxPk4mT4PKMVHuHc1aQGBZpotQWQwF6".to_owned()),
+            )
+            .unwrap()
             .locktime(1000)
             .version(1);
         let legacy_tx = legacy_builder.clone().build();
@@ -399,7 +413,10 @@ mod test {
         assert_eq!(legacy_tx.inputs().len(), 7);
         assert_eq!(legacy_tx.outputs().len(), 9);
 
-        let legacy_tx = legacy_builder.clone().extend_witnesses(vec![witness]).build();
+        let legacy_tx = legacy_builder
+            .clone()
+            .extend_witnesses(vec![witness])
+            .build();
         assert_eq!(legacy_tx.witnesses().len(), 1);
     }
 }

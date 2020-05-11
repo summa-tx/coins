@@ -151,7 +151,6 @@ pub trait VerifyingKey<'a, T: 'a + Secp256k1Backend<'a>>:
             .map_err(Into::into)
     }
 
-
     /// Verify a recoverable signature on a digest.
     fn verify_digest_recoverable(
         &self,
@@ -287,7 +286,7 @@ pub trait DerivePublicChild<'a, T: Secp256k1Backend<'a>>: XKey + HasPubkey<'a, T
         }
 
         if let (_, Some(_)) = path.last_hardened() {
-            return Err(Bip32Error::HardenedDerivationFailed)
+            return Err(Bip32Error::HardenedDerivationFailed);
         }
 
         let mut current = self.to_owned();

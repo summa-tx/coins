@@ -35,7 +35,9 @@ fn try_parse_path(path: &str) -> Result<Vec<u32>, Bip32Error> {
 
 fn encode_index(idx: u32, harden: char) -> String {
     let mut s = (idx % BIP32_HARDEN).to_string();
-    if idx >= BIP32_HARDEN { s.push(harden); }
+    if idx >= BIP32_HARDEN {
+        s.push(harden);
+    }
     s
 }
 
@@ -47,16 +49,13 @@ impl DerivationPath {
     #[doc(hidden)]
     pub fn custom_string(&self, root: &str, joiner: char, harden: char) -> String {
         std::iter::once(root.to_owned())
-            .chain(
-                self.0.iter()
-                .map(|s| encode_index(*s, harden))
-            )
+            .chain(self.0.iter().map(|s| encode_index(*s, harden)))
             .collect::<Vec<String>>()
             .join(&joiner.to_string())
     }
 
     /// Converts the path to a standard bip32 string. e.g `"m/44'/0'/0/32"`.
-    pub fn derivation_string(&self, ) -> String {
+    pub fn derivation_string(&self) -> String {
         self.custom_string("m", '/', '\'')
     }
 
@@ -243,12 +242,7 @@ pub mod test {
 
     #[test]
     fn it_parses_index_strings() {
-        let cases = [
-            ("32", 32),
-            ("32h", 32 + BIP32_HARDEN),
-            ("0h", BIP32_HARDEN),
-
-        ];
+        let cases = [("32", 32), ("32h", 32 + BIP32_HARDEN), ("0h", BIP32_HARDEN)];
         for case in cases.iter() {
             match try_parse_index(&case.0) {
                 Ok(v) => assert_eq!(v, case.1),
@@ -259,12 +253,7 @@ pub mod test {
 
     #[test]
     fn it_handles_malformatted_indices() {
-        let cases = [
-            "-",
-            "h",
-            "toast",
-            "憂鬱",
-        ];
+        let cases = ["-", "h", "toast", "憂鬱"];
         for case in cases.iter() {
             match try_parse_index(&case) {
                 Ok(_) => assert!(false, "expected an error"),
@@ -294,14 +283,7 @@ pub mod test {
 
     #[test]
     fn it_handles_malformatted_derivations() {
-        let cases = [
-            "//",
-            "m/",
-            "-",
-            "h",
-            "toast",
-            "憂鬱",
-        ];
+        let cases = ["//", "m/", "-", "h", "toast", "憂鬱"];
         for case in cases.iter() {
             match try_parse_path(&case) {
                 Ok(_) => assert!(false, "expected an error"),
@@ -315,9 +297,21 @@ pub mod test {
     fn it_removes_prefixes_from_derivations() {
         // express each row in a separate instantiation syntax :)
         let cases = [
-            (DerivationPath(vec![1, 2, 3]), DerivationPath(vec![1]), Some(DerivationPath(vec![2, 3]))),
-            (vec![1, 2, 3].into(), vec![1, 2].into(), Some(vec![3].into())),
-            ((1u32..=3).collect(), (1u32..=3).collect(), Some((0..0).collect())),
+            (
+                DerivationPath(vec![1, 2, 3]),
+                DerivationPath(vec![1]),
+                Some(DerivationPath(vec![2, 3])),
+            ),
+            (
+                vec![1, 2, 3].into(),
+                vec![1, 2].into(),
+                Some(vec![3].into()),
+            ),
+            (
+                (1u32..=3).collect(),
+                (1u32..=3).collect(),
+                Some((0..0).collect()),
+            ),
             (DerivationPath(vec![1, 2, 3]), vec![1, 3].into(), None),
         ];
         for case in cases.iter() {
@@ -327,14 +321,7 @@ pub mod test {
 
     #[test]
     fn it_proudces_paths_from_strings() {
-        let cases = [
-            "//",
-            "m/",
-            "-",
-            "h",
-            "toast",
-            "憂鬱",
-        ];
+        let cases = ["//", "m/", "-", "h", "toast", "憂鬱"];
 
         for case in cases.iter() {
             let path: Result<DerivationPath, _> = case.to_owned().try_into().map_err(Into::into);
@@ -350,7 +337,10 @@ pub mod test {
     fn it_stringifies_derivation_paths() {
         let cases = [
             (DerivationPath(vec![1, 2, 3]), "m/1/2/3"),
-            (vec![BIP32_HARDEN, BIP32_HARDEN, BIP32_HARDEN].into(), "m/0'/0'/0'"),
+            (
+                vec![BIP32_HARDEN, BIP32_HARDEN, BIP32_HARDEN].into(),
+                "m/0'/0'/0'",
+            ),
         ];
         for case in cases.iter() {
             assert_eq!(&case.0.derivation_string(), case.1);

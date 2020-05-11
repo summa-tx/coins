@@ -1,5 +1,5 @@
 use crate::{
-    curve::model::{Secp256k1Backend},
+    curve::model::Secp256k1Backend,
     keys::{GenericPrivkey, GenericPubkey},
     model::*,
     path::KeyDerivation,
@@ -107,13 +107,10 @@ impl<'a, T: Secp256k1Backend<'a>> GenericDerivedXPriv<'a, T> {
 
         let derivation = KeyDerivation {
             root: xpriv.derive_fingerprint()?,
-            path: vec![].into()
+            path: vec![].into(),
         };
 
-        Ok(GenericDerivedXPriv {
-            xpriv,
-            derivation,
-        })
+        Ok(GenericDerivedXPriv { xpriv, derivation })
     }
 
     /// Generate a master node from some seed data. Uses the BIP32-standard hmac key.
@@ -220,8 +217,8 @@ mod test {
     use crate::{
         curve::*,
         enc::{Encoder, MainnetEncoder},
-        primitives::*,
         path::DerivationPath,
+        primitives::*,
         BIP32_HARDEN,
     };
 
@@ -252,15 +249,20 @@ mod test {
         let result = m_pub.is_public_ancestor_of(&xpub);
 
         match result {
-            Ok(true) => {},
+            Ok(true) => {}
             Ok(false) => assert!(false, "failed validate_descendant is_public_ancestor_of"),
             Err(_) => {
                 let path: crate::path::DerivationPath = d.path.into();
-                assert!(path.last_hardened().1.is_some(), "is_public_ancestor_of failed for unhardened path")
+                assert!(
+                    path.last_hardened().1.is_some(),
+                    "is_public_ancestor_of failed for unhardened path"
+                )
             }
         }
 
-        let derived_path = m.path_to_descendant(&xpriv).expect("expected a path to descendant");
+        let derived_path = m
+            .path_to_descendant(&xpriv)
+            .expect("expected a path to descendant");
         assert_eq!(&path, &derived_path, "derived path is not as expected");
     }
 
@@ -302,9 +304,7 @@ mod test {
         let xpriv = DerivedXPriv::root_from_seed(&seed, Some(Hint::Legacy), &backend).unwrap();
 
         let descendants = [
-            KeyDeriv {
-                path: &[0],
-            },
+            KeyDeriv { path: &[0] },
             KeyDeriv {
                 path: &[0, 2147483647 + BIP32_HARDEN],
             },
@@ -315,7 +315,13 @@ mod test {
                 path: &[0, 2147483647 + BIP32_HARDEN, 1, 2147483646 + BIP32_HARDEN],
             },
             KeyDeriv {
-                path: &[0, 2147483647 + BIP32_HARDEN, 1, 2147483646 + BIP32_HARDEN, 2],
+                path: &[
+                    0,
+                    2147483647 + BIP32_HARDEN,
+                    1,
+                    2147483646 + BIP32_HARDEN,
+                    2,
+                ],
             },
         ];
 
@@ -331,11 +337,9 @@ mod test {
 
         let xpriv = DerivedXPriv::root_from_seed(&seed, Some(Hint::Legacy), &backend).unwrap();
 
-        let descendants = [
-            KeyDeriv {
-                path: &[0 + BIP32_HARDEN],
-            },
-        ];
+        let descendants = [KeyDeriv {
+            path: &[0 + BIP32_HARDEN],
+        }];
 
         for case in descendants.iter() {
             validate_descendant(&case, &xpriv);
@@ -367,8 +371,8 @@ mod test {
 
         let err_bad_sig = key_pub.verify_digest(wrong_digest, &sig);
         match err_bad_sig {
-            Err(Bip32Error::BackendError(_)) => {},
-            _ => assert!(false, "expected signature validation error")
+            Err(Bip32Error::BackendError(_)) => {}
+            _ => assert!(false, "expected signature validation error"),
         }
 
         // sign_digest_recoverable + verify_digest_recoverable
@@ -377,8 +381,8 @@ mod test {
 
         let err_bad_sig = key_pub.verify_digest_recoverable(wrong_digest, &sig);
         match err_bad_sig {
-            Err(Bip32Error::BackendError(_)) => {},
-            _ => assert!(false, "expected signature validation error")
+            Err(Bip32Error::BackendError(_)) => {}
+            _ => assert!(false, "expected signature validation error"),
         }
 
         // sign_with_hash + verify_with_hash
@@ -386,32 +390,36 @@ mod test {
             let mut buf = [0u8; 32];
             buf[..5].copy_from_slice(&digest[..5]);
             buf
-        } ;
+        };
         let sig = key.sign_with_hash(&digest[..], &hash_func).unwrap();
-        key_pub.verify_with_hash(&digest[..], &hash_func, &sig).unwrap();
+        key_pub
+            .verify_with_hash(&digest[..], &hash_func, &sig)
+            .unwrap();
 
         let err_bad_sig = key_pub.verify_with_hash(&wrong_digest[..], &hash_func, &sig);
         match err_bad_sig {
-            Err(Bip32Error::BackendError(_)) => {},
-            _ => assert!(false, "expected signature validation error")
+            Err(Bip32Error::BackendError(_)) => {}
+            _ => assert!(false, "expected signature validation error"),
         }
-
 
         // sign_recoverable_with_hash + verify_recoverable_with_hash
         let hash_func = |digest: &[u8]| {
             let mut buf = [0u8; 32];
             buf[..5].copy_from_slice(&digest[..5]);
             buf
-        } ;
-        let sig = key.sign_recoverable_with_hash(&digest[..], &hash_func).unwrap();
-        key_pub.verify_recoverable_with_hash(&digest[..], &hash_func, &sig).unwrap();
+        };
+        let sig = key
+            .sign_recoverable_with_hash(&digest[..], &hash_func)
+            .unwrap();
+        key_pub
+            .verify_recoverable_with_hash(&digest[..], &hash_func, &sig)
+            .unwrap();
 
         let err_bad_sig = key_pub.verify_recoverable_with_hash(&wrong_digest[..], &hash_func, &sig);
         match err_bad_sig {
-            Err(Bip32Error::BackendError(_)) => {},
-            _ => assert!(false, "expected signature validation error")
+            Err(Bip32Error::BackendError(_)) => {}
+            _ => assert!(false, "expected signature validation error"),
         }
-
 
         // sign + verify
         let sig = key.sign(&digest[..]).unwrap();
@@ -419,8 +427,8 @@ mod test {
 
         let err_bad_sig = key_pub.verify(&wrong_digest[..], &sig);
         match err_bad_sig {
-            Err(Bip32Error::BackendError(_)) => {},
-            _ => assert!(false, "expected signature validation error")
+            Err(Bip32Error::BackendError(_)) => {}
+            _ => assert!(false, "expected signature validation error"),
         }
 
         // sign_recoverable + verify_recoverable
@@ -429,8 +437,8 @@ mod test {
 
         let err_bad_sig = key_pub.verify_recoverable(&wrong_digest[..], &sig);
         match err_bad_sig {
-            Err(Bip32Error::BackendError(_)) => {},
-            _ => assert!(false, "expected signature validation error")
+            Err(Bip32Error::BackendError(_)) => {}
+            _ => assert!(false, "expected signature validation error"),
         }
     }
 
@@ -458,22 +466,28 @@ mod test {
 
         // sign_digest + verify_digest
         let sig = key.descendant_sign_digest(&path, digest).unwrap();
-        key_pub.descendant_verify_digest(&path, digest, &sig).unwrap();
+        key_pub
+            .descendant_verify_digest(&path, digest, &sig)
+            .unwrap();
 
         let err_bad_sig = key_pub.descendant_verify_digest(&path, wrong_digest, &sig);
         match err_bad_sig {
-            Err(Bip32Error::BackendError(_)) => {},
-            _ => assert!(false, "expected signature validation error")
+            Err(Bip32Error::BackendError(_)) => {}
+            _ => assert!(false, "expected signature validation error"),
         }
 
         // sign_digest_recoverable + verify_digest_recoverable
-        let sig = key.descendant_sign_digest_recoverable(&path, digest).unwrap();
-        key_pub.descendant_verify_digest_recoverable(&path, digest, &sig).unwrap();
+        let sig = key
+            .descendant_sign_digest_recoverable(&path, digest)
+            .unwrap();
+        key_pub
+            .descendant_verify_digest_recoverable(&path, digest, &sig)
+            .unwrap();
 
         let err_bad_sig = key_pub.descendant_verify_digest_recoverable(&path, wrong_digest, &sig);
         match err_bad_sig {
-            Err(Bip32Error::BackendError(_)) => {},
-            _ => assert!(false, "expected signature validation error")
+            Err(Bip32Error::BackendError(_)) => {}
+            _ => assert!(false, "expected signature validation error"),
         }
 
         // sign_with_hash + verify_with_hash
@@ -481,32 +495,44 @@ mod test {
             let mut buf = [0u8; 32];
             buf[..5].copy_from_slice(&digest[..5]);
             buf
-        } ;
-        let sig = key.descendant_sign_with_hash(&path, &digest[..], &hash_func).unwrap();
-        key_pub.descendant_verify_with_hash(&path, &digest[..], &hash_func, &sig).unwrap();
+        };
+        let sig = key
+            .descendant_sign_with_hash(&path, &digest[..], &hash_func)
+            .unwrap();
+        key_pub
+            .descendant_verify_with_hash(&path, &digest[..], &hash_func, &sig)
+            .unwrap();
 
-        let err_bad_sig = key_pub.descendant_verify_with_hash(&path, &wrong_digest[..], &hash_func, &sig);
+        let err_bad_sig =
+            key_pub.descendant_verify_with_hash(&path, &wrong_digest[..], &hash_func, &sig);
         match err_bad_sig {
-            Err(Bip32Error::BackendError(_)) => {},
-            _ => assert!(false, "expected signature validation error")
+            Err(Bip32Error::BackendError(_)) => {}
+            _ => assert!(false, "expected signature validation error"),
         }
-
 
         // sign_recoverable_with_hash + verify_recoverable_with_hash
         let hash_func = |digest: &[u8]| {
             let mut buf = [0u8; 32];
             buf[..5].copy_from_slice(&digest[..5]);
             buf
-        } ;
-        let sig = key.descendant_sign_recoverable_with_hash(&path, &digest[..], &hash_func).unwrap();
-        key_pub.descendant_verify_recoverable_with_hash(&path, &digest[..], &hash_func, &sig).unwrap();
+        };
+        let sig = key
+            .descendant_sign_recoverable_with_hash(&path, &digest[..], &hash_func)
+            .unwrap();
+        key_pub
+            .descendant_verify_recoverable_with_hash(&path, &digest[..], &hash_func, &sig)
+            .unwrap();
 
-        let err_bad_sig = key_pub.descendant_verify_recoverable_with_hash(&path, &wrong_digest[..], &hash_func, &sig);
+        let err_bad_sig = key_pub.descendant_verify_recoverable_with_hash(
+            &path,
+            &wrong_digest[..],
+            &hash_func,
+            &sig,
+        );
         match err_bad_sig {
-            Err(Bip32Error::BackendError(_)) => {},
-            _ => assert!(false, "expected signature validation error")
+            Err(Bip32Error::BackendError(_)) => {}
+            _ => assert!(false, "expected signature validation error"),
         }
-
 
         // sign + verify
         let sig = key.descendant_sign(&path, &digest[..]).unwrap();
@@ -514,32 +540,49 @@ mod test {
 
         let err_bad_sig = key_pub.descendant_verify(&path, &wrong_digest[..], &sig);
         match err_bad_sig {
-            Err(Bip32Error::BackendError(_)) => {},
-            _ => assert!(false, "expected signature validation error")
+            Err(Bip32Error::BackendError(_)) => {}
+            _ => assert!(false, "expected signature validation error"),
         }
 
         // sign_recoverable + verify_recoverable
         let sig = key.descendant_sign_recoverable(&path, &digest[..]).unwrap();
-        key_pub.descendant_verify_recoverable(&path, &digest[..], &sig).unwrap();
+        key_pub
+            .descendant_verify_recoverable(&path, &digest[..], &sig)
+            .unwrap();
 
         let err_bad_sig = key_pub.descendant_verify_recoverable(&path, &wrong_digest[..], &sig);
         match err_bad_sig {
-            Err(Bip32Error::BackendError(_)) => {},
-            _ => assert!(false, "expected signature validation error")
+            Err(Bip32Error::BackendError(_)) => {}
+            _ => assert!(false, "expected signature validation error"),
         }
-
 
         // Sig serialize/deserialize
         let der_sig = hex::decode("3045022100e838d64bb95cdacc1b93f94ad8c2fcc10441e672f66565aca374d5a955d99672022022283ac21bc8c64b7265e71b1972b051b1a818a99ae0db3d563489e55b9826a3").unwrap();
-        let vrs = (1, [232, 56, 214, 75, 185, 92, 218, 204, 27, 147, 249, 74, 216, 194, 252, 193, 4, 65, 230, 114, 246, 101, 101, 172, 163, 116, 213, 169, 85, 217, 150, 114], [34, 40, 58, 194, 27, 200, 198, 75, 114, 101, 231, 27, 25, 114, 176, 81, 177, 168, 24, 169, 154, 224, 219, 61, 86, 52, 137, 229, 91, 152, 38, 163]);
+        let vrs = (
+            1,
+            [
+                232, 56, 214, 75, 185, 92, 218, 204, 27, 147, 249, 74, 216, 194, 252, 193, 4, 65,
+                230, 114, 246, 101, 101, 172, 163, 116, 213, 169, 85, 217, 150, 114,
+            ],
+            [
+                34, 40, 58, 194, 27, 200, 198, 75, 114, 101, 231, 27, 25, 114, 176, 81, 177, 168,
+                24, 169, 154, 224, 219, 61, 86, 52, 137, 229, 91, 152, 38, 163,
+            ],
+        );
         assert_eq!(sig.to_der(), der_sig);
         assert_eq!(sig.serialize_vrs(), vrs);
-        assert_eq!(sig.without_recovery(), backend::Signature::try_from_der(&der_sig).unwrap());
-        assert_eq!(sig, backend::RecoverableSignature::deserialize_vrs(vrs).unwrap());
+        assert_eq!(
+            sig.without_recovery(),
+            backend::Signature::try_from_der(&der_sig).unwrap()
+        );
+        assert_eq!(
+            sig,
+            backend::RecoverableSignature::deserialize_vrs(vrs).unwrap()
+        );
 
         let err_no_rec_id = backend::RecoverableSignature::try_from_der(&der_sig);
         match err_no_rec_id {
-            Err(Bip32Error::NoRecoveryID) => {},
+            Err(Bip32Error::NoRecoveryID) => {}
             _ => assert!(false, "expected err no rec id"),
         };
     }
@@ -554,7 +597,10 @@ mod test {
 
         let key = crate::curve::Privkey::from_privkey_array([1u8; 32]).unwrap();
 
-        let privkey = crate::keys::Privkey{key, backend: Some(&backend)};
+        let privkey = crate::keys::Privkey {
+            key,
+            backend: Some(&backend),
+        };
 
         let key = DerivedPrivkey::new(privkey, fake_deriv);
 
@@ -568,13 +614,13 @@ mod test {
 
         let err_too_short = GenericDerivedXPriv::root_from_seed(&[0u8; 2][..], None, &backend);
         match err_too_short {
-            Err(Bip32Error::SeedTooShort) => {},
+            Err(Bip32Error::SeedTooShort) => {}
             _ => assert!(false, "expected err too short"),
         }
 
         let err_too_short = GenericDerivedXPriv::root_from_seed(&[0u8; 2][..], None, &backend);
         match err_too_short {
-            Err(Bip32Error::SeedTooShort) => {},
+            Err(Bip32Error::SeedTooShort) => {}
             _ => assert!(false, "expected err too short"),
         }
     }
@@ -589,9 +635,23 @@ mod test {
             (&m, &m_pub, true),
             (&m2, &m_pub, false),
             (&m, &m2.derive_verifying_key().unwrap(), false),
-            (&m, &m.derive_private_child(33).unwrap().derive_verifying_key().unwrap(), true),
+            (
+                &m,
+                &m.derive_private_child(33)
+                    .unwrap()
+                    .derive_verifying_key()
+                    .unwrap(),
+                true,
+            ),
             (&m, &m_pub.derive_public_child(33).unwrap(), true),
-            (&m, &m2.derive_private_child(33).unwrap().derive_verifying_key().unwrap(), false),
+            (
+                &m,
+                &m2.derive_private_child(33)
+                    .unwrap()
+                    .derive_verifying_key()
+                    .unwrap(),
+                false,
+            ),
         ];
         for case in cases.iter() {
             assert_eq!(case.0.is_private_ancestor_of(case.1).unwrap(), case.2);

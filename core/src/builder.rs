@@ -37,9 +37,7 @@ pub trait TxBuilder<'a>: std::marker::Sized {
     }
 
     /// Instantiate a new builder from transaction hex
-    fn from_hex_tx(
-        hex_str: &str,
-    ) -> Result<Self, <Self::Transaction as Transaction<'a>>::TxError> {
+    fn from_hex_tx(hex_str: &str) -> Result<Self, <Self::Transaction as Transaction<'a>>::TxError> {
         let tx = Self::Transaction::deserialize_hex(hex_str)?;
         Ok(Self::from_tx(&tx))
     }

@@ -40,9 +40,7 @@ impl<'a> Secp256k1<'a> {
     pub fn init() -> Self {
         Self(&EC_MULT, &EC_MULT_GEN)
     }
-
 }
-
 
 /// A Private Key
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -253,7 +251,11 @@ impl<'a> Secp256k1Backend<'a> for Secp256k1<'a> {
         }
     }
 
-    fn recover_pubkey(&self, digest: [u8; 32], sig: &Self::RecoverableSignature) -> Result<Self::Pubkey, Bip32Error> {
+    fn recover_pubkey(
+        &self,
+        digest: [u8; 32],
+        sig: &Self::RecoverableSignature,
+    ) -> Result<Self::Pubkey, Bip32Error> {
         let m = secp256k1::Message::parse(&digest);
         Ok(secp256k1::recover_with_context(&m, &sig.sig, &sig.recovery_id, self.0)?.into())
     }

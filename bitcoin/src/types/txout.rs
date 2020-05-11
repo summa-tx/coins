@@ -4,9 +4,7 @@ use std::io::{Read, Write};
 
 use riemann_core::{
     ser::{ByteFormat, SerError, SerResult},
-    types::{
-        tx::Output,
-    },
+    types::tx::Output,
 };
 
 use crate::types::script::ScriptPubkey;
@@ -67,7 +65,7 @@ impl TxOut {
         payload.extend(data);
         TxOut {
             value: 0,
-            script_pubkey: ScriptPubkey::from(payload)
+            script_pubkey: ScriptPubkey::from(payload),
         }
     }
 

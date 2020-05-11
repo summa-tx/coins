@@ -20,9 +20,7 @@
 //! let script = bitcoin::Script::new(/* your script info */);
 //! let script = rmn_btc::types::Script::from(script.into_bytes());
 //! ```
-use riemann_core::types::{
-    tx::RecipientIdentifier,
-};
+use riemann_core::types::tx::RecipientIdentifier;
 
 /// A wrapped script.
 pub trait BitcoinScript {}
@@ -116,7 +114,7 @@ impl ScriptPubkey {
         }
 
         if self[0] == 0x6a && self[1] <= 75 && self[1] as usize == (self.len() - 2) {
-            return Some(self.0[2..].to_vec())
+            return Some(self.0[2..].to_vec());
         }
         None
     }
@@ -174,9 +172,7 @@ mod test {
     fn it_serializes_and_derializes_scripts() {
         let cases = [
             (
-                Script::new(
-                    hex::decode("0014758ce550380d964051086798d6546bebdca27a73").unwrap(),
-                ),
+                Script::new(hex::decode("0014758ce550380d964051086798d6546bebdca27a73").unwrap()),
                 "160014758ce550380d964051086798d6546bebdca27a73",
                 22,
             ),
@@ -224,7 +220,9 @@ mod test {
 
     #[test]
     fn it_converts_between_bitcoin_script_types() {
-        let si = WitnessStackItem::new(hex::decode("0014758ce550380d964051086798d6546bebdca27a73").unwrap());
+        let si = WitnessStackItem::new(
+            hex::decode("0014758ce550380d964051086798d6546bebdca27a73").unwrap(),
+        );
         let sc = Script::from(si.items());
         let spk = ScriptPubkey::from(si.items());
         let ss = ScriptSig::from(si.items());

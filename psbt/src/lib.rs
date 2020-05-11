@@ -29,14 +29,11 @@ use std::{
 };
 
 use rmn_bip32::{
-    self as bip32,
-    model::DerivedKey, DerivedXPub, enc::Encoder as Bip32Encoder, KeyFingerprint,
+    self as bip32, enc::Encoder as Bip32Encoder, model::DerivedKey, DerivedXPub, KeyFingerprint,
     Secp256k1, XPub,
 };
 
-use riemann_core::{
-    builder::TxBuilder, enc::AddressEncoder, ser::ByteFormat, tx::Transaction,
-};
+use riemann_core::{builder::TxBuilder, enc::AddressEncoder, ser::ByteFormat, tx::Transaction};
 
 use rmn_btc::{
     builder::LegacyBuilder,
