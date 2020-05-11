@@ -5,8 +5,9 @@ members = [
     "bitcoin",
     "litecoin",
     "psbt",
-    "ledger",
 ]
+
 exclude = [
-  "bitcoin-wasm"
+  "bitcoin-wasm",  # Exluded so we can specify optimizer flags
+  "ledger",  # Excluded until we can figure out how to build hidapi on travis
 ]
