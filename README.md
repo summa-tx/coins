@@ -161,3 +161,8 @@ it guarantees that your `Encoder`, `Builder`, and `TxOut` use the same
   1. Associate your `Address`, `RecipientIdentifier`, and `AddressEncoder`
     types.
   1. Associate your `Builder` type.
+
+# License Notes
+
+Some work in the `ledger` crate is reproduced under the APACHE 2.0 license. See 
+the readme for documentation

@@ -1,7 +1,7 @@
 #!/bin/sh
 
 cargo build --verbose && \
-cargo test --verbose && \
+cargo test --verbose --lib && \
 
 ### BIP32 ###
 cd bip32 && \
@@ -26,4 +26,9 @@ cd ../bitcoin-wasm && \
 cargo build --verbose && \
 cargo test --verbose && \
 
+cargo build --verbose --target wasm32-unknown-unknown && \
+
+### Ledger ###
+cd ../ledger && \
+cargo build --verbose && \
 cargo build --verbose --target wasm32-unknown-unknown
