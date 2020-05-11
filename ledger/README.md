@@ -67,3 +67,4 @@ These changes are as follows:
   - Native HID if not wasm32
   - Feature flags for browser or node if wasm32
 - Break out integration tests
+- Strip print logs

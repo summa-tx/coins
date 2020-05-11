@@ -54,15 +54,10 @@ impl LedgerTransport {
         if answer.len() > buf.len() {
             return Err(LedgerTransportError::APDUExchangeError)
         }
+
         buf[..answer.len()].copy_from_slice(&answer[..]);
-
-        // if the reply is < 2 bytes, this is a serious error
-        if answer.len() < 2 {
-            return Err(LedgerTransportError::APDUExchangeError);
-        }
-
-        Ok(APDUAnswer::from_answer(buf).map_err(|_| LedgerTransportError::APDUExchangeError)?)
-    }
+        Ok(APDUAnswer::from_answer(&buf[..answer.len()])
+            .map_err(|_| LedgerTransportError::APDUExchangeError)?)    }
 }
 
 #[wasm_bindgen]

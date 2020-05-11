@@ -7,7 +7,6 @@ use crate::{
     transports::errors::LedgerTransportError,
 };
 
-
 #[wasm_bindgen(module = "@ledgerhq/hw-transport-node-hid")]
 extern "C" {
     // NB:
@@ -45,22 +44,22 @@ impl LedgerTransport {
             .exchange(&apdu_command.serialize());
 
         let future = JsFuture::from(promise);
+
+        // Transport Error
         let result = future
             .await
             .map_err(|_| LedgerTransportError::APDUExchangeError)?;
-
         let answer = js_sys::Uint8Array::new(&result).to_vec();
+
         if answer.len() > buf.len() {
+            // Buf too short
             return Err(LedgerTransportError::APDUExchangeError)
         }
+
+        // response too short
         buf[..answer.len()].copy_from_slice(&answer[..]);
-
-        // if the reply is < 2 bytes, this is a serious error
-        if answer.len() < 2 {
-            return Err(LedgerTransportError::APDUExchangeError);
-        }
-
-        Ok(APDUAnswer::from_answer(buf).map_err(|_| LedgerTransportError::APDUExchangeError)?)
+        Ok(APDUAnswer::from_answer(&buf[..answer.len()])
+            .map_err(|_| LedgerTransportError::APDUExchangeError)?)
     }
 }
 
@@ -94,10 +93,16 @@ impl LedgerTransport {
             response_len: None,
         };
 
-        self.exchange(&command, &mut response_buf).await.unwrap();
-        Ok(js_sys::Uint8Array::from(&response_buf[..]))
+        let answer = self.exchange(&command, &mut response_buf)
+            .await
+            .map_err(|e| JsValue::from_str(&format!("{:?}", e)))?;
+        let payload = answer.data().unwrap_or(&[]);
+        Ok(js_sys::Uint8Array::from(payload))
     }
 }
+
+
+
 
 /*******************************************************************************
 *   (c) 2020 ZondaX GmbH

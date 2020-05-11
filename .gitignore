@@ -4,3 +4,4 @@ pkg-node/
 **/*.rs.bk
 Cargo.lock
 tarpaulin-report.html
+node_modules
