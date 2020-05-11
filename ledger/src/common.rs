@@ -1,22 +1,4 @@
-use thiserror::Error;
-
-/// APDU-related errors
-#[derive(Debug, Clone, Error)]
-pub enum APDUError {
-    /// APDU Response was too short
-    #[error("Response too short. Expected at least 2 bytes. Got {0:?}")]
-    ResponseTooShort(Vec<u8>),
-
-    /// APDU error
-    #[error("Ledger device: APDU Response error `{0}`")]
-    BadRetcode(APDUResponseCodes),
-}
-
-impl From<APDUResponseCodes> for APDUError {
-    fn from(r: APDUResponseCodes) -> Self {
-        APDUError::BadRetcode(r)
-    }
-}
+use crate::errors::LedgerError;
 
 /// APDU data blob, limited to 255 bytes. For simplicity, this data does not support 3-byte APDU
 /// prefixes.
@@ -117,9 +99,9 @@ pub struct APDUAnswer<'a> {
 
 impl<'a> APDUAnswer<'a> {
     /// instantiate a
-    pub fn from_answer(response: &'a [u8]) -> Result<APDUAnswer<'a>, APDUError> {
+    pub fn from_answer(response: &'a [u8]) -> Result<APDUAnswer<'a>, LedgerError> {
         if response.len() < 2 {
-            Err(APDUError::ResponseTooShort(response.to_vec()))
+            Err(LedgerError::ResponseTooShort(response.to_vec()))
         } else {
             Ok(Self{response})
         }

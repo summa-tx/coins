@@ -1,23 +1,15 @@
 //! Abstract ledger tranport trait with WASM and native HID instantiations.
 
-/// APDU Errors
-pub mod errors;
 
 #[doc(hidden)]
 #[cfg(not(target_arch = "wasm32"))]
 pub mod hid;
 
 /// APDU Transport wrapper for JS/WASM transports
-#[cfg(all(target_arch = "wasm32", feature = "node", not(feature = "browser")))]
-pub mod node;
-#[cfg(all(target_arch = "wasm32", feature = "node", not(feature = "browser")))]
-pub use node::LedgerTransport as DefaultTransport;
-
-/// APDU Transport wrapper for JS/WASM transports
-#[cfg(all(target_arch = "wasm32", feature = "browser", not(feature = "node")))]
-pub mod browser;
-#[cfg(all(target_arch = "wasm32", feature = "browser", not(feature = "node")))]
-pub use browser::LedgerTransport as DefaultTransport;
+#[cfg(all(target_arch = "wasm32"))]
+pub mod wasm;
+#[cfg(all(target_arch = "wasm32"))]
+pub use wasm::LedgerTransport as DefaultTransport;
 
 /// APDU Transport for native HID
 #[cfg(not(target_arch = "wasm32"))]
@@ -26,21 +18,20 @@ pub mod native;
 pub use native::NativeTransport as DefaultTransport;
 
 
+use crate::{errors::LedgerError, common::{APDUAnswer, APDUCommand}};
 /// Marker trait for transports. Use this until we get async-trait support working
 pub trait APDUExchanger {
     /// Exchange a packet synchronously. This uses `futures::executor::block_on` to run the future
     /// in the current thread.
-    fn exchange_sync<'a>(&self, apdu_command: &APDUCommand, buf: &'a mut [u8]) -> Result<APDUAnswer<'a>, LedgerTransportError>;
+    fn exchange_sync<'a>(&self, apdu_command: &APDUCommand, buf: &'a mut [u8]) -> Result<APDUAnswer<'a>, LedgerError>;
 }
 
 impl APDUExchanger for DefaultTransport {
-    fn exchange_sync<'a>(&self, apdu_command: &APDUCommand, buf: &'a mut [u8]) -> Result<APDUAnswer<'a>, LedgerTransportError> {
+    fn exchange_sync<'a>(&self, apdu_command: &APDUCommand, buf: &'a mut [u8]) -> Result<APDUAnswer<'a>, LedgerError> {
         futures::executor::block_on(self.exchange(apdu_command, buf))
     }
 }
 
-pub use errors::LedgerTransportError;
-pub use crate::common::{APDUAnswer, APDUCommand, APDUResponseCodes};
 
 
 

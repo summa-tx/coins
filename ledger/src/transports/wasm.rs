@@ -4,10 +4,11 @@ use wasm_bindgen_futures::JsFuture;
 
 use crate::{
     common::{APDUAnswer, APDUCommand},
-    transports::errors::LedgerTransportError,
+    errors::LedgerError,
 };
 
-#[wasm_bindgen(module = "@ledgerhq/hw-transport-node-hid")]
+#[cfg_attr(all(feature = "node", not(feature = "browser")), wasm_bindgen(module = "@ledgerhq/hw-transport-node-hid"))]
+#[cfg_attr(all(feature = "browser", not(feature = "node")), wasm_bindgen(module = "@ledgerhq/hw-transport-u2f"))]
 extern "C" {
     // NB:
     // This causes the JS glue to bind the variable `default1`
@@ -20,25 +21,24 @@ extern "C" {
 
 #[wasm_bindgen]
 extern "C" {
-    pub type TransportHID;
+    pub type Transport;
 
     /// `transport.exchange(apdu: Buffer): Promise<Buffer>`
     ///
     /// Seed [here](https://github.com/LedgerHQ/ledgerjs#an-unified-transport-interface)
     #[wasm_bindgen(method)]
-    fn exchange(t: &TransportHID, buf: &[u8]) -> js_sys::Promise;
+    fn exchange(t: &Transport, buf: &[u8]) -> js_sys::Promise;
 }
-
 
 /// Transport struct for non-wasm arch
 #[wasm_bindgen]
-pub struct LedgerTransport(TransportHID);
+pub struct LedgerTransport(Transport);
 
 /// Transport Impl for wasm
 impl LedgerTransport {
     /// Send an APDU command to the device, and receive a response
     #[allow(clippy::needless_lifetimes)]
-    pub async fn exchange<'a>(&self, apdu_command: &APDUCommand<'_>, buf: &'a mut [u8]) -> Result<APDUAnswer<'a>, LedgerTransportError> {
+    pub async fn exchange<'a>(&self, apdu_command: &APDUCommand<'_>, buf: &'a mut [u8]) -> Result<APDUAnswer<'a>, LedgerError> {
         let promise = self
             .0
             .exchange(&apdu_command.serialize());
@@ -48,18 +48,18 @@ impl LedgerTransport {
         // Transport Error
         let result = future
             .await
-            .map_err(|_| LedgerTransportError::APDUExchangeError)?;
+            .map_err(|_| LedgerError::APDUExchangeError)?;
         let answer = js_sys::Uint8Array::new(&result).to_vec();
 
         if answer.len() > buf.len() {
             // Buf too short
-            return Err(LedgerTransportError::APDUExchangeError)
+            return Err(LedgerError::APDUExchangeError)
         }
 
         // response too short
         buf[..answer.len()].copy_from_slice(&answer[..]);
         Ok(APDUAnswer::from_answer(&buf[..answer.len()])
-            .map_err(|_| LedgerTransportError::APDUExchangeError)?)
+            .map_err(|_| LedgerError::APDUExchangeError)?)
     }
 }
 
@@ -68,12 +68,12 @@ impl LedgerTransport {
     /// Instantiate a new transport by calling `create` on the JS `@ledgerhq/hw-transport-*` mod
     pub async fn create() -> Result<LedgerTransport, JsValue> {
         let fut = JsFuture::from(default::create());
-        let transport: TransportHID = fut.await?.into();
+        let transport: Transport = fut.await?.into();
         Ok(Self(transport))
     }
 
     /// Instantiate from a js transport object
-    pub fn from_js_transport(transport: TransportHID) -> Self {
+    pub fn from_js_transport(transport: Transport) -> Self {
         Self(transport)
     }
 

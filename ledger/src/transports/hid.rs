@@ -3,7 +3,7 @@ use cfg_if::cfg_if;
 use lazy_static::lazy_static;
 use thiserror::Error;
 
-use crate::common::{APDUAnswer, APDUCommand, APDUError};
+use crate::{errors::LedgerError, common::{APDUAnswer, APDUCommand}};
 
 
 cfg_if! {
@@ -63,9 +63,7 @@ pub enum NativeTransportError {
     /// Communication error
     #[error("Ledger device: communication error `{0}`")]
     Comm(&'static str),
-    /// APDU Error. TODO: merge with above
-    #[error(transparent)]
-    APDUError(#[from] APDUError),
+
     /// Ioctl error
     #[error(transparent)]
     Ioctl(#[from] nix::Error),
@@ -278,7 +276,7 @@ impl TransportNativeHID {
     ///
     /// If the method errors, the buf may contain a partially written response. It is not advised
     /// to read this.
-    pub fn exchange<'a>(&self, command: &APDUCommand, answer_buf: &'a mut [u8]) -> Result<APDUAnswer<'a>, NativeTransportError> {
+    pub fn exchange<'a>(&self, command: &APDUCommand, answer_buf: &'a mut [u8]) -> Result<APDUAnswer<'a>, LedgerError> {
         // acquire the internal communication lock
         let _guard = self.guard.lock().unwrap();
 
@@ -286,17 +284,16 @@ impl TransportNativeHID {
 
         if let Some(length) = command.response_len {
             if answer_buf.len() < length as usize {
-                return Err(NativeTransportError::InsufficientResponseBuffer{ got: answer_buf.len(), need: length as usize })
+                return Err(NativeTransportError::InsufficientResponseBuffer{ got: answer_buf.len(), need: length as usize }.into())
             }
         }
-
         let response_length = self.read_response_apdu(LEDGER_CHANNEL, answer_buf)?;
 
         let apdu_answer = APDUAnswer::from_answer(&answer_buf[..response_length])?;
         if apdu_answer.is_success() {
             Ok(apdu_answer)
         } else {
-            Err(NativeTransportError::APDUError(apdu_answer.response_status().into()))
+            Err(apdu_answer.response_status().into())
         }
     }
 
