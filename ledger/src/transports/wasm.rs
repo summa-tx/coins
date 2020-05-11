@@ -30,7 +30,7 @@ pub struct LedgerTransport(JsLedgerTransport);
 impl LedgerTransport {
     /// Send an APDU command to the device, and receive a response
     #[allow(clippy::needless_lifetimes)]
-    pub async fn exchange<'a>(&self, apdu_command: APDUCommand, buf: &'a mut [u8]) -> Result<APDUAnswer<'a>, LedgerTransportError> {
+    pub async fn exchange<'a>(&self, apdu_command: &APDUCommand, buf: &'a mut [u8]) -> Result<APDUAnswer<'a>, LedgerTransportError> {
         let promise = self
             .0
             .exchange(&apdu_command.serialize());

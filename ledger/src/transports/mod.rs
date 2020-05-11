@@ -7,21 +7,34 @@ pub mod errors;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod hid;
 
-pub use errors::LedgerTransportError;
 
 /// APDU Transport wrapper for JS/WASM transports
 #[cfg(target_arch = "wasm32")]
 pub mod wasm;
 #[cfg(target_arch = "wasm32")]
-pub use wasm::LedgerTransport as Transport;
+pub use wasm::LedgerTransport as DefaultTransport;
 
 /// APDU Transport for native HID
 #[cfg(not(target_arch = "wasm32"))]
 pub mod native;
 #[cfg(not(target_arch = "wasm32"))]
-pub use native::NativeTransport as Transport;
+pub use native::NativeTransport as DefaultTransport;
 
 
+/// Marker trait for transports. Use this until we get async-trait support working
+pub trait APDUExchanger {
+    /// Exchange a packet synchronously. This uses `futures::executor::block_on` to run the future
+    /// in the current thread.
+    fn exchange_sync<'a>(&self, apdu_command: &APDUCommand, buf: &'a mut [u8]) -> Result<APDUAnswer<'a>, LedgerTransportError>;
+}
+
+impl APDUExchanger for DefaultTransport {
+    fn exchange_sync<'a>(&self, apdu_command: &APDUCommand, buf: &'a mut [u8]) -> Result<APDUAnswer<'a>, LedgerTransportError> {
+        futures::executor::block_on(self.exchange(apdu_command, buf))
+    }
+}
+
+pub use errors::LedgerTransportError;
 pub use crate::common::{APDUAnswer, APDUCommand, APDUResponseCodes};
 
 
