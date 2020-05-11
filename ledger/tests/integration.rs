@@ -43,7 +43,7 @@ fn ledger_device_path() {
 #[test]
 #[serial]
 fn exchange() {
-    let transport = transports::Transport::new().expect("Could not get a device");
+    let transport = transports::DefaultTransport::new().expect("Could not get a device");
     let buf: &[u8] = &[];
     // Ethereum `get_app_version`
     let command = APDUCommand {

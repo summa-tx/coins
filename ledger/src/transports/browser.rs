@@ -2,35 +2,45 @@ use js_sys;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 
-
 use crate::{
     common::{APDUAnswer, APDUCommand},
     transports::errors::LedgerTransportError,
 };
 
+#[wasm_bindgen(module = "@ledgerhq/hw-transport-u2f")]
+extern "C" {
+
+    // NB:
+    // This causes the JS glue to bind the variable `default1`
+    // This took hours to figure out -_-
+    pub type default;
+
+    #[wasm_bindgen(static_method_of = default)]
+    fn create() -> js_sys::Promise;
+
+}
+
 #[wasm_bindgen]
 extern "C" {
-    pub type JsLedgerTransport;
+    pub type TransportU2F;
 
-    /// Duck typed (structural) access to the transport interface.
-    ///
     /// `transport.exchange(apdu: Buffer): Promise<Buffer>`
     ///
     /// Seed [here](https://github.com/LedgerHQ/ledgerjs#an-unified-transport-interface)
-    #[wasm_bindgen(method, structural)]
-    fn exchange(t: &JsLedgerTransport, buf: &[u8]) -> js_sys::Promise;
+    #[wasm_bindgen(method)]
+    fn exchange(t: &TransportU2F, buf: &[u8]) -> js_sys::Promise;
 }
 
 
 /// Transport struct for non-wasm arch
 #[wasm_bindgen]
-pub struct LedgerTransport(JsLedgerTransport);
+pub struct LedgerTransport(TransportU2F);
 
 /// Transport Impl for wasm
 impl LedgerTransport {
     /// Send an APDU command to the device, and receive a response
     #[allow(clippy::needless_lifetimes)]
-    pub async fn exchange<'a>(&self, apdu_command: &APDUCommand, buf: &'a mut [u8]) -> Result<APDUAnswer<'a>, LedgerTransportError> {
+    pub async fn exchange<'a>(&self, apdu_command: &APDUCommand<'_>, buf: &'a mut [u8]) -> Result<APDUAnswer<'a>, LedgerTransportError> {
         let promise = self
             .0
             .exchange(&apdu_command.serialize());
@@ -57,25 +67,15 @@ impl LedgerTransport {
 
 #[wasm_bindgen]
 impl LedgerTransport {
-    /// Instantiate a new transport from the JS `@ledgerhq/hw-transport-*` instance.
-    #[wasm_bindgen(constructor)]
-    pub fn new(transport: JsLedgerTransport) -> Self {
+    /// Instantiate a new transport by calling `create` on the JS `@ledgerhq/hw-transport-*` mod
+    pub async fn create() -> Result<LedgerTransport, JsValue> {
+        let fut = JsFuture::from(TransportU2F::create());
+        let transport = TransportU2F::from(fut.await?);
+        Ok(Self(transport))
+    }
+
+    /// Instantiate from a js transport object
+    pub fn from_js_transport(transport: TransportHID) -> Self {
         Self(transport)
     }
 }
-
-/*******************************************************************************
-*   (c) 2020 ZondaX GmbH
-*
-*  Licensed under the Apache License, Version 2.0 (the "License");
-*  you may not use this file except in compliance with the License.
-*  You may obtain a copy of the License at
-*
-*      http://www.apache.org/licenses/LICENSE-2.0
-*
-*  Unless required by applicable law or agreed to in writing, software
-*  distributed under the License is distributed on an "AS IS" BASIS,
-*  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-*  See the License for the specific language governing permissions and
-*  limitations under the License.
-********************************************************************************/

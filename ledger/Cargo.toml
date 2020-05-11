@@ -8,7 +8,7 @@ keywords = ["ledger", "nano", "apdu"]
 license = "LGPL-3.0-or-later"
 
 [lib]
-crate-type = ["rlib"]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 thiserror = "1.0.10"
@@ -40,3 +40,8 @@ js-sys = "0.3.37"
 
 [dev-dependencies]
 serial_test = "0.3.2"
+
+[features]
+default = ["browser"]
+browser = []
+node = []

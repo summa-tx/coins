@@ -7,12 +7,17 @@ pub mod errors;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod hid;
 
+/// APDU Transport wrapper for JS/WASM transports
+#[cfg(all(target_arch = "wasm32", feature = "node", not(feature = "browser")))]
+pub mod node;
+#[cfg(all(target_arch = "wasm32", feature = "node", not(feature = "browser")))]
+pub use node::LedgerTransport as DefaultTransport;
 
 /// APDU Transport wrapper for JS/WASM transports
-#[cfg(target_arch = "wasm32")]
-pub mod wasm;
-#[cfg(target_arch = "wasm32")]
-pub use wasm::LedgerTransport as DefaultTransport;
+#[cfg(all(target_arch = "wasm32", feature = "browser", not(feature = "node")))]
+pub mod browser;
+#[cfg(all(target_arch = "wasm32", feature = "browser", not(feature = "node")))]
+pub use browser::LedgerTransport as DefaultTransport;
 
 /// APDU Transport for native HID
 #[cfg(not(target_arch = "wasm32"))]

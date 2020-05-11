@@ -12,7 +12,23 @@ Windows is not yet supported.
   - OSX
     - TODO
     - please file an issue if you know. I don't have a macbook :)
-- `cargo build`
+- Build with native transport
+  - `cargo build`
+- Install wasm-pack
+  - [Link here](https://rustwasm.github.io/wasm-pack/installer/)
+- Build with node WASM bindings to `@ledgerhq/hw-transport-node-hid`
+  - `wasm-pack build --scope summa-tx --target nodejs -- --features=node --no-default-features`
+- Build with browser WASM bindings to
+  - `wasm-pack build --scope summa-tx --target bundler -- --features=broswer --no-default-features`
+
+# Features
+
+The `node` and `browser` features are mutually exclusive. You must specify
+exactly one, as well as the `--no-default-features` flag.
+
+When building for non-wasm architectures, a native HID transport is compiled
+in. When building wasm via `wasm-pack`, you must specify whether you want the
+node or browser wasm transport.
 
 # Testing
 
