@@ -49,7 +49,7 @@ pub trait NetworkParams {
 }
 
 /// Marker trait to simplify encoder representation elsewhere
-pub trait BitcoinEndcoderMarker: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>
+pub trait BitcoinEncoderMarker: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>
 {}
 
 /// The standard encoder for Bitcoin networks. Parameterized by a `NetworkParams` type and an
@@ -109,7 +109,7 @@ impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
     }
 }
 
-impl<P: NetworkParams> BitcoinEndcoderMarker for BitcoinEncoder<P> {}
+impl<P: NetworkParams> BitcoinEncoderMarker for BitcoinEncoder<P> {}
 
 /// A param struct for Bitcoin Mainnet
 #[derive(Debug, Clone)]
