@@ -54,6 +54,11 @@ impl DerivationPath {
             .join(&joiner.to_string())
     }
 
+    /// Return the last index in the path. None if the path is the root.
+    pub fn last(&self) -> Option<&u32> {
+         self.0.last()
+    }
+
     /// Converts the path to a standard bip32 string. e.g `"m/44'/0'/0/32"`.
     pub fn derivation_string(&self) -> String {
         self.custom_string("m", '/', '\'')
@@ -100,6 +105,14 @@ impl DerivationPath {
             }
             None => (0, None),
         }
+    }
+
+    /// Return a clone with a resized path. If the new size is shorter, this truncates it. If the
+    /// new path is longer, we pad with the second argument.
+    pub fn resized(&self, size: usize, pad_with: u32) -> Self {
+        let mut child = self.clone();
+        child.0.resize(size, pad_with);
+        child
     }
 
     /// Append an additional derivation to the end, return a clone
@@ -176,6 +189,15 @@ impl KeyDerivation {
     /// Returns the path to the decendant.
     pub fn path_to_descendant(&self, descendant: &Self) -> Option<DerivationPath> {
         descendant.path.without_prefix(&self.path)
+    }
+
+    /// Return a clone with a resized path. If the new size is shorter, this truncates it. If the
+    /// new path is longer, we pad with the second argument.
+    pub fn resized(&self, size: usize, pad_with: u32) -> Self {
+        Self {
+            root: self.root,
+            path: self.path.resized(size, pad_with),
+        }
     }
 
     /// Append an additional derivation to the end, return a clone

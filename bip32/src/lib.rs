@@ -112,7 +112,7 @@ pub use primitives::KeyFingerprint;
 
 #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 pub use crate::{
-    curve::Secp256k1,
+    curve::{Secp256k1, Signature, RecoverableSignature},
     derived::{DerivedXPriv, DerivedXPub},
     xkeys::{XPriv, XPub},
 };

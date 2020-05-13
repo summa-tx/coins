@@ -8,7 +8,6 @@ repository = "https://github.com/summa-tx/riemann-rs"
 license = "LGPL-3.0-or-later"
 
 [dependencies]
-secp256k1 = { version = "0.17.2", features = ["recovery"], optional = true }
 thiserror = "1.0"
 hmac = "0.7.1"
 sha2 = "0.8.0"
@@ -16,6 +15,11 @@ bitcoin-spv = "2.0.0"
 bs58 = "0.3.0"
 lazy_static = "1.4.0"
 riemann-core = { path = "../core"}
+
+[dependencies.secp256k1]
+version = "0.17.2"
+features = ["recovery"]
+optional = true
 
 [dependencies.libsecp256k1]
 git = "https://github.com/paritytech/libsecp256k1.git"

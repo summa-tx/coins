@@ -4,6 +4,7 @@ use crate::{curve::model::*, Bip32Error};
 pub(crate) type Error = secp256k1::Error;
 
 #[cfg_attr(tarpaulin, skip)]
+#[allow(clippy::all)]
 lazy_static! {
     static ref CONTEXT: secp256k1::Secp256k1<secp256k1::All> = { secp256k1::Secp256k1::new() };
 }
