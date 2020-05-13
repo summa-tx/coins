@@ -1,6 +1,5 @@
 //! UTXO struct. Holds information necessary for signing future txns
-use crate::types::{BitcoinOutpoint, Script, ScriptPubkey};
-use crate::{hashes, types};
+use crate::{hashes, types::{self, BitcoinOutpoint, Script, ScriptPubkey, TxOut}};
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -32,6 +31,16 @@ impl UTXO {
         let output = &tx.outputs()[idx];
         UTXO {
             outpoint: BitcoinOutpoint::new(tx.txid(), idx as u32),
+            value: output.value,
+            script_pubkey: output.script_pubkey.clone(),
+            spend_script: None,
+        }
+    }
+
+    /// Produce a UTXO from an output and the outpoint that identifies it
+    pub fn from_output_and_outpoint(output: &TxOut, outpoint: &BitcoinOutpoint) -> UTXO {
+        UTXO {
+            outpoint: *outpoint,
             value: output.value,
             script_pubkey: output.script_pubkey.clone(),
             spend_script: None,
