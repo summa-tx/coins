@@ -56,7 +56,7 @@ impl DerivationPath {
 
     /// Return the last index in the path. None if the path is the root.
     pub fn last(&self) -> Option<&u32> {
-         self.0.last()
+        self.0.last()
     }
 
     /// Converts the path to a standard bip32 string. e.g `"m/44'/0'/0/32"`.

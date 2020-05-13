@@ -49,8 +49,10 @@ pub trait NetworkParams {
 }
 
 /// Marker trait to simplify encoder representation elsewhere
-pub trait BitcoinEncoderMarker: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>
-{}
+pub trait BitcoinEncoderMarker:
+    AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>
+{
+}
 
 /// The standard encoder for Bitcoin networks. Parameterized by a `NetworkParams` type and an
 /// `rmn_bip32::Encoder`. It exposes

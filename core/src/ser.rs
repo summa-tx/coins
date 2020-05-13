@@ -71,10 +71,7 @@ pub fn prefix_len_from_first_byte(number: u8) -> u8 {
 }
 
 /// Convenience function for writing a Bitcoin-style VarInt
-pub fn write_compact_int<W>(
-    writer: &mut W,
-    number: u64,
-) -> Result<usize, SerError>
+pub fn write_compact_int<W>(writer: &mut W, number: u64) -> Result<usize, SerError>
 where
     W: Write,
 {

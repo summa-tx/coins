@@ -61,12 +61,17 @@ pub enum TxError {
 pub type TxResult<T> = Result<T, TxError>;
 
 /// Marker trait for BitcoinTransactions.
-pub trait BitcoinTransaction<'a>: Transaction<'a,
+pub trait BitcoinTransaction<'a>:
+    Transaction<
+    'a,
     Digest = bitcoin_spv::types::Hash256Digest,
     TXID = TXID,
     TxOut = TxOut,
     TxIn = BitcoinTxIn,
-    HashWriter = Hash256Writer> {}
+    HashWriter = Hash256Writer,
+>
+{
+}
 
 /// Basic functionality for a Witness Transaction
 ///
