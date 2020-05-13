@@ -40,7 +40,7 @@ use crate::{
     },
     types::{
         script::ScriptPubkey,
-        transactions::{LegacyTx, WitnessTransaction, WitnessTx},
+        transactions::{BitcoinTransaction, LegacyTx, WitnessTransaction, WitnessTx},
         txin::BitcoinTxIn,
         txout::TxOut,
     },
@@ -50,7 +50,7 @@ use crate::{
 /// format as Legacy transactions.
 pub trait BitcoinNetwork<'a>: Network<'a> {
     /// An associated witness transaction type.
-    type WTx: WitnessTransaction<'a, TxIn = Self::TxIn, TxOut = Self::TxOut>;
+    type WTx: WitnessTransaction<'a> + BitcoinTransaction<'a>;
 
     /// A builder for the witness transaction type
     type WitnessBuilder: TxBuilder<'a, Encoder = Self::Encoder, Transaction = Self::WTx>;
