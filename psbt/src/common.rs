@@ -6,7 +6,7 @@ use riemann_core::ser::SerError;
 
 use rmn_btc::{impl_hex_serde, types::transactions::TxError, wrap_prefixed_byte_vector};
 
-use crate::{roles::signer::SignerError, schema};
+use crate::{roles::SignerError, schema};
 
 /// An Error type for PSBT objects
 #[derive(Debug, Error)]

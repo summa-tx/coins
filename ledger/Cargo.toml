@@ -37,7 +37,6 @@ wasm-bindgen = "0.2.60"
 wasm-bindgen-futures = "0.4.10"
 js-sys = "0.3.37"
 
-
 [dev-dependencies]
 serial_test = "0.3.2"
 

@@ -1,25 +1,23 @@
 use crate::{
     errors::LedgerError,
     common::{APDUAnswer, APDUCommand},
-    transports::{hid, },
+    transports::hid,
 };
 
 /// Transport struct for non-wasm arch
 pub struct NativeTransport(hid::TransportNativeHID);
 
 impl NativeTransport {
-
     /// Instantiate
     pub fn new() -> Result<Self, hid::NativeTransportError> {
         Ok(Self(hid::TransportNativeHID::new()?))
     }
 
     /// Send an APDU command to the device, and receive a response
-    #[allow(clippy::needless_lifetimes)]
-    pub async fn exchange<'a>(&self, command: &APDUCommand<'_>, buf: &'a mut [u8]) -> Result<APDUAnswer<'a>, LedgerError> {
-        self
-            .0
-            .exchange(command, buf)
+    pub async fn exchange(&self, command: &APDUCommand) -> Result<APDUAnswer, LedgerError> {
+        println!("{:?}", command.serialize());
+        self.0
+            .exchange(command)
             .map_err(Into::into)
     }
 }

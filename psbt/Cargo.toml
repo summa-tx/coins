@@ -8,17 +8,20 @@ license = "LGPL-3.0-or-later"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-riemann-core = { path = "../core"}
-rmn-btc = { path = "../bitcoin"}
+riemann-core = { path = "../core" }
+rmn-btc = { path = "../bitcoin" }
 bitcoin-spv = "2.0.0"
 thiserror = "1.0"
 serde = "1.0.105"
+futures = { version = "0.3.5", optional = true }
+rmn-ledger-btc = { path = "../ledger-btc", optional = true }
 
 [dependencies.rmn-bip32]
 path = "../bip32"
+optional = true
 default-features = false
 
 [features]
-default = ["libsecp"]
-libsecp = ["rmn-bip32/libsecp"]
+default = ["rmn-bip32/libsecp"]
 rust-secp = ["rmn-bip32/rust-secp"]
+ledger = ["futures", "rmn-ledger-btc"]

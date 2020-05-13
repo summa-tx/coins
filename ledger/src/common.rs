@@ -1,16 +1,18 @@
 use crate::errors::LedgerError;
 
+const MAX_DATA_SIZE: usize = 255;
+
 /// APDU data blob, limited to 255 bytes. For simplicity, this data does not support 3-byte APDU
 /// prefixes.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct APDUData<'a>(&'a [u8]);
+pub struct APDUData(Vec<u8>);
 
-impl<'a> APDUData<'a> {
+impl APDUData {
     /// Instantiate a APDUData from a slice. If the slice contains more than 255 bytes, only the
     /// first 255 are used.
-    pub fn new(buf: &'a [u8]) -> Self {
-        let length = std::cmp::min(255, buf.len());
-        APDUData(&buf[..length])
+    pub fn new(buf: &[u8]) -> Self {
+        let length = std::cmp::min(buf.len(), MAX_DATA_SIZE);
+        APDUData(buf[..length].to_vec())
     }
 
     /// Return the data length in bytes
@@ -22,16 +24,32 @@ impl<'a> APDUData<'a> {
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
     }
-}
 
-impl<'a> From<&'a [u8]> for APDUData<'a> {
-    fn from(v: &'a [u8]) -> Self {
-        let length = std::cmp::min(v.len(), 256);
-        APDUData(&v[..length])
+    /// Resize the data, as a vec.
+    pub fn resize(&mut self, new_size: usize, fill_with: u8) {
+        self.0.resize(std::cmp::min(new_size, MAX_DATA_SIZE), fill_with)
+    }
+
+    /// Consume the struct and get the underlying data
+    pub fn data(self) -> Vec<u8> {
+        self.0
     }
 }
 
-impl<'a> AsRef<[u8]> for APDUData<'a> {
+impl From<&[u8]> for APDUData {
+    fn from(buf: &[u8]) -> Self {
+        Self::new(buf)
+    }
+}
+
+impl From<Vec<u8>> for APDUData {
+    fn from(mut v: Vec<u8>) -> Self {
+        v.resize(std::cmp::min(v.len(), MAX_DATA_SIZE), 0);
+        Self(v)
+    }
+}
+
+impl AsRef<[u8]> for APDUData {
     #[inline]
     fn as_ref(&self) -> &[u8] {
         &self.0[..]
@@ -42,9 +60,7 @@ impl<'a> AsRef<[u8]> for APDUData<'a> {
 /// See [wikipedia](https://en.wikipedia.org/wiki/Smart_card_application_protocol_data_unit) for
 /// additional format details
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct APDUCommand<'a> {
-    /// The instruction class.
-    pub cla: u8,
+pub struct APDUCommand {
     /// The instruction code.
     pub ins: u8,
     /// Instruction parameter 1
@@ -52,12 +68,12 @@ pub struct APDUCommand<'a> {
     /// Instruction parameter 2
     pub p2: u8,
     /// Command data
-    pub data: APDUData<'a>,
+    pub data: APDUData,
     /// The requested response length.
     pub response_len: Option<u8>,
 }
 
-impl<'a> APDUCommand<'a> {
+impl APDUCommand {
     /// Return the serialized length of the APDU packet
     pub fn serialized_length(&self) -> usize {
         let mut length = 4;
@@ -71,7 +87,7 @@ impl<'a> APDUCommand<'a> {
 
     /// Write the APDU packet to the specified Write interface
     pub fn write_to<W: std::io::Write>(&self, w: &mut W) -> Result<usize, std::io::Error> {
-        w.write_all(&[self.cla, self.ins, self.p1, self.p2])?;
+        w.write_all(&[0xE0, self.ins, self.p1, self.p2])?;
         if !self.data.is_empty() {
             w.write_all(&[self.data.len() as u8])?;
             w.write_all(&self.data.as_ref())?;
@@ -93,13 +109,19 @@ impl<'a> APDUCommand<'a> {
 /// An APDU response is a wrapper around some response bytes. To avoid unnecessary clones, it
 /// exposes the retcode and response data as getters.
 #[derive(Debug, Clone, Eq, PartialEq)]
-pub struct APDUAnswer<'a> {
-    response: &'a [u8]
+pub struct APDUAnswer {
+    response: Vec<u8>
 }
 
-impl<'a> APDUAnswer<'a> {
+impl std::fmt::Display for APDUAnswer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "APDUAnswer: {{\n\tResponse: {} \n\tData: {:?}\n}}", self.response_status(), self.data())
+    }
+}
+
+impl APDUAnswer {
     /// instantiate a
-    pub fn from_answer(response: &'a [u8]) -> Result<APDUAnswer<'a>, LedgerError> {
+    pub fn from_answer(response: Vec<u8>) -> Result<APDUAnswer, LedgerError> {
         if response.len() < 2 {
             Err(LedgerError::ResponseTooShort(response.to_vec()))
         } else {
@@ -139,7 +161,7 @@ impl<'a> APDUAnswer<'a> {
     }
 
     /// Return a reference to the response data, or None if the response errored
-    pub fn data(&self) -> Option<&'a [u8]> {
+    pub fn data(&self) -> Option<&[u8]> {
         if self.is_success() {
             Some(&self.response[..self.len() - 2])
         } else {
@@ -185,7 +207,7 @@ pub enum APDUResponseCodes {
 
 impl std::fmt::Display for APDUResponseCodes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "Response {:x}: {})", *self as u16, self.description())
+        write!(f, "Code {:x} ({})", *self as u16, self.description())
     }
 }
 
@@ -247,7 +269,6 @@ mod test {
         let data: &[u8] = &[0, 0, 0, 1, 0, 0, 0, 1];
 
         let command = APDUCommand {
-            cla: 0x56,
             ins: 0x01,
             p1: 0x00,
             p2: 0x00,
@@ -256,11 +277,10 @@ mod test {
         };
 
         let serialized_command = command.serialize();
-        let expected = vec![86, 1, 0, 0, 8, 0, 0, 0, 1, 0, 0, 0, 1];
+        let expected = vec![224, 1, 0, 0, 8, 0, 0, 0, 1, 0, 0, 0, 1];
         assert_eq!(serialized_command, expected);
 
         let command = APDUCommand {
-            cla: 0x56,
             ins: 0x01,
             p1: 0x00,
             p2: 0x00,
@@ -269,7 +289,7 @@ mod test {
         };
 
         let serialized_command = command.serialize();
-        let expected = vec![86, 1, 0, 0, 8, 0, 0, 0, 1, 0, 0, 0, 1, 13];
+        let expected = vec![224, 1, 0, 0, 8, 0, 0, 0, 1, 0, 0, 0, 1, 13];
         assert_eq!(serialized_command, expected)
     }
 }

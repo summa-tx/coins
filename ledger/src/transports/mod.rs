@@ -20,15 +20,28 @@ pub use native::NativeTransport as DefaultTransport;
 
 use crate::{errors::LedgerError, common::{APDUAnswer, APDUCommand}};
 /// Marker trait for transports. Use this until we get async-trait support working
-pub trait APDUExchanger {
+pub trait APDUExchanger: std::marker::Sized {
+    /// Create a new instance. Block if not immediately available.
+    fn create_sync() -> Result<Self, LedgerError>;
+
     /// Exchange a packet synchronously. This uses `futures::executor::block_on` to run the future
     /// in the current thread.
-    fn exchange_sync<'a>(&self, apdu_command: &APDUCommand, buf: &'a mut [u8]) -> Result<APDUAnswer<'a>, LedgerError>;
+    fn exchange_sync(&self, apdu_command: &APDUCommand) -> Result<APDUAnswer, LedgerError>;
 }
 
 impl APDUExchanger for DefaultTransport {
-    fn exchange_sync<'a>(&self, apdu_command: &APDUCommand, buf: &'a mut [u8]) -> Result<APDUAnswer<'a>, LedgerError> {
-        futures::executor::block_on(self.exchange(apdu_command, buf))
+    #[cfg(not(target_arch = "wasm32"))]
+    fn create_sync() -> Result<Self, LedgerError> {
+        Ok(Self::new()?)
+    }
+
+    #[cfg(all(target_arch = "wasm32"))]
+    fn create_sync() -> Result<Self, LedgerError> {
+        futures::executor::block_on(Self::create()).map_err(Into::into)
+    }
+
+    fn exchange_sync(&self, apdu_command: &APDUCommand) -> Result<APDUAnswer, LedgerError> {
+        futures::executor::block_on(self.exchange(apdu_command))
     }
 }
 

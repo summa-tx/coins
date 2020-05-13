@@ -11,6 +11,7 @@ use rmn_btc::types::{
     script::{Script, ScriptSig, Witness},
     transactions::{LegacyTx, Sighash},
     txout::TxOut,
+    utxo::UTXO,
 };
 
 use crate::{
@@ -146,6 +147,25 @@ impl PSBTInput {
         schema::try_val_as_tx_out(out_val)
     }
 
+    /// Get the prevout details and return a UTXO object
+    pub fn prevout_as_utxo(&self, outpoint: &rmn_btc::types::BitcoinOutpoint) -> Result<UTXO, PSBTError> {
+        if let Ok(tx_out) = self.witness_utxo() {
+            let mut utxo = UTXO::from_output_and_outpoint(&tx_out, outpoint);
+            if let Ok(script) = self.witness_script() {
+                utxo.spend_script = Some(script);
+            }
+            Ok(utxo)
+        } else if let Ok(prevout_tx) = self.non_witness_utxo() {
+            let mut utxo = UTXO::from_tx_output(&prevout_tx, outpoint.idx as usize);
+            if let Ok(script) = self.redeem_script() {
+                utxo.spend_script = Some(script);
+            }
+            Ok(utxo)
+        } else {
+            Err(PSBTError::MissingKey(InputKey::NON_WITNESS_UTXO as u8))
+        }
+    }
+
     /// Returns a range containing any PSBT_IN_PARTIAL_SIG
     pub fn partial_sigs(&self) -> btree_map::Range<PSBTKey, PSBTValue> {
         self.range_by_key_type(InputKey::PARTIAL_SIG as u8)
@@ -154,8 +174,8 @@ impl PSBTInput {
     /// Inserts a signature into the map
     pub fn insert_partial_sig<'a, T: Secp256k1Backend<'a>, K: HasPubkey<'a, T>>(
         &mut self,
-        pk: K,
-        sig: T::Signature,
+        pk: &K,
+        sig: &T::Signature,
     ) {
         let mut key = vec![InputKey::PARTIAL_SIG as u8];
         key.extend(pk.pubkey_bytes().iter());

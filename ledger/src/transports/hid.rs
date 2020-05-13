@@ -44,14 +44,6 @@ pub enum NativeTransportError {
     /// Device not found error
     #[error("Ledger device not found")]
     DeviceNotFound,
-    /// InsufficientResponseBuffer
-    #[error("Response buffer insufficient. Got {got}, need at least {need}.")]
-    InsufficientResponseBuffer{
-        /// The buffer size
-        got: usize,
-        /// The minimum necessary size for the response
-        need: usize
-    },
     /// SequenceMismatch
     #[error("Sequence mismatch. Got {got} from device. Expected {expected}")]
     SequenceMismatch{
@@ -63,7 +55,6 @@ pub enum NativeTransportError {
     /// Communication error
     #[error("Ledger device: communication error `{0}`")]
     Comm(&'static str),
-
     /// Ioctl error
     #[error(transparent)]
     Ioctl(#[from] nix::Error),
@@ -212,12 +203,13 @@ impl TransportNativeHID {
     }
 
     /// Read a response APDU from the ledger channel.
-    fn read_response_apdu(&self, _channel: u16, answer_buf: &mut [u8]) -> Result<usize, NativeTransportError> {
+    fn read_response_apdu(&self, _channel: u16) -> Result<Vec<u8>, NativeTransportError> {
         let mut response_buffer = [0u8; LEDGER_PACKET_SIZE as usize];
         let mut sequence_idx = 0u16;
         let mut expected_response_len = 0usize;
-
         let mut offset = 0;
+
+        let mut answer_buf = vec![];
 
         loop {
             let res = self.device.read_timeout(&mut response_buffer, LEDGER_TIMEOUT)?;
@@ -244,10 +236,6 @@ impl TransportNativeHID {
             // The header packet contains the number of bytes of response data
             if rcv_seq_idx == 0 {
                 expected_response_len = rdr.read_u16::<BigEndian>()? as usize;
-                // Exit if we have insufficient space
-                if answer_buf.len() < expected_response_len {
-                    return Err(NativeTransportError::InsufficientResponseBuffer{ got: answer_buf.len(), need: expected_response_len })
-                }
             }
 
             let remaining_in_buf = response_buffer.len() - rdr.position() as usize;
@@ -257,11 +245,12 @@ impl TransportNativeHID {
             let new_chunk = &response_buffer[rdr.position() as usize..end_p];
 
             // Copy the response to the answer
-            answer_buf[offset..offset + new_chunk.len()].copy_from_slice(new_chunk);
+            answer_buf.extend(new_chunk);
+            // answer_buf[offset..offset + new_chunk.len()].copy_from_slice(new_chunk);
             offset += new_chunk.len();
 
             if offset >= expected_response_len {
-                return Ok(offset);
+                return Ok(answer_buf);
             }
 
             sequence_idx += 1;
@@ -276,20 +265,15 @@ impl TransportNativeHID {
     ///
     /// If the method errors, the buf may contain a partially written response. It is not advised
     /// to read this.
-    pub fn exchange<'a>(&self, command: &APDUCommand, answer_buf: &'a mut [u8]) -> Result<APDUAnswer<'a>, LedgerError> {
+    pub fn exchange(&self, command: &APDUCommand) -> Result<APDUAnswer, LedgerError> {
         // acquire the internal communication lock
         let _guard = self.guard.lock().unwrap();
 
         self.write_apdu(LEDGER_CHANNEL, &command.serialize())?;
 
-        if let Some(length) = command.response_len {
-            if answer_buf.len() < length as usize {
-                return Err(NativeTransportError::InsufficientResponseBuffer{ got: answer_buf.len(), need: length as usize }.into())
-            }
-        }
-        let response_length = self.read_response_apdu(LEDGER_CHANNEL, answer_buf)?;
+        let answer_buf = self.read_response_apdu(LEDGER_CHANNEL)?;
 
-        let apdu_answer = APDUAnswer::from_answer(&answer_buf[..response_length])?;
+        let apdu_answer = APDUAnswer::from_answer(answer_buf)?;
         if apdu_answer.is_success() {
             Ok(apdu_answer)
         } else {

@@ -37,11 +37,8 @@ use riemann_core::{builder::TxBuilder, enc::AddressEncoder, ser::ByteFormat, tx:
 
 use rmn_btc::{
     builder::LegacyBuilder,
-    enc::{
-        bases::EncodingError,
-        encoder::{Address, MainnetEncoder, TestnetEncoder},
-    },
-    types::{script::ScriptPubkey, transactions::LegacyTx, txin::BitcoinTxIn, txout::TxOut},
+    enc::encoder::{BitcoinEncoderMarker, MainnetEncoder, TestnetEncoder},
+    types::{transactions::LegacyTx, txin::BitcoinTxIn, txout::TxOut},
 };
 
 use crate::{common::PSBTError, global::PSBTGlobal, input::PSBTInput, output::PSBTOutput};
@@ -106,7 +103,7 @@ pub struct PSBT<T: AddressEncoder, E: Bip32Encoder> {
 
 impl<T, E> PSBT<T, E>
 where
-    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>,
+    T: BitcoinEncoderMarker,
     E: Bip32Encoder,
 {
     /// Insert an input into the PSBT. Updates the TX in the global, and inserts an `Input` map at
@@ -194,7 +191,7 @@ where
 
 impl<'a, T, E> PST<'a, T> for PSBT<T, E>
 where
-    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>,
+    T: BitcoinEncoderMarker,
     E: Bip32Encoder,
 {
     const MAGIC_BYTES: [u8; 4] = *b"psbt";
@@ -272,7 +269,7 @@ where
 
 impl<'a, T, E> ByteFormat for PSBT<T, E>
 where
-    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>,
+    T: BitcoinEncoderMarker,
     E: Bip32Encoder,
 {
     type Error = PSBTError;

@@ -7,6 +7,8 @@ use crate::{
     errors::LedgerError,
 };
 
+// These conditional compilation blokcs ensure that we try to import the correct transport for our
+// environment.
 #[cfg_attr(all(feature = "node", not(feature = "browser")), wasm_bindgen(module = "@ledgerhq/hw-transport-node-hid"))]
 #[cfg_attr(all(feature = "browser", not(feature = "node")), wasm_bindgen(module = "@ledgerhq/hw-transport-u2f"))]
 extern "C" {
@@ -38,7 +40,7 @@ pub struct LedgerTransport(Transport);
 impl LedgerTransport {
     /// Send an APDU command to the device, and receive a response
     #[allow(clippy::needless_lifetimes)]
-    pub async fn exchange<'a>(&self, apdu_command: &APDUCommand<'_>, buf: &'a mut [u8]) -> Result<APDUAnswer<'a>, LedgerError> {
+    pub async fn exchange(&self, apdu_command: &APDUCommand) -> Result<APDUAnswer, LedgerError> {
         let promise = self
             .0
             .exchange(&apdu_command.serialize());
@@ -51,14 +53,7 @@ impl LedgerTransport {
             .map_err(|_| LedgerError::APDUExchangeError)?;
         let answer = js_sys::Uint8Array::new(&result).to_vec();
 
-        if answer.len() > buf.len() {
-            // Buf too short
-            return Err(LedgerError::APDUExchangeError)
-        }
-
-        // response too short
-        buf[..answer.len()].copy_from_slice(&answer[..]);
-        Ok(APDUAnswer::from_answer(&buf[..answer.len()])
+        Ok(APDUAnswer::from_answer(answer)
             .map_err(|_| LedgerError::APDUExchangeError)?)
     }
 }
@@ -80,12 +75,10 @@ impl LedgerTransport {
     #[doc(hidden)]
     // NB: this invalidates the JS ref to the wasm and makes the object unusable.
     pub async fn debug_send(self) -> Result<js_sys::Uint8Array, JsValue> {
-        let mut response_buf = [0u8; 255];
         let command_buf: &[u8] = &[];
 
         // Ethereum `get_app_version`
         let command = APDUCommand {
-            cla: 0xE0,
             ins: 0x06,
             p1: 0x00,
             p2: 0x00,
@@ -93,7 +86,7 @@ impl LedgerTransport {
             response_len: None,
         };
 
-        let answer = self.exchange(&command, &mut response_buf)
+        let answer = self.exchange(&command)
             .await
             .map_err(|e| JsValue::from_str(&format!("{:?}", e)))?;
         let payload = answer.data().unwrap_or(&[]);

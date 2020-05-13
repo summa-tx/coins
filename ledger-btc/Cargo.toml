@@ -1,0 +1,45 @@
+[package]
+name = "rmn-ledger-btc"
+version = "0.1.0"
+authors = ["James Prestwich <james@prestwi.ch>"]
+edition = "2018"
+categories  = ["authentication", "cryptography"]
+keywords = ["ledger", "nano", "bitcoin"]
+license = "LGPL-3.0-or-later"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dev-dependencies]
+futures = "0.3.5"
+serial_test = "0.3.2"
+
+[dependencies]
+thiserror = "1.0.10"
+riemann-core = { path = "../core" }
+rmn-btc = { path = "../bitcoin" }
+
+[dependencies.rmn-psbt]
+optional = true
+default-features = false
+path = "../psbt"
+
+[dependencies.rmn-bip32]
+path = "../bip32"
+default-features = false
+
+[dependencies.rmn-ledger]
+path = "../ledger"
+default-features = false
+
+# For wasm targets
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+wasm-bindgen = "0.2.60"
+wasm-bindgen-futures = "0.4.10"
+js-sys = "0.3.37"
+
+[features]
+default = ["native"]
+native = ["rmn-bip32/libsecp"]
+browser = ["rmn-ledger/browser", "rmn-bip32/rust-secp"]
+node = ["rmn-ledger/node", "rmn-bip32/rust-secp"]

@@ -1,4 +1,4 @@
-# ledger-rs
+# rmn-ledger
 
 Communication library between Rust and Ledger Nano S/X devices
 
@@ -6,6 +6,7 @@ Communication library between Rust and Ledger Nano S/X devices
 
 Windows is not yet supported.
 
+### Native
 - Install dependencies
   - Linux
     - `$ sudo apt-get install libudev-dev libusb-1.0-0-dev`
@@ -14,12 +15,18 @@ Windows is not yet supported.
     - please file an issue if you know. I don't have a macbook :)
 - Build with native transport
   - `cargo build`
+
+### WASM
 - Install wasm-pack
   - [Link here](https://rustwasm.github.io/wasm-pack/installer/)
+- MUST pass `--disable-default-features`
+- MUST select feature AT MOST ONE of `browser` and `node`
 - Build with node WASM bindings to `@ledgerhq/hw-transport-node-hid`
   - `wasm-pack build --scope summa-tx --target nodejs -- --features=node --no-default-features`
-- Build with browser WASM bindings to
+  - Runtime environment MUST be able to import `@ledgerhq/hw-transport-node-hid`
+- Build with browser WASM bindings to `@ledgerhq/hw-transport-u2f`
   - `wasm-pack build --scope summa-tx --target bundler -- --features=broswer --no-default-features`
+  - Runtime environment MUST be able to import `@ledgerhq/hw-transport-u2f`
 
 # Features
 

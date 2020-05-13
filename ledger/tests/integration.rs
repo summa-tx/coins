@@ -1,11 +1,8 @@
-#[macro_use]
-extern crate serial_test;
-
-use futures::executor::block_on;
+use serial_test::serial;
 
 use rmn_ledger::{
     common::*,
-    transports::{self, hid},
+    transports::{self, hid, APDUExchanger},
 };
 
 // // TODO: refactor or delete this
@@ -47,15 +44,12 @@ fn exchange() {
     let buf: &[u8] = &[];
     // Ethereum `get_app_version`
     let command = APDUCommand {
-        cla: 0xE0,
         ins: 0x06,
         p1: 0x00,
         p2: 0x00,
         data: buf.into(),
         response_len: None,
     };
-    let mut response_buf = [0u8; 4096];
-    let fut = transport.exchange(&command, &mut response_buf);
-    let result = block_on(fut).expect("Error during exchange");
-    println!("{:?}", result);
+    let result = transport.exchange_sync(&command).unwrap();
+    println!("{}", result);
 }

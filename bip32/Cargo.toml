@@ -39,8 +39,8 @@ criterion = "0.3.1"
 
 [features]
 default = ["libsecp"]
-rust-secp-static-context = ["libsecp256k1/static-context"]
 libsecp = ["secp256k1"]
+rust-secp-static-context = ["libsecp256k1/static-context"]
 rust-secp = ["libsecp256k1", "libsecp256k1-core"]
 
 [[bench]]

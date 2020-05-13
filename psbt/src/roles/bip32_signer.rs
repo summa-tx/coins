@@ -5,88 +5,20 @@ use rmn_bip32::{
     model::{DerivedKey, HasBackend, SigningKey, XSigning},
 };
 
-use thiserror::Error;
-
-use riemann_core::{enc::AddressEncoder, types::Transaction};
-
-use crate::{input::PSBTInput, PSBTError, PSBT, PST};
+use riemann_core::types::Transaction;
 use rmn_btc::{
-    enc::{bases::EncodingError, encoder::Address},
+    enc::encoder::BitcoinEncoderMarker,
     types::{
-        script::{ScriptPubkey, ScriptType},
+        script::ScriptType,
         transactions::{LegacySighashArgs, LegacyTx, Sighash, WitnessSighashArgs, WitnessTx},
     },
 };
 
-/// A PST Signer interface.
-pub trait PSTSigner<'a, A, P>
-where
-    A: AddressEncoder,
-    P: PST<'a, A>,
-{
-    /// An associated error type that can be instantiated from the PST's Error type.
-    type Error: std::error::Error + From<P::Error>;
-
-    /// Determine whether an output is change.
-    fn is_change(&self, pst: &P, idx: usize) -> bool;
-
-    /// Returns a vector of integers speciiying the indices out change ouputs.
-    fn identify_change_outputs(&self, pst: &P) -> Vec<usize> {
-        (0..pst.output_maps().len())
-            .filter(|i| self.is_change(pst, *i))
-            .collect()
-    }
-
-    /// Returns `true` if the sighash is acceptable, else `false`.
-    fn acceptable_sighash(&self, sighash_type: Sighash) -> bool;
-
-    /// Return `Ok(())` if the input at `idx` can be signed, else `Err()`.
-    fn can_sign_input(&self, pst: &P, idx: usize) -> Result<(), Self::Error>;
-
-    /// Sign the specified input in the PST.
-    fn sign_input(&self, pst: &mut P, idx: usize) -> Result<(), Self::Error>;
-
-    /// Return a vector with the indices of inputs that this signer can sign.
-    fn signable_inputs(&self, pst: &P) -> Vec<usize> {
-        (0..pst.input_maps().len())
-            .map(|i| self.can_sign_input(pst, i).map(|_| i))
-            .filter_map(Result::ok)
-            .collect()
-    }
-
-    /// Append all producible signatures to a PSBT. Returns a vector containing the indices of
-    /// the inputs that were succesfully signed signed.
-    fn sign(&self, pst: &mut P) -> Vec<usize> {
-        self.signable_inputs(pst)
-            .iter()
-            .map(|i| self.sign_input(pst, *i).map(|_| *i))
-            .filter_map(Result::ok)
-            .collect()
-    }
-}
-
-/// Signing-related errors
-#[derive(Debug, Error)]
-pub enum SignerError {
-    /// Returned when a signer is missing some signer info
-    #[error("Missing info during signing attemts: {0}")]
-    SignerMissingInfo(String),
-
-    /// Returned when an unexpected script type is found. E.g. when a redeem script is found,
-    /// but the prevout script pubkey is not P2SH.
-    #[error("Wrong prevout script_pubkey type. Got: {got:?}. Expected {expected:?}")]
-    WrongPrevoutScriptType {
-        /// The actual script type
-        got: ScriptType,
-        /// The expected script type
-        expected: Vec<ScriptType>,
-    },
-
-    /// Script in PSBT's hash is not at the appropriate location in the output's script
-    /// pubkey.
-    #[error("ScriptHash in PSBT does not match ScriptHash in prevout for input {0}")]
-    ScriptHashMismatch(usize),
-}
+use crate::{
+    input::PSBTInput,
+    roles::{PSTSigner, SignerError},
+    PSBTError, PSBT, PST,
+};
 
 /// A sample signer using a bip32 XPriv key with attached derivation information.
 ///
@@ -205,7 +137,7 @@ impl<'a> Bip32Signer<'a> {
             // TODO: DRY
             let sighash = tx.sighash(&sighash_args)?;
             let signature = self.xpriv.descendant_sign_digest(path, sighash)?;
-            input_map.insert_partial_sig(self.xpriv.derive_verifying_key()?, signature);
+            input_map.insert_partial_sig(&self.xpriv.derive_verifying_key()?, &signature);
         }
 
         Ok(())
@@ -238,7 +170,7 @@ impl<'a> Bip32Signer<'a> {
         for path in paths.iter() {
             let sighash = tx.sighash(&sighash_args)?;
             let signature = self.xpriv.descendant_sign_digest(path.clone(), sighash)?;
-            input_map.insert_partial_sig(self.xpriv.derive_verifying_key()?, signature);
+            input_map.insert_partial_sig(&self.xpriv.derive_verifying_key()?, &signature);
         }
 
         Ok(())
@@ -253,7 +185,7 @@ impl<'a> From<&'a bip32::DerivedXPriv<'a>> for Bip32Signer<'a> {
 
 impl<'a, A, E> PSTSigner<'a, A, PSBT<A, E>> for Bip32Signer<'a>
 where
-    A: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>,
+    A: BitcoinEncoderMarker,
     E: bip32::enc::Encoder,
 {
     type Error = PSBTError;
