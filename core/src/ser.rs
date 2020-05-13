@@ -70,6 +70,54 @@ pub fn prefix_len_from_first_byte(number: u8) -> u8 {
     }
 }
 
+/// Convenience function for writing a Bitcoin-style VarInt
+pub fn write_compact_int<W>(
+    writer: &mut W,
+    number: u64,
+) -> Result<usize, SerError>
+where
+    W: Write,
+{
+    let prefix_len = prefix_byte_len(number);
+    let written: usize = match first_byte_from_len(prefix_len) {
+        None => writer.write(&[number as u8])?,
+        Some(prefix) => {
+            let mut written = writer.write(&[prefix])?;
+            let body = (number as u64).to_le_bytes();
+            written += writer.write(&body[..prefix_len as usize - 1])?;
+            written
+        }
+    };
+    Ok(written)
+}
+
+/// Convenience function for reading a Bitcoin-style VarInt
+pub fn read_compact_int<R>(reader: &mut R) -> Result<u64, SerError>
+where
+    R: Read,
+{
+    let mut prefix = [0u8; 1];
+    reader.read_exact(&mut prefix)?; // read at most one byte
+    let prefix_len = prefix_len_from_first_byte(prefix[0]);
+
+    // Get the byte(s) representing the number, and parse as u64
+    let number = if prefix_len > 1 {
+        let mut buf = [0u8; 8];
+        let mut body = reader.take(prefix_len as u64 - 1); // minus 1 to account for prefix
+        let _ = body.read(&mut buf)?;
+        u64::from_le_bytes(buf)
+    } else {
+        prefix[0] as u64
+    };
+
+    let minimal_length = prefix_byte_len(number);
+    if minimal_length < prefix_len {
+        Err(SerError::NonMinimalVarInt)
+    } else {
+        Ok(number)
+    }
+}
+
 /// A simple trait for deserializing from `std::io::Read` and serializing to `std::io::Write`.
 /// We have provided implementations for `u8` and `Vec<T: Ser>`
 ///
@@ -107,26 +155,7 @@ pub trait ByteFormat {
     where
         R: Read,
     {
-        let mut prefix = [0u8; 1];
-        reader.read_exact(&mut prefix)?; // read at most one byte
-        let prefix_len = prefix_len_from_first_byte(prefix[0]);
-
-        // Get the byte(s) representing the number, and parse as u64
-        let number = if prefix_len > 1 {
-            let mut buf = [0u8; 8];
-            let mut body = reader.take(prefix_len as u64 - 1); // minus 1 to account for prefix
-            let _ = body.read(&mut buf)?;
-            u64::from_le_bytes(buf)
-        } else {
-            prefix[0] as u64
-        };
-
-        let minimal_length = prefix_byte_len(number);
-        if minimal_length < prefix_len {
-            Err(SerError::NonMinimalVarInt.into())
-        } else {
-            Ok(number)
-        }
+        read_compact_int(reader).map_err(Into::into)
     }
 
     /// Convenience function for reading a prefixed vector
@@ -161,24 +190,14 @@ pub trait ByteFormat {
     }
 
     /// Convenience function for writing a Bitcoin-style VarInt
-    fn write_comapct_int<W>(
+    fn write_compact_int<W>(
         writer: &mut W,
         number: u64,
     ) -> Result<usize, <Self as ByteFormat>::Error>
     where
         W: Write,
     {
-        let prefix_len = prefix_byte_len(number);
-        let written: usize = match first_byte_from_len(prefix_len) {
-            None => writer.write(&[number as u8])?,
-            Some(prefix) => {
-                let mut written = writer.write(&[prefix])?;
-                let body = (number as u64).to_le_bytes();
-                written += writer.write(&body[..prefix_len as usize - 1])?;
-                written
-            }
-        };
-        Ok(written)
+        write_compact_int(writer, number).map_err(Into::into)
     }
 
     /// Convenience function to write a length-prefixed vector.
@@ -191,7 +210,7 @@ pub trait ByteFormat {
         E: Into<Self::Error> + From<SerError> + From<IOError> + std::error::Error,
         I: ByteFormat<Error = E>,
     {
-        let mut written = Self::write_comapct_int(writer, vector.len() as u64)?;
+        let mut written = Self::write_compact_int(writer, vector.len() as u64)?;
         for i in vector.iter() {
             written += i.write_to(writer).map_err(Into::into)?;
         }
