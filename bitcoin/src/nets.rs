@@ -36,7 +36,7 @@ use crate::{
     builder::{LegacyBuilder, WitnessBuilder},
     enc::{
         bases::EncodingError,
-        encoder::{Address, MainnetEncoder, SignetEncoder, TestnetEncoder},
+        encoder::{Address, BitcoinEndcoderMarker, MainnetEncoder, SignetEncoder, TestnetEncoder},
     },
     types::{
         script::ScriptPubkey,
@@ -80,7 +80,7 @@ pub struct Bitcoin<T: AddressEncoder>(PhantomData<*const T>);
 
 impl<'a, T> Network<'a> for Bitcoin<T>
 where
-    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>,
+    T: BitcoinEndcoderMarker,
 {
     type Address = Address;
     type Error = EncodingError;
@@ -94,7 +94,7 @@ where
 
 impl<'a, T> BitcoinNetwork<'a> for Bitcoin<T>
 where
-    T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>,
+    T: BitcoinEndcoderMarker,
 {
     type WTx = WitnessTx;
     type WitnessBuilder = WitnessBuilder<T>;
