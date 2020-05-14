@@ -148,7 +148,10 @@ impl PSBTInput {
     }
 
     /// Get the prevout details and return a UTXO object
-    pub fn prevout_as_utxo(&self, outpoint: &rmn_btc::types::BitcoinOutpoint) -> Result<UTXO, PSBTError> {
+    pub fn prevout_as_utxo(
+        &self,
+        outpoint: &rmn_btc::types::BitcoinOutpoint,
+    ) -> Result<UTXO, PSBTError> {
         if let Ok(tx_out) = self.witness_utxo() {
             let mut utxo = UTXO::from_output_and_outpoint(&tx_out, outpoint);
             if let Ok(script) = self.witness_script() {

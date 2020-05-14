@@ -92,7 +92,11 @@ where
     }
 }
 
-fn extract_signing_info(tx: &rmn_btc::types::LegacyTx, idx: usize, input_map: &PSBTInput) -> Result<Vec<SigningInfo>, PSBTError> {
+fn extract_signing_info(
+    tx: &rmn_btc::types::LegacyTx,
+    idx: usize,
+    input_map: &PSBTInput,
+) -> Result<Vec<SigningInfo>, PSBTError> {
     let prevout = input_map.prevout_as_utxo(&tx.inputs()[idx].outpoint)?;
     Ok(input_map
         .parsed_pubkey_derivations(None)

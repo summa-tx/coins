@@ -35,6 +35,10 @@ pub enum PSBTError {
     #[error("Attempted to get missing singleton key {0}")]
     MissingKey(u8),
 
+    /// Returned by convenience functions that attempt to read a non-existant key
+    #[error("Attempted to deserialize PSBT with duplicate key {0:?}")]
+    DuplicateKey(PSBTKey),
+
     /// PSBT Prefix does not match the expected value
     #[error("Bad PSBT Prefix. Expected psbt with 0xff separator.")]
     BadPrefix,
@@ -42,6 +46,14 @@ pub enum PSBTError {
     /// Placeholder. TODO: Differentiate later
     #[error("Invalid PSBT. Unknown cause.")]
     InvalidPSBT,
+
+    /// The tx contained a non-empty scriptsig.
+    #[error("PSBT tx contains non-empty scriptsig.")]
+    ScriptSigInTx,
+
+    /// An input map contained a non-witness prevout marked as a witness prevout.
+    #[error("Non-witness TxOut under witness input key.")]
+    InvalidWitnessTXO,
 
     /// Returned from schema validation when the key size is unexpected
     #[error("Key failed validation. Wrong length. Expected {expected} bytes. Got {got} bytes")]

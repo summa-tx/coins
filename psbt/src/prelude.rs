@@ -70,6 +70,9 @@ macro_rules! psbt_map {
 
                 loop {
                     let key = PSBTKey::read_from(reader, 0)?;
+                    if map.contains_key(&key) {
+                        return Err(crate::common::PSBTError::DuplicateKey(key));
+                    }
                     if key.len() == 0 {
                         break;
                     }

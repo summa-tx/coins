@@ -4,7 +4,8 @@ use riemann_core::ser::ByteFormat;
 
 use rmn_bip32::{
     self as bip32,
-    curve::{PointDeserialize, SigSerialize, Signature},
+    curve::{PointDeserialize, Secp256k1Backend, SigSerialize, Signature},
+    keys::Pubkey,
     derived::DerivedPubkey,
     model::DerivedKey,
     path::KeyDerivation,
@@ -12,7 +13,7 @@ use rmn_bip32::{
 };
 
 use rmn_btc::types::{
-    script::Witness,
+    script::{ScriptType, Witness},
     transactions::{LegacyTx, Sighash, TxError},
     txout::TxOut,
 };
@@ -119,6 +120,22 @@ pub fn validate_xpub_depth(key: &PSBTKey, val: &PSBTValue) -> Result<(), PSBTErr
     }
 }
 
+/// Attempt to parse a keyas a Secp256k1 pybkey
+pub fn try_key_as_pubkey(key: &PSBTKey) -> Result<Pubkey, PSBTError> {
+    if key.len() != 34 {
+        return Err(PSBTError::WrongKeyLength {
+            expected: 34,
+            got: key.len(),
+        });
+    }
+    let mut buf = [0u8; 33];
+    buf.copy_from_slice(&key.items() [1..]);
+    Ok(Pubkey {
+        key: <Secp256k1 as Secp256k1Backend<'_>>::Pubkey::from_pubkey_array(buf)?,
+        backend: None,
+    })
+}
+
 /// Attempt to deserialize a value as a as transaction
 pub fn try_val_as_tx(val: &PSBTValue) -> Result<LegacyTx, PSBTError> {
     let mut tx_bytes = &val.items()[..];
@@ -146,9 +163,12 @@ pub fn try_val_as_sighash(val: &PSBTValue) -> Result<Sighash, PSBTError> {
 
 /// Attempt to deserialize a value as a signature
 pub fn try_val_as_signature(val: &PSBTValue) -> Result<(Signature, Sighash), PSBTError> {
-    let items = &val.items()[..];
-    let sig = Signature::try_from_der(&items[..items.len() - 1])?;
-    Ok((sig, Sighash::from_u8(items[items.len()])?))
+    let (sighash_flag, sig_bytes) = val.items()
+        .split_last()
+        .ok_or(PSBTError::WrongValueLength{got: 0, expected: 75})?;
+
+    let sig = Signature::try_from_der(sig_bytes)?;
+    Ok((sig, Sighash::from_u8(*sighash_flag)?))
 }
 
 /// Attempt to deserialize a value as a script Witness
@@ -253,8 +273,8 @@ pub mod output {
     pub fn validate_bip32_derivations(key: &PSBTKey, val: &PSBTValue) -> Result<(), PSBTError> {
         // 34 = 33-byte pubkey + 1-byte type
         validate_expected_key_type(key, 2)?;
-        if validate_fixed_key_length(key, 34).is_err() {
-            validate_fixed_key_length(key, 66)?;
+        if validate_fixed_key_length(key, 66).is_err() {
+            validate_fixed_key_length(key, 34)?;
         }
         try_val_as_key_derivation(val)?;
         Ok(())
@@ -276,7 +296,11 @@ pub mod input {
     pub fn validate_in_witness(key: &PSBTKey, val: &PSBTValue) -> Result<(), PSBTError> {
         validate_expected_key_type(key, 1)?;
         validate_single_byte_key_type(key)?;
-        try_val_as_tx_out(val).map(|_| ())
+        let tx_out = try_val_as_tx_out(val)?;
+        match tx_out.script_pubkey.standard_type() {
+            ScriptType::WSH | ScriptType::WPKH | ScriptType::SH => Ok(()),
+            _ => Err(PSBTError::InvalidWitnessTXO)
+        }
     }
 
     /// Validate a PSBT_IN_PARTIAL_SIG key-value pair in an input map
@@ -317,7 +341,7 @@ pub mod input {
     pub fn validate_bip32_derivations(key: &PSBTKey, val: &PSBTValue) -> Result<(), PSBTError> {
         // 34 = 33-byte pubkey + 1-byte type
         validate_expected_key_type(key, 6)?;
-        validate_fixed_key_length(key, 34)?;
+        try_key_as_pubkey(key)?;
         try_val_as_key_derivation(val)?;
         Ok(())
     }
