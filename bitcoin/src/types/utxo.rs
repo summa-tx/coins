@@ -48,12 +48,22 @@ impl UTXO {
     }
 
     /// Return a clone of the script pubkey
-    pub fn script_pubkey(&self) -> ScriptPubkey {
-        self.script_pubkey.clone()
+    pub fn script_pubkey(&self) -> &ScriptPubkey {
+        &self.script_pubkey
     }
 
     /// Return a clone of the spend script
-    pub fn spend_script(&self) -> Option<Script> {
-        self.spend_script.as_ref().cloned()
+    pub fn spend_script(&self) -> Option<&Script> {
+        self.spend_script.as_ref()
+    }
+
+    /// Return the script that ought to be signed. This is the spend_script (redeem/witness
+    /// script) if present, and the script pubkey otherwise.
+    pub fn signing_script(&self) -> Script {
+        if let Some(script) = self.spend_script() {
+            script.clone()
+        } else {
+            self.script_pubkey.items().into()
+        }
     }
 }

@@ -8,7 +8,7 @@ use rmn_bip32::{
     primitives::ChainCode,
     path::{DerivationPath},
 };
-use rmn_btc::types::{BitcoinTxIn, TxOut, UTXO};
+use rmn_btc::types::{BitcoinTxIn, TxOut, UTXO, ScriptType};
 use rmn_ledger::{
     common::{APDUAnswer, APDUCommand, APDUData},
 };
@@ -108,14 +108,10 @@ pub(crate) fn packetize_input(utxo: &UTXO, txin: &BitcoinTxIn) -> Vec<APDUComman
 }
 
 pub(crate) fn packetize_input_for_signing(utxo: &UTXO, txin: &BitcoinTxIn) -> Vec<APDUCommand> {
-    let script = utxo
-        .spend_script()
-        .unwrap_or_else(|| utxo.script_pubkey.items().into());
-
     let mut buf = vec![0x02];
     txin.outpoint.write_to(&mut buf).unwrap();
     buf.extend(&utxo.value.to_le_bytes());
-    buf.extend(script);
+    buf.extend(utxo.signing_script());
 
     buf.chunks(50)
         .map(|d| untrusted_hash_tx_input_start(&d, false))
@@ -177,6 +173,13 @@ pub(crate) fn parse_sig(answer: &APDUAnswer) -> Result<rmn_bip32::Signature, Led
 pub(crate) fn should_sign(xpub: &DerivedXPub, signing_info: &[crate::app::SigningInfo]) -> bool {
     signing_info
         .iter()
-        .filter(|s| s.deriv.is_some())
+        .filter(|s| s.deriv.is_some())  // filter no derivation
+        .filter(|s| match s.prevout.script_pubkey.standard_type() {
+            // filter SH types without spend scripts
+            ScriptType::SH | ScriptType::WSH => {
+                s.prevout.spend_script.is_some()
+            },
+            _ => true
+        })
         .any(|s| xpub.derivation.is_possible_ancestor_of(s.deriv.as_ref().unwrap()))
 }
