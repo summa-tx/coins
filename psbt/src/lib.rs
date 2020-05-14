@@ -177,15 +177,19 @@ where
             ));
         }
         results
-        // self.parsed_xpubs(backend)
-        //     .map_or_else(
-        //         |_| vec![],
-        //         |v| {
-        //             v.into_iter()
-        //             .filter(|k| root == k.derivation.root)
-        //             .collect()
-        //         }
-        //     )
+    }
+
+    /// Instantiate a PSBT from a transaction. This sets up empty input and output maps
+    pub fn from_tx(tx: &LegacyTx) -> PSBT<T, E> {
+        let mut global = PSBTGlobal::default();
+        global.set_tx(tx);
+        PSBT {
+            global,
+            inputs: (0..tx.inputs().len()).map(|_| Default::default()).collect(),
+            outputs: (0..tx.outputs().len()).map(|_| Default::default()).collect(),
+            encoder: PhantomData,
+            bip32_encoder: PhantomData,
+        }
     }
 }
 
@@ -352,6 +356,8 @@ mod test {
         ($hex:literal, $err:pat) => {
             match MainnetPSBT::deserialize_hex($hex) {
                 Err($err) => {},
+                // Tests are non-deterministic because of how schema maps work. Sometimes a BIP32
+                // error wil get propagated because of this.
                 Err(PSBTError::Bip32Error(_)) => {},
                 e => {println!("{:?}", e); assert!(false, "expected an error")},
             }

@@ -73,6 +73,13 @@ impl PSBTGlobal {
         schema::try_val_as_tx(tx_val)
     }
 
+    /// Set the tx key. This should only be done on instantiation.
+    pub(crate) fn set_tx(&mut self, tx: &LegacyTx) {
+        let mut value = vec![];
+        tx.write_to(&mut value).unwrap(); // no error on heap write
+        self.insert(GlobalKey::UNSIGNED_TX.into(), value.into());
+    }
+
     /// Get a range of XPUBs
     pub fn xpubs(&self) -> btree_map::Range<PSBTKey, PSBTValue> {
         self.range_by_key_type(GlobalKey::XPUB as u8)
@@ -98,8 +105,15 @@ impl PSBTGlobal {
 
     /// Get the global PSBT version
     pub fn version(&self) -> Result<u32, PSBTError> {
-        let version_key: PSBTKey = GlobalKey::VERSION.into();
-        let mut version_bytes = &self.must_get(&version_key)?.items()[..];
-        Self::read_u32_le(&mut version_bytes)
+        if let Some(version_val) = self.get(&GlobalKey::VERSION.into()) {
+            let mut version_bytes = &version_val.items()[..];
+            Self::read_u32_le(&mut version_bytes)
+        } else {
+            Ok(0)
+        }
+    }
+
+    pub fn set_version(&mut self, version: u32) {
+        self.insert(GlobalKey::VERSION.into(), version.to_le_bytes().to_vec().into());
     }
 }

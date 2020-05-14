@@ -155,7 +155,7 @@ pub trait PSTMap {
     /// Gets a mutable iterator over the entries of the map, sorted by key
     fn iter_mut(&mut self) -> btree_map::IterMut<PSBTKey, PSBTValue>;
 
-    /// Gets an iterator over the entries of the map, sorted by key.
+    /// Insert a key into the map. Return the previous value if any
     fn insert(&mut self, key: PSBTKey, value: PSBTValue) -> Option<PSBTValue>;
 
     /// Return a range of KV pairs whose key type is `key_type`
