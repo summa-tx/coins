@@ -38,12 +38,12 @@ use riemann_core::{builder::TxBuilder, enc::AddressEncoder, ser::ByteFormat, tx:
 use rmn_btc::{
     builder::LegacyBuilder,
     enc::encoder::{BitcoinEncoderMarker, MainnetEncoder, TestnetEncoder},
-    types::{transactions::LegacyTx, txin::BitcoinTxIn, txout::TxOut},
+    types::{transactions::{BitcoinTransaction, LegacyTx}, txin::BitcoinTxIn, txout::TxOut},
 };
 
 use crate::{common::PSBTError, global::PSBTGlobal, input::PSBTInput, output::PSBTOutput};
 
-/// A generic Partially Signed Transaction.
+/// A generic Partially Signed Transaction
 pub trait PST<'a, T: AddressEncoder> {
     /// A 4-byte prefix used to identify partially signed transactions. May vary by network.
     const MAGIC_BYTES: [u8; 4];
@@ -89,7 +89,7 @@ pub trait PST<'a, T: AddressEncoder> {
 
 /// A BIP174 Partially Signed Bitcoin Transaction
 #[derive(Debug, Clone)]
-pub struct PSBT<T: AddressEncoder, E: Bip32Encoder> {
+pub struct PSBT<T: BitcoinEncoderMarker, E: Bip32Encoder> {
     /// Global attributes
     global: PSBTGlobal,
     /// Per-input attribute maps
@@ -179,10 +179,20 @@ where
         results
     }
 
-    /// Instantiate a PSBT from a transaction. This sets up empty input and output maps
-    pub fn from_tx(tx: &LegacyTx) -> PSBT<T, E> {
+    /// Instantiate a PSBT from a transaction. This sets up empty input and output maps, and strips
+    /// all signature information.
+    ///
+    /// TODO: parse common script sig and witness information
+    pub fn from_tx<'a, Tx: BitcoinTransaction<'a>>(tx: &'a Tx) -> PSBT<T, E> {
         let mut global = PSBTGlobal::default();
-        global.set_tx(tx);
+        let tx_ins: Vec<BitcoinTxIn> = tx.inputs()
+            .iter()
+            .map(|i| i.unsigned())
+            .collect();
+
+        let tx = LegacyTx::new(tx.version(), tx_ins, tx.outputs(), tx.locktime());
+        global.set_tx(&tx);
+
         PSBT {
             global,
             inputs: (0..tx.inputs().len()).map(|_| Default::default()).collect(),

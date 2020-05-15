@@ -149,6 +149,11 @@ where
             sequence,
         }
     }
+
+    /// Copy the input, stripping the scriptsig information.
+    pub fn unsigned(&self) -> TxInput<M> {
+        Self::new(self.outpoint, vec![], self.sequence)
+    }
 }
 
 impl<M> ByteFormat for TxInput<M>
