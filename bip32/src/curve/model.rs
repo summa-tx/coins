@@ -34,12 +34,17 @@ pub trait PointSerialize {
 
     /// Calculate the key fingerprint of the associated public key. This is the first 4 bytes of
     /// the Bitcoin HASH_160 of the compressed representation of the public key.
-    /// For signing keys, this causes a pubkey derivation, which may fail.
     fn fingerprint(&self) -> KeyFingerprint {
         let digest = hash160(&self.pubkey_array());
         let mut buf = [0u8; 4];
         buf.copy_from_slice(&digest[..4]);
         buf.into()
+    }
+
+    /// Calculate the hash160 of the associated public key. This is commonly used to consturct
+    /// pubkeyhash outputs in bitcoin-like chains, and has been provided here as a convenience.
+    fn hash160(&self) -> [u8; 20] {
+        hash160(&self.pubkey_array())
     }
 }
 

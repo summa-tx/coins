@@ -44,10 +44,16 @@ pub trait HasPubkey<'a, T: Secp256k1Backend<'a>> {
 
     /// Calculate the key fingerprint of the associated public key. This is the first 4 bytes of
     /// the Bitcoin HASH_160 of the compressed representation of the public key.
-    /// For signing keys, this causes a pubkey derivation, which may fail.
     fn fingerprint(&self) -> KeyFingerprint {
         self.pubkey().fingerprint()
     }
+
+    /// Calculate the hash160 of the associated public key. This is commonly used to consturct
+    /// pubkeyhash outputs in bitcoin-like chains, and has been provided here as a convenience.
+    fn pubkey_hash160(&self) -> [u8; 20] {
+        self.pubkey().hash160()
+    }
+
 }
 
 /// Any type that has a private key and a backend may derive a public key.

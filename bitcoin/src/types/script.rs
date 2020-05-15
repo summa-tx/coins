@@ -86,6 +86,47 @@ pub type Witness = Vec<WitnessStackItem>;
 /// A TxWitness is the UNPREFIXED vector of witnesses
 pub type TxWitness = Vec<Witness>;
 
+impl ScriptPubkey {
+    /// Instantiate a standard p2pkh script pubkey from a pubkey.
+    pub fn p2pkh<'a, T, B>(key: &T) -> Self
+    where
+        B: rmn_bip32::curve::Secp256k1Backend<'a>,
+        T: rmn_bip32::model::HasPubkey<'a, B>
+    {
+        let mut v: Vec<u8> = vec![0x76, 0xa9, 0x14];  // DUP, HASH160, PUSH_20
+        v.extend(&key.pubkey_hash160());
+        v.extend(&[0x88, 0xac]);  // EQUALVERIFY, CHECKSIG
+        v.into()
+    }
+
+    /// Instantiate a standard p2wpkh script pubkey from a pubkey.
+    pub fn p2wpkh<'a, T, B>(key: &T) -> Self
+    where
+        B: rmn_bip32::curve::Secp256k1Backend<'a>,
+        T: rmn_bip32::model::HasPubkey<'a, B>
+    {
+        let mut v: Vec<u8> = vec![0x00, 0x14];  // OP_0, PUSH_20
+        v.extend(&key.pubkey_hash160());
+        v.into()
+    }
+
+    /// Instantiate a standard p2sh script pubkey from a script.
+    pub fn p2sh(script: &Script) -> Self {
+        let mut v: Vec<u8> = vec![0xa9, 0x14];  // HASH160, PUSH_20
+        v.extend(&bitcoin_spv::btcspv::hash160(script.as_ref()));
+        v.extend(&[0x87]); // EQUAL
+        v.into()
+    }
+
+    /// Instantiate a standard p2wsh script pubkey from a script.
+    pub fn p2wsh(script: &Script) -> Self {
+        let mut v: Vec<u8> = vec![0x00, 0x20];   // OP_0, PUSH_32
+        v.extend(<sha2::Sha256 as sha2::Digest>::digest(script.as_ref()));
+        v.into()
+    }
+}
+
+
 /// Standard script types, and a non-standard type for all other scripts.
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum ScriptType {

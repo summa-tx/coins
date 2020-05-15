@@ -66,6 +66,12 @@ macro_rules! wrap_prefixed_byte_vector {
 
         impl_hex_serde!($wrapper_name);
 
+        impl std::convert::AsRef<[u8]> for $wrapper_name {
+            fn as_ref(&self) -> &[u8] {
+                &self.0[..]
+            }
+        }
+
         impl $wrapper_name {
             /// Instantate a new wrapped vector
             pub fn new(v: Vec<u8>) -> Self {
