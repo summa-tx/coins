@@ -85,10 +85,8 @@ pub trait PST<'a, T: AddressEncoder> {
     fn output_maps(&self) -> &Vec<Self::Output>;
     /// Return a mutable reference to the vector of output maps
     fn output_maps_mut(&mut self) -> &mut Vec<Self::Output>;
-    /// Instantiate a PST from a transaction. This sets up empty input and output maps, and strips
-    /// all signature information.
-    ///
-    /// TODO: parse common script sig and witness information
+    /// Instantiate a PST from a transaction. If script sigs or witnesses are present in the tx,
+    /// this extracts them and stores them in the appropriate map under the finalized key.
     fn from_tx<'b, Tx: BitcoinTransaction<'b>>(tx: &'b Tx) -> Self;
 }
 
@@ -266,9 +264,22 @@ where
         let mut global = PSBTGlobal::default();
         global.set_tx(&tx.as_legacy());
 
+        let mut inputs = vec![];
+        for input in tx.inputs() {
+            let mut input_map: PSBTInput = Default::default();
+            if !input.script_sig.is_empty() {
+                input_map.insert_script_sig(&input.script_sig);
+            }
+            inputs.push(input_map);
+        }
+
+        for (i, witness) in tx.witnesses().iter().enumerate() {
+            inputs[i].insert_witness(witness);
+        }
+
         PSBT {
             global,
-            inputs: (0..tx.inputs().len()).map(|_| Default::default()).collect(),
+            inputs,
             outputs: (0..tx.outputs().len()).map(|_| Default::default()).collect(),
             encoder: PhantomData,
             bip32_encoder: PhantomData,

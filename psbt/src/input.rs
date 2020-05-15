@@ -1,5 +1,5 @@
 use std::collections::{btree_map, BTreeMap};
-
+use riemann_core::ser::ByteFormat;
 use rmn_bip32::{
     self as bip32,
     curve::{model::Secp256k1Backend, SigSerialize},
@@ -253,6 +253,11 @@ impl PSBTInput {
         Ok(script_bytes.into())
     }
 
+    /// Insert a finalized script sig into the input map
+    pub fn insert_script_sig(&mut self, script_sig: &ScriptSig) {
+        self.insert(InputKey::FINAL_SCRIPTSIG.into(), script_sig.items().into());
+    }
+
     /// Returns the BIP174 PSBT_IN_FINAL_SCRIPTWITNESS if present and valid.
     ///
     /// ## Errors
@@ -262,6 +267,14 @@ impl PSBTInput {
     pub fn finalized_script_witness(&self) -> Result<Witness, PSBTError> {
         let wit_val = self.must_get(&InputKey::FINAL_SCRIPTWITNESS.into())?;
         schema::try_val_as_witness(&wit_val)
+    }
+
+    /// Insert a finalized witness into the input map
+    #[allow(clippy::clippy::ptr_arg)]
+    pub fn insert_witness(&mut self, script_sig: &Witness) {
+        let mut value = vec![];
+        script_sig.write_to(&mut value).unwrap();
+        self.insert(InputKey::FINAL_SCRIPTWITNESS.into(), value.into());
     }
 
     /// Returns the BIP174 PSBT_IN_POR_COMMITMENT if present and valid.

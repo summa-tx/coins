@@ -3,7 +3,7 @@
 use wasm_bindgen::prelude::*;
 
 use rmn_btc::{
-    types::{script, transactions::{self, Sighash, WitnessTransaction}},
+    types::{script, transactions::{self, BitcoinTransaction, Sighash, WitnessTransaction}},
 };
 
 use riemann_core::{
