@@ -1,8 +1,8 @@
 use std::collections::{btree_map, BTreeMap};
 
-use riemann_core::ser::ByteFormat;
+use riemann_core::{ser::ByteFormat, types::tx::Transaction};
 use rmn_bip32::{model::DerivedKey, DerivedXPub};
-use rmn_btc::types::transactions::LegacyTx;
+use rmn_btc::types::{transactions::LegacyTx, txin::BitcoinTxIn};
 
 use crate::{
     common::{PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},
@@ -75,6 +75,13 @@ impl PSBTGlobal {
 
     /// Set the tx key. This should only be done on instantiation.
     pub(crate) fn set_tx(&mut self, tx: &LegacyTx) {
+        let tx_ins: Vec<BitcoinTxIn> = tx.inputs()
+            .iter()
+            .map(|i| i.unsigned())
+            .collect();
+
+        let tx = LegacyTx::new(tx.version(), tx_ins, tx.outputs(), tx.locktime());
+
         let mut value = vec![];
         tx.write_to(&mut value).unwrap(); // no error on heap write
         self.insert(GlobalKey::UNSIGNED_TX.into(), value.into());

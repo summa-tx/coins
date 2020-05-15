@@ -85,10 +85,15 @@ pub trait PST<'a, T: AddressEncoder> {
     fn output_maps(&self) -> &Vec<Self::Output>;
     /// Return a mutable reference to the vector of output maps
     fn output_maps_mut(&mut self) -> &mut Vec<Self::Output>;
+    /// Instantiate a PST from a transaction. This sets up empty input and output maps, and strips
+    /// all signature information.
+    ///
+    /// TODO: parse common script sig and witness information
+    fn from_tx<'b, Tx: BitcoinTransaction<'b>>(tx: &'b Tx) -> Self;
 }
 
 /// A BIP174 Partially Signed Bitcoin Transaction
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PSBT<T: BitcoinEncoderMarker, E: Bip32Encoder> {
     /// Global attributes
     global: PSBTGlobal,
@@ -178,29 +183,6 @@ where
         }
         results
     }
-
-    /// Instantiate a PSBT from a transaction. This sets up empty input and output maps, and strips
-    /// all signature information.
-    ///
-    /// TODO: parse common script sig and witness information
-    pub fn from_tx<'a, Tx: BitcoinTransaction<'a>>(tx: &'a Tx) -> PSBT<T, E> {
-        let mut global = PSBTGlobal::default();
-        let tx_ins: Vec<BitcoinTxIn> = tx.inputs()
-            .iter()
-            .map(|i| i.unsigned())
-            .collect();
-
-        let tx = LegacyTx::new(tx.version(), tx_ins, tx.outputs(), tx.locktime());
-        global.set_tx(&tx);
-
-        PSBT {
-            global,
-            inputs: (0..tx.inputs().len()).map(|_| Default::default()).collect(),
-            outputs: (0..tx.outputs().len()).map(|_| Default::default()).collect(),
-            encoder: PhantomData,
-            bip32_encoder: PhantomData,
-        }
-    }
 }
 
 impl<'a, T, E> PST<'a, T> for PSBT<T, E>
@@ -278,6 +260,19 @@ where
 
     fn output_maps_mut(&mut self) -> &mut Vec<PSBTOutput> {
         &mut self.outputs
+    }
+
+    fn from_tx<'b, Tx: BitcoinTransaction<'b>>(tx: &'b Tx) -> PSBT<T, E> {
+        let mut global = PSBTGlobal::default();
+        global.set_tx(&tx.as_legacy());
+
+        PSBT {
+            global,
+            inputs: (0..tx.inputs().len()).map(|_| Default::default()).collect(),
+            outputs: (0..tx.outputs().len()).map(|_| Default::default()).collect(),
+            encoder: PhantomData,
+            bip32_encoder: PhantomData,
+        }
     }
 }
 

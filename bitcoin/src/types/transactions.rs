@@ -60,7 +60,8 @@ pub enum TxError {
 /// Type alias for result with TxError
 pub type TxResult<T> = Result<T, TxError>;
 
-/// Marker trait for BitcoinTransactions.
+/// Functions common to Bitcoin transactions. This provides a small abstraction layer over the
+/// Legacy/SegWit tx divide by implementing a small common interface between them.
 pub trait BitcoinTransaction<'a>:
     Transaction<
     'a,
@@ -71,6 +72,12 @@ pub trait BitcoinTransaction<'a>:
     HashWriter = Hash256Writer,
 >
 {
+    /// Returns a reference to the tx as a legacy tx.
+    fn as_legacy(&self) -> &LegacyTx;
+
+    /// Return a reference to a slice of witnesses. For legacy txins this will ALWAYS be length 0.
+    /// For witness txns, this will ALWAYS be the same length as the input vector.
+    fn witnesses(&self) -> &[Witness];
 }
 
 /// Basic functionality for a Witness Transaction
@@ -352,7 +359,15 @@ impl<'a> Transaction<'a> for LegacyTx {
     }
 }
 
-impl<'a> BitcoinTransaction<'a> for LegacyTx {}
+impl<'a> BitcoinTransaction<'a> for LegacyTx {
+    fn as_legacy(&self) -> &LegacyTx {
+        &self
+    }
+
+    fn witnesses(&self) -> &[Witness] {
+        &[]
+    }
+}
 
 impl ByteFormat for LegacyTx {
     type Error = TxError;
@@ -452,11 +467,6 @@ pub struct WitnessTx {
 }
 
 impl WitnessTx {
-    /// Returns a legacy transaction with identical properties (less witnesses).
-    pub fn without_witness(&self) -> LegacyTx {
-        self.legacy_tx.clone()
-    }
-
     /// Calculates `hash_prevouts` according to BIP143 semantics.`
     ///
     /// For BIP143 (Witness and Compatibility sighash) documentation, see here:
@@ -588,7 +598,15 @@ impl<'a> Transaction<'a> for WitnessTx {
     }
 }
 
-impl<'a> BitcoinTransaction<'a> for WitnessTx {}
+impl<'a> BitcoinTransaction<'a> for WitnessTx {
+    fn as_legacy(&self) -> &LegacyTx {
+        &self.legacy_tx
+    }
+
+    fn witnesses(&self) -> &[Witness] {
+        &self.witnesses
+    }
+}
 
 impl<'a> WitnessTransaction<'a> for WitnessTx {
     type WTXID = WTXID;
