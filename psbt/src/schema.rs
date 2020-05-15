@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use riemann_core::ser::ByteFormat;
+use riemann_core::ser::{self, ByteFormat};
 
 use rmn_bip32::{
     self as bip32,
@@ -174,7 +174,8 @@ pub fn try_val_as_signature(val: &PSBTValue) -> Result<(Signature, Sighash), PSB
 /// Attempt to deserialize a value as a script Witness
 pub fn try_val_as_witness(val: &PSBTValue) -> Result<Witness, PSBTError> {
     let mut wit_bytes = &val.items()[..];
-    Ok(Witness::read_from(&mut wit_bytes, 0)?)
+    let number = ser::read_compact_int(&mut wit_bytes)? as usize;
+    Ok(Witness::read_from(&mut wit_bytes, number)?)
 }
 
 /// Attempt to parse a key as a valid extended pubkey

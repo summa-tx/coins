@@ -1,5 +1,5 @@
 use std::collections::{btree_map, BTreeMap};
-use riemann_core::ser::ByteFormat;
+use riemann_core::ser::{self, ByteFormat};
 use rmn_bip32::{
     self as bip32,
     curve::{model::Secp256k1Backend, SigSerialize},
@@ -271,9 +271,10 @@ impl PSBTInput {
 
     /// Insert a finalized witness into the input map
     #[allow(clippy::clippy::ptr_arg)]
-    pub fn insert_witness(&mut self, script_sig: &Witness) {
+    pub fn insert_witness(&mut self, witness: &Witness) {
         let mut value = vec![];
-        script_sig.write_to(&mut value).unwrap();
+        ser::write_compact_int(&mut value, witness.len() as u64).unwrap();
+        witness.write_to(&mut value).unwrap();
         self.insert(InputKey::FINAL_SCRIPTWITNESS.into(), value.into());
     }
 
