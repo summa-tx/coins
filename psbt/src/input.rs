@@ -148,7 +148,7 @@ impl PSBTInput {
     }
 
     /// Get the prevout details and return a UTXO object
-    pub fn prevout_as_utxo(
+    pub fn as_utxo(
         &self,
         outpoint: &rmn_btc::types::BitcoinOutpoint,
     ) -> Result<UTXO, PSBTError> {
@@ -220,6 +220,11 @@ impl PSBTInput {
         Ok(script_bytes.into())
     }
 
+    /// True if the map has a redeem script, else false.
+    pub fn has_redeem_script(&self) -> bool {
+        self.contains_key(&InputKey::REDEEM_SCRIPT.into())
+    }
+
     /// Returns the BIP174 PSBT_IN_WITNESS_SCRIPT if present and valid.
     ///
     /// ## Errors
@@ -228,6 +233,11 @@ impl PSBTInput {
     pub fn witness_script(&self) -> Result<Script, PSBTError> {
         let script_bytes = self.must_get(&InputKey::WITNESS_SCRIPT.into())?.items();
         Ok(script_bytes.into())
+    }
+
+    /// True if the map has a witness script, else false.
+    pub fn has_witness_script(&self) -> bool {
+        self.contains_key(&InputKey::WITNESS_SCRIPT.into())
     }
 
     /// Returns a range containing any PSBT_IN_BIP32_DERIVATION.

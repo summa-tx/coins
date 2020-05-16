@@ -31,7 +31,7 @@ impl<'a> Bip32Signer<'a> {
         input_idx: usize,
         input_map: &PSBTInput,
     ) -> Result<(), PSBTError> {
-        let prevout = input_map.prevout_as_utxo(&tx.inputs()[input_idx].outpoint)?;
+        let prevout = input_map.as_utxo(&tx.inputs()[input_idx].outpoint)?;
         let prevout_type = prevout.standard_type();
 
         match prevout_type {
@@ -61,7 +61,7 @@ impl<'a> Bip32Signer<'a> {
         outpoint: &BitcoinOutpoint,
         input_map: &PSBTInput,
     ) -> Result<(), PSBTError> {
-        let prevout = input_map.prevout_as_utxo(&outpoint)?;
+        let prevout = input_map.as_utxo(&outpoint)?;
 
         let prevout_type = prevout.standard_type();
 

@@ -5,7 +5,8 @@ authors = ["James Prestwich <james@prestwi.ch>"]
 edition = "2018"
 license = "LGPL-3.0-or-later"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 riemann-core = { path = "../core" }
@@ -19,4 +20,6 @@ rmn-bip32 = { path = "../bip32" }
 
 [features]
 default = []
+browser = ["ledger", "rmn-ledger-btc/browser"]
+node = ["ledger", "rmn-ledger-btc/node"]
 ledger = ["futures", "rmn-ledger-btc"]

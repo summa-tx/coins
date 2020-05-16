@@ -1,3 +1,7 @@
+//! A PSBT signer for ledger hardware wallets.
+//!
+//! This signer does NOT currently support nested witness-via-P2SH.
+
 use thiserror::Error;
 
 use futures::executor::block_on;
@@ -23,9 +27,13 @@ pub enum LedgerSignerError {
     #[error("No matching key in input")]
     NoMatchingKey,
 
-    /// Unsopported
-    #[error("Signing single inputs is not supported")]
-    Unsupported,
+    /// UnsupportedSingleInput
+    #[error("Signing single inputs is not supported. Calling `sign` will automatically filter unsignable inputs.")]
+    UnsupportedSingleInput,
+
+    /// UnsupportedNestwedSegwit
+    #[error("Signing witness-via-p2sh is not supported")]
+    UnsupportedNestwedSegwit,
 }
 
 /// A PST Signer interface.
@@ -53,7 +61,12 @@ where
     }
 
     fn can_sign_input(&self, pst: &PSBT<A, E>, idx: usize) -> Result<(), Self::Error> {
-        let pubkeys = pst.outputs[idx].parsed_pubkey_derivations(None);
+        let input_map = &pst.inputs[idx];
+        if input_map.has_witness_script() && input_map.has_redeem_script() {
+            return Err(LedgerSignerError::UnsupportedNestwedSegwit)
+        }
+
+        let pubkeys = input_map.parsed_pubkey_derivations(None);
         for key in pubkeys {
             let xpub = block_on(self.get_xpub(&key.derivation.path, None))?;
             if xpub.xpub.pubkey == key.pubkey && xpub.derivation == key.derivation {
@@ -64,7 +77,7 @@ where
     }
 
     fn sign_input(&self, _pst: &mut PSBT<A, E>, _idx: usize) -> Result<(), Self::Error> {
-        Err(LedgerSignerError::Unsupported)
+        Err(LedgerSignerError::UnsupportedSingleInput)
     }
 
     /// Append all producible signatures to a PSBT. Returns a vector containing the indices of
@@ -97,7 +110,7 @@ fn extract_signing_info(
     idx: usize,
     input_map: &PSBTInput,
 ) -> Result<Vec<SigningInfo>, PSBTError> {
-    let prevout = input_map.prevout_as_utxo(&tx.inputs()[idx].outpoint)?;
+    let prevout = input_map.as_utxo(&tx.inputs()[idx].outpoint)?;
     Ok(input_map
         .parsed_pubkey_derivations(None)
         .iter()

@@ -1,7 +1,6 @@
 /// bip32 signer
 pub mod bip32_signer;
 
-/// ledger signer
 #[cfg(feature = "ledger")]
 pub mod ledger_signer;
 
@@ -22,6 +21,17 @@ pub enum SignerError {
     /// pubkey.
     #[error("ScriptHash in PSBT does not match ScriptHash in prevout for input {0}")]
     ScriptHashMismatch(usize),
+}
+
+pub trait PSTUpdater<'a, A, P>
+where
+    A: AddressEncoder,
+    P: PST<'a, A>,
+{
+    /// An associated error type that can be instantiated from the PST's Error type.
+    type Error: std::error::Error + From<P::Error>;
+
+    fn update(&self, pst: &mut P) -> Result<(), Self::Error>;
 }
 
 /// A PST Signer interface.

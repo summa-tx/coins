@@ -1,4 +1,13 @@
-//! UTXO struct. Holds information necessary for signing future txns
+//! UTXO struct. Holds information necessary for signing future txns.
+//!
+//! The UTXO struct holds the outpoint, value, and script pubkey of a previous output. It may also
+//! hold the underlying witness script or redeem script if any. It aims to provide all necessary
+//! info for future UTXO signers.
+//!
+//! # Note:
+//!
+//! This functionality does NOT currently support nested witness-via-p2sh prevouts. If you' like
+//! to use those, you'll need a processing step in your tx signer.
 use crate::{
     hashes,
     types::{self, BitcoinOutpoint, Script, ScriptPubkey, ScriptType, TxOut},

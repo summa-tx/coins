@@ -23,7 +23,7 @@ cargo test --verbose --lib && \
 
 cargo build --verbose --target wasm32-unknown-unknown && \
 
-### Ledger ###
+### LEDGER ###
 cd ../ledger && \
 # #  broken on travis
 # cargo build --verbose && \
