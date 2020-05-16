@@ -7,7 +7,7 @@ pub mod ledger_signer;
 
 use crate::PST;
 use riemann_core::enc::AddressEncoder;
-use rmn_btc::types::{script::ScriptType, transactions::Sighash};
+use rmn_btc::types::transactions::Sighash;
 
 use thiserror::Error;
 
@@ -17,16 +17,6 @@ pub enum SignerError {
     /// Returned when a signer is missing some signer info
     #[error("Missing info during signing attemts: {0}")]
     SignerMissingInfo(String),
-
-    /// Returned when an unexpected script type is found. E.g. when a redeem script is found,
-    /// but the prevout script pubkey is not P2SH.
-    #[error("Wrong prevout script_pubkey type. Got: {got:?}. Expected {expected:?}")]
-    WrongPrevoutScriptType {
-        /// The actual script type
-        got: ScriptType,
-        /// The expected script type
-        expected: Vec<ScriptType>,
-    },
 
     /// Script in PSBT's hash is not at the appropriate location in the output's script
     /// pubkey.

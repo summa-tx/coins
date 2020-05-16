@@ -13,7 +13,6 @@ use crate::{
 ///
 /// For interface documentation see the page for
 /// [GenericDerivedPrivkey](struct.GenericDerivedPrivkey.html).
-#[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 pub type DerivedPrivkey<'a> = GenericDerivedPrivkey<'a, crate::curve::Secp256k1<'a>>;
 
 /// A GenericDerivedPubkey using the compiled-in default backend, coupled with its (purported)
@@ -21,7 +20,6 @@ pub type DerivedPrivkey<'a> = GenericDerivedPrivkey<'a, crate::curve::Secp256k1<
 ///
 /// For interface documentation see the page for
 /// [GenericDerivedPubkey](struct.GenericDerivedPubkey.html).
-#[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 pub type DerivedPubkey<'a> = GenericDerivedPubkey<'a, crate::curve::Secp256k1<'a>>;
 
 /// A GenericDerivedXPriv using the compiled-in default backend, coupled with its (purported)
@@ -29,7 +27,6 @@ pub type DerivedPubkey<'a> = GenericDerivedPubkey<'a, crate::curve::Secp256k1<'a
 ///
 /// For interface documentation see the page for
 ///  [GenericDerivedXPriv](struct.GenericDerivedXPriv.html).
-#[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 pub type DerivedXPriv<'a> = GenericDerivedXPriv<'a, crate::curve::Secp256k1<'a>>;
 
 /// A GenericDerivedXPub using the compiled-in default backend, coupled with its (purported)
@@ -37,7 +34,6 @@ pub type DerivedXPriv<'a> = GenericDerivedXPriv<'a, crate::curve::Secp256k1<'a>>
 ///
 /// For interface documentation see the page for
 ///  [GenericDerivedXPub](struct.GenericDerivedXPub.html).
-#[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 pub type DerivedXPub<'a> = GenericDerivedXPub<'a, crate::curve::Secp256k1<'a>>;
 
 make_derived_key!(

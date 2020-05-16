@@ -1,8 +1,6 @@
-use bitcoin_spv::btcspv::{hash160, hash256};
-
 use rmn_bip32::{
     self as bip32,
-    model::{DerivedKey, HasBackend, SigningKey, XSigning},
+    model::{DerivedKey, HasBackend, HasPubkey, SigningKey, XSigning},
 };
 
 use riemann_core::types::Transaction;
@@ -11,14 +9,12 @@ use rmn_btc::{
     types::{
         script::ScriptType,
         transactions::{LegacySighashArgs, LegacyTx, Sighash, WitnessSighashArgs, WitnessTx},
+        txin::BitcoinOutpoint,
+        utxo::SpendScript,
     },
 };
 
-use crate::{
-    input::PSBTInput,
-    roles::{PSTSigner, SignerError},
-    PSBTError, PSBT, PST,
-};
+use crate::{input::PSBTInput, roles::PSTSigner, PSBTError, PSBT, PST};
 
 /// A sample signer using a bip32 XPriv key with attached derivation information.
 ///
@@ -31,82 +27,62 @@ pub struct Bip32Signer<'a> {
 impl<'a> Bip32Signer<'a> {
     fn can_sign_non_witness(
         &self,
-        input_idx: usize,
         tx: &LegacyTx,
+        input_idx: usize,
         input_map: &PSBTInput,
-    ) -> Result<(), SignerError> {
-        let res = input_map.non_witness_utxo();
-        let prevout_tx = match res {
-            Ok(v) => v,
-            Err(_) => {
-                return Err(SignerError::SignerMissingInfo(
-                    "Non-witness UTXO".to_owned(),
-                ))
-            }
-        };
+    ) -> Result<(), PSBTError> {
+        let prevout = input_map.prevout_as_utxo(&tx.inputs()[input_idx].outpoint)?;
+        let prevout_type = prevout.standard_type();
 
-        let prevout_idx = tx.inputs()[input_idx].outpoint.idx as usize;
-        let prevout = &prevout_tx.outputs()[prevout_idx];
-
-        let prevout_script = &prevout.script_pubkey;
-        let prevout_type = prevout_script.standard_type();
-
-        if prevout_type == ScriptType::WPKH || prevout_type == ScriptType::WSH {
-            return Err(SignerError::WrongPrevoutScriptType {
-                got: prevout.script_pubkey.standard_type(),
-                expected: vec![ScriptType::SH, ScriptType::PKH, ScriptType::NonStandard],
-            });
-        }
-
-        // TODO: shortcut PKH here
-
-        if let Ok(script) = input_map.redeem_script() {
-            if prevout_type != ScriptType::SH {
-                return Err(SignerError::WrongPrevoutScriptType {
+        match prevout_type {
+            ScriptType::WPKH(_) | ScriptType::WSH(_) | ScriptType::OP_RETURN(_) => {
+                return Err(PSBTError::WrongPrevoutScriptType {
                     got: prevout.script_pubkey.standard_type(),
-                    expected: vec![ScriptType::SH],
+                    expected: vec![
+                        ScriptType::SH([0u8; 20]),
+                        ScriptType::PKH([0u8; 20]),
+                        ScriptType::NonStandard,
+                    ],
                 });
             }
-            if hash160(&script.items()) != prevout_script.items()[2..15] {
-                return Err(SignerError::ScriptHashMismatch(input_idx));
-            }
+            _ => {}
         }
 
-        Ok(())
+        match prevout.spend_script() {
+            SpendScript::Missing => Err(PSBTError::MissingKey(
+                crate::input::InputKey::REDEEM_SCRIPT as u8,
+            )),
+            _ => Ok(()),
+        }
     }
 
-    fn can_sign_witness(&self, input_idx: usize, input_map: &PSBTInput) -> Result<(), SignerError> {
-        let res = input_map.witness_utxo();
-        let prevout = match res {
-            Ok(v) => v,
-            Err(_) => return Err(SignerError::SignerMissingInfo("Witness UTXO".to_owned())),
-        };
+    fn can_sign_witness(
+        &self,
+        outpoint: &BitcoinOutpoint,
+        input_map: &PSBTInput,
+    ) -> Result<(), PSBTError> {
+        let prevout = input_map.prevout_as_utxo(&outpoint)?;
 
-        let prevout_script = &prevout.script_pubkey;
-        let prevout_type = prevout_script.standard_type();
+        let prevout_type = prevout.standard_type();
 
-        if prevout_type != ScriptType::WPKH && prevout_type != ScriptType::WSH {
-            return Err(SignerError::WrongPrevoutScriptType {
-                got: prevout.script_pubkey.standard_type(),
-                expected: vec![ScriptType::WSH, ScriptType::WPKH],
-            });
+        match prevout_type {
+            ScriptType::WPKH(_) | ScriptType::WSH(_) => {}
+            _ => {
+                return Err(PSBTError::WrongPrevoutScriptType {
+                    got: prevout.script_pubkey.standard_type(),
+                    expected: vec![ScriptType::WSH([0u8; 32]), ScriptType::WPKH([0u8; 20])],
+                })
+            }
         }
 
         // TODO: Shortcut WPKH here
 
-        if let Ok(script) = input_map.witness_script() {
-            if prevout_type != ScriptType::WSH {
-                return Err(SignerError::WrongPrevoutScriptType {
-                    got: prevout.script_pubkey.standard_type(),
-                    expected: vec![ScriptType::WSH],
-                });
-            }
-            if hash256(&[&script.items()]) != prevout_script.items()[2..] {
-                return Err(SignerError::ScriptHashMismatch(input_idx));
-            }
+        match prevout.spend_script() {
+            SpendScript::Missing => Err(PSBTError::MissingKey(
+                crate::input::InputKey::WITNESS_SCRIPT as u8,
+            )),
+            _ => Ok(()),
         }
-
-        Ok(())
     }
 
     /// TODO: account for redeemscript
@@ -208,14 +184,11 @@ where
 
         let script = &output.script_pubkey;
         let script_type = script.standard_type();
-        if script_type == ScriptType::WPKH || script_type == ScriptType::PKH {
-            let res = self.xpriv.is_private_ancestor_of(pubkey);
-            match res {
-                Ok(v) => v,
-                Err(_) => false,
-            }
-        } else {
-            false
+
+        match script_type {
+            ScriptType::WPKH(v) => v == pubkey.pubkey_hash160(),
+            ScriptType::PKH(v) => v == pubkey.pubkey_hash160(),
+            _ => false,
         }
     }
 
@@ -227,9 +200,9 @@ where
         let input_map = &psbt.input_maps()[idx];
         let tx = psbt.tx()?;
         if input_map.has_non_witness_utxo() {
-            Ok(self.can_sign_non_witness(idx, &tx, input_map)?)
+            Ok(self.can_sign_non_witness(&tx, idx, input_map)?)
         } else {
-            Ok(self.can_sign_witness(idx, input_map)?)
+            Ok(self.can_sign_witness(&tx.inputs()[idx].outpoint, input_map)?)
         }
     }
 

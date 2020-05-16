@@ -4,7 +4,11 @@ use thiserror::Error;
 
 use riemann_core::ser::SerError;
 
-use rmn_btc::{impl_hex_serde, types::transactions::TxError, wrap_prefixed_byte_vector};
+use rmn_btc::{
+    impl_hex_serde,
+    types::{ScriptType, TxError},
+    wrap_prefixed_byte_vector,
+};
 
 use crate::{roles::SignerError, schema};
 
@@ -106,6 +110,16 @@ pub enum PSBTError {
         tx_outs: usize,
         /// The number of output maps in the PSBT
         maps: usize,
+    },
+
+    /// Returned when an unexpected script type is found. E.g. when a redeem script is found,
+    /// but the prevout script pubkey is not P2SH.
+    #[error("Wrong prevout script_pubkey type. Got: {got:?}. Expected {expected:?}")]
+    WrongPrevoutScriptType {
+        /// The actual script type
+        got: ScriptType,
+        /// The expected script type
+        expected: Vec<ScriptType>,
     },
 }
 

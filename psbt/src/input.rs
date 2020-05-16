@@ -1,4 +1,3 @@
-use std::collections::{btree_map, BTreeMap};
 use riemann_core::ser::{self, ByteFormat};
 use rmn_bip32::{
     self as bip32,
@@ -6,6 +5,7 @@ use rmn_bip32::{
     derived::DerivedPubkey,
     model::HasPubkey,
 };
+use std::collections::{btree_map, BTreeMap};
 
 use rmn_btc::types::{
     script::{Script, ScriptSig, Witness},
@@ -153,18 +153,21 @@ impl PSBTInput {
         outpoint: &rmn_btc::types::BitcoinOutpoint,
     ) -> Result<UTXO, PSBTError> {
         if let Ok(tx_out) = self.witness_utxo() {
+            // Witness UTXO.
             let mut utxo = UTXO::from_output_and_outpoint(&tx_out, outpoint);
             if let Ok(script) = self.witness_script() {
-                utxo.spend_script = Some(script);
+                utxo.set_spend_script(script);
             }
             Ok(utxo)
         } else if let Ok(prevout_tx) = self.non_witness_utxo() {
+            // Non-witness. Need to extract the appropriate output
             let mut utxo = UTXO::from_tx_output(&prevout_tx, outpoint.idx as usize);
             if let Ok(script) = self.redeem_script() {
-                utxo.spend_script = Some(script);
+                utxo.set_spend_script(script);
             }
             Ok(utxo)
         } else {
+            // Missing both UTXO keys
             Err(PSBTError::MissingKey(InputKey::NON_WITNESS_UTXO as u8))
         }
     }

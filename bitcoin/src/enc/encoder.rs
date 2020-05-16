@@ -66,20 +66,17 @@ impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
 
     fn encode_address(s: &ScriptPubkey) -> EncodingResult<Address> {
         match s.standard_type() {
-            ScriptType::PKH => {
+            ScriptType::PKH(payload) => {
                 // s.items contains the op codes. we want only the pkh
-                Ok(Address::PKH(encode_base58(
-                    P::PKH_VERSION,
-                    &s.items()[3..23],
-                )))
+                Ok(Address::PKH(encode_base58(P::PKH_VERSION, &payload)))
             }
-            ScriptType::SH => {
+            ScriptType::SH(payload) => {
                 // s.items contains the op codes. we want only the sh
-                Ok(Address::SH(encode_base58(P::SH_VERSION, &s.items()[2..22])))
+                Ok(Address::SH(encode_base58(P::SH_VERSION, &payload)))
             }
-            ScriptType::WSH => Ok(Address::WSH(encode_bech32(P::HRP, &s.items())?)),
-            ScriptType::WPKH => Ok(Address::WPKH(encode_bech32(P::HRP, &s.items())?)),
-            ScriptType::OP_RETURN => Err(EncodingError::NullDataScript),
+            ScriptType::WSH(_) => Ok(Address::WSH(encode_bech32(P::HRP, &s.items())?)),
+            ScriptType::WPKH(_) => Ok(Address::WPKH(encode_bech32(P::HRP, &s.items())?)),
+            ScriptType::OP_RETURN(_) => Err(EncodingError::NullDataScript),
             ScriptType::NonStandard => Err(EncodingError::UnknownScriptType),
         }
     }

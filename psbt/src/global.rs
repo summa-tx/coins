@@ -75,10 +75,7 @@ impl PSBTGlobal {
 
     /// Set the tx key. This should only be done on instantiation.
     pub(crate) fn set_tx(&mut self, tx: &LegacyTx) {
-        let tx_ins: Vec<BitcoinTxIn> = tx.inputs()
-            .iter()
-            .map(|i| i.unsigned())
-            .collect();
+        let tx_ins: Vec<BitcoinTxIn> = tx.inputs().iter().map(|i| i.unsigned()).collect();
 
         let tx = LegacyTx::new(tx.version(), tx_ins, tx.outputs(), tx.locktime());
 
@@ -121,6 +118,9 @@ impl PSBTGlobal {
     }
 
     pub fn set_version(&mut self, version: u32) {
-        self.insert(GlobalKey::VERSION.into(), version.to_le_bytes().to_vec().into());
+        self.insert(
+            GlobalKey::VERSION.into(),
+            version.to_le_bytes().to_vec().into(),
+        );
     }
 }

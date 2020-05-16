@@ -53,7 +53,6 @@ pub trait HasPubkey<'a, T: Secp256k1Backend<'a>> {
     fn pubkey_hash160(&self) -> [u8; 20] {
         self.pubkey().hash160()
     }
-
 }
 
 /// Any type that has a private key and a backend may derive a public key.

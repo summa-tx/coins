@@ -2,26 +2,25 @@
 pub mod model;
 
 /// Contains a backend for performing operations on curve points. Uses libsecp256k1.
-#[cfg(all(feature = "libsecp", not(feature = "rust-secp")))]
+#[cfg(not(target_arch = "wasm32"))]
 #[doc(hidden)]
 pub mod libsecp;
 
 /// Contains a backend for performing operations on curve points. Uses rust secp256k1.
-#[cfg(all(feature = "rust-secp", not(feature = "libsecp")))]
+#[cfg(target_arch = "wasm32")]
 #[doc(hidden)]
 pub mod rust_secp;
 
 pub use model::*;
 
-#[cfg(all(feature = "rust-secp", not(feature = "libsecp")))]
-#[doc(hidden)]
-pub use rust_secp as backend;
-
-#[cfg(all(feature = "libsecp", not(feature = "rust-secp")))]
+#[cfg(not(target_arch = "wasm32"))]
 #[doc(hidden)]
 pub use libsecp as backend;
 
-#[cfg(any(feature = "libsecp", feature = "rust-secp"))]
+#[cfg(target_arch = "wasm32")]
+#[doc(hidden)]
+pub use rust_secp as backend;
+
 #[doc(hidden)]
 pub use backend::*;
 

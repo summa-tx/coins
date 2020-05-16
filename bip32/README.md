@@ -7,34 +7,27 @@ pure Rust implementation of the secp256k1 signature scheme.
 
 It can be used to build wallets and applications for Bitcoin and Ethereum.
 
-## Feature flags:
+## Backends
 
-The default backend is gated by the `libsecp` feature, which is default. In
-order to compile with the pure rust backend, use the `rust-secp` feature. You
-may also use the optional static context for the `rust-secp` backend via the
-`rust-secp-static-context` feature. Using the static context increases
-compilation time and library size, but eliminates the overhead on the
-first call to `Secp256k1::init()`.
-
-Note that `libsecp` and `rust_secp` are mutually exclusive. The library will
-fail to compile if both are selected.
+All key types are `Generic` types with swappable backends. The crate comes with
+1 compiled-in backend. For non-wasm architectures the backend wraps native
+bindings to Pieter Wuille's libsecp256k1. For wasm, it wraps Parity's pure rust
+secp256k1 implementation.
 
 ## Building
 
 ```
 $ cargo build
+$ cargo build --target wasm32-unknown-unknown
 ```
 
 Run tests (make sure to run with all feature combinations):
 ```
 $ cargo test
-$ cargo test --features="rust-secp" --no-default-features
-$ cargo test --features="rust-secp, rust-secp-static-context" --no-default-features
 ```
 
 Run bench marks
 ```
 $ cargo bench
-$ cargo bench --features="rust-secp" --no-default-features
-$ cargo bench --features="rust-secp, rust-secp-static-context" --no-default-features
+$ cargo bench --no-default-features
 ```

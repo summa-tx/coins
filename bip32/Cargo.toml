@@ -16,21 +16,18 @@ bs58 = "0.3.0"
 lazy_static = "1.4.0"
 riemann-core = { path = "../core"}
 
-[dependencies.secp256k1]
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.secp256k1]
 version = "0.17.2"
 features = ["recovery"]
-optional = true
 
-[dependencies.libsecp256k1]
+[target.'cfg(target_arch = "wasm32")'.dependencies.libsecp256k1]
 git = "https://github.com/paritytech/libsecp256k1.git"
 default-features = false
-optional = true
 features = ["std", "hmac"]
 
-[dependencies.libsecp256k1-core]
+[target.'cfg(target_arch = "wasm32")'.dependencies.libsecp256k1-core]
 git = "https://github.com/paritytech/libsecp256k1.git"
 default-features = false
-optional = true
 features = ["std"]
 
 [dev-dependencies]
@@ -38,10 +35,8 @@ hex = "0.4.2"
 criterion = "0.3.1"
 
 [features]
-default = ["libsecp"]
-libsecp = ["secp256k1"]
+default = []
 rust-secp-static-context = ["libsecp256k1/static-context"]
-rust-secp = ["libsecp256k1", "libsecp256k1-core"]
 
 [[bench]]
 name = "bench"

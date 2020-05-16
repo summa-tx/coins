@@ -91,11 +91,11 @@ impl ScriptPubkey {
     pub fn p2pkh<'a, T, B>(key: &T) -> Self
     where
         B: rmn_bip32::curve::Secp256k1Backend<'a>,
-        T: rmn_bip32::model::HasPubkey<'a, B>
+        T: rmn_bip32::model::HasPubkey<'a, B>,
     {
-        let mut v: Vec<u8> = vec![0x76, 0xa9, 0x14];  // DUP, HASH160, PUSH_20
+        let mut v: Vec<u8> = vec![0x76, 0xa9, 0x14]; // DUP, HASH160, PUSH_20
         v.extend(&key.pubkey_hash160());
-        v.extend(&[0x88, 0xac]);  // EQUALVERIFY, CHECKSIG
+        v.extend(&[0x88, 0xac]); // EQUALVERIFY, CHECKSIG
         v.into()
     }
 
@@ -103,16 +103,16 @@ impl ScriptPubkey {
     pub fn p2wpkh<'a, T, B>(key: &T) -> Self
     where
         B: rmn_bip32::curve::Secp256k1Backend<'a>,
-        T: rmn_bip32::model::HasPubkey<'a, B>
+        T: rmn_bip32::model::HasPubkey<'a, B>,
     {
-        let mut v: Vec<u8> = vec![0x00, 0x14];  // OP_0, PUSH_20
+        let mut v: Vec<u8> = vec![0x00, 0x14]; // OP_0, PUSH_20
         v.extend(&key.pubkey_hash160());
         v.into()
     }
 
     /// Instantiate a standard p2sh script pubkey from a script.
     pub fn p2sh(script: &Script) -> Self {
-        let mut v: Vec<u8> = vec![0xa9, 0x14];  // HASH160, PUSH_20
+        let mut v: Vec<u8> = vec![0xa9, 0x14]; // HASH160, PUSH_20
         v.extend(&bitcoin_spv::btcspv::hash160(script.as_ref()));
         v.extend(&[0x87]); // EQUAL
         v.into()
@@ -120,27 +120,26 @@ impl ScriptPubkey {
 
     /// Instantiate a standard p2wsh script pubkey from a script.
     pub fn p2wsh(script: &Script) -> Self {
-        let mut v: Vec<u8> = vec![0x00, 0x20];   // OP_0, PUSH_32
+        let mut v: Vec<u8> = vec![0x00, 0x20]; // OP_0, PUSH_32
         v.extend(<sha2::Sha256 as sha2::Digest>::digest(script.as_ref()));
         v.into()
     }
 }
 
-
 /// Standard script types, and a non-standard type for all other scripts.
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum ScriptType {
     /// Pay to Pubkeyhash.
-    PKH,
+    PKH([u8; 20]),
     /// Pay to Scripthash.
-    SH,
+    SH([u8; 20]),
     /// Pay to Witness Pubkeyhash.
-    WPKH,
+    WPKH([u8; 20]),
     /// Pay to Witness Scripthash.
-    WSH,
+    WSH([u8; 32]),
     /// OP_RETURN
     #[allow(non_camel_case_types)]
-    OP_RETURN,
+    OP_RETURN(Vec<u8>),
     /// Nonstandard or unknown `Script` type. May be a newer witness version.
     NonStandard,
 }
@@ -162,8 +161,8 @@ impl ScriptPubkey {
 
     /// Inspect the `Script` to determine its type.
     pub fn standard_type(&self) -> ScriptType {
-        if self.extract_op_return_data().is_some() {
-            return ScriptType::OP_RETURN;
+        if let Some(data) = self.extract_op_return_data() {
+            return ScriptType::OP_RETURN(data);
         }
 
         let items = &self.0;
@@ -171,36 +170,38 @@ impl ScriptPubkey {
             0x19 => {
                 // PKH;
                 if items[0..3] == [0x76, 0xa9, 0x14] && items[0x17..] == [0x88, 0xac] {
-                    ScriptType::PKH
-                } else {
-                    ScriptType::NonStandard
+                    let mut buf = [0u8; 20];
+                    buf.copy_from_slice(&items[3..23]);
+                    return ScriptType::PKH(buf);
                 }
             }
             0x17 => {
                 // SH
                 if items[0..2] == [0xa9, 0x14] && items[0x16..] == [0x87] {
-                    ScriptType::SH
-                } else {
-                    ScriptType::NonStandard
+                    let mut buf = [0u8; 20];
+                    buf.copy_from_slice(&items[2..22]);
+                    return ScriptType::SH(buf);
                 }
             }
             0x16 => {
                 // WPKH
                 if items[0..2] == [0x00, 0x14] {
-                    ScriptType::WPKH
-                } else {
-                    ScriptType::NonStandard
+                    let mut buf = [0u8; 20];
+                    buf.copy_from_slice(&items[2..22]);
+                    return ScriptType::WPKH(buf);
                 }
             }
             0x22 => {
                 if items[0..2] == [0x00, 0x20] {
-                    ScriptType::WSH
-                } else {
-                    ScriptType::NonStandard
+                    let mut buf = [0u8; 32];
+                    buf.copy_from_slice(&items[2..34]);
+                    return ScriptType::WSH(buf);
                 }
             }
-            _ => ScriptType::NonStandard,
+            _ => return ScriptType::NonStandard,
         }
+        // fallthrough
+        ScriptType::NonStandard
     }
 }
 
@@ -289,15 +290,15 @@ mod test {
     #[test]
     fn it_determines_script_pubkey_types_accurately() {
         let cases = [
-            (ScriptPubkey::new(hex::decode("a914e88869b88866281ab166541ad8aafba8f8aba47a87").unwrap()), ScriptType::SH),
+            (ScriptPubkey::new(hex::decode("a914e88869b88866281ab166541ad8aafba8f8aba47a87").unwrap()), ScriptType::SH([232, 136, 105, 184, 136, 102, 40, 26, 177, 102, 84, 26, 216, 170, 251, 168, 248, 171, 164, 122])),
             (ScriptPubkey::new(hex::decode("a914e88869b88866281ab166541ad8aafba8f8aba47a89").unwrap()), ScriptType::NonStandard), // wrong last byte
             (ScriptPubkey::new(hex::decode("aa14e88869b88866281ab166541ad8aafba8f8aba47a87").unwrap()), ScriptType::NonStandard), // wrong first byte
-            (ScriptPubkey::new(hex::decode("76a9140e5c3c8d420c7f11e88d76f7b860d471e6517a4488ac").unwrap()), ScriptType::PKH),
+            (ScriptPubkey::new(hex::decode("76a9140e5c3c8d420c7f11e88d76f7b860d471e6517a4488ac").unwrap()), ScriptType::PKH([14, 92, 60, 141, 66, 12, 127, 17, 232, 141, 118, 247, 184, 96, 212, 113, 230, 81, 122, 68])),
             (ScriptPubkey::new(hex::decode("76a9140e5c3c8d420c7f11e88d76f7b860d471e6517a4488ad").unwrap()), ScriptType::NonStandard), // wrong last byte
             (ScriptPubkey::new(hex::decode("77a9140e5c3c8d420c7f11e88d76f7b860d471e6517a4488ac").unwrap()), ScriptType::NonStandard), // wrong first byte
-            (ScriptPubkey::new(hex::decode("00201bf8a1831db5443b42a44f30a121d1b616d011ab15df62b588722a845864cc99").unwrap()), ScriptType::WSH),
+            (ScriptPubkey::new(hex::decode("00201bf8a1831db5443b42a44f30a121d1b616d011ab15df62b588722a845864cc99").unwrap()), ScriptType::WSH([27, 248, 161, 131, 29, 181, 68, 59, 66, 164, 79, 48, 161, 33, 209, 182, 22, 208, 17, 171, 21, 223, 98, 181, 136, 114, 42, 132, 88, 100, 204, 153])),
             (ScriptPubkey::new(hex::decode("01201bf8a1831db5443b42a44f30a121d1b616d011ab15df62b588722a845864cc99").unwrap()), ScriptType::NonStandard), // wrong witness program version
-            (ScriptPubkey::new(hex::decode("00141bf8a1831db5443b42a44f30a121d1b616d011ab").unwrap()), ScriptType::WPKH),
+            (ScriptPubkey::new(hex::decode("00141bf8a1831db5443b42a44f30a121d1b616d011ab").unwrap()), ScriptType::WPKH([27, 248, 161, 131, 29, 181, 68, 59, 66, 164, 79, 48, 161, 33, 209, 182, 22, 208, 17, 171])),
             (ScriptPubkey::new(hex::decode("01141bf8a1831db5443b42a44f30a121d1b616d011ab").unwrap()), ScriptType::NonStandard), // wrong witness program version
             (ScriptPubkey::new(hex::decode("0011223344").unwrap()), ScriptType::NonStandard), // junk
             (ScriptPubkey::new(hex::decode("deadbeefdeadbeefdeadbeefdeadbeef").unwrap()), ScriptType::NonStandard), // junk

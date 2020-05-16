@@ -5,8 +5,8 @@ use riemann_core::ser::{self, ByteFormat};
 use rmn_bip32::{
     self as bip32,
     curve::{PointDeserialize, Secp256k1Backend, SigSerialize, Signature},
-    keys::Pubkey,
     derived::DerivedPubkey,
+    keys::Pubkey,
     model::DerivedKey,
     path::KeyDerivation,
     Bip32Error, Secp256k1, XPub,
@@ -129,7 +129,7 @@ pub fn try_key_as_pubkey(key: &PSBTKey) -> Result<Pubkey, PSBTError> {
         });
     }
     let mut buf = [0u8; 33];
-    buf.copy_from_slice(&key.items() [1..]);
+    buf.copy_from_slice(&key.items()[1..]);
     Ok(Pubkey {
         key: <Secp256k1 as Secp256k1Backend<'_>>::Pubkey::from_pubkey_array(buf)?,
         backend: None,
@@ -163,9 +163,13 @@ pub fn try_val_as_sighash(val: &PSBTValue) -> Result<Sighash, PSBTError> {
 
 /// Attempt to deserialize a value as a signature
 pub fn try_val_as_signature(val: &PSBTValue) -> Result<(Signature, Sighash), PSBTError> {
-    let (sighash_flag, sig_bytes) = val.items()
-        .split_last()
-        .ok_or(PSBTError::WrongValueLength{got: 0, expected: 75})?;
+    let (sighash_flag, sig_bytes) =
+        val.items()
+            .split_last()
+            .ok_or(PSBTError::WrongValueLength {
+                got: 0,
+                expected: 75,
+            })?;
 
     let sig = Signature::try_from_der(sig_bytes)?;
     Ok((sig, Sighash::from_u8(*sighash_flag)?))
@@ -299,8 +303,8 @@ pub mod input {
         validate_single_byte_key_type(key)?;
         let tx_out = try_val_as_tx_out(val)?;
         match tx_out.script_pubkey.standard_type() {
-            ScriptType::WSH | ScriptType::WPKH | ScriptType::SH => Ok(()),
-            _ => Err(PSBTError::InvalidWitnessTXO)
+            ScriptType::WSH(_) | ScriptType::WPKH(_) | ScriptType::SH(_) => Ok(()),
+            _ => Err(PSBTError::InvalidWitnessTXO),
         }
     }
 

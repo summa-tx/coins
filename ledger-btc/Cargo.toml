@@ -40,6 +40,6 @@ js-sys = "0.3.37"
 
 [features]
 default = ["native"]
-native = ["rmn-bip32/libsecp"]
-browser = ["rmn-ledger/browser", "rmn-bip32/rust-secp"]
+native = []
+browser = ["rmn-ledger/browser"]
 node = ["rmn-ledger/node", "rmn-bip32/rust-secp"]

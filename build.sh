@@ -5,21 +5,16 @@ cargo test --verbose --lib && \
 
 ### BIP32 ###
 cd bip32 && \
-# default features covered by workspace-level tests
-cargo test --verbose --features="rust-secp" --no-default-features && \
-cargo test --verbose --features="rust-secp, rust-secp-static-context" --no-default-features && \
+cargo --verbose build && \
+cargo --verbose build --target wasm32-unknown-unknown && \
 
-# Build bip32 wasm
-cargo build --verbose --features="rust-secp" --no-default-features --target wasm32-unknown-unknown && \
-cargo build --verbose --features="rust-secp, rust-secp-static-context" --no-default-features --target wasm32-unknown-unknown && \
+# default features covered by workspace-level tests
+cargo test --verbose \
 
 ### PSBT ###
 cd ../psbt && \
-# default features covered by workspace-level tests
-cargo test --verbose --features="rust-secp" --no-default-features && \
-
-# Build psbt wasm
-# cargo test --verbose --features="rust-secp" --no-default-features --target wasm32-unknown-unknown && \
+cargo --verbose build && \
+cargo --verbose build --target wasm32-unknown-unknown && \
 
 ### BTC_WASM ###
 cd ../bitcoin-wasm && \

@@ -110,7 +110,6 @@ pub use enc::MainnetEncoder;
 pub use model::*;
 pub use primitives::KeyFingerprint;
 
-#[cfg(any(feature = "libsecp", feature = "rust-secp"))]
 pub use crate::{
     curve::{RecoverableSignature, Secp256k1, Signature},
     derived::{DerivedXPriv, DerivedXPub},
@@ -132,7 +131,6 @@ pub const CURVE_ORDER: [u8; 32] = [
 #[derive(Debug, Error)]
 pub enum Bip32Error {
     /// Error bubbled up from the backend
-    #[cfg(any(feature = "libsecp", feature = "rust-secp"))]
     #[error(transparent)]
     BackendError(#[from] crate::curve::Error),
 

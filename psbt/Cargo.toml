@@ -15,13 +15,8 @@ thiserror = "1.0"
 serde = "1.0.105"
 futures = { version = "0.3.5", optional = true }
 rmn-ledger-btc = { path = "../ledger-btc", optional = true }
-
-[dependencies.rmn-bip32]
-path = "../bip32"
-optional = true
-default-features = false
+rmn-bip32 = { path = "../bip32" }
 
 [features]
-default = ["rmn-bip32/libsecp"]
-rust-secp = ["rmn-bip32/rust-secp"]
+default = []
 ledger = ["futures", "rmn-ledger-btc"]

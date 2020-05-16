@@ -175,24 +175,26 @@ macro_rules! impl_script_conversion {
     ($t1:ty, $t2:ty) => {
         impl From<&$t2> for $t1 {
             fn from(t: &$t2) -> $t1 {
-                t.0.clone().into()
+                t.as_ref().into()
             }
         }
         impl From<&$t1> for $t2 {
             fn from(t: &$t1) -> $t2 {
-                t.0.clone().into()
+                t.as_ref().into()
             }
         }
     };
 }
 
+/// Make a new marked hash of length 32.
+#[macro_export]
 macro_rules! mark_hash256 {
     (
         $(#[$outer:meta])*
         $hash_name:ident
     ) => {
         $(#[$outer])*
-        #[derive(serde::Serialize, serde::Deserialize, Copy, Clone, Default, Debug, Eq, PartialEq)]
+        #[derive(serde::Serialize, serde::Deserialize, Copy, Clone, Default, Debug, Eq, PartialEq, PartialOrd, Ord)]
         pub struct $hash_name(pub Hash256Digest);
         impl riemann_core::ser::ByteFormat for $hash_name {
             type Error = riemann_core::ser::SerError;
