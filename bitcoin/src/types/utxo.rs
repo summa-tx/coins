@@ -41,6 +41,16 @@ pub struct UTXO {
 }
 
 impl UTXO {
+    /// Instantiate a new UTXO with the given arguments
+    pub fn new(outpoint: BitcoinOutpoint, value: u64, script_pubkey: ScriptPubkey, spend_script: SpendScript) -> UTXO {
+        UTXO {
+            outpoint,
+            value,
+            script_pubkey,
+            spend_script,
+        }
+    }
+
     /// Produce a UTXO from a transaction output
     pub fn from_tx_output<'a, T>(tx: &'a T, idx: usize) -> UTXO
     where

@@ -19,7 +19,7 @@ cargo --verbose build --target wasm32-unknown-unknown && \
 ### BTC_WASM ###
 cd ../bitcoin-wasm && \
 cargo build --verbose && \
-cargo test --verbose && \
+cargo test --verbose --lib && \
 
 cargo build --verbose --target wasm32-unknown-unknown && \
 

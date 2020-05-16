@@ -26,6 +26,18 @@ pub struct SigningInfo {
     pub deriv: Option<KeyDerivation>,
 }
 
+
+/// A Signature and the index of the input if signs.
+#[derive(Clone, Debug)]
+pub struct SigInfo {
+    /// the input of the signed index
+    pub input_idx: usize,
+    /// The signature
+    pub sig: rmn_bip32::Signature,
+    /// The derivation of the key that signed it
+    pub deriv: KeyDerivation,
+}
+
 /// A Ledger BTC App.
 ///
 /// This is a simple wrapper around the transport and a Secp256k1 backend
@@ -236,14 +248,4 @@ impl LedgerBTC {
         }
         Ok(sigs)
     }
-}
-
-/// A Signature and the index of the input if signs.
-pub struct SigInfo {
-    /// the input of the signed index
-    pub input_idx: usize,
-    /// The signature
-    pub sig: rmn_bip32::Signature,
-    /// The derivation of the key that signed it
-    pub deriv: KeyDerivation,
 }

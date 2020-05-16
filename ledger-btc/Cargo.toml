@@ -18,15 +18,7 @@ serial_test = "0.3.2"
 thiserror = "1.0.10"
 riemann-core = { path = "../core" }
 rmn-btc = { path = "../bitcoin" }
-
-[dependencies.rmn-psbt]
-optional = true
-default-features = false
-path = "../psbt"
-
-[dependencies.rmn-bip32]
-path = "../bip32"
-default-features = false
+rmn-bip32 = { path = "../bip32" }
 
 [dependencies.rmn-ledger]
 path = "../ledger"
@@ -42,4 +34,4 @@ js-sys = "0.3.37"
 default = ["native"]
 native = []
 browser = ["rmn-ledger/browser"]
-node = ["rmn-ledger/node", "rmn-bip32/rust-secp"]
+node = ["rmn-ledger/node"]

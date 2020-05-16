@@ -41,6 +41,7 @@ js-sys = "0.3.37"
 serial_test = "0.3.2"
 
 [features]
-default = ["browser"]
+default = ["native"]
+native = []
 browser = []
 node = []
