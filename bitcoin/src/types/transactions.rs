@@ -21,6 +21,66 @@ use crate::{
     },
 };
 
+/// Wrapper enum for returning values that may be EITHER a Witness OR a Legacy tx and the type is
+/// not known in advance. This wrapper must be explicitly downcast before the tx object can be
+/// used
+pub enum BitcoinTx {
+    /// Witness
+    Witness(WitnessTx),
+    /// Legacy
+    Legacy(LegacyTx),
+}
+
+impl BitcoinTx {
+    /// Deserialize a hex string. Determine type information from the segwit marker `0001`
+    /// immediately following the version bytes. This produces a `BitcoinTx` enum that must be
+    /// explicitly cast to the desired type via `into_witness` or `into_legacy`.
+    ///
+    /// # Note
+    ///
+    /// Casting directly to legacy may drop witness information if the tx is witness
+    pub fn from_hex(hex: &str) -> Result<BitcoinTx, TxError> {
+        if &hex[8..12] == "0001" {
+            WitnessTx::deserialize_hex(hex).map(BitcoinTx::Witness)
+        } else {
+            LegacyTx::deserialize_hex(hex).map(BitcoinTx::Legacy)
+        }
+    }
+
+    /// True if the wrapped tx is a witness transaction. False otherwise
+    pub fn is_witness(&self) -> bool {
+        match self {
+            BitcoinTx::Witness(_) => true,
+            _ => false
+        }
+    }
+
+    /// True if the wrapped tx is a legacy transaction. False otherwise
+    pub fn is_legacy(&self) -> bool {
+        match self {
+            BitcoinTx::Legacy(_) => true,
+            _ => false
+        }
+    }
+
+    /// Consume the wrapper and convert it to a legacy tx. but `into_witness` should be
+    /// preferred, as it will never drop information.
+    pub fn into_legacy(self) -> LegacyTx {
+        match self {
+            BitcoinTx::Witness(tx) => tx.into_legacy(),
+            BitcoinTx::Legacy(tx) => tx,
+        }
+    }
+
+    /// Consume the wrapper and convert it to a witness tx.
+    pub fn into_witness(self) -> WitnessTx {
+        match self {
+            BitcoinTx::Witness(tx) => tx,
+            BitcoinTx::Legacy(tx) => tx.into_witness(),
+        }
+    }
+}
+
 /// An Error type for transaction objects
 #[derive(Debug, Error)]
 pub enum TxError {
@@ -66,6 +126,8 @@ pub trait BitcoinTransaction<'a>:
     Transaction<
     'a,
     Digest = bitcoin_spv::types::Hash256Digest,
+    Error = TxError,  // Ser associated error
+    TxError = TxError,
     TXID = TXID,
     TxOut = TxOut,
     TxIn = BitcoinTxIn,
@@ -75,12 +137,21 @@ pub trait BitcoinTransaction<'a>:
     /// Returns a reference to the tx as a legacy tx.
     fn as_legacy(&self) -> &LegacyTx;
 
+    /// Consume the tx and convert it to a legacy tx. Useful for when you have
+    /// `dyn BitcoinTransaction` or `impl BitcoinTransaction` types, but `into_witness` should be
+    /// preferred, as it will never drop information.
+    fn into_legacy(self) -> LegacyTx;
+
+    /// Consume the tx and convert it to a legacy tx. Useful for when you have
+    /// `dyn BitcoinTransaction` or `impl BitcoinTransaction` types.
+    fn into_witness(self) -> WitnessTx;
+
     /// Return a reference to a slice of witnesses. For legacy txins this will ALWAYS be length 0.
     /// For witness txns, this will ALWAYS be the same length as the input vector.
     fn witnesses(&self) -> &[Witness];
 }
 
-/// Basic functionality for a Witness Transaction
+/// Basic functionality for a Witness Transacti'on
 ///
 /// This trait has been generalized to support transactions from Non-Bitcoin networks. The
 /// transaction specificies which types it considers to be inputs and outputs, and a struct that
@@ -230,11 +301,6 @@ pub struct LegacyTx {
 }
 
 impl LegacyTx {
-    /// Consumes the TX and converts it to a witness Tx with null witnesses.
-    pub fn into_witness(self) -> WitnessTx {
-        WitnessTx::from_legacy(self)
-    }
-
     /// Performs steps 6, 7, and 8 of the sighash setup described here:
     /// https://en.bitcoin.it/wiki/OP_CHECKSIG#How_it_works
     /// https://bitcoin.stackexchange.com/questions/3374/how-to-redeem-a-basic-tx
@@ -359,6 +425,14 @@ impl<'a> Transaction<'a> for LegacyTx {
 impl<'a> BitcoinTransaction<'a> for LegacyTx {
     fn as_legacy(&self) -> &LegacyTx {
         &self
+    }
+
+    fn into_witness(self) -> WitnessTx {
+        WitnessTx::from_legacy(self)
+    }
+
+    fn into_legacy(self) -> LegacyTx {
+        self
     }
 
     fn witnesses(&self) -> &[Witness] {
@@ -598,6 +672,14 @@ impl<'a> Transaction<'a> for WitnessTx {
 impl<'a> BitcoinTransaction<'a> for WitnessTx {
     fn as_legacy(&self) -> &LegacyTx {
         &self.legacy_tx
+    }
+
+    fn into_witness(self) -> WitnessTx {
+        self
+    }
+
+    fn into_legacy(self) -> LegacyTx {
+        self.legacy_tx
     }
 
     fn witnesses(&self) -> &[Witness] {
