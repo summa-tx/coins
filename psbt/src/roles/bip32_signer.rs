@@ -8,7 +8,7 @@ use rmn_btc::{
     enc::encoder::BitcoinEncoderMarker,
     types::{
         script::ScriptType,
-        transactions::{LegacySighashArgs, LegacyTx, Sighash, WitnessSighashArgs, WitnessTx},
+        transactions::{BitcoinTransaction, LegacySighashArgs, LegacyTx, Sighash, WitnessSighashArgs, WitnessTx},
         txin::BitcoinOutpoint,
         utxo::SpendScript,
     },

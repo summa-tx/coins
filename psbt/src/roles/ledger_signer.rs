@@ -8,7 +8,7 @@ use futures::executor::block_on;
 
 use riemann_core::types::tx::Transaction;
 use rmn_bip32 as bip32;
-use rmn_btc::{enc::encoder::BitcoinEncoderMarker, types::transactions::Sighash};
+use rmn_btc::{enc::encoder::BitcoinEncoderMarker, types::transactions::{BitcoinTransaction, Sighash}};
 use rmn_ledger_btc::{LedgerBTC, SigningInfo};
 
 use crate::{input::PSBTInput, roles::PSTSigner, PSBTError, PSBT, PST};

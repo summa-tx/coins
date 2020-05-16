@@ -27,4 +27,4 @@ cargo build --verbose --target wasm32-unknown-unknown && \
 cd ../ledger && \
 # #  broken on travis
 # cargo build --verbose && \
-cargo build --verbose --target wasm32-unknown-unknown
+cargo build --verbose --target wasm32-unknown-unknown --no-default-features --features="browser"
