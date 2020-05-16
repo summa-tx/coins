@@ -39,6 +39,12 @@ macro_rules! wrap_struct {
             }
         }
 
+        impl From<&$module::$name> for $name {
+            fn from(f: &$module::$name) -> Self {
+                Self(f.clone())
+            }
+        }
+
         impl From<$name> for $module::$name {
             fn from(f: $name) -> Self {
                 f.0
