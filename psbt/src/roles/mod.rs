@@ -23,18 +23,6 @@ where
     fn update(&mut self, pst: &mut P) -> Result<(), Self::Error>;
 }
 
-pub trait PSTExtractor<'a, A, P>
-where
-    A: AddressEncoder,
-    P: PST<'a, A>,
-{
-    /// An associated error type that can be instantiated from the PST's Error type. This may be
-    /// the PST's Error type.
-    type Error: std::error::Error + From<P::Error>;
-
-    fn extract(&mut self, pst: &P) -> Result<BitcoinTx, Self::Error>;
-}
-
 /// A PST Signer interface.
 pub trait PSTSigner<'a, A, P>
 where
@@ -82,4 +70,30 @@ where
             .filter_map(Result::ok)
             .collect())
     }
+}
+
+/// A PST Finalizer. These will typically be specialized for some purpose, and a PST may need
+/// several rounds of finalization by different finalizers if it contains several types of input.
+pub trait PSTFinalizer<'a, A, P>
+where
+    A: AddressEncoder,
+    P: PST<'a, A>,
+{
+    /// An associated error type that can be instantiated from the PST's Error type. This may be
+    /// the PST's Error type.
+    type Error: std::error::Error + From<P::Error>;
+
+    fn finalize(&mut self, pst: &P) -> Result<(), Self::Error>;
+}
+
+pub trait PSTExtractor<'a, A, P>
+where
+    A: AddressEncoder,
+    P: PST<'a, A>,
+{
+    /// An associated error type that can be instantiated from the PST's Error type. This may be
+    /// the PST's Error type.
+    type Error: std::error::Error + From<P::Error>;
+
+    fn extract(&mut self, pst: &P) -> Result<BitcoinTx, Self::Error>;
 }

@@ -35,7 +35,7 @@ pub enum PSBTError {
     #[error("Attempted to get missing singleton key {0}")]
     MissingKey(u8),
 
-    /// Returned by convenience functions that attempt to read a non-existant key
+    /// Returned when attempting to deserialize an invalid PSBT with duplicate keys
     #[error("Attempted to deserialize PSBT with duplicate key {0:?}")]
     DuplicateKey(PSBTKey),
 

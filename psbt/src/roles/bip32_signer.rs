@@ -1,8 +1,9 @@
+use thiserror::Error;
+
 use rmn_bip32::{
     self as bip32,
     model::{DerivedKey, HasBackend, HasPubkey, SigningKey, XSigning},
 };
-
 use riemann_core::types::Transaction;
 use rmn_btc::{
     enc::encoder::BitcoinEncoderMarker,
@@ -15,6 +16,21 @@ use rmn_btc::{
 };
 
 use crate::{input::PSBTInput, roles::PSTSigner, PSBTError, PSBT, PST};
+
+#[derive(Debug, Error)]
+pub enum Bip32SignerError {
+    /// Bubbled up from the BIP32 library
+    #[error(transparent)]
+    Bip32Error(#[from] rmn_bip32::Bip32Error),
+
+    /// PSBTError bubbled up
+    #[error(transparent)]
+    PSBTError(#[from] crate::common::PSBTError),
+
+    /// AlreadyFinalized
+    #[error("Input at index {0} is already finalized")]
+    AlreadyFinalized(usize),
+}
 
 /// A sample signer using a bip32 XPriv key with attached derivation information.
 ///
@@ -164,7 +180,7 @@ where
     A: BitcoinEncoderMarker,
     E: bip32::enc::Encoder,
 {
-    type Error = PSBTError;
+    type Error = Bip32SignerError;
 
     fn is_change(&self, pst: &PSBT<A, E>, idx: usize) -> bool {
         let output_map = &pst.output_maps()[idx];
@@ -198,6 +214,7 @@ where
 
     fn can_sign_input(&self, psbt: &PSBT<A, E>, idx: usize) -> Result<(), Self::Error> {
         let input_map = &psbt.input_maps()[idx];
+
         let tx = psbt.tx()?;
         if input_map.has_non_witness_utxo() {
             Ok(self.can_sign_non_witness(&tx, idx, input_map)?)
@@ -210,10 +227,13 @@ where
     fn sign_input(&self, psbt: &mut PSBT<A, E>, idx: usize) -> Result<(), Self::Error> {
         let tx = psbt.tx()?;
         let input_map = &mut psbt.input_maps_mut()[idx];
+
+        if input_map.is_finalized() { return Err(Bip32SignerError::AlreadyFinalized(idx)) }
+
         if input_map.has_non_witness_utxo() {
-            self.sign_non_witness_input(idx, &tx, input_map)
+            Ok(self.sign_non_witness_input(idx, &tx, input_map)?)
         } else {
-            self.sign_witness_input(idx, &tx.into_witness(), input_map)
+            Ok(self.sign_witness_input(idx, &tx.into_witness(), input_map)?)
         }
     }
 }

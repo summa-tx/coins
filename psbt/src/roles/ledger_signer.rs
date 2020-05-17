@@ -31,9 +31,13 @@ pub enum LedgerSignerError {
     #[error("Signing single inputs is not supported. Calling `sign` will automatically filter unsignable inputs.")]
     UnsupportedSingleInput,
 
-    /// UnsupportedNestwedSegwit
+    /// UnsupportedNestedSegwit
     #[error("Signing witness-via-p2sh is not supported")]
-    UnsupportedNestwedSegwit,
+    UnsupportedNestedSegwit,
+
+    /// AlreadyFinalized
+    #[error("Input at index {0} is already finalized")]
+    AlreadyFinalized(usize),
 }
 
 /// A PST Signer interface.
@@ -61,9 +65,10 @@ where
     }
 
     fn can_sign_input(&self, pst: &PSBT<A, E>, idx: usize) -> Result<(), Self::Error> {
+        if input.is_finalized() { return Err(LedgerSignerError::AlreadyFinalized(idx))}
         let input_map = &pst.inputs[idx];
         if input_map.has_witness_script() && input_map.has_redeem_script() {
-            return Err(LedgerSignerError::UnsupportedNestwedSegwit)
+            return Err(LedgerSignerError::UnsupportedNestedSegwit)
         }
 
         let pubkeys = input_map.parsed_pubkey_derivations(None);
