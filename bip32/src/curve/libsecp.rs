@@ -1,8 +1,6 @@
 // Wuille's secp
 use crate::{curve::model::*, Bip32Error};
 
-use secp256k1;
-
 pub(crate) type Error = secp256k1::Error;
 
 #[cfg_attr(tarpaulin, skip)]

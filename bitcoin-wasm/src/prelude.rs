@@ -276,7 +276,7 @@ macro_rules! impl_builders {
 
             /// Instantate a builder from a tx
             pub fn from_tx(tx: &LegacyTx) -> $leg {
-                rmn_btc::builder::LegacyBuilder::from_tx(&tx.inner()).into()
+                rmn_btc::builder::LegacyBuilder::from_tx_ref(&tx.inner()).into()
             }
 
             /// Instantate a builder from a hex-encoded tx
@@ -352,7 +352,7 @@ macro_rules! impl_builders {
 
             /// Instantate a builder from a tx
             pub fn from_tx(tx: &WitnessTx) -> $wit {
-                rmn_btc::builder::WitnessBuilder::from_tx(&tx.inner()).into()
+                rmn_btc::builder::WitnessBuilder::from_tx_ref(&tx.inner()).into()
             }
 
             /// Instantate a builder from a hex-encoded tx
