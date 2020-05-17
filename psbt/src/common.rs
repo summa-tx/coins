@@ -156,6 +156,9 @@ pub trait PSTMap {
     /// Return an iterator of the keys of the map
     fn keys(&self) -> btree_map::Keys<PSBTKey, PSBTValue>;
 
+    /// Remove a key from the map
+    fn remove(&mut self, key: &PSBTKey) -> Option<PSBTValue>;
+
     /// Returns a range object over the specified range bounds.
     fn range<R>(&self, range: R) -> btree_map::Range<PSBTKey, PSBTValue>
     where

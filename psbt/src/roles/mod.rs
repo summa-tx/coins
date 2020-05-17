@@ -89,7 +89,7 @@ where
     /// the PST's Error type.
     type Error: std::error::Error + From<P::Error>;
 
-    /// Finalize an
+    /// Finalize an input, creating a ScriptSig and/or Witness for it as appropriate
     fn finalize_input(&mut self, input_map: &mut P::Input) -> Result<(), Self::Error>;
 
     /// Call finalize_input on all inputs. The default implementation will simply silently not

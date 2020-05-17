@@ -16,6 +16,10 @@ macro_rules! psbt_map {
                 self.map.contains_key(key)
             }
 
+            fn remove(&mut self, key: &PSBTKey) -> Option<PSBTValue> {
+                self.map.remove(key)
+            }
+
             fn keys(&self) -> std::collections::btree_map::Keys<PSBTKey, PSBTValue> {
                 self.map.keys()
             }
