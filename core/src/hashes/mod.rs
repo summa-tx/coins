@@ -10,5 +10,9 @@ pub mod marked;
 /// Tooling for bitcoin-style double-sha2
 pub mod hash256;
 
+/// Tooling for blake2b256
+pub mod blake2b256;
+
 pub use hash256::*;
 pub use marked::*;
+pub use blake2b256::*;
