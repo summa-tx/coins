@@ -67,7 +67,7 @@ impl Write for Blake2b256Writer {
 
 impl MarkedDigestWriter<Blake2b256Digest> for Blake2b256Writer {
     fn finish(self) -> Blake2b256Digest {
-        return self.internal.finalize();
+        self.internal.finalize()
     }
 }
 
