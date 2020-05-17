@@ -4,34 +4,35 @@ pub mod bip32_signer;
 #[cfg(feature = "ledger")]
 pub mod ledger_signer;
 
+/// A basic tx extractor.
+pub mod extractor;
+
 use crate::PST;
 use riemann_core::enc::AddressEncoder;
-use rmn_btc::types::transactions::Sighash;
-
-use thiserror::Error;
-
-/// Signing-related errors
-#[derive(Debug, Error)]
-pub enum SignerError {
-    /// Returned when a signer is missing some signer info
-    #[error("Missing info during signing attemts: {0}")]
-    SignerMissingInfo(String),
-
-    /// Script in PSBT's hash is not at the appropriate location in the output's script
-    /// pubkey.
-    #[error("ScriptHash in PSBT does not match ScriptHash in prevout for input {0}")]
-    ScriptHashMismatch(usize),
-}
+use rmn_btc::types::transactions::{BitcoinTx, Sighash};
 
 pub trait PSTUpdater<'a, A, P>
 where
     A: AddressEncoder,
     P: PST<'a, A>,
 {
-    /// An associated error type that can be instantiated from the PST's Error type.
+    /// An associated error type that can be instantiated from the PST's Error type. This may be
+    /// the PST's Error type.
     type Error: std::error::Error + From<P::Error>;
 
-    fn update(&self, pst: &mut P) -> Result<(), Self::Error>;
+    fn update(&mut self, pst: &mut P) -> Result<(), Self::Error>;
+}
+
+pub trait PSTExtractor<'a, A, P>
+where
+    A: AddressEncoder,
+    P: PST<'a, A>,
+{
+    /// An associated error type that can be instantiated from the PST's Error type. This may be
+    /// the PST's Error type.
+    type Error: std::error::Error + From<P::Error>;
+
+    fn extract(&mut self, pst: &P) -> Result<BitcoinTx, Self::Error>;
 }
 
 /// A PST Signer interface.
@@ -40,7 +41,8 @@ where
     A: AddressEncoder,
     P: PST<'a, A>,
 {
-    /// An associated error type that can be instantiated from the PST's Error type.
+    /// An associated error type that can be instantiated from the PST's Error type. This may be
+    /// the PST's Error type.
     type Error: std::error::Error + From<P::Error>;
 
     /// Determine whether an output is change.

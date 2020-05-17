@@ -10,7 +10,7 @@ use rmn_btc::{
     wrap_prefixed_byte_vector,
 };
 
-use crate::{roles::SignerError, schema};
+use crate::schema;
 
 /// An Error type for PSBT objects
 #[derive(Debug, Error)]
@@ -30,10 +30,6 @@ pub enum PSBTError {
     /// Bubbled up from the BIP32 library
     #[error(transparent)]
     Bip32Error(#[from] rmn_bip32::Bip32Error),
-
-    /// Bubbled up from a SignerError
-    #[error(transparent)]
-    SignerError(#[from] SignerError),
 
     /// Returned by convenience functions that attempt to read a non-existant key
     #[error("Attempted to get missing singleton key {0}")]
@@ -121,6 +117,11 @@ pub enum PSBTError {
         /// The expected script type
         expected: Vec<ScriptType>,
     },
+
+    /// Attempted to extract a tx when at least 1 index is unfinalized. Contains the index of the
+    /// first unfinalized input
+    #[error("Can't extract Tx. Input {0} is not finalized.")]
+    UnfinalizedInput(usize),
 }
 
 wrap_prefixed_byte_vector!(

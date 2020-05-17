@@ -24,6 +24,7 @@ psbt_map!(PSBTInput);
 /// PSBT Input Key Types
 #[repr(u8)]
 #[allow(non_camel_case_types)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum InputKey {
     /// Input key type for PSBT_IN_NON_WITNESS_UTXO as defined in BIP174
     NON_WITNESS_UTXO = 0,
@@ -131,6 +132,14 @@ impl PSBTInput {
         schema::try_val_as_tx(tx_val)
     }
 
+    /// Add a non-witness UTXO to the mapping. This function does not run consistency checks
+    pub fn insert_non_witness_utxo(&mut self, tx: &LegacyTx) {
+        let mut val = vec![];
+        tx.write_to(&mut val).unwrap();
+
+        self.insert(InputKey::NON_WITNESS_UTXO.into(), val.into());
+    }
+
     /// Returns true if the map has a non-witness utxo in it.
     pub fn has_witness_utxo(&self) -> bool {
         self.contains_key(&InputKey::WITNESS_UTXO.into())
@@ -145,6 +154,19 @@ impl PSBTInput {
     pub fn witness_utxo(&self) -> Result<TxOut, PSBTError> {
         let out_val = self.must_get(&InputKey::WITNESS_UTXO.into())?;
         schema::try_val_as_tx_out(out_val)
+    }
+
+    /// Add a witness UTXO to the mapping. This function does not run consistency checks
+    pub fn insert_witness_utxo(&mut self, tx_out: &TxOut) {
+        let mut val = vec![];
+        tx_out.write_to(&mut val).unwrap();
+
+        self.insert(InputKey::WITNESS_UTXO.into(), val.into());
+    }
+
+    /// True if the PSBT knows its utxo, false otherwise
+    pub fn has_utxo(&self) -> bool {
+        self.has_witness_utxo() || self.has_non_witness_utxo()
     }
 
     /// Get the prevout details and return a UTXO object
@@ -289,6 +311,11 @@ impl PSBTInput {
         ser::write_compact_int(&mut value, witness.len() as u64).unwrap();
         witness.write_to(&mut value).unwrap();
         self.insert(InputKey::FINAL_SCRIPTWITNESS.into(), value.into());
+    }
+
+    /// True if the input contains a finalized script sig, or a finalized script witness. False otherwise
+    pub fn is_finalized(&self) -> bool {
+        self.contains_key(&InputKey::FINAL_SCRIPTWITNESS.into()) || self.contains_key(&InputKey::FINAL_SCRIPTSIG.into())
     }
 
     /// Returns the BIP174 PSBT_IN_POR_COMMITMENT if present and valid.

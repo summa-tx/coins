@@ -66,6 +66,11 @@ impl PSBTValidate for PSBTGlobal {
 }
 
 impl PSBTGlobal {
+    pub fn tx_bytes(&self) -> Result<&[u8], PSBTError> {
+        let tx_val = self.must_get(&GlobalKey::UNSIGNED_TX.into())?;
+        Ok(tx_val.as_ref())
+    }
+
     /// Get the global TX value as a deserialzed txn. Errors if the TX fails to deserialize or if
     /// there is no TX.
     pub fn tx(&self) -> Result<LegacyTx, PSBTError> {

@@ -45,8 +45,6 @@ use rmn_btc::{
     },
 };
 
-use crate::{common::PSBTError, global::PSBTGlobal, input::PSBTInput, output::PSBTOutput};
-
 /// A generic Partially Signed Transaction
 pub trait PST<'a, T: AddressEncoder> {
     /// A 4-byte prefix used to identify partially signed transactions. May vary by network.
@@ -75,8 +73,18 @@ pub trait PST<'a, T: AddressEncoder> {
     fn validate(&self) -> Result<(), Self::Error>;
     /// Run self-consistency validation on the PST
     fn consistency_checks(&self) -> Result<(), Self::Error>;
+
+    /// Return a vector containing the serialized
+    fn tx_bytes(&self) -> Result<&[u8], Self::Error>;
+
     /// Get a copy of the transaction associated with this PSBT
     fn tx(&self) -> Result<LegacyTx, Self::Error>;
+
+    /// Get a builder from the underlying tx
+    fn tx_builder(&self) -> Result<Self::TxBuilder, Self::Error> {
+        Ok(Self::TxBuilder::from_tx(self.tx()?))
+    }
+
     /// Return a reference to the global attributes
     fn global_map(&self) -> &Self::Global;
     /// Return a mutable reference to the global attributes
@@ -116,7 +124,7 @@ where
     /// Insert an input into the PSBT. Updates the TX in the global, and inserts an `Input` map at
     /// the same index
     pub fn insert_input(&mut self, index: usize, tx_in: BitcoinTxIn) -> Result<(), PSBTError> {
-        let b = <Self as PST<T>>::TxBuilder::from_tx(&self.tx()?);
+        let b = <Self as PST<T>>::TxBuilder::from_tx(self.tx()?);
         let tx = b.insert_input(index, tx_in).build();
         let mut buf = vec![];
         tx.write_to(&mut buf)?;
@@ -129,7 +137,7 @@ where
     /// Insert an output into the PSBT. Updates the TX in the global, and inserts an `Output` map
     /// at the same index
     pub fn insert_output(&mut self, index: usize, tx_out: TxOut) -> Result<(), PSBTError> {
-        let b = <Self as PST<T>>::TxBuilder::from_tx(&self.tx()?);
+        let b = <Self as PST<T>>::TxBuilder::from_tx(self.tx()?);
         let tx = b.insert_output(index, tx_out).build();
         let mut buf = vec![];
         tx.write_to(&mut buf)?;
@@ -236,7 +244,11 @@ where
         Ok(())
     }
 
-    fn tx(&self) -> Result<LegacyTx, PSBTError> {
+    fn tx_bytes(&self) -> Result<&[u8], Self::Error> {
+        self.global.tx_bytes()
+    }
+
+    fn tx(&self) -> Result<LegacyTx, Self::Error> {
         self.global.tx()
     }
 
