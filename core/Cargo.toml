@@ -8,6 +8,7 @@ repository = "https://github.com/summa-tx/riemann-rs"
 license = "LGPL-3.0-or-later"
 
 [dependencies]
+blake2-rfc = "0.2.18"
 bitcoin-spv = "2.0.0"
 hex = "0.4.2"
 thiserror = "1.0"
