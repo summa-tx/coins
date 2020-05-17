@@ -1,16 +1,16 @@
-use blake2_rfc::blake2b::{Blake2b};
-
+use crate::hashes::marked::MarkedDigestWriter;
+use blake2_rfc::blake2b::Blake2b;
 use std::io::{Result as IOResult, Write};
 
-use crate::hashes::marked::MarkedDigestWriter;
-
 struct Blake2b256 {
-  ctx: Blake2b
+    ctx: Blake2b,
 }
 
 impl Default for Blake2b256 {
     fn default() -> Blake2b256 {
-        Blake2b256 { ctx: Blake2b::new(32) }
+        Blake2b256 {
+            ctx: Blake2b::new(32),
+        }
     }
 }
 
@@ -66,7 +66,7 @@ impl Write for Blake2b256Writer {
 }
 
 impl MarkedDigestWriter<Blake2b256Digest> for Blake2b256Writer {
-    fn finish(self) -> Blake2b256Digest  {
+    fn finish(self) -> Blake2b256Digest {
         return self.internal.finalize();
     }
 }
@@ -90,4 +90,3 @@ mod test {
         );
     }
 }
-
