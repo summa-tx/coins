@@ -257,6 +257,11 @@ pub enum Sighash {
 }
 
 impl Sighash {
+    ///
+    pub fn to_u8(self) -> u8 {
+        self as u8
+    }
+
     /// Convert a u8 into a Sighash flag or an error.
     pub fn from_u8(flag: u8) -> Result<Sighash, TxError> {
         match flag {

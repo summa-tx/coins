@@ -195,8 +195,15 @@ impl PSBTInput {
     }
 
     /// Returns a range containing any PSBT_IN_PARTIAL_SIG
-    pub fn partial_sigs(&self) -> btree_map::Range<PSBTKey, PSBTValue> {
+    pub fn raw_partial_sigs(&self) -> btree_map::Range<PSBTKey, PSBTValue> {
         self.range_by_key_type(InputKey::PARTIAL_SIG as u8)
+    }
+
+    /// Returns an iterator over Pubkey/Signature pairs
+    pub fn partial_sigs<'a>(&self, backend: Option<&'a bip32::Secp256k1<'a>>) -> Vec<(rmn_bip32::Pubkey<'a>, rmn_bip32::Signature, Sighash)> {
+        self.raw_partial_sigs()
+            .filter_map(|(k, v)| schema::try_kv_pair_as_pubkey_and_sig(k, v, backend).ok())
+            .collect::<Vec<_>>()
     }
 
     /// Inserts a signature into the map

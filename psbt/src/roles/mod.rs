@@ -1,15 +1,18 @@
-/// bip32 signer
+/// A Provided bip32 input signer.
 pub mod bip32_signer;
 
 #[cfg(feature = "ledger")]
 pub mod ledger_signer;
 
-/// A basic tx extractor.
+/// Provided finalizers.
+pub mod finalizer;
+
+/// Provided tx extractors.
 pub mod extractor;
 
-use crate::PST;
 use riemann_core::enc::AddressEncoder;
 use rmn_btc::types::transactions::{BitcoinTx, Sighash};
+use crate::{PST};
 
 pub trait PSTUpdater<'a, A, P>
 where
@@ -61,7 +64,10 @@ where
     }
 
     /// Append all producible signatures to a PSBT. Returns a vector containing the indices of
-    /// the inputs that were succesfully signed signed.
+    /// the inputs that were succesfully signed signed. The default implementation will simply
+    /// silently fail to sign any input that errors. This method returns a result to enable
+    /// signer implementations to override it with more complex functionality. (e.g. the provided
+    /// Ledger signing).
     fn sign(&self, pst: &mut P) -> Result<Vec<usize>, Self::Error> {
         Ok(self
             .signable_inputs(pst)
@@ -83,7 +89,20 @@ where
     /// the PST's Error type.
     type Error: std::error::Error + From<P::Error>;
 
-    fn finalize(&mut self, pst: &P) -> Result<(), Self::Error>;
+    /// Finalize an
+    fn finalize_input(&mut self, input_map: &mut P::Input) -> Result<(), Self::Error>;
+
+    /// Call finalize_input on all inputs. The default implementation will simply silently not
+    /// finalize any input that errors in `finalize_input`. This method returns a result to enable
+    /// other finalizer implementations to override it with more complex functionality.
+    #[allow(unused_must_use)]
+    fn finalize(&mut self, pst: &mut P) -> Result<(), Self::Error> {
+        pst
+            .input_maps_mut()
+            .iter_mut()
+            .try_for_each(|input_map| self.finalize_input(input_map));
+        Ok(())
+    }
 }
 
 pub trait PSTExtractor<'a, A, P>

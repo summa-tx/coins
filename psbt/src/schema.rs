@@ -121,7 +121,7 @@ pub fn validate_xpub_depth(key: &PSBTKey, val: &PSBTValue) -> Result<(), PSBTErr
 }
 
 /// Attempt to parse a keyas a Secp256k1 pybkey
-pub fn try_key_as_pubkey(key: &PSBTKey) -> Result<Pubkey, PSBTError> {
+pub fn try_key_as_pubkey<'a>(key: &PSBTKey, backend: Option<&'a Secp256k1<'a>>) -> Result<Pubkey<'a>, PSBTError> {
     if key.len() != 34 {
         return Err(PSBTError::WrongKeyLength {
             expected: 34,
@@ -132,7 +132,7 @@ pub fn try_key_as_pubkey(key: &PSBTKey) -> Result<Pubkey, PSBTError> {
     buf.copy_from_slice(&key.items()[1..]);
     Ok(Pubkey {
         key: <Secp256k1 as Secp256k1Backend<'_>>::Pubkey::from_pubkey_array(buf)?,
-        backend: None,
+        backend,
     })
 }
 
@@ -227,6 +227,17 @@ pub fn try_kv_pair_as_derived_pubkey<'a>(
     };
 
     Ok(DerivedPubkey::new(pubkey, deriv))
+}
+
+pub fn try_kv_pair_as_pubkey_and_sig<'a>(
+    key: &PSBTKey,
+    val: &PSBTValue,
+    backend: Option<&'a Secp256k1<'a>>,
+) -> Result<(Pubkey<'a>, Signature, Sighash), PSBTError> {
+    let pubkey = try_key_as_pubkey(key, backend)?;
+
+    let (sig, sighash) = try_val_as_signature(val)?;
+    Ok((pubkey, sig, sighash))
 }
 
 /// Validation functions for PSBT Global maps
@@ -346,7 +357,7 @@ pub mod input {
     pub fn validate_bip32_derivations(key: &PSBTKey, val: &PSBTValue) -> Result<(), PSBTError> {
         // 34 = 33-byte pubkey + 1-byte type
         validate_expected_key_type(key, 6)?;
-        try_key_as_pubkey(key)?;
+        try_key_as_pubkey(key, None)?;
         try_val_as_key_derivation(val)?;
         Ok(())
     }
