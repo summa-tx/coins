@@ -194,7 +194,7 @@ macro_rules! mark_hash256 {
         $hash_name:ident
     ) => {
         $(#[$outer])*
-        #[derive(serde::Serialize, serde::Deserialize, Copy, Clone, Default, Debug, Eq, PartialEq, PartialOrd, Ord)]
+        #[derive(Hash, serde::Serialize, serde::Deserialize, Copy, Clone, Default, Debug, Eq, PartialEq, PartialOrd, Ord)]
         pub struct $hash_name(pub Hash256Digest);
         impl riemann_core::ser::ByteFormat for $hash_name {
             type Error = riemann_core::ser::SerError;

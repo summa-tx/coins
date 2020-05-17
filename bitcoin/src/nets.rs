@@ -60,9 +60,14 @@ pub trait BitcoinNetwork<'a>: Network<'a> {
         Self::WitnessBuilder::new()
     }
 
-    /// Instantiate a builder from a tx object
-    fn witness_builder_from_tx(tx: &Self::WTx) -> Self::WitnessBuilder {
+    /// Instantiate a builder from a tx object by taking ownership of it
+    fn witness_builder_from_tx(tx: Self::WTx) -> Self::WitnessBuilder {
         Self::WitnessBuilder::from_tx(tx)
+    }
+
+    /// Instantiate a builder from a tx object by cloning its properties
+    fn witness_builder_from_tx_ref(tx: &Self::WTx) -> Self::WitnessBuilder {
+        Self::WitnessBuilder::from_tx_ref(tx)
     }
 
     /// Instantiate a builder from a hex-serialized transaction

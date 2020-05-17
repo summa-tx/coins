@@ -47,6 +47,9 @@ pub trait BitcoinBuilder<'a>: TxBuilder<'a> {
 
     /// Converts the builder into a witness builder.
     fn as_witness(self) -> Self::WitnessBuilder;
+
+    /// Set the script sig at a specific input. Do nothing if the vin is not that long.
+    fn set_script_sig(self, input_idx: usize, script_sig: ScriptSig) -> Self;
 }
 
 /// A WitnessTxBuilder. This should provide all the same functionality as the TxBuilder, but build
@@ -115,7 +118,17 @@ where
         }
     }
 
-    fn from_tx(tx: &Self::Transaction) -> Self {
+    fn from_tx(tx: Self::Transaction) -> Self {
+        Self {
+            version: tx.version,
+            vin: tx.vin,
+            vout: tx.vout,
+            locktime: tx.locktime,
+            encoder: PhantomData,
+        }
+    }
+
+    fn from_tx_ref(tx: &Self::Transaction) -> Self {
         Self {
             version: tx.version(),
             vin: tx.inputs().to_vec(),
@@ -208,6 +221,15 @@ where
     fn as_witness(self) -> Self::WitnessBuilder {
         self.into()
     }
+
+    fn set_script_sig(mut self, input_idx: usize, script_sig: ScriptSig) -> Self {
+        if input_idx >= self.vin.len() {
+            self
+        } else {
+            self.vin[input_idx].script_sig = script_sig;
+            self
+        }
+    }
 }
 
 impl<'a, T> TxBuilder<'a> for WitnessBuilder<T>
@@ -225,7 +247,20 @@ where
         }
     }
 
-    fn from_tx(tx: &Self::Transaction) -> Self {
+    fn from_tx(tx: Self::Transaction) -> Self {
+        Self {
+            builder: LegacyBuilder {
+                version: tx.legacy_tx.version,
+                vin: tx.legacy_tx.vin,
+                vout: tx.legacy_tx.vout,
+                locktime: tx.legacy_tx.locktime,
+                encoder: PhantomData,
+            },
+            witnesses: tx.witnesses,
+        }
+    }
+
+    fn from_tx_ref(tx: &Self::Transaction) -> Self {
         Self {
             builder: LegacyBuilder {
                 version: tx.version(),
@@ -332,6 +367,15 @@ where
 
     fn as_witness(self) -> Self::WitnessBuilder {
         self
+    }
+
+    fn set_script_sig(mut self, input_idx: usize, script_sig: ScriptSig) -> Self {
+        if input_idx >= self.builder.vin.len() {
+            self
+        } else {
+            self.builder.vin[input_idx].script_sig = script_sig;
+            self
+        }
     }
 }
 

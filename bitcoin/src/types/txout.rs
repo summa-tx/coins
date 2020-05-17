@@ -7,7 +7,7 @@ use riemann_core::{
     types::tx::Output,
 };
 
-use crate::types::script::ScriptPubkey;
+use crate::types::script::{ScriptPubkey, ScriptType};
 
 /// An Output. This describes a new UTXO to be created. The value is encoded as an LE u64. The
 /// script pubkey encodes the spending constraints.
@@ -67,6 +67,11 @@ impl TxOut {
             value: 0,
             script_pubkey: ScriptPubkey::from(payload),
         }
+    }
+
+    /// Inspect the TxOut's script pubkey to determine its type.
+    pub fn standard_type(&self) -> ScriptType {
+        self.script_pubkey.standard_type()
     }
 
     /// Extract the op return payload. None if not an op return.

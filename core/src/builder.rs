@@ -22,8 +22,11 @@ pub trait TxBuilder<'a>: std::marker::Sized {
     /// Instantiate a new builder
     fn new() -> Self;
 
-    /// Instantiate a new builder from a transaction
-    fn from_tx(tx: &Self::Transaction) -> Self;
+    /// Instantiate a new builder from a transaction reference by cloning its properties
+    fn from_tx_ref(tx: &Self::Transaction) -> Self;
+
+    /// Instantiate a new builder from a transaction by taking ownership of its properties
+    fn from_tx(tx: Self::Transaction) -> Self;
 
     /// Instantiate a new builder from a `std::io::Read` that contains a serialized tx
     fn read_from_tx<R>(
@@ -33,13 +36,13 @@ pub trait TxBuilder<'a>: std::marker::Sized {
         R: Read,
     {
         let tx = Self::Transaction::read_from(reader, 0)?;
-        Ok(Self::from_tx(&tx))
+        Ok(Self::from_tx(tx))
     }
 
     /// Instantiate a new builder from transaction hex
     fn from_hex_tx(hex_str: &str) -> Result<Self, <Self::Transaction as Transaction<'a>>::TxError> {
         let tx = Self::Transaction::deserialize_hex(hex_str)?;
-        Ok(Self::from_tx(&tx))
+        Ok(Self::from_tx(tx))
     }
 
     /// Set or overwrite the transaction version.

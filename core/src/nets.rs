@@ -60,7 +60,12 @@ pub trait Network<'a> {
     }
 
     /// Instantiate a builder from a tx object
-    fn builder_from_tx(tx: &Self::Tx) -> Self::Builder {
+    fn builder_from_tx_ref(tx: &Self::Tx) -> Self::Builder {
+        Self::Builder::from_tx_ref(tx)
+    }
+
+    /// Instantiate a builder from a tx object
+    fn builder_from_tx(tx: Self::Tx) -> Self::Builder {
         Self::Builder::from_tx(tx)
     }
 

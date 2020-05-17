@@ -22,13 +22,26 @@ use crate::{
 };
 
 /// Wrapper enum for returning values that may be EITHER a Witness OR a Legacy tx and the type is
-/// not known in advance. This wrapper must be explicitly downcast before the tx object can be
-/// used
+/// not known in advance. While a few transaction methods have been implemented for convenience,
+/// This wrapper must be explicitly unwrapped before the tx object can be signed.
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Eq, PartialEq)]
 pub enum BitcoinTx {
     /// Witness
     Witness(WitnessTx),
     /// Legacy
     Legacy(LegacyTx),
+}
+
+impl From<WitnessTx> for BitcoinTx {
+    fn from(w: WitnessTx) -> Self {
+        BitcoinTx::Witness(w)
+    }
+}
+
+impl From<LegacyTx> for BitcoinTx {
+    fn from(w: LegacyTx) -> Self {
+        BitcoinTx::Legacy(w)
+    }
 }
 
 impl BitcoinTx {
@@ -39,11 +52,19 @@ impl BitcoinTx {
     /// # Note
     ///
     /// Casting directly to legacy may drop witness information if the tx is witness
-    pub fn from_hex(hex: &str) -> Result<BitcoinTx, TxError> {
+    pub fn deserialize_hex(hex: &str) -> Result<BitcoinTx, TxError> {
         if &hex[8..12] == "0001" {
             WitnessTx::deserialize_hex(hex).map(BitcoinTx::Witness)
         } else {
             LegacyTx::deserialize_hex(hex).map(BitcoinTx::Legacy)
+        }
+    }
+
+    /// Serialize the transaction to a hex string.
+    pub fn serialize_hex(&self) -> Result<String, TxError> {
+        match self {
+            BitcoinTx::Witness(tx) => tx.serialize_hex(),
+            BitcoinTx::Legacy(tx) => tx.serialize_hex(),
         }
     }
 
@@ -60,6 +81,14 @@ impl BitcoinTx {
         match self {
             BitcoinTx::Legacy(_) => true,
             _ => false
+        }
+    }
+
+    /// Return a reference to the underlying tx as a legacy TX.
+    pub fn as_legacy(&self) -> &LegacyTx {
+        match self {
+            BitcoinTx::Witness(tx) => tx.as_legacy(),
+            BitcoinTx::Legacy(tx) => &tx,
         }
     }
 
@@ -291,13 +320,13 @@ pub struct LegacySighashArgs<'a> {
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Eq, PartialEq, Default)]
 pub struct LegacyTx {
     /// The version number. Usually 1 or 2.
-    version: u32,
+    pub(crate) version: u32,
     /// The vector of inputs
-    vin: Vin,
+    pub(crate) vin: Vin,
     /// The vector of outputs
-    vout: Vout,
+    pub(crate) vout: Vout,
     /// The nLocktime field.
-    locktime: u32,
+    pub(crate) locktime: u32,
 }
 
 impl LegacyTx {
@@ -533,8 +562,8 @@ pub struct WitnessSighashArgs<'a> {
 /// A witness transaction. Any transaction that contains 1 or more witnesses.
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Eq, PartialEq, Default)]
 pub struct WitnessTx {
-    legacy_tx: LegacyTx,
-    witnesses: Vec<Witness>,
+    pub(crate) legacy_tx: LegacyTx,
+    pub(crate) witnesses: Vec<Witness>,
 }
 
 impl WitnessTx {
