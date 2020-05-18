@@ -116,15 +116,38 @@ pub struct PSBT<T: BitcoinEncoderMarker, E: Bip32Encoder> {
     bip32_encoder: PhantomData<*const E>,
 }
 
+impl<T: BitcoinEncoderMarker, E: Bip32Encoder> serde::Serialize for PSBT<T, E> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let s = self.serialize_base64().map_err(|e| serde::ser::Error::custom(e.to_string()))?;
+        serializer.serialize_str(&s)
+    }
+}
+
+impl<'de, T: BitcoinEncoderMarker, E: Bip32Encoder> serde::Deserialize<'de> for PSBT<T, E> {
+    fn deserialize<D>(deserializer: D) -> Result<PSBT<T, E>, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s: &str = serde::Deserialize::deserialize(deserializer)?;
+        PSBT::<T, E>::deserialize_base64(s)
+            .map_err(|e| serde::de::Error::custom(e.to_string()))
+    }
+}
+
 impl<T, E> PSBT<T, E>
 where
     T: BitcoinEncoderMarker,
     E: Bip32Encoder,
 {
     /// Insert an input into the PSBT. Updates the TX in the global, and inserts an `Input` map at
-    /// the same index
+    /// the same index. If the index is larger than the length of the vector, the Input will
+    /// be appended to the end of the vector instead
     pub fn insert_input(&mut self, index: usize, tx_in: BitcoinTxIn) -> Result<(), PSBTError> {
-        let b = <Self as PST<T>>::TxBuilder::from_tx(self.tx()?);
+        let index = std::cmp::min(index, self.inputs.len());
+        let b = self.tx_builder()?;
         let tx = b.insert_input(index, tx_in).build();
         let mut buf = vec![];
         tx.write_to(&mut buf)?;
@@ -135,9 +158,11 @@ where
     }
 
     /// Insert an output into the PSBT. Updates the TX in the global, and inserts an `Output` map
-    /// at the same index
+    /// at the same index. If the index is larger than the length of the vector, the Output will
+    /// be appended to the end of the vector instead
     pub fn insert_output(&mut self, index: usize, tx_out: TxOut) -> Result<(), PSBTError> {
-        let b = <Self as PST<T>>::TxBuilder::from_tx(self.tx()?);
+        let index = std::cmp::min(index, self.outputs.len());
+        let b = self.tx_builder()?;
         let tx = b.insert_output(index, tx_out).build();
         let mut buf = vec![];
         tx.write_to(&mut buf)?;
@@ -146,6 +171,18 @@ where
         self.output_maps_mut().insert(index, Default::default());
         Ok(())
     }
+
+
+    /// Push a tx_in to the end of the PSBT's vector. This crates a new empty map.
+    pub fn push_input(&mut self, tx_in: BitcoinTxIn) -> Result<(), PSBTError> {
+        self.insert_input(std::usize::MAX, tx_in)
+    }
+
+    /// Push a tx_out to the end of the PSBT's vector. This crates a new empty map.
+    pub fn push_output(&mut self, tx_out: TxOut) -> Result<(), PSBTError> {
+        self.insert_output(std::usize::MAX, tx_out)
+    }
+
 
     /// Return a parsed vector of k/v pairs. Keys are parsed as XPubs with the provided backend.
     /// Values are parsed as `KeyDerivation` structs.
