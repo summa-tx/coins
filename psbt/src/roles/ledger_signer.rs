@@ -68,10 +68,10 @@ where
     }
 
     fn can_sign_input(&self, pst: &PSBT<A, E>, idx: usize) -> Result<(), Self::Error> {
-        if input.is_finalized() {
+        let input_map = &pst.inputs[idx];
+        if input_map.is_finalized() {
             return Err(LedgerSignerError::AlreadyFinalized(idx));
         }
-        let input_map = &pst.inputs[idx];
         if input_map.has_witness_script() && input_map.has_redeem_script() {
             return Err(LedgerSignerError::UnsupportedNestedSegwit);
         }
