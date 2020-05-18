@@ -121,7 +121,10 @@ pub fn validate_xpub_depth(key: &PSBTKey, val: &PSBTValue) -> Result<(), PSBTErr
 }
 
 /// Attempt to parse a keyas a Secp256k1 pybkey
-pub fn try_key_as_pubkey<'a>(key: &PSBTKey, backend: Option<&'a Secp256k1<'a>>) -> Result<Pubkey<'a>, PSBTError> {
+pub fn try_key_as_pubkey<'a>(
+    key: &PSBTKey,
+    backend: Option<&'a Secp256k1<'a>>,
+) -> Result<Pubkey<'a>, PSBTError> {
     if key.len() != 34 {
         return Err(PSBTError::WrongKeyLength {
             expected: 34,

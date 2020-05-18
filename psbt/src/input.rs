@@ -170,10 +170,7 @@ impl PSBTInput {
     }
 
     /// Get the prevout details and return a UTXO object
-    pub fn as_utxo(
-        &self,
-        outpoint: &rmn_btc::types::BitcoinOutpoint,
-    ) -> Result<UTXO, PSBTError> {
+    pub fn as_utxo(&self, outpoint: &rmn_btc::types::BitcoinOutpoint) -> Result<UTXO, PSBTError> {
         if let Ok(tx_out) = self.witness_utxo() {
             // Witness UTXO.
             let mut utxo = UTXO::from_output_and_outpoint(&tx_out, outpoint);
@@ -200,7 +197,10 @@ impl PSBTInput {
     }
 
     /// Returns an iterator over Pubkey/Signature pairs
-    pub fn partial_sigs<'a>(&self, backend: Option<&'a bip32::Secp256k1<'a>>) -> Vec<(rmn_bip32::Pubkey<'a>, rmn_bip32::Signature, Sighash)> {
+    pub fn partial_sigs<'a>(
+        &self,
+        backend: Option<&'a bip32::Secp256k1<'a>>,
+    ) -> Vec<(rmn_bip32::Pubkey<'a>, rmn_bip32::Signature, Sighash)> {
         self.raw_partial_sigs()
             .filter_map(|(k, v)| schema::try_kv_pair_as_pubkey_and_sig(k, v, backend).ok())
             .collect::<Vec<_>>()
@@ -322,7 +322,8 @@ impl PSBTInput {
 
     /// True if the input contains a finalized script sig, or a finalized script witness. False otherwise
     pub fn is_finalized(&self) -> bool {
-        self.contains_key(&InputKey::FINAL_SCRIPTWITNESS.into()) || self.contains_key(&InputKey::FINAL_SCRIPTSIG.into())
+        self.contains_key(&InputKey::FINAL_SCRIPTWITNESS.into())
+            || self.contains_key(&InputKey::FINAL_SCRIPTSIG.into())
     }
 
     /// Returns the BIP174 PSBT_IN_POR_COMMITMENT if present and valid.

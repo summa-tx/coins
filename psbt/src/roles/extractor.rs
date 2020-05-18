@@ -1,11 +1,11 @@
+use crate::{roles::PSTExtractor, PSBTError, PSBT, PST};
 use riemann_core::builder::TxBuilder;
-use rmn_btc::{
-    enc::encoder::BitcoinEncoderMarker,
-    builder::BitcoinBuilder,
-    types::{BitcoinTx, BitcoinTransaction},
-};
 use rmn_bip32 as bip32;
-use crate::{PSBT, PST, PSBTError, roles::PSTExtractor};
+use rmn_btc::{
+    builder::BitcoinBuilder,
+    enc::encoder::BitcoinEncoderMarker,
+    types::{BitcoinTransaction, BitcoinTx},
+};
 
 /// An extractor
 pub struct PSBTExtractor();
@@ -24,7 +24,9 @@ where
         let mut is_witness = false;
 
         for (i, input_map) in pst.input_maps().iter().enumerate() {
-            if !input_map.is_finalized() { return Err(PSBTError::UnfinalizedInput(i)) }
+            if !input_map.is_finalized() {
+                return Err(PSBTError::UnfinalizedInput(i));
+            }
 
             // Insert a script sig if we have one.
             if let Ok(script_sig) = input_map.finalized_script_sig() {

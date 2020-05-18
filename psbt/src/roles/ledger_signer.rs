@@ -8,7 +8,10 @@ use futures::executor::block_on;
 
 use riemann_core::types::tx::Transaction;
 use rmn_bip32 as bip32;
-use rmn_btc::{enc::encoder::BitcoinEncoderMarker, types::transactions::{BitcoinTransaction, Sighash}};
+use rmn_btc::{
+    enc::encoder::BitcoinEncoderMarker,
+    types::transactions::{BitcoinTransaction, Sighash},
+};
 use rmn_ledger_btc::{LedgerBTC, SigningInfo};
 
 use crate::{input::PSBTInput, roles::PSTSigner, PSBTError, PSBT, PST};
@@ -65,10 +68,12 @@ where
     }
 
     fn can_sign_input(&self, pst: &PSBT<A, E>, idx: usize) -> Result<(), Self::Error> {
-        if input.is_finalized() { return Err(LedgerSignerError::AlreadyFinalized(idx))}
+        if input.is_finalized() {
+            return Err(LedgerSignerError::AlreadyFinalized(idx));
+        }
         let input_map = &pst.inputs[idx];
         if input_map.has_witness_script() && input_map.has_redeem_script() {
-            return Err(LedgerSignerError::UnsupportedNestedSegwit)
+            return Err(LedgerSignerError::UnsupportedNestedSegwit);
         }
 
         let pubkeys = input_map.parsed_pubkey_derivations(None);

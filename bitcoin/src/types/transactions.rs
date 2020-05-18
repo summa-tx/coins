@@ -72,7 +72,7 @@ impl BitcoinTx {
     pub fn is_witness(&self) -> bool {
         match self {
             BitcoinTx::Witness(_) => true,
-            _ => false
+            _ => false,
         }
     }
 
@@ -80,7 +80,7 @@ impl BitcoinTx {
     pub fn is_legacy(&self) -> bool {
         match self {
             BitcoinTx::Legacy(_) => true,
-            _ => false
+            _ => false,
         }
     }
 

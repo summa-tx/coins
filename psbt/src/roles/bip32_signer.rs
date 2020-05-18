@@ -1,15 +1,17 @@
 use thiserror::Error;
 
+use riemann_core::types::Transaction;
 use rmn_bip32::{
     self as bip32,
     model::{DerivedKey, HasBackend, HasPubkey, SigningKey, XSigning},
 };
-use riemann_core::types::Transaction;
 use rmn_btc::{
     enc::encoder::BitcoinEncoderMarker,
     types::{
         script::ScriptType,
-        transactions::{BitcoinTransaction, LegacySighashArgs, LegacyTx, Sighash, WitnessSighashArgs, WitnessTx},
+        transactions::{
+            BitcoinTransaction, LegacySighashArgs, LegacyTx, Sighash, WitnessSighashArgs, WitnessTx,
+        },
         txin::BitcoinOutpoint,
         utxo::SpendScript,
     },
@@ -228,7 +230,9 @@ where
         let tx = psbt.tx()?;
         let input_map = &mut psbt.input_maps_mut()[idx];
 
-        if input_map.is_finalized() { return Err(Bip32SignerError::AlreadyFinalized(idx)) }
+        if input_map.is_finalized() {
+            return Err(Bip32SignerError::AlreadyFinalized(idx));
+        }
 
         if input_map.has_non_witness_utxo() {
             Ok(self.sign_non_witness_input(idx, &tx, input_map)?)

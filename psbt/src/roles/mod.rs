@@ -10,9 +10,9 @@ pub mod finalizer;
 /// Provided tx extractors.
 pub mod extractor;
 
+use crate::PST;
 use riemann_core::enc::AddressEncoder;
 use rmn_btc::types::transactions::{BitcoinTx, Sighash};
-use crate::{PST};
 
 pub trait PSTUpdater<'a, A, P>
 where
@@ -97,8 +97,7 @@ where
     /// other finalizer implementations to override it with more complex functionality.
     #[allow(unused_must_use)]
     fn finalize(&mut self, pst: &mut P) -> Result<(), Self::Error> {
-        pst
-            .input_maps_mut()
+        pst.input_maps_mut()
             .iter_mut()
             .try_for_each(|input_map| self.finalize_input(input_map));
         Ok(())

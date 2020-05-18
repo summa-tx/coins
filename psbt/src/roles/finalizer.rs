@@ -1,9 +1,6 @@
-use rmn_btc::{
-    enc::encoder::BitcoinEncoderMarker,
-    types::{ScriptType},
-};
-use rmn_bip32::{self as bip32, HasPubkey, curve::SigSerialize};
-use crate::{PSBT, PSBTError, PSBTInput, PSTMap, input::InputKey, roles::PSTFinalizer};
+use crate::{input::InputKey, roles::PSTFinalizer, PSBTError, PSBTInput, PSTMap, PSBT};
+use rmn_bip32::{self as bip32, curve::SigSerialize, HasPubkey};
+use rmn_btc::{enc::encoder::BitcoinEncoderMarker, types::ScriptType};
 
 /// A finalizer that creates WPKH witnesses
 pub struct PSBTWPKHFinalizer();
@@ -16,7 +13,10 @@ fn clear_input_map(input_map: &mut PSBTInput) {
     // WITNESS_SCRIPT = 5
     // BIP32_DERIVATION = 6
     for key_type in 2u8..7u8 {
-        let keys: Vec<_> = input_map.range_by_key_type(key_type).map(|(k,_)| k.clone()).collect();
+        let keys: Vec<_> = input_map
+            .range_by_key_type(key_type)
+            .map(|(k, _)| k.clone())
+            .collect();
         for key in keys.iter() {
             input_map.remove(&key);
         }
@@ -34,14 +34,16 @@ where
         let prevout = input_map.witness_utxo()?;
 
         let pkh = match prevout.standard_type() {
-            ScriptType::WPKH(data) => {data},
+            ScriptType::WPKH(data) => data,
             other => {
-                return Err(PSBTError::WrongPrevoutScriptType{
+                return Err(PSBTError::WrongPrevoutScriptType {
                     got: other,
-                    expected: vec![ScriptType::WPKH([0u8; 20])]
+                    expected: vec![ScriptType::WPKH([0u8; 20])],
                 })
             }
         };
+
+        // If any pubkeys match, build a witness and finalize
         if let Some((pubkey, partial_sig, sighash)) = input_map
             .partial_sigs(None)
             .iter()
