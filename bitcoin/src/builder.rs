@@ -166,8 +166,8 @@ where
         index: usize,
         input: <Self::Transaction as Transaction<'a>>::TxIn,
     ) -> Self {
-        let idx = if index > self.vin.len() { 0 } else { index };
-        self.vin.insert(idx, input);
+        let index = std::cmp::min(index, self.vin.len());
+        self.vin.insert(index, input);
         self
     }
 
@@ -184,8 +184,8 @@ where
         index: usize,
         output: <Self::Transaction as Transaction<'a>>::TxOut,
     ) -> Self {
-        let idx = if index > self.vout.len() { 0 } else { index };
-        self.vout.insert(idx, output);
+        let index = std::cmp::min(index, self.vout.len());
+        self.vout.insert(index, output);
         self
     }
 
@@ -301,12 +301,8 @@ where
         index: usize,
         input: <Self::Transaction as Transaction<'a>>::TxIn,
     ) -> Self {
-        let idx = if index > self.builder.vin.len() {
-            0
-        } else {
-            index
-        };
-        self.builder.vin.insert(idx, input);
+        let index = std::cmp::min(index, self.builder.vin.len());
+        self.builder.vin.insert(index, input);
         self
     }
 
@@ -323,12 +319,8 @@ where
         index: usize,
         output: <Self::Transaction as Transaction<'a>>::TxOut,
     ) -> Self {
-        let idx = if index > self.builder.vout.len() {
-            0
-        } else {
-            index
-        };
-        self.builder.vout.insert(idx, output);
+        let index = std::cmp::min(index, self.builder.vout.len());
+        self.builder.vout.insert(index, output);
         self
     }
 
