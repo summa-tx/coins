@@ -9,8 +9,8 @@ use crate::{
 
 // These conditional compilation blokcs ensure that we try to import the correct transport for our
 // environment.
-#[cfg_attr(all(feature = "node", not(feature = "browser")), wasm_bindgen(module = "@ledgerhq/hw-transport-node-hid"))]
-#[cfg_attr(all(feature = "browser", not(feature = "node")), wasm_bindgen(module = "@ledgerhq/hw-transport-u2f"))]
+#[cfg_attr(feature = "node", wasm_bindgen(module = "@ledgerhq/hw-transport-node-hid"))]
+#[cfg_attr(feature = "browser", wasm_bindgen(module = "@ledgerhq/hw-transport-u2f"))]
 extern "C" {
     // NB:
     // This causes the JS glue to bind the variable `default1`
