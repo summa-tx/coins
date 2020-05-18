@@ -107,10 +107,23 @@ impl UTXO {
     }
 
     /// Return the script that ought to be signed. This is the spend_script (redeem/witness
-    /// script) if present, and the script pubkey otherwise.
+    /// script) if present, the script pubkey if legacy PKH, and the legacy PKH script if WPKH. .
     pub fn signing_script(&self) -> Option<Script> {
         match self.spend_script() {
-            SpendScript::None => Some(self.script_pubkey().into()),
+            SpendScript::None => {
+                let spk = self.script_pubkey();
+                match spk.standard_type() {
+                    ScriptType::PKH(_) => Some(spk.into()),
+                    // TODO: break this out into a function
+                    ScriptType::WPKH(payload) => {
+                        let mut v = vec![0x76, 0xa9, 0x14];
+                        v.extend(&payload);
+                        v.extend(&[0x88, 0xac]);
+                        Some(v.into())
+                    },
+                    _ => None , // Should be unreachable
+                }
+            },
             SpendScript::Known(script) => Some(script.clone()),
             SpendScript::Missing => None,
         }
