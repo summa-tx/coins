@@ -44,7 +44,7 @@ pub enum LedgerSignerError {
 }
 
 /// A PST Signer interface.
-impl<A, E> PSTSigner<'_, A, PSBT<A, E>> for LedgerBTC
+impl<A, E> PSTSigner<A, PSBT<A, E>> for LedgerBTC
 where
     A: BitcoinEncoderMarker,
     E: bip32::enc::Encoder,
