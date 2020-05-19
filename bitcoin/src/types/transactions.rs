@@ -151,9 +151,8 @@ pub type TxResult<T> = Result<T, TxError>;
 
 /// Functions common to Bitcoin transactions. This provides a small abstraction layer over the
 /// Legacy/SegWit tx divide by implementing a small common interface between them.
-pub trait BitcoinTransaction<'a>:
+pub trait BitcoinTransaction:
     Transaction<
-    'a,
     Digest = bitcoin_spv::types::Hash256Digest,
     Error = TxError,  // Ser associated error
     TxError = TxError,
@@ -186,7 +185,7 @@ pub trait BitcoinTransaction<'a>:
 /// transaction specificies which types it considers to be inputs and outputs, and a struct that
 /// contains its Sighash arguments. This allows others to define custom transaction types with
 /// unique functionality.
-pub trait WitnessTransaction<'a>: BitcoinTransaction<'a> {
+pub trait WitnessTransaction: BitcoinTransaction {
     /// The MarkedDigest type for the Transaction's Witness TXID
     type WTXID: MarkedDigest<Digest = Self::Digest>;
     /// The BIP143 sighash args needed to sign an input
@@ -310,7 +309,7 @@ impl Sighash {
 /// After signing the digest, you MUST append the sighash indicator
 /// byte to the resulting signature.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct LegacySighashArgs<'a> {
+pub struct LegacySighashArgs {
     /// The index of the input we'd like to sign
     pub index: usize,
     /// The sighash mode to use.
@@ -318,7 +317,7 @@ pub struct LegacySighashArgs<'a> {
     /// The script used in the prevout, which must be signed. In complex cases involving
     /// `OP_CODESEPARATOR` this must be the subset of the script containing the `OP_CHECKSIG`
     /// currently being executed.
-    pub prevout_script: &'a Script,
+    pub prevout_script: Script,
 }
 
 /// A Legacy (non-witness) Transaction.
@@ -390,12 +389,12 @@ impl LegacyTx {
     }
 }
 
-impl<'a> Transaction<'a> for LegacyTx {
+impl Transaction for LegacyTx {
     type TxError = TxError;
     type Digest = Hash256Digest;
     type TxIn = BitcoinTxIn;
     type TxOut = TxOut;
-    type SighashArgs = LegacySighashArgs<'a>;
+    type SighashArgs = LegacySighashArgs;
     type TXID = TXID;
     type HashWriter = Hash256Writer;
 
@@ -412,11 +411,11 @@ impl<'a> Transaction<'a> for LegacyTx {
         }
     }
 
-    fn inputs(&'a self) -> &'a [Self::TxIn] {
+    fn inputs(&self) -> &[Self::TxIn] {
         &self.vin
     }
 
-    fn outputs(&'a self) -> &'a [Self::TxOut] {
+    fn outputs(&self) -> &[Self::TxOut] {
         &self.vout
     }
 
@@ -437,7 +436,7 @@ impl<'a> Transaction<'a> for LegacyTx {
             return Err(TxError::NoneUnsupported);
         }
 
-        let mut copy_tx: Self = self.legacy_sighash_prep(args.index, args.prevout_script);
+        let mut copy_tx: Self = self.legacy_sighash_prep(args.index, &args.prevout_script);
         if args.sighash_flag == Sighash::Single || args.sighash_flag == Sighash::SingleACP {
             if args.index >= self.outputs().len() {
                 return Err(TxError::SighashSingleBug);
@@ -456,7 +455,7 @@ impl<'a> Transaction<'a> for LegacyTx {
     }
 }
 
-impl<'a> BitcoinTransaction<'a> for LegacyTx {
+impl BitcoinTransaction for LegacyTx {
     fn as_legacy(&self) -> &LegacyTx {
         &self
     }
@@ -551,7 +550,7 @@ impl ByteFormat for LegacyTx {
 /// After signing the digest, you MUST append the sighash indicator byte to the resulting
 /// signature.
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub struct WitnessSighashArgs<'a> {
+pub struct WitnessSighashArgs {
     /// The index of the input we'd like to sign
     pub index: usize,
     /// The sighash mode to use.
@@ -559,7 +558,7 @@ pub struct WitnessSighashArgs<'a> {
     /// The script used in the prevout, which must be signed. In complex cases involving
     /// `OP_CODESEPARATOR` this must be the subset of the script containing the `OP_CHECKSIG`
     /// currently being executed.
-    pub prevout_script: &'a Script,
+    pub prevout_script: Script,
     /// The value of the prevout.
     pub prevout_value: u64,
 }
@@ -649,12 +648,12 @@ impl WitnessTx {
     }
 }
 
-impl<'a> Transaction<'a> for WitnessTx {
+impl Transaction for WitnessTx {
     type TxError = TxError;
     type Digest = Hash256Digest;
     type TxIn = BitcoinTxIn;
     type TxOut = TxOut;
-    type SighashArgs = WitnessSighashArgs<'a>;
+    type SighashArgs = WitnessSighashArgs;
     type TXID = TXID;
     type HashWriter = Hash256Writer;
 
@@ -673,11 +672,11 @@ impl<'a> Transaction<'a> for WitnessTx {
         }
     }
 
-    fn inputs(&'a self) -> &'a [Self::TxIn] {
+    fn inputs(&self) -> &[Self::TxIn] {
         &self.legacy_tx.vin
     }
 
-    fn outputs(&'a self) -> &'a [Self::TxOut] {
+    fn outputs(&self) -> &[Self::TxOut] {
         &self.legacy_tx.vout
     }
 
@@ -703,7 +702,7 @@ impl<'a> Transaction<'a> for WitnessTx {
     }
 }
 
-impl<'a> BitcoinTransaction<'a> for WitnessTx {
+impl BitcoinTransaction for WitnessTx {
     fn as_legacy(&self) -> &LegacyTx {
         &self.legacy_tx
     }
@@ -721,9 +720,9 @@ impl<'a> BitcoinTransaction<'a> for WitnessTx {
     }
 }
 
-impl<'a> WitnessTransaction<'a> for WitnessTx {
+impl WitnessTransaction for WitnessTx {
     type WTXID = WTXID;
-    type WitnessSighashArgs = WitnessSighashArgs<'a>;
+    type WitnessSighashArgs = WitnessSighashArgs;
     type Witness = Witness;
 
     fn new<I, O, W>(version: u32, vin: I, vout: O, witnesses: W, locktime: u32) -> Self
@@ -895,7 +894,7 @@ mod tests {
         let mut args = LegacySighashArgs {
             index: 0,
             sighash_flag: Sighash::All,
-            prevout_script: &prevout_script,
+            prevout_script,
         };
 
         assert_eq!(tx.sighash(&args).unwrap(), all);
@@ -943,7 +942,7 @@ mod tests {
         let mut args = WitnessSighashArgs {
             index: 0,
             sighash_flag: Sighash::All,
-            prevout_script: &prevout_script,
+            prevout_script,
             prevout_value: 120000,
         };
 
@@ -995,7 +994,7 @@ mod tests {
         let mut args = WitnessSighashArgs {
             index: 1,
             sighash_flag: Sighash::All,
-            prevout_script: &prevout_script,
+            prevout_script,
             prevout_value: 120000,
         };
 
@@ -1051,7 +1050,7 @@ mod tests {
         let mut args = LegacySighashArgs {
             index: 1,
             sighash_flag: Sighash::All,
-            prevout_script: &prevout_script,
+            prevout_script,
         };
 
         assert_eq!(tx.sighash(&args).unwrap(), all);
@@ -1088,7 +1087,7 @@ mod tests {
         let args = WitnessSighashArgs {
             index: 0,
             sighash_flag: Sighash::None,
-            prevout_script: &vec![].into(),
+            prevout_script: vec![].into(),
             prevout_value: 120000,
         };
 
@@ -1106,7 +1105,7 @@ mod tests {
         let args = WitnessSighashArgs {
             index: 1,
             sighash_flag: Sighash::Single,
-            prevout_script: &vec![].into(),
+            prevout_script: vec![].into(),
             prevout_value: 120000,
         };
 
@@ -1153,7 +1152,7 @@ mod tests {
         let mut args = LegacySighashArgs {
             index: 0,
             sighash_flag: Sighash::All,
-            prevout_script: &prevout_script,
+            prevout_script,
         };
 
         assert_eq!(tx.legacy_sighash(&args).unwrap(), all);

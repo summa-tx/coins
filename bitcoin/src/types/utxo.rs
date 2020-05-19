@@ -66,10 +66,9 @@ impl UTXO {
     }
 
     /// Produce a UTXO from a transaction output
-    pub fn from_tx_output<'a, T>(tx: &'a T, idx: usize) -> UTXO
+    pub fn from_tx_output<T>(tx: &T, idx: usize) -> UTXO
     where
-        T: riemann_core::types::tx::Transaction<
-            'a,
+        T: riemann_core::types::tx::Transaction<  // TODO
             Digest = bitcoin_spv::types::Hash256Digest,
             TXID = hashes::TXID,
             TxOut = types::TxOut,

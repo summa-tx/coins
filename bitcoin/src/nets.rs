@@ -48,12 +48,12 @@ use crate::{
 
 /// A trait for a Bitcoin network. Specifies that Witness Txns must use the same Input and Output
 /// format as Legacy transactions.
-pub trait BitcoinNetwork<'a>: Network<'a> {
+pub trait BitcoinNetwork: Network {
     /// An associated witness transaction type.
-    type WTx: WitnessTransaction<'a> + BitcoinTransaction<'a>;
+    type WTx: WitnessTransaction + BitcoinTransaction;
 
     /// A builder for the witness transaction type
-    type WitnessBuilder: TxBuilder<'a, Encoder = Self::Encoder, Transaction = Self::WTx>;
+    type WitnessBuilder: TxBuilder<Encoder = Self::Encoder, Transaction = Self::WTx>;
 
     /// Returns a new instance of the associated transaction builder.
     fn witness_tx_builder() -> Self::WitnessBuilder {
@@ -73,7 +73,7 @@ pub trait BitcoinNetwork<'a>: Network<'a> {
     /// Instantiate a builder from a hex-serialized transaction
     fn witness_builder_from_hex(
         hex_tx: &str,
-    ) -> Result<Self::WitnessBuilder, <Self::WTx as Transaction<'a>>::TxError> {
+    ) -> Result<Self::WitnessBuilder, <Self::WTx as Transaction>::TxError> {
         Self::WitnessBuilder::from_hex_tx(hex_tx)
     }
 }
@@ -83,7 +83,7 @@ pub trait BitcoinNetwork<'a>: Network<'a> {
 #[derive(Debug)]
 pub struct Bitcoin<T: AddressEncoder>(PhantomData<*const T>);
 
-impl<'a, T> Network<'a> for Bitcoin<T>
+impl<T> Network for Bitcoin<T>
 where
     T: BitcoinEncoderMarker,
 {
@@ -97,7 +97,7 @@ where
     type Builder = LegacyBuilder<T>;
 }
 
-impl<'a, T> BitcoinNetwork<'a> for Bitcoin<T>
+impl<T> BitcoinNetwork for Bitcoin<T>
 where
     T: BitcoinEncoderMarker,
 {
@@ -106,13 +106,13 @@ where
 }
 
 /// A fully-parameterized BitcoinMainnet. This is the main interface for accessing the library.
-pub type BitcoinMainnet<'a> = Bitcoin<MainnetEncoder>;
+pub type BitcoinMainnet = Bitcoin<MainnetEncoder>;
 
 /// A fully-parameterized BitcoinTestnet. This is the main interface for accessing the library.
-pub type BitcoinTestnet<'a> = Bitcoin<TestnetEncoder>;
+pub type BitcoinTestnet = Bitcoin<TestnetEncoder>;
 
 /// A fully-parameterized BitcoinSignet. This is the main interface for accessing the library.
-pub type BitcoinSignet<'a> = Bitcoin<SignetEncoder>;
+pub type BitcoinSignet = Bitcoin<SignetEncoder>;
 
 #[cfg(test)]
 mod test {

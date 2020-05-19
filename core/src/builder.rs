@@ -11,9 +11,9 @@ use std::io::Read;
 /// A builder-pattern interface for constructing transactions. Implementations should accumulate
 /// inputs, outputs, witnesses, and other TX data, and then `build()` a Transaction object from
 /// the accumulated data.
-pub trait TxBuilder<'a>: std::marker::Sized {
+pub trait TxBuilder: std::marker::Sized {
     /// The Transaction type returned by `build()`
-    type Transaction: Transaction<'a>;
+    type Transaction: Transaction;
 
     /// An AddressEncoder that handles encoding and decoding network addresses. This is used in
     /// the `pay` function to decode addresses into associated `RecipientIdentifier`s.
@@ -31,7 +31,7 @@ pub trait TxBuilder<'a>: std::marker::Sized {
     /// Instantiate a new builder from a `std::io::Read` that contains a serialized tx
     fn read_from_tx<R>(
         reader: &mut R,
-    ) -> Result<Self, <Self::Transaction as Transaction<'a>>::TxError>
+    ) -> Result<Self, <Self::Transaction as Transaction>::TxError>
     where
         R: Read,
     {
@@ -40,7 +40,7 @@ pub trait TxBuilder<'a>: std::marker::Sized {
     }
 
     /// Instantiate a new builder from transaction hex
-    fn from_hex_tx(hex_str: &str) -> Result<Self, <Self::Transaction as Transaction<'a>>::TxError> {
+    fn from_hex_tx(hex_str: &str) -> Result<Self, <Self::Transaction as Transaction>::TxError> {
         let tx = Self::Transaction::deserialize_hex(hex_str)?;
         Ok(Self::from_tx(tx))
     }
@@ -54,12 +54,12 @@ pub trait TxBuilder<'a>: std::marker::Sized {
     /// specified sequence number.
     fn spend<I>(self, prevout: I, sequence: u32) -> Self
     where
-        I: Into<<<Self::Transaction as Transaction<'a>>::TxIn as Input>::TXOIdentifier>;
+        I: Into<<<Self::Transaction as Transaction>::TxIn as Input>::TXOIdentifier>;
 
     /// Pay an Address. Adds an output paying `value` to `address.`
     fn pay(
         self,
-        value: <<Self::Transaction as Transaction<'a>>::TxOut as Output>::Value,
+        value: <<Self::Transaction as Transaction>::TxOut as Output>::Value,
         address: &<Self::Encoder as AddressEncoder>::Address,
     ) -> Result<Self, <Self::Encoder as AddressEncoder>::Error>;
 
@@ -71,13 +71,13 @@ pub trait TxBuilder<'a>: std::marker::Sized {
     fn insert_input(
         self,
         index: usize,
-        input: <Self::Transaction as Transaction<'a>>::TxIn,
+        input: <Self::Transaction as Transaction>::TxIn,
     ) -> Self;
 
     /// Add a set of inputs to the transaction.
     fn extend_inputs<I>(self, inputs: I) -> Self
     where
-        I: IntoIterator<Item = <Self::Transaction as Transaction<'a>>::TxIn>;
+        I: IntoIterator<Item = <Self::Transaction as Transaction>::TxIn>;
 
     /// Insert an output at the specified index. Outputs after that are shifted to later indices.
     ///
@@ -87,13 +87,13 @@ pub trait TxBuilder<'a>: std::marker::Sized {
     fn insert_output(
         self,
         index: usize,
-        output: <Self::Transaction as Transaction<'a>>::TxOut,
+        output: <Self::Transaction as Transaction>::TxOut,
     ) -> Self;
 
     /// Add a set of outputs to the transaction.
     fn extend_outputs<I>(self, outputs: I) -> Self
     where
-        I: IntoIterator<Item = <Self::Transaction as Transaction<'a>>::TxOut>;
+        I: IntoIterator<Item = <Self::Transaction as Transaction>::TxOut>;
 
     /// Set or overwrite the transaction locktime.
     ///

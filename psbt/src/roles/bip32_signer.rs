@@ -124,7 +124,7 @@ impl<'a> Bip32Signer<'a> {
         let sighash_args = LegacySighashArgs {
             index: input_idx,
             sighash_flag: input_map.sighash_or_default(),
-            prevout_script: &(&prevout.script_pubkey).into(),
+            prevout_script: (&prevout.script_pubkey).into(),
         };
 
         for path in paths.iter() {
@@ -156,7 +156,7 @@ impl<'a> Bip32Signer<'a> {
         let sighash_args = WitnessSighashArgs {
             index: input_idx,
             sighash_flag: input_map.sighash_or_default(),
-            prevout_script: &(&prevout.script_pubkey).into(),
+            prevout_script: (&prevout.script_pubkey).into(),
             prevout_value: prevout.value,
         };
 
@@ -177,7 +177,7 @@ impl<'a> From<&'a bip32::DerivedXPriv<'a>> for Bip32Signer<'a> {
     }
 }
 
-impl<'a, A, E> PSTSigner<'a, A, PSBT<A, E>> for Bip32Signer<'a>
+impl<'a, A, E> PSTSigner<A, PSBT<A, E>> for Bip32Signer<'a>
 where
     A: BitcoinEncoderMarker,
     E: bip32::enc::Encoder,

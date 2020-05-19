@@ -86,7 +86,7 @@ impl LegacyTx {
         let args = transactions::LegacySighashArgs {
             index,
             sighash_flag,
-            prevout_script: &script::Script::from(prevout_script),
+            prevout_script: script::Script::from(prevout_script),
         };
         self.0
             .sighash(&args)
@@ -163,7 +163,7 @@ impl WitnessTx {
         let args = transactions::WitnessSighashArgs {
             index,
             sighash_flag,
-            prevout_script: &script::Script::from(prevout_script),
+            prevout_script: script::Script::from(prevout_script),
             prevout_value,
         };
         self.0

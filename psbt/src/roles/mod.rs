@@ -14,10 +14,10 @@ use crate::PST;
 use riemann_core::enc::AddressEncoder;
 use rmn_btc::types::transactions::{BitcoinTx, Sighash};
 
-pub trait PSTUpdater<'a, A, P>
+pub trait PSTUpdater<A, P>
 where
     A: AddressEncoder,
-    P: PST<'a, A>,
+    P: PST<A>,
 {
     /// An associated error type that can be instantiated from the PST's Error type. This may be
     /// the PST's Error type.
@@ -27,10 +27,10 @@ where
 }
 
 /// A PST Signer interface.
-pub trait PSTSigner<'a, A, P>
+pub trait PSTSigner<A, P>
 where
     A: AddressEncoder,
-    P: PST<'a, A>,
+    P: PST<A>,
 {
     /// An associated error type that can be instantiated from the PST's Error type. This may be
     /// the PST's Error type.
@@ -80,10 +80,10 @@ where
 
 /// A PST Finalizer. These will typically be specialized for some purpose, and a PST may need
 /// several rounds of finalization by different finalizers if it contains several types of input.
-pub trait PSTFinalizer<'a, A, P>
+pub trait PSTFinalizer<A, P>
 where
     A: AddressEncoder,
-    P: PST<'a, A>,
+    P: PST<A>,
 {
     /// An associated error type that can be instantiated from the PST's Error type. This may be
     /// the PST's Error type.
@@ -104,10 +104,10 @@ where
     }
 }
 
-pub trait PSTExtractor<'a, A, P>
+pub trait PSTExtractor<A, P>
 where
     A: AddressEncoder,
-    P: PST<'a, A>,
+    P: PST<A>,
 {
     /// An associated error type that can be instantiated from the PST's Error type. This may be
     /// the PST's Error type.

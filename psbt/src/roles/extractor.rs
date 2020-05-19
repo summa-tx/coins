@@ -10,7 +10,7 @@ use rmn_btc::{
 /// An extractor
 pub struct PSBTExtractor();
 
-impl<'a, A, E> PSTExtractor<'a, A, PSBT<A, E>> for PSBTExtractor
+impl<A, E> PSTExtractor<A, PSBT<A, E>> for PSBTExtractor
 where
     A: BitcoinEncoderMarker,
     E: bip32::enc::Encoder,

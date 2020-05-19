@@ -46,7 +46,7 @@ use rmn_btc::{
 };
 
 /// A generic Partially Signed Transaction
-pub trait PST<'a, T: AddressEncoder> {
+pub trait PST<T: AddressEncoder> {
     /// A 4-byte prefix used to identify partially signed transactions. May vary by network.
     const MAGIC_BYTES: [u8; 4];
 
@@ -57,7 +57,7 @@ pub trait PST<'a, T: AddressEncoder> {
     type Error: std::error::Error;
 
     /// An associated TxBuildertype, parameterized by the encoder
-    type TxBuilder: TxBuilder<'a, Encoder = T, Transaction = LegacyTx>;
+    type TxBuilder: TxBuilder<Encoder = T, Transaction = LegacyTx>;
 
     /// An associated Global Map type
     type Global: PSTMap;
@@ -99,7 +99,7 @@ pub trait PST<'a, T: AddressEncoder> {
     fn output_maps_mut(&mut self) -> &mut Vec<Self::Output>;
     /// Instantiate a PST from a transaction. If script sigs or witnesses are present in the tx,
     /// this extracts them and stores them in the appropriate map under the finalized key.
-    fn from_tx<'b, Tx: BitcoinTransaction<'b>>(tx: &'b Tx) -> Self;
+    fn from_tx<Tx: BitcoinTransaction>(tx: &Tx) -> Self;
 }
 
 /// A BIP174 Partially Signed Bitcoin Transaction
@@ -232,7 +232,7 @@ where
     }
 }
 
-impl<'a, T, E> PST<'a, T> for PSBT<T, E>
+impl<T, E> PST<T> for PSBT<T, E>
 where
     T: BitcoinEncoderMarker,
     E: Bip32Encoder,
@@ -313,7 +313,7 @@ where
         &mut self.outputs
     }
 
-    fn from_tx<'b, Tx: BitcoinTransaction<'b>>(tx: &'b Tx) -> PSBT<T, E> {
+    fn from_tx<Tx: BitcoinTransaction>(tx: &Tx) -> PSBT<T, E> {
         let mut global = PSBTGlobal::default();
         global.set_tx(&tx.as_legacy());
 

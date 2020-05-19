@@ -34,7 +34,7 @@ pub trait Output {
 /// transaction specificies which types it considers to be inputs and outputs, and a struct that
 /// contains its Sighash arguments. This allows others to define custom transaction types with
 /// unique functionality.
-pub trait Transaction<'a>: ByteFormat {
+pub trait Transaction: ByteFormat {
     /// An associated error type, using in Results returned by the Transaction.
     type TxError: From<SerError> + From<<Self as ByteFormat>::Error>;
     /// A Digest type that underlies the associated marked hash, and is returned by `sighash()`.
@@ -60,10 +60,10 @@ pub trait Transaction<'a>: ByteFormat {
     fn version(&self) -> u32;
 
     /// Returns a reference to the transaction input vector
-    fn inputs(&'a self) -> &'a [Self::TxIn];
+    fn inputs(&self) -> &[Self::TxIn];
 
     /// Returns a reference the the transaction output vector
-    fn outputs(&'a self) -> &'a [Self::TxOut];
+    fn outputs(&self) -> &[Self::TxOut];
 
     /// Returns the transaction's nLocktime field
     fn locktime(&self) -> u32;

@@ -23,7 +23,7 @@ fn clear_input_map(input_map: &mut PSBTInput) {
     }
 }
 
-impl<'a, A, E> PSTFinalizer<'a, A, PSBT<A, E>> for PSBTWPKHFinalizer
+impl<A, E> PSTFinalizer<A, PSBT<A, E>> for PSBTWPKHFinalizer
 where
     A: BitcoinEncoderMarker,
     E: bip32::enc::Encoder,

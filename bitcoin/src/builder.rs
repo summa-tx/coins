@@ -28,22 +28,22 @@ use crate::{
 
 /// A `TxBuilder` that builds Bitcoin transactions. This trait extends `TxBuilder` to provide
 /// easy conversion between Legacy and Witness bitcoin builders.
-pub trait BitcoinBuilder<'a>: TxBuilder<'a> {
+pub trait BitcoinBuilder: TxBuilder {
     /// A WitnessTransaction type. This represents the Witness transaction associated with this
     /// builder. We add this associated type so that `extend_witnesses` can accept a vector of
     /// witnesses.
-    type WitnessTransaction: WitnessTransaction<'a>;
+    type WitnessTransaction: WitnessTransaction;
 
     /// An associated WitnessBuilder. This is used as the return type for `extend_witnesses`.
     /// Calling `extend_witnesses` should return a new `WitnessBuilder` with all information
     /// carried over. This allows for a magic builder experience, where the user can be naive of
     /// the changed type.
-    type WitnessBuilder: TxBuilder<'a>;
+    type WitnessBuilder: TxBuilder;
 
     /// Add a set of witnesses to the transaction, and return a witness builder.
     fn extend_witnesses<I>(self, outputs: I) -> Self::WitnessBuilder
     where
-        I: IntoIterator<Item = <Self::WitnessTransaction as WitnessTransaction<'a>>::Witness>;
+        I: IntoIterator<Item = <Self::WitnessTransaction as WitnessTransaction>::Witness>;
 
     /// Converts the builder into a witness builder.
     fn as_witness(self) -> Self::WitnessBuilder;
@@ -54,9 +54,9 @@ pub trait BitcoinBuilder<'a>: TxBuilder<'a> {
 
 /// A WitnessTxBuilder. This should provide all the same functionality as the TxBuilder, but build
 /// Witness Txs.
-pub trait WitTxBuilder<'a>: BitcoinBuilder<'a> {
+pub trait WitTxBuilder: BitcoinBuilder {
     /// The associated `LegacyBuilder` type..
-    type LegacyBuilder: BitcoinBuilder<'a>;
+    type LegacyBuilder: BitcoinBuilder;
 
     /// Convert the witness builder into a legacy builder. Discards any existing witnesses.
     fn as_legacy(self) -> Self::LegacyBuilder;
@@ -100,7 +100,7 @@ impl<T: AddressEncoder> From<WitnessBuilder<T>> for LegacyBuilder<T> {
     }
 }
 
-impl<'a, T> TxBuilder<'a> for LegacyBuilder<T>
+impl<T> TxBuilder for LegacyBuilder<T>
 where
     T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>,
 {
@@ -164,7 +164,7 @@ where
     fn insert_input(
         mut self,
         index: usize,
-        input: <Self::Transaction as Transaction<'a>>::TxIn,
+        input: <Self::Transaction as Transaction>::TxIn,
     ) -> Self {
         let index = std::cmp::min(index, self.vin.len());
         self.vin.insert(index, input);
@@ -182,7 +182,7 @@ where
     fn insert_output(
         mut self,
         index: usize,
-        output: <Self::Transaction as Transaction<'a>>::TxOut,
+        output: <Self::Transaction as Transaction>::TxOut,
     ) -> Self {
         let index = std::cmp::min(index, self.vout.len());
         self.vout.insert(index, output);
@@ -207,7 +207,7 @@ where
     }
 }
 
-impl<'a, T> BitcoinBuilder<'a> for LegacyBuilder<T>
+impl<T> BitcoinBuilder for LegacyBuilder<T>
 where
     T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>,
 {
@@ -232,7 +232,7 @@ where
     }
 }
 
-impl<'a, T> TxBuilder<'a> for WitnessBuilder<T>
+impl<T> TxBuilder for WitnessBuilder<T>
 where
     T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>,
 {
@@ -299,7 +299,7 @@ where
     fn insert_input(
         mut self,
         index: usize,
-        input: <Self::Transaction as Transaction<'a>>::TxIn,
+        input: <Self::Transaction as Transaction>::TxIn,
     ) -> Self {
         let index = std::cmp::min(index, self.builder.vin.len());
         self.builder.vin.insert(index, input);
@@ -317,7 +317,7 @@ where
     fn insert_output(
         mut self,
         index: usize,
-        output: <Self::Transaction as Transaction<'a>>::TxOut,
+        output: <Self::Transaction as Transaction>::TxOut,
     ) -> Self {
         let index = std::cmp::min(index, self.builder.vout.len());
         self.builder.vout.insert(index, output);
@@ -345,7 +345,7 @@ where
     }
 }
 
-impl<'a, T> BitcoinBuilder<'a> for WitnessBuilder<T>
+impl<T> BitcoinBuilder for WitnessBuilder<T>
 where
     T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>,
 {
@@ -371,7 +371,7 @@ where
     }
 }
 
-impl<'a, T> WitTxBuilder<'a> for WitnessBuilder<T>
+impl<T> WitTxBuilder for WitnessBuilder<T>
 where
     T: AddressEncoder<Address = Address, Error = EncodingError, RecipientIdentifier = ScriptPubkey>,
 {

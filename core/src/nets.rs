@@ -17,7 +17,7 @@ use crate::{
 /// we provide Networks to enforce relationships between them. This is why the `Network` trait's
 /// associated types are complex. It exists to guarantee consistency of associated types across a
 /// large number of disparate elements.
-pub trait Network<'a> {
+pub trait Network {
     /// A type handling the network's address semantics. This will typically represent some
     /// predicate on the transaction. It is used by both the `Encoder` and the `Builder`.
     type Address;
@@ -47,12 +47,12 @@ pub trait Network<'a> {
     type TxOut: Output<RecipientIdentifier = Self::RecipientIdentifier> + ByteFormat;
 
     /// A Transaction type that uses the `TxIn` and `TxOut`.
-    type Tx: Transaction<'a, TxIn = Self::TxIn, TxOut = Self::TxOut>;
+    type Tx: Transaction<TxIn = Self::TxIn, TxOut = Self::TxOut>;
 
     /// A transaction Builder that uses the `Encoder` and `Transaction` types defined earlier.
     /// The builder is returned by `Network::tx_builder()`, and provides a convenient interface
     /// for transaction construction.
-    type Builder: TxBuilder<'a, Encoder = Self::Encoder, Transaction = Self::Tx>;
+    type Builder: TxBuilder<Encoder = Self::Encoder, Transaction = Self::Tx>;
 
     /// Returns a new instance of the associated transaction builder.
     fn tx_builder() -> Self::Builder {
@@ -72,7 +72,7 @@ pub trait Network<'a> {
     /// Instantiate a builder from a hex-serialized transaction
     fn builder_from_hex(
         hex_tx: &str,
-    ) -> Result<Self::Builder, <Self::Tx as Transaction<'a>>::TxError> {
+    ) -> Result<Self::Builder, <Self::Tx as Transaction>::TxError> {
         Self::Builder::from_hex_tx(hex_tx)
     }
 
