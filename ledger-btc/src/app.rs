@@ -58,6 +58,9 @@ impl LedgerBTC {
             transport: Mutex::new(transports::DefaultTransport::create_sync().unwrap()),
         }
     }
+
+    /// Consume self and drop the ledger mutex
+    pub fn close(self) {}
 }
 
 // XPubs
