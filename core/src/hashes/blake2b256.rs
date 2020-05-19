@@ -2,32 +2,6 @@ use crate::hashes::marked::MarkedDigestWriter;
 use blake2_rfc::blake2b::Blake2b;
 use std::io::{Result as IOResult, Write};
 
-struct Blake2b256 {
-    ctx: Blake2b,
-}
-
-impl Default for Blake2b256 {
-    fn default() -> Blake2b256 {
-        Blake2b256 {
-            ctx: Blake2b::new(32),
-        }
-    }
-}
-
-impl Blake2b256 {
-    fn update(&mut self, buf: &[u8]) {
-        self.ctx.update(buf)
-    }
-    fn finalize(self) -> Blake2b256Digest {
-        let digest = self.ctx.finalize();
-        let result = digest.as_bytes();
-
-        let mut digest = Blake2b256Digest::default();
-        digest[..].copy_from_slice(&result[..]);
-        digest
-    }
-}
-
 /// A blake2b256 digest.
 pub type Blake2b256Digest = [u8; 32];
 
@@ -50,9 +24,16 @@ pub type Blake2b256Digest = [u8; 32];
 /// # Ok(())
 /// }
 /// ```
-#[derive(Default)]
 pub struct Blake2b256Writer {
-    internal: Blake2b256,
+    internal: Blake2b,
+}
+
+impl Default for Blake2b256Writer {
+    fn default() -> Blake2b256Writer {
+        Blake2b256Writer {
+            internal: Blake2b::new(32),
+        }
+    }
 }
 
 impl Write for Blake2b256Writer {
@@ -67,7 +48,12 @@ impl Write for Blake2b256Writer {
 
 impl MarkedDigestWriter<Blake2b256Digest> for Blake2b256Writer {
     fn finish(self) -> Blake2b256Digest {
-        self.internal.finalize()
+        let digest = self.internal.finalize();
+        let result = digest.as_bytes();
+
+        let mut digest = Blake2b256Digest::default();
+        digest[..].copy_from_slice(&result[..]);
+        digest
     }
 }
 
