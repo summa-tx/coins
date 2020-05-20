@@ -19,7 +19,7 @@ pub type Blake2b256Digest = [u8; 32];
 /// // Writing more than once will update the hasher.
 /// w.write(&data)?;
 ///
-/// // Call finish to consume the produce the hasher and produce the digest.
+/// // Call finish to consume the hasher and produce the digest.
 /// let digest = w.finish();
 /// # Ok(())
 /// }
