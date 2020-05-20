@@ -9,8 +9,7 @@
 //! This functionality does NOT currently support nested witness-via-p2sh prevouts. If you' like
 //! to use those, you'll need a processing step in your tx signer.
 use crate::{
-    hashes,
-    types::{self, BitcoinOutpoint, Script, ScriptPubkey, ScriptType, TxOut},
+    types::{BitcoinOutpoint, BitcoinTransaction, Script, ScriptPubkey, ScriptType, TxOut},
 };
 use serde::{Deserialize, Serialize};
 
@@ -68,13 +67,7 @@ impl UTXO {
     /// Produce a UTXO from a transaction output
     pub fn from_tx_output<T>(tx: &T, idx: usize) -> UTXO
     where
-        T: riemann_core::types::tx::Transaction<  // TODO
-            Digest = bitcoin_spv::types::Hash256Digest,
-            TXID = hashes::TXID,
-            TxOut = types::TxOut,
-            TxIn = types::BitcoinTxIn,
-            HashWriter = riemann_core::hashes::Hash256Writer,
-        >,
+        T: BitcoinTransaction,
     {
         let output = &tx.outputs()[idx];
         UTXO {
