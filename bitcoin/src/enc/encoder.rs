@@ -12,7 +12,7 @@ use crate::{
 };
 
 /// The available Bitcoin Address types, implemented as a type enum around strings.
-#[derive(PartialEq, Eq, Clone, Debug)]
+#[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub enum Address {
     /// Legacy Pay to Pubkeyhash
     PKH(String),
@@ -57,7 +57,7 @@ pub trait BitcoinEncoderMarker:
 /// The standard encoder for Bitcoin networks. Parameterized by a `NetworkParams` type and an
 /// `rmn_bip32::Encoder`. It exposes
 #[derive(Debug, Clone, PartialEq)]
-pub struct BitcoinEncoder<P: NetworkParams>(PhantomData<*const P>);
+pub struct BitcoinEncoder<P: NetworkParams>(PhantomData<P>);
 
 impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
     type Address = Address;

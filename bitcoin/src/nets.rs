@@ -81,7 +81,7 @@ pub trait BitcoinNetwork: Network {
 /// A newtype for Bitcoin networks, parameterized by an encoder. We change the encoder to
 /// differentiate between main, test, and signet.
 #[derive(Debug)]
-pub struct Bitcoin<T: AddressEncoder>(PhantomData<*const T>);
+pub struct Bitcoin<T: AddressEncoder>(PhantomData<T>);
 
 impl<T> Network for Bitcoin<T>
 where

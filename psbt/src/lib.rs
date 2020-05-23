@@ -112,8 +112,8 @@ pub struct PSBT<T: BitcoinEncoderMarker, E: Bip32Encoder> {
     /// Per-output attribute maps
     outputs: Vec<PSBTOutput>,
     /// Sppoooopppy
-    encoder: PhantomData<*const T>,
-    bip32_encoder: PhantomData<*const E>,
+    encoder: PhantomData<T>,
+    bip32_encoder: PhantomData<E>,
 }
 
 impl<T: BitcoinEncoderMarker, E: Bip32Encoder> serde::Serialize for PSBT<T, E> {

@@ -72,7 +72,7 @@ pub struct LegacyBuilder<T: AddressEncoder> {
     vin: Vec<BitcoinTxIn>,
     vout: Vec<TxOut>,
     locktime: u32,
-    encoder: PhantomData<*const T>,
+    encoder: PhantomData<T>,
 }
 
 /// WitnessBuilder implements `TxBuilder` and `WitTxBuilder`. The only difference between
