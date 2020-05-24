@@ -6,12 +6,18 @@ pub(crate) type Error = secp256k1::Error;
 #[cfg_attr(tarpaulin, skip)]
 #[allow(clippy::all)]
 lazy_static! {
-    static ref CONTEXT: secp256k1::Secp256k1<secp256k1::All> = { secp256k1::Secp256k1::new() };
+    static ref CONTEXT: secp256k1::Secp256k1<secp256k1::All> = secp256k1::Secp256k1::new();
 }
 
 /// A Secp256k1Backend struct using Sipa's C implementation of Secp256k1.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Secp256k1<'a>(&'a secp256k1::Secp256k1<secp256k1::All>);
+
+impl<'a> Default for Secp256k1<'a> {
+    fn default() -> Secp256k1<'a> {
+        Self::init()
+    }
+}
 
 impl<'a> Secp256k1<'a> {
     /// Instantiate a backend from a context. Useful for managing your own backend lifespan

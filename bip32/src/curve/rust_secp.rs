@@ -8,9 +8,9 @@ pub(crate) type Error = libsecp256k1_core::Error;
 #[cfg(not(feature = "rust-secp-static-context"))]
 lazy_static! {
     static ref EC_MULT: Box<secp256k1::curve::ECMultContext> =
-        { secp256k1::curve::ECMultContext::new_boxed() };
+        secp256k1::curve::ECMultContext::new_boxed();
     static ref EC_MULT_GEN: Box<secp256k1::curve::ECMultGenContext> =
-        { secp256k1::curve::ECMultGenContext::new_boxed() };
+        secp256k1::curve::ECMultGenContext::new_boxed();
 }
 
 /// A Secp256k1Backend struct using the Parity Rust implementation of Secp256k1.
@@ -18,6 +18,12 @@ pub struct Secp256k1<'a>(
     &'a secp256k1::curve::ECMultContext,
     &'a secp256k1::curve::ECMultGenContext,
 );
+
+impl<'a> Default for Secp256k1<'a> {
+    fn default() -> Secp256k1<'a> {
+        Self::init()
+    }
+}
 
 impl<'a> Secp256k1<'a> {
     /// Instantiate a backend from a context. Useful for managing your own backend lifespan
