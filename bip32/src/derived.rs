@@ -91,6 +91,30 @@ inherit_has_privkey!(GenericDerivedXPriv.xpriv);
 inherit_backend!(GenericDerivedXPriv.xpriv);
 inherit_has_xkeyinfo!(GenericDerivedXPriv.xpriv);
 
+impl DerivedXPriv {
+    /// Generate a customized master node using the static backend
+    pub fn master_node(
+        hmac_key: &[u8],
+        data: &[u8],
+        hint: Option<Hint>,
+    ) -> Result<DerivedXPriv, Bip32Error> {
+        Self::custom_master_node(hmac_key, data, hint, crate::curve::Secp256k1::static_ref())
+    }
+
+    /// Generate a master node from some seed data. Uses the BIP32-standard hmac key.
+    ///
+    ///
+    /// # Important:
+    ///
+    /// Use a seed of AT LEAST 128 bits.
+    pub fn root_from_seed(
+        data: &[u8],
+        hint: Option<Hint>
+    ) -> Result<DerivedXPriv, Bip32Error> {
+        Self::custom_root_from_seed(data, hint, crate::curve::Secp256k1::static_ref())
+    }
+}
+
 impl<'a, T: Secp256k1Backend> GenericDerivedXPriv<'a, T> {
     /// Instantiate a master node using a custom HMAC key.
     pub fn custom_master_node(
@@ -115,7 +139,7 @@ impl<'a, T: Secp256k1Backend> GenericDerivedXPriv<'a, T> {
     /// # Important:
     ///
     /// Use a seed of AT LEAST 128 bits.
-    pub fn root_from_seed(
+    pub fn custom_root_from_seed(
         data: &[u8],
         hint: Option<Hint>,
         backend: &'a T,
@@ -267,7 +291,7 @@ mod test {
         let seed: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
         let backend = Secp256k1::static_ref();
 
-        let xpriv = DerivedXPriv::root_from_seed(&seed, Some(Hint::Legacy), backend).unwrap();
+        let xpriv = DerivedXPriv::root_from_seed(&seed, Some(Hint::Legacy)).unwrap();
 
         let descendants = [
             KeyDeriv {
@@ -297,7 +321,7 @@ mod test {
         let seed = hex::decode(&"fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542").unwrap();
         let backend = Secp256k1::static_ref();
 
-        let xpriv = DerivedXPriv::root_from_seed(&seed, Some(Hint::Legacy), backend).unwrap();
+        let xpriv = DerivedXPriv::root_from_seed(&seed, Some(Hint::Legacy)).unwrap();
 
         let descendants = [
             KeyDeriv { path: &[0] },
@@ -331,7 +355,7 @@ mod test {
         let seed = hex::decode(&"4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be").unwrap();
         let backend = Secp256k1::static_ref();
 
-        let xpriv = DerivedXPriv::root_from_seed(&seed, Some(Hint::Legacy), backend).unwrap();
+        let xpriv = DerivedXPriv::root_from_seed(&seed, Some(Hint::Legacy)).unwrap();
 
         let descendants = [KeyDeriv {
             path: &[0 + BIP32_HARDEN],
@@ -606,15 +630,15 @@ mod test {
     #[test]
     fn it_instantiates_derived_xprivs_from_seeds() {
         let backend = Secp256k1::static_ref();
-        GenericDerivedXPriv::root_from_seed(&[0u8; 32][..], None, backend).unwrap();
+        GenericDerivedXPriv::custom_root_from_seed(&[0u8; 32][..], None, backend).unwrap();
 
-        let err_too_short = GenericDerivedXPriv::root_from_seed(&[0u8; 2][..], None, backend);
+        let err_too_short = GenericDerivedXPriv::custom_root_from_seed(&[0u8; 2][..], None, backend);
         match err_too_short {
             Err(Bip32Error::SeedTooShort) => {}
             _ => assert!(false, "expected err too short"),
         }
 
-        let err_too_short = GenericDerivedXPriv::root_from_seed(&[0u8; 2][..], None, backend);
+        let err_too_short = GenericDerivedXPriv::custom_root_from_seed(&[0u8; 2][..], None, backend);
         match err_too_short {
             Err(Bip32Error::SeedTooShort) => {}
             _ => assert!(false, "expected err too short"),
@@ -624,8 +648,8 @@ mod test {
     #[test]
     fn it_checks_ancestry() {
         let backend = Secp256k1::static_ref();
-        let m = GenericDerivedXPriv::root_from_seed(&[0u8; 32][..], None, backend).unwrap();
-        let m2 = GenericDerivedXPriv::root_from_seed(&[1u8; 32][..], None, backend).unwrap();
+        let m = GenericDerivedXPriv::custom_root_from_seed(&[0u8; 32][..], None, backend).unwrap();
+        let m2 = GenericDerivedXPriv::custom_root_from_seed(&[1u8; 32][..], None, backend).unwrap();
         let m_pub = GenericDerivedXPub::from_signing_key(&m).unwrap();
         let cases = [
             (&m, &m_pub, true),

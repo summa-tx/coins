@@ -18,6 +18,31 @@ type HmacSha512 = Hmac<Sha512>;
 /// [GenericXPriv](struct.GenericXPriv.html).
 pub type XPriv = GenericXPriv<'static, crate::curve::Secp256k1<'static>>;
 
+impl XPriv {
+    /// Generate a customized master node using the static backend
+    pub fn master_node(
+        hmac_key: &[u8],
+        data: &[u8],
+        hint: Option<Hint>,
+    ) -> Result<XPriv, Bip32Error> {
+        Self::custom_master_node(hmac_key, data, hint, crate::curve::Secp256k1::static_ref())
+    }
+
+    /// Generate a master node from some seed data. Uses the BIP32-standard hmac key.
+    ///
+    ///
+    /// # Important:
+    ///
+    /// Use a seed of AT LEAST 128 bits.
+    pub fn root_from_seed(
+        data: &[u8],
+        hint: Option<Hint>
+    ) -> Result<XPriv, Bip32Error> {
+        Self::custom_root_from_seed(data, hint, crate::curve::Secp256k1::static_ref())
+    }
+}
+
+
 /// A BIP32 Extended pubkey using the library's compiled-in secp256k1 backend. This defaults to
 /// libsecp for native, and parity's rust secp for wasm targets
 ///
@@ -93,7 +118,7 @@ impl<'a, T: Secp256k1Backend> GenericXPriv<'a, T> {
     /// # Important:
     ///
     /// Use a seed of AT LEAST 128 bits.
-    pub fn root_from_seed(
+    pub fn custom_root_from_seed(
         data: &[u8],
         hint: Option<Hint>,
         backend: &'a T,
@@ -265,7 +290,7 @@ mod test {
         let seed: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
         let backend = Secp256k1::static_ref();
 
-        let xpriv = XPriv::root_from_seed(&seed, Some(Hint::Legacy), &backend).unwrap();
+        let xpriv = XPriv::root_from_seed(&seed, Some(Hint::Legacy)).unwrap();
         let xpub = xpriv.to_xpub().unwrap();
 
         let expected_xpub = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
@@ -324,7 +349,7 @@ mod test {
         let seed = hex::decode(&"fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542").unwrap();
         let backend = Secp256k1::static_ref();
 
-        let xpriv = XPriv::root_from_seed(&seed, Some(Hint::Legacy), &backend).unwrap();
+        let xpriv = XPriv::root_from_seed(&seed, Some(Hint::Legacy)).unwrap();
         let xpub = xpriv.to_xpub().unwrap();
 
         let expected_xpub = "xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB";
@@ -383,7 +408,7 @@ mod test {
         let seed = hex::decode(&"4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be").unwrap();
         let backend = Secp256k1::static_ref();
 
-        let xpriv = XPriv::root_from_seed(&seed, Some(Hint::Legacy), &backend).unwrap();
+        let xpriv = XPriv::root_from_seed(&seed, Some(Hint::Legacy)).unwrap();
         let xpub = xpriv.to_xpub().unwrap();
 
         let expected_xpub = "xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13";
