@@ -1,6 +1,5 @@
 //! Abstract ledger tranport trait with WASM and native HID instantiations.
 
-
 #[doc(hidden)]
 #[cfg(not(target_arch = "wasm32"))]
 pub mod hid;
@@ -29,6 +28,8 @@ pub trait APDUExchanger: std::marker::Sized {
     fn exchange_sync(&self, apdu_command: &APDUCommand) -> Result<APDUAnswer, LedgerError>;
 }
 
+// This is a bit of cleverness to get around the lack of async traits. Essentially the code will
+// fail to compile unless the transport exposes the async `exchange` function.
 impl APDUExchanger for DefaultTransport {
     #[cfg(not(target_arch = "wasm32"))]
     fn create_sync() -> Result<Self, LedgerError> {
