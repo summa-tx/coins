@@ -27,7 +27,7 @@ macro_rules! params {
 
 macro_rules! inherit_backend {
     ($struct_name:ident.$attr:ident) => {
-        impl<'a, T: crate::curve::model::Secp256k1Backend<'a>> crate::model::HasBackend<'a, T>
+        impl<'a, T: crate::curve::model::Secp256k1Backend> crate::model::HasBackend<'a, T>
             for $struct_name<'a, T>
         {
             fn set_backend(&mut self, backend: &'a T) {
@@ -43,7 +43,7 @@ macro_rules! inherit_backend {
 
 macro_rules! inherit_has_privkey {
     ($struct_name:ident.$attr:ident) => {
-        impl<'a, T: crate::curve::model::Secp256k1Backend<'a>> crate::model::HasPrivkey<'a, T>
+        impl<'a, T: crate::curve::model::Secp256k1Backend> crate::model::HasPrivkey<'a, T>
             for $struct_name<'a, T>
         {
             fn privkey(&self) -> &T::Privkey {
@@ -55,7 +55,7 @@ macro_rules! inherit_has_privkey {
 
 macro_rules! inherit_has_pubkey {
     ($struct_name:ident.$attr:ident) => {
-        impl<'a, T: crate::curve::model::Secp256k1Backend<'a>> crate::model::HasPubkey<'a, T>
+        impl<'a, T: crate::curve::model::Secp256k1Backend> crate::model::HasPubkey<'a, T>
             for $struct_name<'a, T>
         {
             fn pubkey(&self) -> &T::Pubkey {
@@ -67,7 +67,7 @@ macro_rules! inherit_has_pubkey {
 
 macro_rules! inherit_has_xkeyinfo {
     ($struct_name:ident.$attr:ident) => {
-        impl<'a, T: crate::curve::model::Secp256k1Backend<'a>> crate::model::HasXKeyInfo
+        impl<'a, T: crate::curve::model::Secp256k1Backend> crate::model::HasXKeyInfo
             for $struct_name<'a, T>
         {
             fn xkey_info(&self) -> &crate::primitives::XKeyInfo {
@@ -84,14 +84,14 @@ macro_rules! make_derived_key {
     ) => {
         $(#[$outer])*
         #[derive(Clone, Debug, PartialEq)]
-        pub struct $struct_name<'a, T: Secp256k1Backend<'a>> {
+        pub struct $struct_name<'a, T: Secp256k1Backend> {
             /// The underlying key
             pub $attr: $underlying<'a, T>,
             /// Its derivation from some master key
             pub derivation: crate::path::KeyDerivation,
         }
 
-        impl<'a, T: Secp256k1Backend<'a>> crate::model::DerivedKey for $struct_name<'a, T> {
+        impl<'a, T: Secp256k1Backend> crate::model::DerivedKey for $struct_name<'a, T> {
             type Key = $underlying<'a, T>;
 
             fn new(k: Self::Key, derivation: KeyDerivation) -> Self {

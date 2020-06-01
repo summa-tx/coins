@@ -90,7 +90,7 @@ impl ScriptPubkey {
     /// Instantiate a standard p2pkh script pubkey from a pubkey.
     pub fn p2pkh<'a, T, B>(key: &T) -> Self
     where
-        B: rmn_bip32::curve::Secp256k1Backend<'a>,
+        B: rmn_bip32::curve::Secp256k1Backend,
         T: rmn_bip32::model::HasPubkey<'a, B>,
     {
         let mut v: Vec<u8> = vec![0x76, 0xa9, 0x14]; // DUP, HASH160, PUSH_20
@@ -102,7 +102,7 @@ impl ScriptPubkey {
     /// Instantiate a standard p2wpkh script pubkey from a pubkey.
     pub fn p2wpkh<'a, T, B>(key: &T) -> Self
     where
-        B: rmn_bip32::curve::Secp256k1Backend<'a>,
+        B: rmn_bip32::curve::Secp256k1Backend,
         T: rmn_bip32::model::HasPubkey<'a, B>,
     {
         let mut v: Vec<u8> = vec![0x00, 0x14]; // OP_0, PUSH_20

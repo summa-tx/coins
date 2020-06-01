@@ -3,7 +3,7 @@ use thiserror::Error;
 use riemann_core::types::Transaction;
 use rmn_bip32::{
     self as bip32,
-    model::{DerivedKey, HasBackend, HasPubkey, SigningKey, XSigning},
+    model::{DerivedKey, HasPubkey, SigningKey, XSigning},
 };
 use rmn_btc::{
     enc::encoder::BitcoinEncoderMarker,
@@ -38,11 +38,11 @@ pub enum Bip32SignerError {
 ///
 /// Implements naive change-checking by simply checking if it owns the pubkey of a PKH or WPKH
 /// output.
-pub struct Bip32Signer<'a> {
-    xpriv: &'a bip32::DerivedXPriv<'a>,
+pub struct Bip32Signer {
+    xpriv: bip32::DerivedXPriv,
 }
 
-impl<'a> Bip32Signer<'a> {
+impl Bip32Signer {
     fn can_sign_non_witness(
         &self,
         tx: &LegacyTx,
@@ -112,7 +112,7 @@ impl<'a> Bip32Signer<'a> {
     ) -> Result<(), PSBTError> {
         let prevout_tx = input_map.non_witness_utxo()?;
         let paths: Vec<_> = input_map
-            .parsed_pubkey_derivations(self.xpriv.backend().ok())
+            .parsed_pubkey_derivations()
             .iter()
             .map(|pk| self.xpriv.path_to_descendant(pk))
             .filter(Option::is_some)
@@ -146,7 +146,7 @@ impl<'a> Bip32Signer<'a> {
     ) -> Result<(), PSBTError> {
         let prevout = input_map.witness_utxo()?;
         let paths: Vec<_> = input_map
-            .parsed_pubkey_derivations(self.xpriv.backend().ok())
+            .parsed_pubkey_derivations()
             .iter()
             .map(|pk| self.xpriv.path_to_descendant(pk))
             .filter(Option::is_some)
@@ -171,13 +171,13 @@ impl<'a> Bip32Signer<'a> {
     }
 }
 
-impl<'a> From<&'a bip32::DerivedXPriv<'a>> for Bip32Signer<'a> {
-    fn from(xpriv: &'a bip32::DerivedXPriv<'a>) -> Self {
+impl From<bip32::DerivedXPriv> for Bip32Signer {
+    fn from(xpriv: bip32::DerivedXPriv) -> Self {
         Self { xpriv }
     }
 }
 
-impl<'a, A, E> PSTSigner<A, PSBT<A, E>> for Bip32Signer<'a>
+impl<A, E> PSTSigner<A, PSBT<A, E>> for Bip32Signer
 where
     A: BitcoinEncoderMarker,
     E: bip32::enc::Encoder,
@@ -187,7 +187,7 @@ where
     fn is_change(&self, pst: &PSBT<A, E>, idx: usize) -> bool {
         let output_map = &pst.output_maps()[idx];
 
-        let pubkeys = output_map.parsed_pubkey_derivations(self.xpriv.backend().ok());
+        let pubkeys = output_map.parsed_pubkey_derivations();
         if pubkeys.len() != 1 {
             return false;
         }

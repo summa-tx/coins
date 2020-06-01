@@ -34,11 +34,11 @@
 //!
 //! // `init` sets up a new `lazy_static` backend. Successive calls will re-use that backend
 //! // without needing to re-initialize it.
-//! let backend = Secp256k1::init();
+//! let backend = Secp256k1::static_ref();
 //! let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
 //!
 //! // Encoders are network specific due to the bip32 version byte spec
-//! let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, Some(&backend))?;
+//! let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, Some(backend))?;
 //!
 //! let child_xpriv = xpriv.derive_private_child(33)?;
 //! let sig = child_xpriv.sign_digest(digest)?;

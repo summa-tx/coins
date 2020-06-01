@@ -13,28 +13,28 @@ use crate::{
 ///
 /// For interface documentation see the page for
 /// [GenericDerivedPrivkey](struct.GenericDerivedPrivkey.html).
-pub type DerivedPrivkey<'a> = GenericDerivedPrivkey<'a, crate::curve::Secp256k1<'a>>;
+pub type DerivedPrivkey = GenericDerivedPrivkey<'static, crate::curve::Secp256k1<'static>>;
 
 /// A GenericDerivedPubkey using the compiled-in default backend, coupled with its (purported)
 /// derivation path.
 ///
 /// For interface documentation see the page for
 /// [GenericDerivedPubkey](struct.GenericDerivedPubkey.html).
-pub type DerivedPubkey<'a> = GenericDerivedPubkey<'a, crate::curve::Secp256k1<'a>>;
+pub type DerivedPubkey = GenericDerivedPubkey<'static, crate::curve::Secp256k1<'static>>;
 
 /// A GenericDerivedXPriv using the compiled-in default backend, coupled with its (purported)
 /// derivation path.
 ///
 /// For interface documentation see the page for
 ///  [GenericDerivedXPriv](struct.GenericDerivedXPriv.html).
-pub type DerivedXPriv<'a> = GenericDerivedXPriv<'a, crate::curve::Secp256k1<'a>>;
+pub type DerivedXPriv = GenericDerivedXPriv<'static, crate::curve::Secp256k1<'static>>;
 
 /// A GenericDerivedXPub using the compiled-in default backend, coupled with its (purported)
 /// derivation path.
 ///
 /// For interface documentation see the page for
 ///  [GenericDerivedXPub](struct.GenericDerivedXPub.html).
-pub type DerivedXPub<'a> = GenericDerivedXPub<'a, crate::curve::Secp256k1<'a>>;
+pub type DerivedXPub = GenericDerivedXPub<'static, crate::curve::Secp256k1<'static>>;
 
 make_derived_key!(
     /// A `Privkey` coupled with its (purported) derivation path. Generally this struct
@@ -49,7 +49,7 @@ make_derived_key!(
 inherit_has_privkey!(GenericDerivedPrivkey.privkey);
 inherit_backend!(GenericDerivedPrivkey.privkey);
 
-impl<'a, T: Secp256k1Backend<'a>> SigningKey<'a, T> for GenericDerivedPrivkey<'a, T> {
+impl<'a, T: Secp256k1Backend> SigningKey<'a, T> for GenericDerivedPrivkey<'a, T> {
     type VerifyingKey = GenericDerivedPubkey<'a, T>;
 
     fn derive_verifying_key(&self) -> Result<Self::VerifyingKey, Bip32Error> {
@@ -73,7 +73,7 @@ make_derived_key!(
 inherit_has_pubkey!(GenericDerivedPubkey.pubkey);
 inherit_backend!(GenericDerivedPubkey.pubkey);
 
-impl<'a, T: Secp256k1Backend<'a>> VerifyingKey<'a, T> for GenericDerivedPubkey<'a, T> {
+impl<'a, T: Secp256k1Backend> VerifyingKey<'a, T> for GenericDerivedPubkey<'a, T> {
     type SigningKey = GenericDerivedPrivkey<'a, T>;
 }
 
@@ -91,7 +91,7 @@ inherit_has_privkey!(GenericDerivedXPriv.xpriv);
 inherit_backend!(GenericDerivedXPriv.xpriv);
 inherit_has_xkeyinfo!(GenericDerivedXPriv.xpriv);
 
-impl<'a, T: Secp256k1Backend<'a>> GenericDerivedXPriv<'a, T> {
+impl<'a, T: Secp256k1Backend> GenericDerivedXPriv<'a, T> {
     /// Instantiate a master node using a custom HMAC key.
     pub fn custom_master_node(
         hmac_key: &[u8],
@@ -146,7 +146,7 @@ impl<'a, T: Secp256k1Backend<'a>> GenericDerivedXPriv<'a, T> {
     }
 }
 
-impl<'a, T: Secp256k1Backend<'a>> SigningKey<'a, T> for GenericDerivedXPriv<'a, T> {
+impl<'a, T: Secp256k1Backend> SigningKey<'a, T> for GenericDerivedXPriv<'a, T> {
     /// The corresponding verifying key
     type VerifyingKey = GenericDerivedXPub<'a, T>;
 
@@ -156,7 +156,7 @@ impl<'a, T: Secp256k1Backend<'a>> SigningKey<'a, T> for GenericDerivedXPriv<'a, 
     }
 }
 
-impl<'a, T: Secp256k1Backend<'a>> DerivePrivateChild<'a, T> for GenericDerivedXPriv<'a, T> {
+impl<'a, T: Secp256k1Backend> DerivePrivateChild<'a, T> for GenericDerivedXPriv<'a, T> {
     fn derive_private_child(&self, index: u32) -> Result<Self, Bip32Error> {
         Ok(Self {
             xpriv: self.xpriv.derive_private_child(index)?,
@@ -179,7 +179,7 @@ inherit_has_pubkey!(GenericDerivedXPub.xpub);
 inherit_backend!(GenericDerivedXPub.xpub);
 inherit_has_xkeyinfo!(GenericDerivedXPub.xpub);
 
-impl<'a, T: Secp256k1Backend<'a>> GenericDerivedXPub<'a, T> {
+impl<'a, T: Secp256k1Backend> GenericDerivedXPub<'a, T> {
     /// Check if this XPriv is the private ancestor of some other derived key
     pub fn is_public_ancestor_of<D: DerivedKey + HasPubkey<'a, T>>(
         &self,
@@ -194,11 +194,11 @@ impl<'a, T: Secp256k1Backend<'a>> GenericDerivedXPub<'a, T> {
     }
 }
 
-impl<'a, T: Secp256k1Backend<'a>> VerifyingKey<'a, T> for GenericDerivedXPub<'a, T> {
+impl<'a, T: Secp256k1Backend> VerifyingKey<'a, T> for GenericDerivedXPub<'a, T> {
     type SigningKey = GenericDerivedXPriv<'a, T>;
 }
 
-impl<'a, T: Secp256k1Backend<'a>> DerivePublicChild<'a, T> for GenericDerivedXPub<'a, T> {
+impl<'a, T: Secp256k1Backend> DerivePublicChild<'a, T> for GenericDerivedXPub<'a, T> {
     fn derive_public_child(&self, index: u32) -> Result<Self, Bip32Error> {
         Ok(Self {
             xpub: self.xpub.derive_public_child(index)?,
@@ -224,7 +224,7 @@ mod test {
         pub path: &'a [u32],
     }
 
-    fn validate_descendant<'a>(d: &KeyDeriv, m: &DerivedXPriv<'a>) {
+    fn validate_descendant(d: &KeyDeriv, m: &DerivedXPriv) {
         let path: DerivationPath = d.path.into();
 
         let m_pub = m.derive_verifying_key().unwrap();
@@ -265,9 +265,9 @@ mod test {
     #[test]
     fn bip32_vector_1() {
         let seed: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-        let backend = Secp256k1::init();
+        let backend = Secp256k1::static_ref();
 
-        let xpriv = DerivedXPriv::root_from_seed(&seed, Some(Hint::Legacy), &backend).unwrap();
+        let xpriv = DerivedXPriv::root_from_seed(&seed, Some(Hint::Legacy), backend).unwrap();
 
         let descendants = [
             KeyDeriv {
@@ -295,9 +295,9 @@ mod test {
     #[test]
     fn bip32_vector_2() {
         let seed = hex::decode(&"fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542").unwrap();
-        let backend = Secp256k1::init();
+        let backend = Secp256k1::static_ref();
 
-        let xpriv = DerivedXPriv::root_from_seed(&seed, Some(Hint::Legacy), &backend).unwrap();
+        let xpriv = DerivedXPriv::root_from_seed(&seed, Some(Hint::Legacy), backend).unwrap();
 
         let descendants = [
             KeyDeriv { path: &[0] },
@@ -329,9 +329,9 @@ mod test {
     #[test]
     fn bip32_vector_3() {
         let seed = hex::decode(&"4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be").unwrap();
-        let backend = Secp256k1::init();
+        let backend = Secp256k1::static_ref();
 
-        let xpriv = DerivedXPriv::root_from_seed(&seed, Some(Hint::Legacy), &backend).unwrap();
+        let xpriv = DerivedXPriv::root_from_seed(&seed, Some(Hint::Legacy), backend).unwrap();
 
         let descendants = [KeyDeriv {
             path: &[0 + BIP32_HARDEN],
@@ -346,10 +346,10 @@ mod test {
     fn it_can_sign_and_verify() {
         let digest = [1u8; 32];
         let wrong_digest = [2u8; 32];
-        let backend = Secp256k1::init();
+        let backend = Secp256k1::static_ref();
 
         let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
-        let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, Some(&backend)).unwrap();
+        let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, Some(backend)).unwrap();
         let fake_deriv = KeyDerivation {
             root: [0, 0, 0, 0].into(),
             path: (0..0).collect(),
@@ -358,8 +358,8 @@ mod test {
         let mut key = DerivedXPriv::new(xpriv, fake_deriv);
         let mut key_pub = DerivedXPub::from_signing_key(&key).unwrap();
         // These had to go somewhere. here is as good as any
-        key.set_backend(&backend);
-        key_pub.set_backend(&backend);
+        key.set_backend(backend);
+        key_pub.set_backend(backend);
 
         // sign_digest + verify_digest
         let sig = key.sign_digest(digest).unwrap();
@@ -442,12 +442,12 @@ mod test {
     fn it_can_descendant_sign_and_verify() {
         let digest = [1u8; 32];
         let wrong_digest = [2u8; 32];
-        let backend = Secp256k1::init();
+        let backend = Secp256k1::static_ref();
 
         let path = vec![0u32, 1, 2];
 
         let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
-        let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, Some(&backend)).unwrap();
+        let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, Some(backend)).unwrap();
         let fake_deriv = KeyDerivation {
             root: [0, 0, 0, 0].into(),
             path: (0..0).collect(),
@@ -457,8 +457,8 @@ mod test {
         let mut key_pub = DerivedXPub::from_signing_key(&key).unwrap();
         // These had to go somewhere. here is as good as any
         assert_eq!(key.derivation(), &fake_deriv);
-        key.set_backend(&backend);
-        key_pub.set_backend(&backend);
+        key.set_backend(backend);
+        key_pub.set_backend(backend);
 
         // sign_digest + verify_digest
         let sig = key.descendant_sign_digest(&path, digest).unwrap();
@@ -585,7 +585,7 @@ mod test {
 
     #[test]
     fn it_derives_verifying_keys() {
-        let backend = Secp256k1::init();
+        let backend = Secp256k1::static_ref();
         let fake_deriv = KeyDerivation {
             root: [0, 0, 0, 0].into(),
             path: (0..0).collect(),
@@ -595,7 +595,7 @@ mod test {
 
         let privkey = crate::keys::Privkey {
             key,
-            backend: Some(&backend),
+            backend: Some(backend),
         };
 
         let key = DerivedPrivkey::new(privkey, fake_deriv);
@@ -605,16 +605,16 @@ mod test {
 
     #[test]
     fn it_instantiates_derived_xprivs_from_seeds() {
-        let backend = Secp256k1::init();
-        GenericDerivedXPriv::root_from_seed(&[0u8; 32][..], None, &backend).unwrap();
+        let backend = Secp256k1::static_ref();
+        GenericDerivedXPriv::root_from_seed(&[0u8; 32][..], None, backend).unwrap();
 
-        let err_too_short = GenericDerivedXPriv::root_from_seed(&[0u8; 2][..], None, &backend);
+        let err_too_short = GenericDerivedXPriv::root_from_seed(&[0u8; 2][..], None, backend);
         match err_too_short {
             Err(Bip32Error::SeedTooShort) => {}
             _ => assert!(false, "expected err too short"),
         }
 
-        let err_too_short = GenericDerivedXPriv::root_from_seed(&[0u8; 2][..], None, &backend);
+        let err_too_short = GenericDerivedXPriv::root_from_seed(&[0u8; 2][..], None, backend);
         match err_too_short {
             Err(Bip32Error::SeedTooShort) => {}
             _ => assert!(false, "expected err too short"),
@@ -623,9 +623,9 @@ mod test {
 
     #[test]
     fn it_checks_ancestry() {
-        let backend = Secp256k1::init();
-        let m = GenericDerivedXPriv::root_from_seed(&[0u8; 32][..], None, &backend).unwrap();
-        let m2 = GenericDerivedXPriv::root_from_seed(&[1u8; 32][..], None, &backend).unwrap();
+        let backend = Secp256k1::static_ref();
+        let m = GenericDerivedXPriv::root_from_seed(&[0u8; 32][..], None, backend).unwrap();
+        let m2 = GenericDerivedXPriv::root_from_seed(&[1u8; 32][..], None, backend).unwrap();
         let m_pub = GenericDerivedXPub::from_signing_key(&m).unwrap();
         let cases = [
             (&m, &m_pub, true),

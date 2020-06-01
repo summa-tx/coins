@@ -121,10 +121,7 @@ pub fn validate_xpub_depth(key: &PSBTKey, val: &PSBTValue) -> Result<(), PSBTErr
 }
 
 /// Attempt to parse a keyas a Secp256k1 pybkey
-pub fn try_key_as_pubkey<'a>(
-    key: &PSBTKey,
-    backend: Option<&'a Secp256k1<'a>>,
-) -> Result<Pubkey<'a>, PSBTError> {
+pub fn try_key_as_pubkey(key: &PSBTKey) -> Result<Pubkey, PSBTError> {
     if key.len() != 34 {
         return Err(PSBTError::WrongKeyLength {
             expected: 34,
@@ -134,8 +131,8 @@ pub fn try_key_as_pubkey<'a>(
     let mut buf = [0u8; 33];
     buf.copy_from_slice(&key.items()[1..]);
     Ok(Pubkey {
-        key: <Secp256k1 as Secp256k1Backend<'_>>::Pubkey::from_pubkey_array(buf)?,
-        backend,
+        key: <Secp256k1 as Secp256k1Backend>::Pubkey::from_pubkey_array(buf)?,
+        backend: Some(Secp256k1::static_ref()),
     })
 }
 
@@ -186,10 +183,7 @@ pub fn try_val_as_witness(val: &PSBTValue) -> Result<Witness, PSBTError> {
 }
 
 /// Attempt to parse a key as a valid extended pubkey
-pub fn try_key_as_xpub<'a, E>(
-    key: &PSBTKey,
-    backend: Option<&'a Secp256k1>,
-) -> Result<XPub<'a>, PSBTError>
+pub fn try_key_as_xpub<E>(key: &PSBTKey) -> Result<XPub, PSBTError>
 where
     E: bip32::enc::Encoder,
 {
@@ -198,15 +192,17 @@ where
     }
     // strip off first byte (the type)
     let mut xpub_bytes = &key.items()[1..];
-    Ok(E::read_xpub(&mut xpub_bytes, backend)?)
+    Ok(E::read_xpub(
+        &mut xpub_bytes,
+        Some(Secp256k1::static_ref()),
+    )?)
 }
 
 /// Attempt to convert a KV pair into a derived pubkey struct
-pub fn try_kv_pair_as_derived_pubkey<'a>(
+pub fn try_kv_pair_as_derived_pubkey(
     key: &PSBTKey,
     val: &PSBTValue,
-    backend: Option<&'a Secp256k1<'a>>,
-) -> Result<DerivedPubkey<'a>, PSBTError> {
+) -> Result<DerivedPubkey, PSBTError> {
     let pubkey = if key.len() == 34 {
         let mut pubkey = [0u8; 33];
         pubkey.copy_from_slice(&key[1..34]);
@@ -226,18 +222,17 @@ pub fn try_kv_pair_as_derived_pubkey<'a>(
 
     let pubkey = bip32::keys::Pubkey {
         key: pubkey,
-        backend,
+        backend: Some(Secp256k1::static_ref()),
     };
 
     Ok(DerivedPubkey::new(pubkey, deriv))
 }
 
-pub fn try_kv_pair_as_pubkey_and_sig<'a>(
+pub fn try_kv_pair_as_pubkey_and_sig(
     key: &PSBTKey,
     val: &PSBTValue,
-    backend: Option<&'a Secp256k1<'a>>,
-) -> Result<(Pubkey<'a>, Signature, Sighash), PSBTError> {
-    let pubkey = try_key_as_pubkey(key, backend)?;
+) -> Result<(Pubkey, Signature, Sighash), PSBTError> {
+    let pubkey = try_key_as_pubkey(key)?;
 
     let (sig, sighash) = try_val_as_signature(val)?;
     Ok((pubkey, sig, sighash))
@@ -360,7 +355,7 @@ pub mod input {
     pub fn validate_bip32_derivations(key: &PSBTKey, val: &PSBTValue) -> Result<(), PSBTError> {
         // 34 = 33-byte pubkey + 1-byte type
         validate_expected_key_type(key, 6)?;
-        try_key_as_pubkey(key, None)?;
+        try_key_as_pubkey(key)?;
         try_val_as_key_derivation(val)?;
         Ok(())
     }

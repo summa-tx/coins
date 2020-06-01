@@ -8,9 +8,7 @@
 //!
 //! This functionality does NOT currently support nested witness-via-p2sh prevouts. If you' like
 //! to use those, you'll need a processing step in your tx signer.
-use crate::{
-    types::{BitcoinOutpoint, BitcoinTransaction, Script, ScriptPubkey, ScriptType, TxOut},
-};
+use crate::types::{BitcoinOutpoint, BitcoinTransaction, Script, ScriptPubkey, ScriptType, TxOut};
 use serde::{Deserialize, Serialize};
 
 /// This type specifies whether a script is known to be none, or whether it is unknown.
@@ -112,10 +110,10 @@ impl UTXO {
                         v.extend(&payload);
                         v.extend(&[0x88, 0xac]);
                         Some(v.into())
-                    },
-                    _ => None , // Should be unreachable
+                    }
+                    _ => None, // Should be unreachable
                 }
-            },
+            }
             SpendScript::Known(script) => Some(script.clone()),
             SpendScript::Missing => None,
         }

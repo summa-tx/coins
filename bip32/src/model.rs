@@ -12,7 +12,7 @@ use crate::{
 };
 
 /// Any type that has access to a Secp256k1 backend.
-pub trait HasBackend<'a, T: Secp256k1Backend<'a>> {
+pub trait HasBackend<'a, T: Secp256k1Backend> {
     /// Set the backend. Useful if you have created a backend after making a key with a `None`
     /// backend.
     fn set_backend(&mut self, backend: &'a T);
@@ -22,7 +22,7 @@ pub trait HasBackend<'a, T: Secp256k1Backend<'a>> {
 }
 
 /// Any type that contains a private key.
-pub trait HasPrivkey<'a, T: Secp256k1Backend<'a>> {
+pub trait HasPrivkey<'a, T: Secp256k1Backend> {
     /// Return the associated private key
     fn privkey(&self) -> &T::Privkey;
 
@@ -33,7 +33,7 @@ pub trait HasPrivkey<'a, T: Secp256k1Backend<'a>> {
 }
 
 /// Any type that contains a public key
-pub trait HasPubkey<'a, T: Secp256k1Backend<'a>> {
+pub trait HasPubkey<'a, T: Secp256k1Backend> {
     /// Return the associated public key
     fn pubkey(&self) -> &T::Pubkey;
 
@@ -58,7 +58,7 @@ pub trait HasPubkey<'a, T: Secp256k1Backend<'a>> {
 /// Any type that has a private key and a backend may derive a public key.
 ///
 /// This is generically implemented for any type that implements `HasPrivkey` and `HasBackend`.
-pub trait CanDerivePubkey<'a, T: 'a + Secp256k1Backend<'a>>:
+pub trait CanDerivePubkey<'a, T: 'a + Secp256k1Backend>:
     HasPrivkey<'a, T> + HasBackend<'a, T>
 {
     /// Derive the public key. Note that this operation may fail if no backend is found. This
@@ -82,13 +82,13 @@ pub trait CanDerivePubkey<'a, T: 'a + Secp256k1Backend<'a>>:
 
 impl<'a, T, K> CanDerivePubkey<'a, T> for K
 where
-    T: 'a + Secp256k1Backend<'a>,
+    T: 'a + Secp256k1Backend,
     K: HasPrivkey<'a, T> + HasBackend<'a, T>,
 {
 }
 
 /// Any type that has a private key and a backend may derive a public key
-pub trait SigningKey<'a, T: 'a + Secp256k1Backend<'a>>:
+pub trait SigningKey<'a, T: 'a + Secp256k1Backend>:
     CanDerivePubkey<'a, T> + std::marker::Sized
 {
     /// The corresponding verifying key
@@ -138,7 +138,7 @@ pub trait SigningKey<'a, T: 'a + Secp256k1Backend<'a>>:
 }
 
 /// Any type that has a pubkey and a backend can verify signatures.
-pub trait VerifyingKey<'a, T: 'a + Secp256k1Backend<'a>>:
+pub trait VerifyingKey<'a, T: 'a + Secp256k1Backend>:
     HasPubkey<'a, T> + HasBackend<'a, T> + std::marker::Sized
 {
     /// The corresponding signing key type.
@@ -244,7 +244,7 @@ impl<T: HasXKeyInfo + std::marker::Sized + Clone> XKey for T {
 ///
 /// This is generically implemented for any type that implements `SigningKey` and
 /// `DerivePrivateChild`
-pub trait DerivePrivateChild<'a, T: Secp256k1Backend<'a>>: XKey + HasPrivkey<'a, T> {
+pub trait DerivePrivateChild<'a, T: Secp256k1Backend>: XKey + HasPrivkey<'a, T> {
     /// Derive a child privkey
     fn derive_private_child(&self, index: u32) -> Result<Self, Bip32Error>;
 
@@ -273,7 +273,7 @@ pub trait DerivePrivateChild<'a, T: Secp256k1Backend<'a>>: XKey + HasPrivkey<'a,
 ///
 /// This is generically implemented for any type that implements `VerifyingKey` and
 /// `DerivePublicChild`
-pub trait DerivePublicChild<'a, T: Secp256k1Backend<'a>>: XKey + HasPubkey<'a, T> {
+pub trait DerivePublicChild<'a, T: Secp256k1Backend>: XKey + HasPubkey<'a, T> {
     /// Derive a child pubkey
     fn derive_public_child(&self, index: u32) -> Result<Self, Bip32Error>;
 
@@ -305,7 +305,7 @@ pub trait DerivePublicChild<'a, T: Secp256k1Backend<'a>>: XKey + HasPubkey<'a, T
 /// Shortcuts for deriving and signing.
 ///
 /// This trait is implemented on all types that impl `DerivePublicChild` and `VerifyingKey`
-pub trait XSigning<'a, T: 'a + Secp256k1Backend<'a>>:
+pub trait XSigning<'a, T: 'a + Secp256k1Backend>:
     DerivePrivateChild<'a, T> + SigningKey<'a, T>
 {
     /// Derive a descendant, and have it sign a digest
@@ -389,7 +389,7 @@ pub trait XSigning<'a, T: 'a + Secp256k1Backend<'a>>:
 /// Shortcuts for deriving and signing.
 ///
 /// This trait is implemented on all types that impl `DerivePublicChild` and `VerifyingKey`
-pub trait XVerifying<'a, T: 'a + Secp256k1Backend<'a>>:
+pub trait XVerifying<'a, T: 'a + Secp256k1Backend>:
     DerivePublicChild<'a, T> + VerifyingKey<'a, T>
 {
     /// Verify a signature on a digest
@@ -481,14 +481,14 @@ pub trait XVerifying<'a, T: 'a + Secp256k1Backend<'a>>:
 
 impl<'a, T, K> XSigning<'a, T> for K
 where
-    T: 'a + Secp256k1Backend<'a>,
+    T: 'a + Secp256k1Backend,
     K: DerivePrivateChild<'a, T> + SigningKey<'a, T>,
 {
 }
 
 impl<'a, T, K> XVerifying<'a, T> for K
 where
-    T: 'a + Secp256k1Backend<'a>,
+    T: 'a + Secp256k1Backend,
     K: DerivePublicChild<'a, T> + VerifyingKey<'a, T>,
 {
 }

@@ -45,7 +45,7 @@ where
 
         // If any pubkeys match, build a witness and finalize
         if let Some((pubkey, partial_sig, sighash)) = input_map
-            .partial_sigs(None)
+            .partial_sigs()
             .iter()
             .find(|(pubkey, _, _)| pkh == pubkey.pubkey_hash160())
         {

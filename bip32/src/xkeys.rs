@@ -16,14 +16,14 @@ type HmacSha512 = Hmac<Sha512>;
 ///
 /// For interface documentation see the page for
 /// [GenericXPriv](struct.GenericXPriv.html).
-pub type XPriv<'a> = GenericXPriv<'a, crate::curve::Secp256k1<'a>>;
+pub type XPriv = GenericXPriv<'static, crate::curve::Secp256k1<'static>>;
 
 /// A BIP32 Extended pubkey using the library's compiled-in secp256k1 backend. This defaults to
 /// libsecp for native, and parity's rust secp for wasm targets
 ///
 /// For interface documentation see the page for
 /// [GenericXPub](struct.GenericXPub.html).
-pub type XPub<'a> = GenericXPub<'a, crate::curve::Secp256k1<'a>>;
+pub type XPub = GenericXPub<'static, crate::curve::Secp256k1<'static>>;
 
 /// Default BIP32
 pub const SEED: &[u8; 12] = b"Bitcoin seed";
@@ -44,7 +44,7 @@ fn hmac_and_split(seed: &[u8], data: &[u8]) -> ([u8; 32], ChainCode) {
 
 /// A BIP32 Extended privkey. This key is genericized to accept any compatibile backend.
 #[derive(Clone, Debug, PartialEq)]
-pub struct GenericXPriv<'a, T: Secp256k1Backend<'a>> {
+pub struct GenericXPriv<'a, T: Secp256k1Backend> {
     /// The extended key information
     pub info: XKeyInfo,
     /// The associated secp256k1 key
@@ -54,7 +54,7 @@ pub struct GenericXPriv<'a, T: Secp256k1Backend<'a>> {
 inherit_has_privkey!(GenericXPriv.privkey);
 inherit_backend!(GenericXPriv.privkey);
 
-impl<'a, T: Secp256k1Backend<'a>> GenericXPriv<'a, T> {
+impl<'a, T: Secp256k1Backend> GenericXPriv<'a, T> {
     /// Instantiate a master node using a custom HMAC key.
     pub fn custom_master_node(
         hmac_key: &[u8],
@@ -110,13 +110,13 @@ impl<'a, T: Secp256k1Backend<'a>> GenericXPriv<'a, T> {
     }
 }
 
-impl<'a, T: Secp256k1Backend<'a>> HasXKeyInfo for GenericXPriv<'a, T> {
+impl<'a, T: Secp256k1Backend> HasXKeyInfo for GenericXPriv<'a, T> {
     fn xkey_info(&self) -> &XKeyInfo {
         &self.info
     }
 }
 
-impl<'a, T: Secp256k1Backend<'a>> SigningKey<'a, T> for GenericXPriv<'a, T> {
+impl<'a, T: Secp256k1Backend> SigningKey<'a, T> for GenericXPriv<'a, T> {
     /// The corresponding verifying key
     type VerifyingKey = GenericXPub<'a, T>;
 
@@ -126,7 +126,7 @@ impl<'a, T: Secp256k1Backend<'a>> SigningKey<'a, T> for GenericXPriv<'a, T> {
     }
 }
 
-impl<'a, T: Secp256k1Backend<'a>> DerivePrivateChild<'a, T> for GenericXPriv<'a, T> {
+impl<'a, T: Secp256k1Backend> DerivePrivateChild<'a, T> for GenericXPriv<'a, T> {
     fn derive_private_child(&self, index: u32) -> Result<GenericXPriv<'a, T>, Bip32Error> {
         let hardened = index >= BIP32_HARDEN;
 
@@ -165,7 +165,7 @@ impl<'a, T: Secp256k1Backend<'a>> DerivePrivateChild<'a, T> for GenericXPriv<'a,
 
 /// A BIP32 Extended privkey. This key is genericized to accept any compatibile backend.
 #[derive(Clone, Debug, PartialEq)]
-pub struct GenericXPub<'a, T: Secp256k1Backend<'a>> {
+pub struct GenericXPub<'a, T: Secp256k1Backend> {
     /// The extended key information
     pub info: XKeyInfo,
     /// The associated secp256k1 key
@@ -175,24 +175,24 @@ pub struct GenericXPub<'a, T: Secp256k1Backend<'a>> {
 inherit_has_pubkey!(GenericXPub.pubkey);
 inherit_backend!(GenericXPub.pubkey);
 
-impl<'a, T: Secp256k1Backend<'a>> GenericXPub<'a, T> {
+impl<'a, T: Secp256k1Backend> GenericXPub<'a, T> {
     /// Derive an XPub from an xpriv
     pub fn from_xpriv(xpriv: &GenericXPriv<'a, T>) -> Result<GenericXPub<'a, T>, Bip32Error> {
         xpriv.to_xpub()
     }
 }
 
-impl<'a, T: Secp256k1Backend<'a>> HasXKeyInfo for GenericXPub<'a, T> {
+impl<'a, T: Secp256k1Backend> HasXKeyInfo for GenericXPub<'a, T> {
     fn xkey_info(&self) -> &XKeyInfo {
         &self.info
     }
 }
 
-impl<'a, T: Secp256k1Backend<'a>> VerifyingKey<'a, T> for GenericXPub<'a, T> {
+impl<'a, T: Secp256k1Backend> VerifyingKey<'a, T> for GenericXPub<'a, T> {
     type SigningKey = GenericXPriv<'a, T>;
 }
 
-impl<'a, T: Secp256k1Backend<'a>> DerivePublicChild<'a, T> for GenericXPub<'a, T> {
+impl<'a, T: Secp256k1Backend> DerivePublicChild<'a, T> for GenericXPub<'a, T> {
     fn derive_public_child(&self, index: u32) -> Result<GenericXPub<'a, T>, Bip32Error> {
         if index >= BIP32_HARDEN {
             return Err(Bip32Error::HardenedDerivationFailed);
@@ -246,7 +246,7 @@ mod test {
         pub xpriv: String,
     }
 
-    fn validate_descendant<'a>(d: &KeyDeriv, m: &XPriv<'a>) {
+    fn validate_descendant<'a>(d: &KeyDeriv, m: &XPriv) {
         let xpriv = m.derive_private_path(d.path).unwrap();
         let xpub = xpriv.to_xpub().unwrap();
 
@@ -263,7 +263,7 @@ mod test {
     #[test]
     fn bip32_vector_1() {
         let seed: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-        let backend = Secp256k1::init();
+        let backend = Secp256k1::static_ref();
 
         let xpriv = XPriv::root_from_seed(&seed, Some(Hint::Legacy), &backend).unwrap();
         let xpub = xpriv.to_xpub().unwrap();
@@ -271,9 +271,9 @@ mod test {
         let expected_xpub = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
         let expected_xpriv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
 
-        let deser_xpub = MainnetEncoder::xpub_from_base58(&expected_xpub, Some(&backend)).unwrap();
+        let deser_xpub = MainnetEncoder::xpub_from_base58(&expected_xpub, Some(backend)).unwrap();
         let deser_xpriv =
-            MainnetEncoder::xpriv_from_base58(&expected_xpriv, Some(&backend)).unwrap();
+            MainnetEncoder::xpriv_from_base58(&expected_xpriv, Some(backend)).unwrap();
 
         assert_eq!(&xpriv, &deser_xpriv);
         assert_eq!(
@@ -322,7 +322,7 @@ mod test {
     #[test]
     fn bip32_vector_2() {
         let seed = hex::decode(&"fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542").unwrap();
-        let backend = Secp256k1::init();
+        let backend = Secp256k1::static_ref();
 
         let xpriv = XPriv::root_from_seed(&seed, Some(Hint::Legacy), &backend).unwrap();
         let xpub = xpriv.to_xpub().unwrap();
@@ -330,9 +330,9 @@ mod test {
         let expected_xpub = "xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB";
         let expected_xpriv = "xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U";
 
-        let deser_xpub = MainnetEncoder::xpub_from_base58(&expected_xpub, Some(&backend)).unwrap();
+        let deser_xpub = MainnetEncoder::xpub_from_base58(&expected_xpub, Some(backend)).unwrap();
         let deser_xpriv =
-            MainnetEncoder::xpriv_from_base58(&expected_xpriv, Some(&backend)).unwrap();
+            MainnetEncoder::xpriv_from_base58(&expected_xpriv, Some(backend)).unwrap();
 
         assert_eq!(&xpriv, &deser_xpriv);
         assert_eq!(
@@ -381,7 +381,7 @@ mod test {
     #[test]
     fn bip32_vector_3() {
         let seed = hex::decode(&"4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be").unwrap();
-        let backend = Secp256k1::init();
+        let backend = Secp256k1::static_ref();
 
         let xpriv = XPriv::root_from_seed(&seed, Some(Hint::Legacy), &backend).unwrap();
         let xpub = xpriv.to_xpub().unwrap();
@@ -389,9 +389,9 @@ mod test {
         let expected_xpub = "xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13";
         let expected_xpriv = "xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6";
 
-        let deser_xpub = MainnetEncoder::xpub_from_base58(&expected_xpub, Some(&backend)).unwrap();
+        let deser_xpub = MainnetEncoder::xpub_from_base58(&expected_xpub, Some(backend)).unwrap();
         let deser_xpriv =
-            MainnetEncoder::xpriv_from_base58(&expected_xpriv, Some(&backend)).unwrap();
+            MainnetEncoder::xpriv_from_base58(&expected_xpriv, Some(backend)).unwrap();
 
         assert_eq!(&xpriv, &deser_xpriv);
         assert_eq!(
@@ -420,9 +420,9 @@ mod test {
     #[test]
     fn it_can_sign_and_verify() {
         let digest = [1u8; 32];
-        let backend = Secp256k1::init();
+        let backend = Secp256k1::static_ref();
         let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
-        let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, Some(&backend)).unwrap();
+        let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, Some(backend)).unwrap();
 
         let child = xpriv.derive_private_child(33).unwrap();
         let sig = child.sign_digest(digest).unwrap();
@@ -434,9 +434,9 @@ mod test {
     #[test]
     fn it_can_verify_and_recover_from_signatures() {
         let digest = [1u8; 32];
-        let backend = Secp256k1::init();
+        let backend = Secp256k1::static_ref();
         let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
-        let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, Some(&backend)).unwrap();
+        let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, Some(backend)).unwrap();
 
         let child = xpriv.derive_private_child(33).unwrap();
 

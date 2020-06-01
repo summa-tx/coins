@@ -89,7 +89,7 @@ pub trait RecoverableSigSerialize: SigSerialize {
 }
 
 /// A minmial curve-math backend interface
-pub trait Secp256k1Backend<'a>: Clone + std::fmt::Debug + PartialEq {
+pub trait Secp256k1Backend: Clone + std::fmt::Debug + PartialEq {
     /// An associated error type that can be converted into the crate's error type
     type Error: std::error::Error + Into<Bip32Error>;
     /// The underlying context type (if any)

@@ -29,9 +29,7 @@ pub trait TxBuilder: std::marker::Sized {
     fn from_tx(tx: Self::Transaction) -> Self;
 
     /// Instantiate a new builder from a `std::io::Read` that contains a serialized tx
-    fn read_from_tx<R>(
-        reader: &mut R,
-    ) -> Result<Self, <Self::Transaction as Transaction>::TxError>
+    fn read_from_tx<R>(reader: &mut R) -> Result<Self, <Self::Transaction as Transaction>::TxError>
     where
         R: Read,
     {
@@ -68,11 +66,7 @@ pub trait TxBuilder: std::marker::Sized {
     /// ## Note
     ///
     /// This may invalidate signatures made using ANYONECANPAY.
-    fn insert_input(
-        self,
-        index: usize,
-        input: <Self::Transaction as Transaction>::TxIn,
-    ) -> Self;
+    fn insert_input(self, index: usize, input: <Self::Transaction as Transaction>::TxIn) -> Self;
 
     /// Add a set of inputs to the transaction.
     fn extend_inputs<I>(self, inputs: I) -> Self
@@ -84,11 +78,8 @@ pub trait TxBuilder: std::marker::Sized {
     /// ## Note
     ///
     /// This may invalidate signatures made using SINGLE.
-    fn insert_output(
-        self,
-        index: usize,
-        output: <Self::Transaction as Transaction>::TxOut,
-    ) -> Self;
+    fn insert_output(self, index: usize, output: <Self::Transaction as Transaction>::TxOut)
+        -> Self;
 
     /// Add a set of outputs to the transaction.
     fn extend_outputs<I>(self, outputs: I) -> Self

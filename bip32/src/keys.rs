@@ -9,31 +9,31 @@ use crate::{
 ///
 /// For interface documentation see the page for
 /// [GenericPrivkey](struct.GenericPrivkey.html).
-pub type Privkey<'a> = GenericPrivkey<'a, crate::Secp256k1<'a>>;
+pub type Privkey = GenericPrivkey<'static, crate::Secp256k1<'static>>;
 
 /// A Public Key using the crate's compiled-in backend.
 /// This defaults to libsecp for native, and parity's rust secp for wasm targets.
 ///
 /// For interface documentation see the page for
 /// [GenericPubkey](struct.GenericPubkey.html).
-pub type Pubkey<'a> = GenericPubkey<'a, crate::Secp256k1<'a>>;
+pub type Pubkey = GenericPubkey<'static, crate::Secp256k1<'static>>;
 
 /// A Private key with a reference to its associated backend
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub struct GenericPrivkey<'a, T: Secp256k1Backend<'a>> {
+pub struct GenericPrivkey<'a, T: Secp256k1Backend> {
     /// The private key.
     pub key: T::Privkey,
     /// A reference to the backend. Many operations will return errors if this is None.
     pub backend: Option<&'a T>,
 }
 
-impl<'a, T: Secp256k1Backend<'a>> HasPrivkey<'a, T> for GenericPrivkey<'a, T> {
+impl<'a, T: Secp256k1Backend> HasPrivkey<'a, T> for GenericPrivkey<'a, T> {
     fn privkey(&self) -> &T::Privkey {
         &self.key
     }
 }
 
-impl<'a, T: Secp256k1Backend<'a>> HasBackend<'a, T> for GenericPrivkey<'a, T> {
+impl<'a, T: Secp256k1Backend> HasBackend<'a, T> for GenericPrivkey<'a, T> {
     fn set_backend(&mut self, backend: &'a T) {
         self.backend = Some(backend);
     }
@@ -43,7 +43,7 @@ impl<'a, T: Secp256k1Backend<'a>> HasBackend<'a, T> for GenericPrivkey<'a, T> {
     }
 }
 
-impl<'a, T: Secp256k1Backend<'a>> SigningKey<'a, T> for GenericPrivkey<'a, T> {
+impl<'a, T: Secp256k1Backend> SigningKey<'a, T> for GenericPrivkey<'a, T> {
     /// The corresponding verifying key
     type VerifyingKey = GenericPubkey<'a, T>;
 
@@ -58,14 +58,14 @@ impl<'a, T: Secp256k1Backend<'a>> SigningKey<'a, T> for GenericPrivkey<'a, T> {
 
 /// A Public key with a reference to its associated backend
 #[derive(Copy, Clone, Debug, PartialEq)]
-pub struct GenericPubkey<'a, T: Secp256k1Backend<'a>> {
+pub struct GenericPubkey<'a, T: Secp256k1Backend> {
     /// The public key.
     pub key: T::Pubkey,
     /// A reference to the backend. Many operations will return errors if this is None.
     pub backend: Option<&'a T>,
 }
 
-impl<'a, T: Secp256k1Backend<'a>> GenericPubkey<'a, T> {
+impl<'a, T: Secp256k1Backend> GenericPubkey<'a, T> {
     /// Recover a public key from a signed digest
     pub fn recover_from_signed_digest(
         backend: &'a T,
@@ -79,13 +79,13 @@ impl<'a, T: Secp256k1Backend<'a>> GenericPubkey<'a, T> {
     }
 }
 
-impl<'a, T: Secp256k1Backend<'a>> HasPubkey<'a, T> for GenericPubkey<'a, T> {
+impl<'a, T: Secp256k1Backend> HasPubkey<'a, T> for GenericPubkey<'a, T> {
     fn pubkey(&self) -> &T::Pubkey {
         &self.key
     }
 }
 
-impl<'a, T: Secp256k1Backend<'a>> HasBackend<'a, T> for GenericPubkey<'a, T> {
+impl<'a, T: Secp256k1Backend> HasBackend<'a, T> for GenericPubkey<'a, T> {
     fn set_backend(&mut self, backend: &'a T) {
         self.backend = Some(backend);
     }
@@ -95,6 +95,6 @@ impl<'a, T: Secp256k1Backend<'a>> HasBackend<'a, T> for GenericPubkey<'a, T> {
     }
 }
 
-impl<'a, T: Secp256k1Backend<'a>> VerifyingKey<'a, T> for GenericPubkey<'a, T> {
+impl<'a, T: Secp256k1Backend> VerifyingKey<'a, T> for GenericPubkey<'a, T> {
     type SigningKey = GenericPrivkey<'a, T>;
 }

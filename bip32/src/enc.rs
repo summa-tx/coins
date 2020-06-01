@@ -77,7 +77,7 @@ pub trait Encoder {
     fn write_xpub<'a, W, T>(writer: &mut W, key: &GenericXPub<'a, T>) -> Result<usize, Bip32Error>
     where
         W: std::io::Write,
-        T: Secp256k1Backend<'a>;
+        T: Secp256k1Backend;
 
     /// Serialize the xpriv to `std::io::Write`
     fn write_xpriv<'a, W, T>(
@@ -86,7 +86,7 @@ pub trait Encoder {
     ) -> Result<usize, Bip32Error>
     where
         W: std::io::Write,
-        T: Secp256k1Backend<'a>;
+        T: Secp256k1Backend;
 
     #[doc(hidden)]
     fn read_depth<R>(reader: &mut R) -> Result<u8, Bip32Error>
@@ -136,7 +136,7 @@ pub trait Encoder {
     ) -> Result<GenericXPriv<'a, T>, Bip32Error>
     where
         R: std::io::Read,
-        T: Secp256k1Backend<'a>,
+        T: Secp256k1Backend,
     {
         let depth = Self::read_depth(reader)?;
         let parent = Self::read_parent(reader)?;
@@ -174,7 +174,7 @@ pub trait Encoder {
     ) -> Result<GenericXPriv<'a, T>, Bip32Error>
     where
         R: std::io::Read,
-        T: Secp256k1Backend<'a>,
+        T: Secp256k1Backend,
     {
         let mut buf = [0u8; 4];
         reader.read_exact(&mut buf)?;
@@ -207,7 +207,7 @@ pub trait Encoder {
     ) -> Result<GenericXPriv<'a, T>, Bip32Error>
     where
         R: std::io::Read,
-        T: Secp256k1Backend<'a>;
+        T: Secp256k1Backend;
 
     #[doc(hidden)]
     fn read_xpub_body<'a, R, T>(
@@ -217,7 +217,7 @@ pub trait Encoder {
     ) -> Result<GenericXPub<'a, T>, Bip32Error>
     where
         R: std::io::Read,
-        T: Secp256k1Backend<'a>,
+        T: Secp256k1Backend,
     {
         let depth = Self::read_depth(reader)?;
         let parent = Self::read_parent(reader)?;
@@ -249,7 +249,7 @@ pub trait Encoder {
     ) -> Result<GenericXPub<'a, T>, Bip32Error>
     where
         R: std::io::Read,
-        T: Secp256k1Backend<'a>,
+        T: Secp256k1Backend,
     {
         let mut buf = [0u8; 4];
         reader.read_exact(&mut buf)?;
@@ -282,12 +282,12 @@ pub trait Encoder {
     ) -> Result<GenericXPub<'a, T>, Bip32Error>
     where
         R: std::io::Read,
-        T: Secp256k1Backend<'a>;
+        T: Secp256k1Backend;
 
     /// Serialize an XPriv to base58
     fn xpriv_to_base58<'a, T>(k: &GenericXPriv<'a, T>) -> Result<String, Bip32Error>
     where
-        T: Secp256k1Backend<'a>,
+        T: Secp256k1Backend,
     {
         let mut v: Vec<u8> = vec![];
         Self::write_xpriv(&mut v, k)?;
@@ -297,7 +297,7 @@ pub trait Encoder {
     /// Serialize an XPub to base58
     fn xpub_to_base58<'a, T>(k: &GenericXPub<'a, T>) -> Result<String, Bip32Error>
     where
-        T: Secp256k1Backend<'a>,
+        T: Secp256k1Backend,
     {
         let mut v: Vec<u8> = vec![];
         Self::write_xpub(&mut v, k)?;
@@ -328,7 +328,7 @@ pub trait Encoder {
         backend: Option<&'a T>,
     ) -> Result<GenericXPriv<'a, T>, Bip32Error>
     where
-        T: Secp256k1Backend<'a>,
+        T: Secp256k1Backend,
     {
         let data = decode_b58_check(s)?;
         Self::read_xpriv(&mut &data[..], backend)
@@ -358,7 +358,7 @@ pub trait Encoder {
         backend: Option<&'a T>,
     ) -> Result<GenericXPub<'a, T>, Bip32Error>
     where
-        T: Secp256k1Backend<'a>,
+        T: Secp256k1Backend,
     {
         let data = decode_b58_check(s)?;
         Self::read_xpub(&mut &data[..], backend)
@@ -398,7 +398,7 @@ impl<P: NetworkParams> Encoder for BitcoinEncoder<P> {
     fn write_xpub<'a, W, T>(writer: &mut W, key: &GenericXPub<'a, T>) -> Result<usize, Bip32Error>
     where
         W: std::io::Write,
-        T: Secp256k1Backend<'a>,
+        T: Secp256k1Backend,
     {
         let version = match key.hint() {
             Hint::Legacy => P::PUB_VERSION,
@@ -415,7 +415,7 @@ impl<P: NetworkParams> Encoder for BitcoinEncoder<P> {
     fn write_xpriv<'a, W, T>(writer: &mut W, key: &GenericXPriv<'a, T>) -> Result<usize, Bip32Error>
     where
         W: std::io::Write,
-        T: Secp256k1Backend<'a>,
+        T: Secp256k1Backend,
     {
         let version = match key.hint() {
             Hint::Legacy => P::PRIV_VERSION,
@@ -435,7 +435,7 @@ impl<P: NetworkParams> Encoder for BitcoinEncoder<P> {
     ) -> Result<GenericXPriv<'a, T>, Bip32Error>
     where
         R: std::io::Read,
-        T: Secp256k1Backend<'a>,
+        T: Secp256k1Backend,
     {
         let mut buf = [0u8; 4];
         reader.read_exact(&mut buf)?;
@@ -460,7 +460,7 @@ impl<P: NetworkParams> Encoder for BitcoinEncoder<P> {
     ) -> Result<GenericXPub<'a, T>, Bip32Error>
     where
         R: std::io::Read,
-        T: Secp256k1Backend<'a>,
+        T: Secp256k1Backend,
     {
         let mut buf = [0u8; 4];
         reader.read_exact(&mut buf)?;

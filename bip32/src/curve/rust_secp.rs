@@ -13,38 +13,41 @@ lazy_static! {
         secp256k1::curve::ECMultGenContext::new_boxed();
 }
 
+lazy_static! {
+    pub static ref BACKEND: Secp256k1<'static> = Default::default();
+}
+
 /// A Secp256k1Backend struct using the Parity Rust implementation of Secp256k1.
 pub struct Secp256k1<'a>(
     &'a secp256k1::curve::ECMultContext,
     &'a secp256k1::curve::ECMultGenContext,
 );
 
-impl<'a> Default for Secp256k1<'a> {
-    fn default() -> Secp256k1<'a> {
-        Self::init()
+impl Default for Secp256k1<'static> {
+    #[cfg(feature = "rust-secp-static-context")]
+    fn default() -> Self {
+        Self(&secp256k1::ECMULT_CONTEXT, &secp256k1::ECMULT_GEN_CONTEXT)
+    }
+
+    #[cfg(not(feature = "rust-secp-static-context"))]
+    fn default() -> Self {
+        Self(&EC_MULT, &EC_MULT_GEN)
+    }
+}
+
+impl Secp256k1<'static> {
+    /// Init a backend, setting up any context necessary. This is implemented as a lazy_static
+    /// context initialized on the first call. As such, the first call to init will be expensive,
+    /// while successive calls will be cheap.
+    pub fn static_ref() -> &'static Self {
+        &BACKEND
     }
 }
 
 impl<'a> Secp256k1<'a> {
     /// Instantiate a backend from a context. Useful for managing your own backend lifespan
-    pub fn from_context(context: &'a <Self as Secp256k1Backend<'a>>::Context) -> Self {
+    pub fn from_context(context: &'a <Self as Secp256k1Backend>::Context) -> Self {
         Self(context.0, context.1)
-    }
-
-    /// Init a backend, setting up any context necessary. This is implemented as a lazy_static
-    /// context initialized on the first call. As such, the first call to init will be expensive,
-    /// while successive calls will be cheap.
-    #[cfg(feature = "rust-secp-static-context")]
-    pub fn init() -> Self {
-        Self(&secp256k1::ECMULT_CONTEXT, &secp256k1::ECMULT_GEN_CONTEXT)
-    }
-
-    /// Init a backend, setting up any context necessary. This is implemented as a lazy_static
-    /// context initialized on the first call. As such, the first call to init will be expensive,
-    /// while successive calls will be cheap.
-    #[cfg(not(feature = "rust-secp-static-context"))]
-    pub fn init() -> Self {
-        Self(&EC_MULT, &EC_MULT_GEN)
     }
 }
 
@@ -179,7 +182,7 @@ impl std::fmt::Debug for Secp256k1<'_> {
     }
 }
 
-impl<'a> Secp256k1Backend<'a> for Secp256k1<'a> {
+impl<'a> Secp256k1Backend for Secp256k1<'a> {
     type Error = Bip32Error;
     type Context = (
         &'a secp256k1::curve::ECMultContext,

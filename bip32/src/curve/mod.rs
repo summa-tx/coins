@@ -32,7 +32,7 @@ mod test {
 
     #[test]
     fn it_serializes_and_deserializes_affines() {
-        let backend = Secp256k1::init();
+        let backend = Secp256k1::static_ref();
         let privkey = Privkey::from_privkey_array([2u8; 32]).unwrap();
         let pubkey = backend.derive_pubkey(&privkey);
 

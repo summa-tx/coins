@@ -7,15 +7,25 @@ pub(crate) type Error = secp256k1::Error;
 #[allow(clippy::all)]
 lazy_static! {
     static ref CONTEXT: secp256k1::Secp256k1<secp256k1::All> = secp256k1::Secp256k1::new();
+    pub static ref BACKEND: Secp256k1<'static> = Default::default();
 }
 
 /// A Secp256k1Backend struct using Sipa's C implementation of Secp256k1.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Secp256k1<'a>(&'a secp256k1::Secp256k1<secp256k1::All>);
 
-impl<'a> Default for Secp256k1<'a> {
-    fn default() -> Secp256k1<'a> {
-        Self::init()
+impl Default for Secp256k1<'static> {
+    fn default() -> Self {
+        Secp256k1(&CONTEXT)
+    }
+}
+
+impl Secp256k1<'static> {
+    /// Init a backend, setting up any context necessary. This is implemented as a lazy_static
+    /// context initialized on the first call. As such, the first call to init will be expensive,
+    /// while successive calls will be cheap.
+    pub fn static_ref() -> &'static Self {
+        &BACKEND
     }
 }
 
@@ -23,13 +33,6 @@ impl<'a> Secp256k1<'a> {
     /// Instantiate a backend from a context. Useful for managing your own backend lifespan
     pub fn from_context(context: &'a secp256k1::Secp256k1<secp256k1::All>) -> Self {
         Self(context)
-    }
-
-    /// Init a backend, setting up any context necessary. This is implemented as a lazy_static
-    /// context initialized on the first call. As such, the first call to init will be expensive,
-    /// while successive calls will be cheap.
-    pub fn init() -> Self {
-        Self(&CONTEXT)
     }
 }
 
@@ -139,7 +142,7 @@ impl RecoverableSigSerialize for secp256k1::recovery::RecoverableSignature {
     }
 }
 
-impl<'a> Secp256k1Backend<'a> for Secp256k1<'a> {
+impl<'a> Secp256k1Backend for Secp256k1<'a> {
     type Error = Bip32Error;
     type Context = secp256k1::Secp256k1<secp256k1::All>;
     type Privkey = Privkey;

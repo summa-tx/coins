@@ -1,15 +1,13 @@
 use std::collections::{btree_map, BTreeMap};
 
 use riemann_core::{ser::ByteFormat, types::tx::Transaction};
-use rmn_bip32::{model::DerivedKey, DerivedXPub};
+use rmn_bip32::{enc::Encoder as Bip32Encoder, model::DerivedKey, DerivedXPub};
 use rmn_btc::types::{transactions::LegacyTx, txin::BitcoinTxIn};
 
 use crate::{
     common::{PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},
     schema,
 };
-
-use rmn_bip32::{self as bip32, Secp256k1};
 
 psbt_map!(PSBTGlobal);
 
@@ -96,16 +94,13 @@ impl PSBTGlobal {
 
     /// Return a parsed vector of k/v pairs. Keys are parsed as XPubs with the provided backend.
     /// Values are parsed as `KeyDerivation` structs.
-    pub fn parsed_xpubs<'a, E>(
-        &self,
-        backend: Option<&'a Secp256k1>,
-    ) -> Result<Vec<DerivedXPub<'a>>, PSBTError>
+    pub fn parsed_xpubs<'a, E>(&self) -> Result<Vec<DerivedXPub>, PSBTError>
     where
-        E: bip32::enc::Encoder,
+        E: Bip32Encoder,
     {
         let mut results = vec![];
         for (k, v) in self.xpubs() {
-            let xpub = schema::try_key_as_xpub::<E>(k, backend)?;
+            let xpub = schema::try_key_as_xpub::<E>(k)?;
             let deriv = schema::try_val_as_key_derivation(v)?;
             results.push(DerivedXPub::new(xpub, deriv));
         }

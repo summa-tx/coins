@@ -1,6 +1,6 @@
 use std::collections::{btree_map, BTreeMap};
 
-use rmn_bip32::{self as bip32, derived::DerivedPubkey};
+use rmn_bip32::derived::DerivedPubkey;
 
 use rmn_btc::types::script::Script;
 
@@ -84,12 +84,9 @@ impl PSBTOutput {
     }
 
     /// Returns a vec containing parsed public keys. Unparsable keys will be ignored
-    pub fn parsed_pubkey_derivations<'a>(
-        &self,
-        backend: Option<&'a bip32::Secp256k1<'a>>,
-    ) -> Vec<DerivedPubkey<'a>> {
+    pub fn parsed_pubkey_derivations<'a>(&self) -> Vec<DerivedPubkey> {
         self.pubkey_kv_pairs()
-            .map(|(k, v)| schema::try_kv_pair_as_derived_pubkey(k, v, backend))
+            .map(|(k, v)| schema::try_kv_pair_as_derived_pubkey(k, v))
             .filter_map(Result::ok)
             .collect()
     }

@@ -1,6 +1,5 @@
 use riemann_core::ser::{self, ByteFormat};
 use rmn_bip32::{
-    self as bip32,
     curve::{model::Secp256k1Backend, SigSerialize},
     derived::DerivedPubkey,
     model::HasPubkey,
@@ -197,17 +196,14 @@ impl PSBTInput {
     }
 
     /// Returns an iterator over Pubkey/Signature pairs
-    pub fn partial_sigs<'a>(
-        &self,
-        backend: Option<&'a bip32::Secp256k1<'a>>,
-    ) -> Vec<(rmn_bip32::Pubkey<'a>, rmn_bip32::Signature, Sighash)> {
+    pub fn partial_sigs<'a>(&self) -> Vec<(rmn_bip32::Pubkey, rmn_bip32::Signature, Sighash)> {
         self.raw_partial_sigs()
-            .filter_map(|(k, v)| schema::try_kv_pair_as_pubkey_and_sig(k, v, backend).ok())
+            .filter_map(|(k, v)| schema::try_kv_pair_as_pubkey_and_sig(k, v).ok())
             .collect::<Vec<_>>()
     }
 
     /// Inserts a signature into the map
-    pub fn insert_partial_sig<'a, T: Secp256k1Backend<'a>, K: HasPubkey<'a, T>>(
+    pub fn insert_partial_sig<'a, T: Secp256k1Backend, K: HasPubkey<'a, T>>(
         &mut self,
         pk: &K,
         sig: &T::Signature,
@@ -275,12 +271,9 @@ impl PSBTInput {
     }
 
     /// Returns a vec containing parsed public keys. Unparsable keys will be ignored
-    pub fn parsed_pubkey_derivations<'a>(
-        &self,
-        backend: Option<&'a bip32::Secp256k1<'a>>,
-    ) -> Vec<DerivedPubkey<'a>> {
+    pub fn parsed_pubkey_derivations<'a>(&self) -> Vec<DerivedPubkey> {
         self.pubkey_kv_pairs()
-            .map(|(k, v)| schema::try_kv_pair_as_derived_pubkey(k, v, backend))
+            .map(|(k, v)| schema::try_kv_pair_as_derived_pubkey(k, v))
             .filter_map(Result::ok)
             .collect()
     }

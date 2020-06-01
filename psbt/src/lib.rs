@@ -30,7 +30,7 @@ use std::{
 
 use rmn_bip32::{
     self as bip32, enc::Encoder as Bip32Encoder, model::DerivedKey, DerivedXPub, KeyFingerprint,
-    Secp256k1, XPub,
+    XPub,
 };
 
 use riemann_core::{builder::TxBuilder, enc::AddressEncoder, ser::ByteFormat, tx::Transaction};
@@ -121,7 +121,9 @@ impl<T: BitcoinEncoderMarker, E: Bip32Encoder> serde::Serialize for PSBT<T, E> {
     where
         S: serde::Serializer,
     {
-        let s = self.serialize_base64().map_err(|e| serde::ser::Error::custom(e.to_string()))?;
+        let s = self
+            .serialize_base64()
+            .map_err(|e| serde::ser::Error::custom(e.to_string()))?;
         serializer.serialize_str(&s)
     }
 }
@@ -132,8 +134,7 @@ impl<'de, T: BitcoinEncoderMarker, E: Bip32Encoder> serde::Deserialize<'de> for 
         D: serde::Deserializer<'de>,
     {
         let s: &str = serde::Deserialize::deserialize(deserializer)?;
-        PSBT::<T, E>::deserialize_base64(s)
-            .map_err(|e| serde::de::Error::custom(e.to_string()))
+        PSBT::<T, E>::deserialize_base64(s).map_err(|e| serde::de::Error::custom(e.to_string()))
     }
 }
 
@@ -172,7 +173,6 @@ where
         Ok(())
     }
 
-
     /// Push a tx_in to the end of the PSBT's vector. This crates a new empty map.
     pub fn push_input(&mut self, tx_in: BitcoinTxIn) -> Result<(), PSBTError> {
         self.insert_input(std::usize::MAX, tx_in)
@@ -183,42 +183,30 @@ where
         self.insert_output(std::usize::MAX, tx_out)
     }
 
-
     /// Return a parsed vector of k/v pairs. Keys are parsed as XPubs with the provided backend.
     /// Values are parsed as `KeyDerivation` structs.
-    pub fn parsed_xpubs<'a>(
-        &self,
-        backend: Option<&'a Secp256k1>,
-    ) -> Result<Vec<DerivedXPub<'a>>, PSBTError> {
-        self.global_map().parsed_xpubs::<E>(backend)
+    pub fn parsed_xpubs<'a>(&self) -> Result<Vec<DerivedXPub>, PSBTError> {
+        self.global_map().parsed_xpubs::<E>()
     }
 
     /// Find an xpub in the global map by its fingerprint. This will ignore any parsing errors
-    pub fn find_xpub<'a>(
-        &self,
-        fingerprint: KeyFingerprint,
-        backend: Option<&'a Secp256k1>,
-    ) -> Option<XPub<'a>> {
+    pub fn find_xpub(&self, fingerprint: KeyFingerprint) -> Option<XPub> {
         self.global_map()
             .xpubs()
             .find(|(k, _)| k.len() >= 9 && fingerprint.eq_slice(&k[5..9]))
-            .map(|(k, _)| schema::try_key_as_xpub::<E>(k, backend).ok())
+            .map(|(k, _)| schema::try_key_as_xpub::<E>(k).ok())
             .flatten()
     }
 
     /// Find all xpubs with a specified root fingerprint. This with silently fail if any
-    pub fn find_xpubs_by_root<'a>(
-        &self,
-        root: KeyFingerprint,
-        backend: Option<&'a Secp256k1>,
-    ) -> Vec<DerivedXPub<'a>> {
+    pub fn find_xpubs_by_root(&self, root: KeyFingerprint) -> Vec<DerivedXPub> {
         let mut results = vec![];
         let xpubs = self
             .global_map()
             .xpubs()
             .filter(|(_, v)| v.len() >= 4 && root.eq_slice(&v[0..4]));
         for (k, v) in xpubs {
-            let xpub = schema::try_key_as_xpub::<E>(k, backend);
+            let xpub = schema::try_key_as_xpub::<E>(k);
             let deriv = schema::try_val_as_key_derivation(v);
             if deriv.is_err() || xpub.is_err() {
                 continue;
