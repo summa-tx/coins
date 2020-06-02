@@ -26,13 +26,13 @@ pub(crate) enum Commands {
     UNTRUSTED_HASH_TX_INPUT_FINALIZE_FULL = 0x4a,
 }
 
-pub(crate) struct InternalKeyInfo<'a> {
-    pub(crate) pubkey: Pubkey<'a>,
+pub(crate) struct InternalKeyInfo {
+    pub(crate) pubkey: Pubkey,
     pub(crate) path: DerivationPath,
     pub(crate) chain_code: ChainCode,
 }
 
-pub(crate) fn parse_pubkey_response<'a>(deriv: &DerivationPath, data: &[u8], backend: Option<&'a rmn_bip32::Secp256k1<'a>>) -> InternalKeyInfo<'a> {
+pub(crate) fn parse_pubkey_response(deriv: &DerivationPath, data: &[u8]) -> InternalKeyInfo {
     let mut chain_code = [0u8; 32];
     chain_code.copy_from_slice(&data[data.len() - 32..]);
 
@@ -41,7 +41,7 @@ pub(crate) fn parse_pubkey_response<'a>(deriv: &DerivationPath, data: &[u8], bac
     InternalKeyInfo {
         pubkey: rmn_bip32::keys::Pubkey {
             key: PointDeserialize::from_pubkey_array_uncompressed(pk).unwrap(),
-            backend,
+            backend: Some(rmn_bip32::Secp256k1::static_ref()),
         },
         path: deriv.clone(),
         chain_code: chain_code.into(),

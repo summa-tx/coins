@@ -66,12 +66,11 @@ impl LedgerBTC {
 // XPubs
 impl LedgerBTC {
     /// Get information about the public key at a certain derivation
-    async fn get_key_info<'a>(
+    async fn get_key_info(
         &self,
         transport: &transports::DefaultTransport,
         deriv: &DerivationPath,
-        secp: Option<&'a rmn_bip32::Secp256k1<'a>>,
-    ) -> Result<InternalKeyInfo<'a>, LedgerBTCError> {
+    ) -> Result<InternalKeyInfo, LedgerBTCError> {
         // Convert to APDU derivation format
         if deriv.len() > 10 {
             return Err(LedgerBTCError::DerivationTooLong);
@@ -91,24 +90,23 @@ impl LedgerBTC {
             .data()
             .ok_or(LedgerBTCError::UnexpectedNullResponse)?;
 
-        Ok(parse_pubkey_response(deriv, &data, secp))
+        Ok(parse_pubkey_response(deriv, &data))
     }
 
     /// Get an XPub with as much derivation info as possible.
-    pub async fn get_xpub<'a>(
+    pub async fn get_xpub(
         &self,
         deriv: &DerivationPath,
-        secp: Option<&'a rmn_bip32::Secp256k1<'a>>,
-    ) -> Result<DerivedXPub<'a>, LedgerBTCError> {
+    ) -> Result<DerivedXPub, LedgerBTCError> {
         let transport = self.transport.lock().unwrap();
 
-        let child = self.get_key_info(&transport, deriv, secp).await?;
+        let child = self.get_key_info(&transport, deriv).await?;
 
         if !deriv.is_empty() {
             let parent = self
-                .get_key_info(&transport, &deriv.resized(deriv.len() - 1, 0), secp)
+                .get_key_info(&transport, &deriv.resized(deriv.len() - 1, 0))
                 .await?;
-            let master = self.get_key_info(&transport, &deriv.resized(0, 0), secp).await?;
+            let master = self.get_key_info(&transport, &deriv.resized(0, 0)).await?;
             Ok(DerivedXPub {
                 derivation: KeyDerivation {
                     root: master.pubkey.fingerprint(),
@@ -146,8 +144,8 @@ impl LedgerBTC {
     }
 
     /// Get the master xpub
-    pub async fn get_master_xpub<'a>(&self, secp: Option<&'a rmn_bip32::Secp256k1<'a>>) -> Result<DerivedXPub<'a>, LedgerBTCError> {
-        Ok(self.get_xpub(&Default::default(), secp).await?)
+    pub async fn get_master_xpub<'a>(&self) -> Result<DerivedXPub, LedgerBTCError> {
+        Ok(self.get_xpub(&Default::default()).await?)
     }
 }
 
@@ -202,7 +200,7 @@ impl LedgerBTC {
         // TODO refactor to use idx in signing info
 
         // get the master key and check at least 1 is signable
-        let master = self.get_xpub(&Default::default(), None).await?;
+        let master = self.get_xpub(&Default::default()).await?;
 
         // If we have no keys, don't sign anything
         if !should_sign(&master, signing_info) {

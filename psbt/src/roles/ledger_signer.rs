@@ -52,10 +52,10 @@ where
     type Error = LedgerSignerError;
 
     fn is_change(&self, pst: &PSBT<A, E>, idx: usize) -> bool {
-        let pubkeys = pst.outputs[idx].parsed_pubkey_derivations(None);
+        let pubkeys = pst.outputs[idx].parsed_pubkey_derivations();
         if pubkeys.len() == 1 {
             let key = &pubkeys[0];
-            let xpub_res = block_on(self.get_xpub(&key.derivation.path, None));
+            let xpub_res = block_on(self.get_xpub(&key.derivation.path));
             if let Ok(xpub) = xpub_res {
                 return xpub.xpub.pubkey == key.pubkey && xpub.derivation == key.derivation;
             }
@@ -76,9 +76,9 @@ where
             return Err(LedgerSignerError::UnsupportedNestedSegwit);
         }
 
-        let pubkeys = input_map.parsed_pubkey_derivations(None);
+        let pubkeys = input_map.parsed_pubkey_derivations();
         for key in pubkeys {
-            let xpub = block_on(self.get_xpub(&key.derivation.path, None))?;
+            let xpub = block_on(self.get_xpub(&key.derivation.path))?;
             if xpub.xpub.pubkey == key.pubkey && xpub.derivation == key.derivation {
                 return Ok(());
             }
@@ -107,7 +107,7 @@ where
         let sig_infos = block_on(self.get_tx_signatures(&tx.into_witness(), &signing_info))?;
 
         for sig_info in sig_infos.iter() {
-            let key = block_on(self.get_xpub(&sig_info.deriv.path, None))?;
+            let key = block_on(self.get_xpub(&sig_info.deriv.path))?;
             pst.inputs[sig_info.input_idx].insert_partial_sig(&key, &sig_info.sig);
         }
 
@@ -122,7 +122,7 @@ fn extract_signing_info(
 ) -> Result<Vec<SigningInfo>, PSBTError> {
     let prevout = input_map.as_utxo(&tx.inputs()[idx].outpoint)?;
     Ok(input_map
-        .parsed_pubkey_derivations(None)
+        .parsed_pubkey_derivations()
         .iter()
         .map(|key| SigningInfo {
             input_idx: idx,
