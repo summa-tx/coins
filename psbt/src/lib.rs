@@ -185,7 +185,7 @@ where
 
     /// Return a parsed vector of k/v pairs. Keys are parsed as XPubs with the provided backend.
     /// Values are parsed as `KeyDerivation` structs.
-    pub fn parsed_xpubs<'a>(&self) -> Result<Vec<DerivedXPub>, PSBTError> {
+    pub fn parsed_xpubs(&self) -> Result<Vec<DerivedXPub>, PSBTError> {
         self.global_map().parsed_xpubs::<E>()
     }
 

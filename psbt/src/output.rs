@@ -84,7 +84,7 @@ impl PSBTOutput {
     }
 
     /// Returns a vec containing parsed public keys. Unparsable keys will be ignored
-    pub fn parsed_pubkey_derivations<'a>(&self) -> Vec<DerivedPubkey> {
+    pub fn parsed_pubkey_derivations(&self) -> Vec<DerivedPubkey> {
         self.pubkey_kv_pairs()
             .map(|(k, v)| schema::try_kv_pair_as_derived_pubkey(k, v))
             .filter_map(Result::ok)

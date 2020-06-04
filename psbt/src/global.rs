@@ -94,7 +94,7 @@ impl PSBTGlobal {
 
     /// Return a parsed vector of k/v pairs. Keys are parsed as XPubs with the provided backend.
     /// Values are parsed as `KeyDerivation` structs.
-    pub fn parsed_xpubs<'a, E>(&self) -> Result<Vec<DerivedXPub>, PSBTError>
+    pub fn parsed_xpubs<E>(&self) -> Result<Vec<DerivedXPub>, PSBTError>
     where
         E: Bip32Encoder,
     {
