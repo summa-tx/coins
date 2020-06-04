@@ -391,7 +391,7 @@ params!(
 
 /// Parameterizable Bitcoin encoder
 #[derive(Debug, Clone)]
-pub struct BitcoinEncoder<P: NetworkParams>(PhantomData<P>);
+pub struct BitcoinEncoder<P: NetworkParams>(PhantomData<fn(P) -> P>);
 
 impl<P: NetworkParams> Encoder for BitcoinEncoder<P> {
     /// Serialize the xpub to `std::io::Write`
