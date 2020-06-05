@@ -37,7 +37,7 @@ macro_rules! wrap_prefixed_byte_vector {
         $wrapper_name:ident
     ) => {
         $(#[$outer])*
-        #[derive(Clone, Debug, Eq, PartialEq, Default, Ord, PartialOrd)]
+        #[derive(Clone, Debug, Eq, PartialEq, Default, Hash, Ord, PartialOrd)]
         pub struct $wrapper_name(Vec<u8>);
 
         impl riemann_core::ser::ByteFormat for $wrapper_name {

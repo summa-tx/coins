@@ -17,11 +17,17 @@ serial_test = "0.3.2"
 [dependencies]
 thiserror = "1.0.10"
 riemann-core = { path = "../core" }
-rmn-btc = { path = "../bitcoin" }
-rmn-bip32 = { path = "../bip32" }
+
+[dependencies.rmn-btc]
+path = "../bitcoin"
+default-features = false
 
 [dependencies.rmn-ledger]
 path = "../ledger"
+default-features = false
+
+[dependencies.rmn-bip32]
+path = "../bip32"
 default-features = false
 
 # For wasm targets

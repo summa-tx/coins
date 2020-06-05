@@ -180,7 +180,7 @@ impl From<bip32::DerivedXPriv> for Bip32Signer {
 impl<A, E> PSTSigner<A, PSBT<A, E>> for Bip32Signer
 where
     A: BitcoinEncoderMarker,
-    E: bip32::enc::Encoder,
+    E: bip32::enc::XKeyEncoder,
 {
     type Error = Bip32SignerError;
 

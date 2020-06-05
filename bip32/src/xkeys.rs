@@ -34,14 +34,10 @@ impl XPriv {
     /// # Important:
     ///
     /// Use a seed of AT LEAST 128 bits.
-    pub fn root_from_seed(
-        data: &[u8],
-        hint: Option<Hint>
-    ) -> Result<XPriv, Bip32Error> {
+    pub fn root_from_seed(data: &[u8], hint: Option<Hint>) -> Result<XPriv, Bip32Error> {
         Self::custom_root_from_seed(data, hint, crate::curve::Secp256k1::static_ref())
     }
 }
-
 
 /// A BIP32 Extended pubkey using the library's compiled-in secp256k1 backend. This defaults to
 /// libsecp for native, and parity's rust secp for wasm targets
@@ -258,7 +254,7 @@ mod test {
     use super::*;
     use crate::{
         curve::Secp256k1,
-        enc::{Encoder, MainnetEncoder},
+        enc::{XKeyEncoder, MainnetEncoder},
         keys::Pubkey,
         primitives::*,
     };

@@ -47,7 +47,7 @@ pub enum LedgerSignerError {
 impl<A, E> PSTSigner<A, PSBT<A, E>> for LedgerBTC
 where
     A: BitcoinEncoderMarker,
-    E: bip32::enc::Encoder,
+    E: bip32::enc::XKeyEncoder,
 {
     type Error = LedgerSignerError;
 

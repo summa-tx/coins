@@ -106,6 +106,13 @@ pub mod path;
 /// Provides keys that are coupled with their derivation path
 pub mod derived;
 
+#[doc(hidden)]
+#[cfg(any(feature = "mainnet", feature = "testnet"))]
+pub mod defaults;
+
+#[cfg(any(feature = "mainnet", feature = "testnet"))]
+pub use defaults::Encoder;
+
 pub use enc::MainnetEncoder;
 pub use model::*;
 pub use primitives::KeyFingerprint;

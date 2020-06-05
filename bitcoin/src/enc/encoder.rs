@@ -24,6 +24,17 @@ pub enum Address {
     WSH(String),
 }
 
+impl AsRef<str> for Address {
+    fn as_ref(&self) -> &str {
+        match &self {
+            Address::PKH(s) => &s,
+            Address::SH(s) => &s,
+            Address::WPKH(s) => &s,
+            Address::WSH(s) => &s,
+        }
+    }
+}
+
 impl Address {
     /// Get a clone of the string underlying the address type.
     pub fn as_string(&self) -> String {

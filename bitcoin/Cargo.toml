@@ -16,4 +16,13 @@ thiserror = "1.0"
 sha2 = "0.8.1"
 serde = "1.0.105"
 riemann-core = { path = "../core" }
-rmn-bip32 = { path = "../bip32" }
+
+[dependencies.rmn-bip32]
+path = "../bip32"
+default-features = false
+
+[features]
+default = ["mainnet"]
+mainnet = ["rmn-bip32/mainnet"]
+testnet = ["rmn-bip32/testnet"]
+signet = ["rmn-bip32/testnet"]
