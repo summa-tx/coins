@@ -1,5 +1,9 @@
 language: rust
-cache: cargo
+cache:
+    directories:
+        - ./target
+        - /home/travis/.cargo
+
 os: linux
 dist: bionic
 addons:
