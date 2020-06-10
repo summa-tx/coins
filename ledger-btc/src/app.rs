@@ -11,7 +11,7 @@ use rmn_bip32::{
 use rmn_btc::types::{BitcoinTxIn, WitnessTx, UTXO};
 use rmn_ledger::{
     common::{APDUAnswer, APDUCommand},
-    transports::{self, APDUExchanger},
+    transports::{Ledger, LedgerAsync},
 };
 use crate::{LedgerBTCError, utils::*};
 
@@ -42,7 +42,7 @@ pub struct SigInfo {
 ///
 /// This is a simple wrapper around the transport and a Secp256k1 backend
 pub struct LedgerBTC {
-    transport: Mutex<transports::DefaultTransport>,
+    transport: Mutex<Ledger>,
 }
 
 // Lifecycle
@@ -55,7 +55,7 @@ impl LedgerBTC {
     /// but not the backend
     pub fn init() -> LedgerBTC {
         LedgerBTC {
-            transport: Mutex::new(transports::DefaultTransport::create_sync().unwrap()),
+            transport: Mutex::new(<Ledger as rmn_ledger::transports::LedgerSync>::init().unwrap()),
         }
     }
 
@@ -68,7 +68,7 @@ impl LedgerBTC {
     /// Get information about the public key at a certain derivation
     async fn get_key_info(
         &self,
-        transport: &transports::DefaultTransport,
+        transport: &Ledger,
         deriv: &DerivationPath,
     ) -> Result<InternalKeyInfo, LedgerBTCError> {
         // Convert to APDU derivation format
@@ -154,7 +154,7 @@ impl LedgerBTC {
     // Exchange packets to get a signature response from the device.
     async fn signature_exchange(
         &self,
-        transport: &transports::DefaultTransport,
+        transport: &Ledger,
         first_packet: &APDUCommand,
         locktime: u32,
         utxo: &UTXO,
@@ -173,7 +173,7 @@ impl LedgerBTC {
     // Perform the sig exchange and parse the result
     async fn get_sig(
         &self,
-        transport: &transports::DefaultTransport,
+        transport: &Ledger,
         first_packet: &APDUCommand,
         locktime: u32,
         utxo: &UTXO,
