@@ -20,18 +20,24 @@ use crate::{errors::LedgerError, common::{APDUAnswer, APDUCommand}};
 
 use async_trait::async_trait;
 
-/// A Ledger device connection
+/// A Ledger device connection. This wraps the default transport type. In native code, this is
+/// the `hidapi` library. When the `node` or `browser` feature is selected, it is a Ledger JS
+/// transport library.
 pub struct Ledger(DefaultTransport);
 
-/// A Synchronous Ledger transport
+/// A Synchronous interface to the `Ledger` struct. This is provided for convenience, not for
+/// ordinary use. Behind the scenes, this uses `futures::executor::block_on`, so it has
+/// significant overhead compared to the async interface. `LedgerAsync` should be preferred
+/// wherever possible.
 pub trait LedgerSync: Sized {
-    /// Init the connection to the device
+    /// Init the connection to the device. This may fail if the device is already in use by some
+    /// other process.
     fn init() -> Result<Self, LedgerError>;
 
-    /// Exchangea a packet with the device
+    /// Exchange a packet with the device.
     fn exchange(&self, packet: &APDUCommand) -> Result<APDUAnswer, LedgerError>;
 
-    /// Consume the connection
+    /// Consume the connection, and release the resources it holds.
     fn close(self) {}
 }
 
@@ -47,7 +53,6 @@ impl LedgerSync for Ledger {
         let res: Result<DefaultTransport, wasm_bindgen::JsValue> = futures::executor::block_on(fut);
         let res: Result<DefaultTransport, LedgerError> = res.map_err(|err| err.into());
         Ok(Self(res?))
-        // futures::executor::block_on(Default::create()).map_err(Into::into)
     }
 
     fn exchange(&self, packet: &APDUCommand) -> Result<APDUAnswer, LedgerError> {
@@ -56,15 +61,17 @@ impl LedgerSync for Ledger {
 }
 
 #[async_trait(?Send)]
-/// An asynchronous Ledger transport
+/// An asynchronous interface to the Ledger device. It is critical that the device have only one
+/// connection active, so the `init` function acquires a lock on the device.
 pub trait LedgerAsync: Sized {
-    /// Init the connection to the device
+    /// Init the connection to the device. This may fail if the device is already in use by some
+    /// other process.
     async fn init() -> Result<Self, LedgerError>;
 
-    /// Exchangea a packet with the device
+    /// Exchange a packet with the device.
     async fn exchange(&self, packet: &APDUCommand) -> Result<APDUAnswer, LedgerError>;
 
-    /// Consume the connection
+    /// Consume the connection, and release the resources it holds.
     fn close(self) {}
 }
 
