@@ -16,37 +16,83 @@ pub mod native;
 #[cfg(not(target_arch = "wasm32"))]
 pub use native::NativeTransport as DefaultTransport;
 
-
 use crate::{errors::LedgerError, common::{APDUAnswer, APDUCommand}};
-/// Marker trait for transports. Use this until we get async-trait support working
-pub trait APDUExchanger: std::marker::Sized {
-    /// Create a new instance. Block if not immediately available.
-    fn create_sync() -> Result<Self, LedgerError>;
 
-    /// Exchange a packet synchronously. This uses `futures::executor::block_on` to run the future
-    /// in the current thread.
-    fn exchange_sync(&self, apdu_command: &APDUCommand) -> Result<APDUAnswer, LedgerError>;
+use async_trait::async_trait;
+
+/// A Ledger device connection. This wraps the default transport type. In native code, this is
+/// the `hidapi` library. When the `node` or `browser` feature is selected, it is a Ledger JS
+/// transport library.
+pub struct Ledger(DefaultTransport);
+
+/// A Synchronous interface to the `Ledger` struct. This is provided for convenience, not for
+/// ordinary use. Behind the scenes, this uses `futures::executor::block_on`, so it has
+/// significant overhead compared to the async interface. `LedgerAsync` should be preferred
+/// wherever possible.
+pub trait LedgerSync: Sized {
+    /// Init the connection to the device. This may fail if the device is already in use by some
+    /// other process.
+    fn init() -> Result<Self, LedgerError>;
+
+    /// Exchange a packet with the device.
+    fn exchange(&self, packet: &APDUCommand) -> Result<APDUAnswer, LedgerError>;
+
+    /// Consume the connection, and release the resources it holds.
+    fn close(self) {}
 }
 
-// This is a bit of cleverness to get around the lack of async traits. Essentially the code will
-// fail to compile unless the transport exposes the async `exchange` function.
-impl APDUExchanger for DefaultTransport {
+impl LedgerSync for Ledger {
     #[cfg(not(target_arch = "wasm32"))]
-    fn create_sync() -> Result<Self, LedgerError> {
-        Ok(Self::new()?)
+    fn init() -> Result<Self, LedgerError> {
+        Ok(Self(DefaultTransport::new()?))
     }
 
-    #[cfg(all(target_arch = "wasm32"))]
-    fn create_sync() -> Result<Self, LedgerError> {
-        futures::executor::block_on(Self::create()).map_err(Into::into)
+    #[cfg(target_arch = "wasm32")]
+    fn init() -> Result<Self, LedgerError> {
+        let fut = DefaultTransport::create();
+        let res: Result<DefaultTransport, wasm_bindgen::JsValue> = futures::executor::block_on(fut);
+        let res: Result<DefaultTransport, LedgerError> = res.map_err(|err| err.into());
+        Ok(Self(res?))
     }
 
-    fn exchange_sync(&self, apdu_command: &APDUCommand) -> Result<APDUAnswer, LedgerError> {
-        futures::executor::block_on(self.exchange(apdu_command))
-    }
+    fn exchange(&self, packet: &APDUCommand) -> Result<APDUAnswer, LedgerError> {
+       futures::executor::block_on(self.0.exchange(packet))
+   }
 }
 
+#[async_trait(?Send)]
+/// An asynchronous interface to the Ledger device. It is critical that the device have only one
+/// connection active, so the `init` function acquires a lock on the device.
+pub trait LedgerAsync: Sized {
+    /// Init the connection to the device. This may fail if the device is already in use by some
+    /// other process.
+    async fn init() -> Result<Self, LedgerError>;
 
+    /// Exchange a packet with the device.
+    async fn exchange(&self, packet: &APDUCommand) -> Result<APDUAnswer, LedgerError>;
+
+    /// Consume the connection, and release the resources it holds.
+    fn close(self) {}
+}
+
+#[async_trait(?Send)]
+impl LedgerAsync for Ledger {
+    #[cfg(not(target_arch = "wasm32"))]
+    async fn init() -> Result<Self, LedgerError> {
+        Ok(Self(DefaultTransport::new()?))
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    async fn init() -> Result<Self, LedgerError> {
+        let res: Result<DefaultTransport, wasm_bindgen::JsValue> = DefaultTransport::create().await;
+        let res: Result<DefaultTransport, LedgerError> = res.map_err(|err| err.into());
+        Ok(Self(res?))
+    }
+
+    async fn exchange(&self, packet: &APDUCommand) -> Result<APDUAnswer, LedgerError> {
+       self.0.exchange(packet).await
+   }
+}
 
 
 /*******************************************************************************
