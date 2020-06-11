@@ -24,7 +24,7 @@
 //! ```
 //! use rmn_bip32::{
 //!     Bip32Error, Secp256k1, XPub, XPriv,
-//!     enc::{Encoder, MainnetEncoder},
+//!     enc::{XKeyEncoder, MainnetEncoder},
 //!     model::*,
 //!     curve::model::*,
 //! };
@@ -105,6 +105,13 @@ pub mod path;
 
 /// Provides keys that are coupled with their derivation path
 pub mod derived;
+
+#[doc(hidden)]
+#[cfg(any(feature = "mainnet", feature = "testnet"))]
+pub mod defaults;
+
+#[cfg(any(feature = "mainnet", feature = "testnet"))]
+pub use defaults::Encoder;
 
 pub use enc::MainnetEncoder;
 pub use model::*;

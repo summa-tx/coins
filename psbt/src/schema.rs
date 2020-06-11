@@ -185,7 +185,7 @@ pub fn try_val_as_witness(val: &PSBTValue) -> Result<Witness, PSBTError> {
 /// Attempt to parse a key as a valid extended pubkey
 pub fn try_key_as_xpub<E>(key: &PSBTKey) -> Result<XPub, PSBTError>
 where
-    E: bip32::enc::Encoder,
+    E: bip32::enc::XKeyEncoder,
 {
     if key.len() < 2 {
         return Err(Bip32Error::BadXPubVersionBytes([0u8; 4]).into());

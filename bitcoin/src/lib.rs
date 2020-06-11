@@ -17,3 +17,10 @@ pub mod nets;
 pub mod types;
 
 pub use nets::*;
+
+#[doc(hidden)]
+#[cfg(any(feature = "mainnet", feature = "testnet"))]
+pub mod defaults;
+
+#[cfg(any(feature = "mainnet", feature = "testnet"))]
+pub use defaults::network::{Encoder, Network};

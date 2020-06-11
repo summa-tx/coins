@@ -107,10 +107,7 @@ impl DerivedXPriv {
     /// # Important:
     ///
     /// Use a seed of AT LEAST 128 bits.
-    pub fn root_from_seed(
-        data: &[u8],
-        hint: Option<Hint>
-    ) -> Result<DerivedXPriv, Bip32Error> {
+    pub fn root_from_seed(data: &[u8], hint: Option<Hint>) -> Result<DerivedXPriv, Bip32Error> {
         Self::custom_root_from_seed(data, hint, crate::curve::Secp256k1::static_ref())
     }
 }
@@ -236,7 +233,7 @@ mod test {
     use super::*;
     use crate::{
         curve::*,
-        enc::{Encoder, MainnetEncoder},
+        enc::{XKeyEncoder, MainnetEncoder},
         path::DerivationPath,
         primitives::*,
         BIP32_HARDEN,
@@ -289,7 +286,6 @@ mod test {
     #[test]
     fn bip32_vector_1() {
         let seed: [u8; 16] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15];
-        let backend = Secp256k1::static_ref();
 
         let xpriv = DerivedXPriv::root_from_seed(&seed, Some(Hint::Legacy)).unwrap();
 
@@ -319,7 +315,6 @@ mod test {
     #[test]
     fn bip32_vector_2() {
         let seed = hex::decode(&"fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542").unwrap();
-        let backend = Secp256k1::static_ref();
 
         let xpriv = DerivedXPriv::root_from_seed(&seed, Some(Hint::Legacy)).unwrap();
 
@@ -353,7 +348,6 @@ mod test {
     #[test]
     fn bip32_vector_3() {
         let seed = hex::decode(&"4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be").unwrap();
-        let backend = Secp256k1::static_ref();
 
         let xpriv = DerivedXPriv::root_from_seed(&seed, Some(Hint::Legacy)).unwrap();
 
@@ -632,13 +626,15 @@ mod test {
         let backend = Secp256k1::static_ref();
         GenericDerivedXPriv::custom_root_from_seed(&[0u8; 32][..], None, backend).unwrap();
 
-        let err_too_short = GenericDerivedXPriv::custom_root_from_seed(&[0u8; 2][..], None, backend);
+        let err_too_short =
+            GenericDerivedXPriv::custom_root_from_seed(&[0u8; 2][..], None, backend);
         match err_too_short {
             Err(Bip32Error::SeedTooShort) => {}
             _ => assert!(false, "expected err too short"),
         }
 
-        let err_too_short = GenericDerivedXPriv::custom_root_from_seed(&[0u8; 2][..], None, backend);
+        let err_too_short =
+            GenericDerivedXPriv::custom_root_from_seed(&[0u8; 2][..], None, backend);
         match err_too_short {
             Err(Bip32Error::SeedTooShort) => {}
             _ => assert!(false, "expected err too short"),

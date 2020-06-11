@@ -1,8 +1,8 @@
 use std::{
-    convert::TryFrom,
     io::{Read, Write},
     iter::{FromIterator, IntoIterator},
     slice::Iter,
+    str::FromStr,
 };
 
 use riemann_core::ser::{ByteFormat, SerError};
@@ -44,6 +44,26 @@ fn encode_index(idx: u32, harden: char) -> String {
 /// A Bip32 derivation path
 #[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct DerivationPath(Vec<u32>);
+
+impl serde::Serialize for DerivationPath {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.derivation_string())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for DerivationPath {
+    fn deserialize<D>(deserializer: D) -> Result<DerivationPath, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s: &str = serde::Deserialize::deserialize(deserializer)?;
+        s.parse::<DerivationPath>()
+            .map_err(|e| serde::de::Error::custom(e.to_string()))
+    }
+}
 
 impl DerivationPath {
     #[doc(hidden)]
@@ -156,16 +176,16 @@ impl FromIterator<u32> for DerivationPath {
     }
 }
 
-impl TryFrom<&str> for DerivationPath {
-    type Error = Bip32Error;
+impl FromStr for DerivationPath {
+    type Err = Bip32Error;
 
-    fn try_from(s: &str) -> Result<Self, Self::Error> {
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
         try_parse_path(s).map(Into::into)
     }
 }
 
 /// A Derivation Path for a bip32 key
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct KeyDerivation {
     /// The root key fingerprint
     pub root: KeyFingerprint,
@@ -260,7 +280,6 @@ impl ByteFormat for KeyDerivation {
 #[cfg(test)]
 pub mod test {
     use super::*;
-    use std::convert::TryInto;
 
     #[test]
     fn it_parses_index_strings() {
@@ -346,7 +365,7 @@ pub mod test {
         let cases = ["//", "m/", "-", "h", "toast", "憂鬱"];
 
         for case in cases.iter() {
-            let path: Result<DerivationPath, _> = case.to_owned().try_into().map_err(Into::into);
+            let path: Result<DerivationPath, _> = case.parse().map_err(Into::into);
             match path {
                 Ok(_) => assert!(false, "expected an error"),
                 Err(Bip32Error::MalformattedDerivation(e)) => assert_eq!(&e, case),

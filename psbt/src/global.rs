@@ -1,7 +1,7 @@
 use std::collections::{btree_map, BTreeMap};
 
 use riemann_core::{ser::ByteFormat, types::tx::Transaction};
-use rmn_bip32::{enc::Encoder as Bip32Encoder, model::DerivedKey, DerivedXPub};
+use rmn_bip32::{enc::XKeyEncoder as Bip32Encoder, model::DerivedKey, DerivedXPub};
 use rmn_btc::types::{transactions::LegacyTx, txin::BitcoinTxIn};
 
 use crate::{
@@ -90,6 +90,19 @@ impl PSBTGlobal {
     /// Get a range of XPUBs
     pub fn xpubs(&self) -> btree_map::Range<PSBTKey, PSBTValue> {
         self.range_by_key_type(GlobalKey::XPUB as u8)
+    }
+
+    /// Insert an xpub into the global map
+    pub fn insert_xpub<E>(&mut self, xpub: &DerivedXPub)
+    where
+        E: Bip32Encoder,
+    {
+        let mut key = vec![GlobalKey::XPUB as u8];
+        E::write_xpub(&mut key, &xpub.xpub).unwrap();
+
+        let mut val = vec![];
+        xpub.derivation.write_to(&mut val).unwrap();
+        self.insert(key.into(), val.into());
     }
 
     /// Return a parsed vector of k/v pairs. Keys are parsed as XPubs with the provided backend.

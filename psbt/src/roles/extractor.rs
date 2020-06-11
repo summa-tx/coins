@@ -13,7 +13,7 @@ pub struct PSBTExtractor();
 impl<A, E> PSTExtractor<A, PSBT<A, E>> for PSBTExtractor
 where
     A: BitcoinEncoderMarker,
-    E: bip32::enc::Encoder,
+    E: bip32::enc::XKeyEncoder,
 {
     type Error = PSBTError;
 

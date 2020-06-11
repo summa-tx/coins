@@ -12,7 +12,7 @@ pub enum Hint {
 }
 
 /// A 4-byte key fingerprint
-#[derive(Eq, PartialEq, Clone, Copy)]
+#[derive(Eq, PartialEq, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub struct KeyFingerprint(pub [u8; 4]);
 
 impl From<[u8; 4]> for KeyFingerprint {

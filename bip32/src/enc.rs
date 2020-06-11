@@ -59,7 +59,7 @@ pub trait NetworkParams {
 }
 
 /// Bip32/49/84 encoder
-pub trait Encoder {
+pub trait XKeyEncoder {
     #[doc(hidden)]
     fn write_key_details<K, W>(writer: &mut W, key: &K) -> Result<usize, Bip32Error>
     where
@@ -190,7 +190,7 @@ pub trait Encoder {
     /// (e.g. XPub) or the full type `GenericXPub<rmn_bip32::backends::curve::Secp256k1>`
     ///
     /// ```
-    /// use rmn_bip32::{Bip32Error, XPriv, enc::{Encoder, MainnetEncoder}};
+    /// use rmn_bip32::{Bip32Error, XPriv, enc::{XKeyEncoder, MainnetEncoder}};
     /// # fn main() -> Result<(), Bip32Error> {
     /// let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
     ///
@@ -265,7 +265,7 @@ pub trait Encoder {
     /// (e.g. XPub) or the full type `GenericXPub<rmn_bip32::backends::curve::Secp256k1>`
     ///
     /// ```
-    /// use rmn_bip32::{Bip32Error, XPub, enc::{Encoder, MainnetEncoder}};
+    /// use rmn_bip32::{Bip32Error, XPub, enc::{XKeyEncoder, MainnetEncoder}};
     /// # fn main() -> Result<(), Bip32Error> {
     /// let xpub_str = "xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y".to_owned();
     ///
@@ -312,7 +312,7 @@ pub trait Encoder {
     /// (e.g. XPub) or the full type `GenericXPub<rmn_bip32::backends::curve::Secp256k1>`
     ///
     /// ```
-    /// use rmn_bip32::{Bip32Error, XPriv, enc::{Encoder, MainnetEncoder}};
+    /// use rmn_bip32::{Bip32Error, XPriv, enc::{XKeyEncoder, MainnetEncoder}};
     /// # fn main() -> Result<(), Bip32Error> {
     /// let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
     ///
@@ -342,7 +342,7 @@ pub trait Encoder {
     /// (e.g. XPub) or the full type `GenericXPub<rmn_bip32::backends::curve::Secp256k1>`
     ///
     /// ```
-    /// use rmn_bip32::{Bip32Error, XPub, enc::{Encoder, MainnetEncoder}};
+    /// use rmn_bip32::{Bip32Error, XPub, enc::{XKeyEncoder, MainnetEncoder}};
     /// # fn main() -> Result<(), Bip32Error> {
     /// let xpub_str = "xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y".to_owned();
     ///
@@ -393,7 +393,7 @@ params!(
 #[derive(Debug, Clone)]
 pub struct BitcoinEncoder<P: NetworkParams>(PhantomData<fn(P) -> P>);
 
-impl<P: NetworkParams> Encoder for BitcoinEncoder<P> {
+impl<P: NetworkParams> XKeyEncoder for BitcoinEncoder<P> {
     /// Serialize the xpub to `std::io::Write`
     fn write_xpub<'a, W, T>(writer: &mut W, key: &GenericXPub<'a, T>) -> Result<usize, Bip32Error>
     where
@@ -480,9 +480,9 @@ impl<P: NetworkParams> Encoder for BitcoinEncoder<P> {
     }
 }
 
-/// Encoder for Mainnet xkeys
+/// XKeyEncoder for Mainnet xkeys
 pub type MainnetEncoder = BitcoinEncoder<Main>;
-/// Encoder for Testnet xkeys
+/// XKeyEncoder for Testnet xkeys
 pub type TestnetEncoder = BitcoinEncoder<Test>;
 
 #[cfg(test)]

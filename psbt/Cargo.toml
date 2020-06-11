@@ -10,16 +10,24 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 riemann-core = { path = "../core" }
-rmn-btc = { path = "../bitcoin" }
 bitcoin-spv = "2.0.0"
 thiserror = "1.0"
 serde = "1.0.105"
 futures = { version = "0.3.5", optional = true }
 rmn-ledger-btc = { path = "../ledger-btc", optional = true }
-rmn-bip32 = { path = "../bip32" }
+
+[dependencies.rmn-btc]
+path = "../bitcoin"
+default-features = false
+
+[dependencies.rmn-bip32]
+path = "../bip32"
+default-features = false
 
 [features]
-default = []
+default = ["mainnet"]
 browser = ["ledger", "rmn-ledger-btc/browser"]
 node = ["ledger", "rmn-ledger-btc/node"]
 ledger = ["futures", "rmn-ledger-btc"]
+mainnet = ["rmn-btc/mainnet", "rmn-bip32/mainnet"]
+testnet = ["rmn-btc/testnet", "rmn-bip32/testnet"]

@@ -29,8 +29,8 @@ use std::{
 };
 
 use rmn_bip32::{
-    self as bip32, enc::Encoder as Bip32Encoder, model::DerivedKey, DerivedXPub, KeyFingerprint,
-    XPub,
+    self as bip32, enc::XKeyEncoder as Bip32Encoder, model::DerivedKey, DerivedXPub,
+    KeyFingerprint, XPub,
 };
 
 use riemann_core::{builder::TxBuilder, enc::AddressEncoder, ser::ByteFormat, tx::Transaction};

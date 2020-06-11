@@ -1,0 +1,44 @@
+use riemann_core::enc::AddressEncoder;
+
+#[cfg(feature = "mainnet")]
+pub mod network {
+    /// The default network, selected by feature flag
+    pub type Network = crate::nets::BitcoinMainnet;
+    /// The default encoder, selected by feature flag
+    pub type Encoder = crate::enc::MainnetEncoder;
+}
+
+#[cfg(feature = "testnet")]
+pub mod network {
+    /// The default network, selected by feature flag
+    pub type Network = crate::nets::BitcoinTestnet;
+    /// The default encoder, selected by feature flag
+    pub type Encoder = crate::enc::TestnetEncoder;
+}
+
+#[cfg(feature = "signet")]
+pub mod network {
+    /// The default network, selected by feature flag
+    pub type Network = crate::nets::BitcoinSignet;
+    /// The default encoder, selected by feature flag
+    pub type Encoder = crate::enc::SignetEncoder;
+}
+
+impl serde::Serialize for crate::enc::Address {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(self.as_ref())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for crate::enc::Address {
+    fn deserialize<D>(deserializer: D) -> Result<crate::enc::Address, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s: &str = serde::Deserialize::deserialize(deserializer)?;
+        network::Encoder::string_to_address(s).map_err(|e| serde::de::Error::custom(e.to_string()))
+    }
+}
