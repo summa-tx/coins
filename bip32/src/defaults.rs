@@ -75,6 +75,20 @@ impl<'de> Visitor<'de> for DerivedXPrivVisitor {
         formatter.write_str("struct DerivedXPriv")
     }
 
+    fn visit_seq<V>(self, mut seq: V) -> Result<crate::DerivedXPriv, V::Error>
+    where
+        V: serde::de::SeqAccess<'de>,
+    {
+        let xpriv = seq.next_element()?
+            .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+        let derivation = seq.next_element()?
+            .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+        Ok(crate::DerivedXPriv {
+            xpriv,
+            derivation,
+        })
+    }
+
     fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
     where
         V: serde::de::MapAccess<'de>
@@ -144,6 +158,20 @@ impl<'de> Visitor<'de> for DerivedXPubVisitor {
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
         formatter.write_str("struct DerivedXPub")
+    }
+
+    fn visit_seq<V>(self, mut seq: V) -> Result<crate::DerivedXPub, V::Error>
+    where
+        V: serde::de::SeqAccess<'de>,
+    {
+        let xpub = seq.next_element()?
+            .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
+        let derivation = seq.next_element()?
+            .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
+        Ok(crate::DerivedXPub {
+            xpub,
+            derivation,
+        })
     }
 
     fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
