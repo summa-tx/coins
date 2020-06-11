@@ -53,8 +53,7 @@ impl LedgerTransport {
             .map_err(|_| LedgerError::APDUExchangeError)?;
         let answer = js_sys::Uint8Array::new(&result).to_vec();
 
-        Ok(APDUAnswer::from_answer(answer)
-            .map_err(|_| LedgerError::APDUExchangeError)?)
+        Ok(APDUAnswer::from_answer(answer)?)
     }
 }
 
