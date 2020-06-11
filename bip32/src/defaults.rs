@@ -1,4 +1,4 @@
-use serde::{ser::SerializeStruct, de::Visitor};
+use serde::{de::Visitor, ser::SerializeStruct};
 
 use crate::enc::XKeyEncoder;
 
@@ -79,26 +79,28 @@ impl<'de> Visitor<'de> for DerivedXPrivVisitor {
     where
         V: serde::de::SeqAccess<'de>,
     {
-        let xpriv = seq.next_element()?
+        let xpriv = seq
+            .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-        let derivation = seq.next_element()?
+        let derivation = seq
+            .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-        Ok(crate::DerivedXPriv {
-            xpriv,
-            derivation,
-        })
+        Ok(crate::DerivedXPriv { xpriv, derivation })
     }
 
     fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
     where
-        V: serde::de::MapAccess<'de>
+        V: serde::de::MapAccess<'de>,
     {
         let mut xpriv = None;
         let mut derivation = None;
 
         #[derive(serde::Deserialize)]
         #[serde(field_identifier, rename_all = "lowercase")]
-        enum Field { XPriv, Derivation }
+        enum Field {
+            XPriv,
+            Derivation,
+        }
 
         while let Some(key) = map.next_key()? {
             match key {
@@ -120,13 +122,8 @@ impl<'de> Visitor<'de> for DerivedXPrivVisitor {
         let xpriv = xpriv.ok_or_else(|| serde::de::Error::missing_field("xpriv"))?;
         let derivation = derivation.ok_or_else(|| serde::de::Error::missing_field("derivation"))?;
 
-        Ok(crate::DerivedXPriv {
-            xpriv,
-            derivation,
-        })
+        Ok(crate::DerivedXPriv { xpriv, derivation })
     }
-
-
 }
 
 impl<'de> serde::Deserialize<'de> for crate::DerivedXPriv {
@@ -164,26 +161,28 @@ impl<'de> Visitor<'de> for DerivedXPubVisitor {
     where
         V: serde::de::SeqAccess<'de>,
     {
-        let xpub = seq.next_element()?
+        let xpub = seq
+            .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(0, &self))?;
-        let derivation = seq.next_element()?
+        let derivation = seq
+            .next_element()?
             .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-        Ok(crate::DerivedXPub {
-            xpub,
-            derivation,
-        })
+        Ok(crate::DerivedXPub { xpub, derivation })
     }
 
     fn visit_map<V>(self, mut map: V) -> Result<Self::Value, V::Error>
     where
-        V: serde::de::MapAccess<'de>
+        V: serde::de::MapAccess<'de>,
     {
         let mut xpub = None;
         let mut derivation = None;
 
         #[derive(serde::Deserialize)]
         #[serde(field_identifier, rename_all = "lowercase")]
-        enum Field { XPub, Derivation }
+        enum Field {
+            XPub,
+            Derivation,
+        }
 
         while let Some(key) = map.next_key()? {
             match key {
@@ -205,13 +204,8 @@ impl<'de> Visitor<'de> for DerivedXPubVisitor {
         let xpub = xpub.ok_or_else(|| serde::de::Error::missing_field("xpub"))?;
         let derivation = derivation.ok_or_else(|| serde::de::Error::missing_field("derivation"))?;
 
-        Ok(crate::DerivedXPub {
-            xpub,
-            derivation,
-        })
+        Ok(crate::DerivedXPub { xpub, derivation })
     }
-
-
 }
 
 impl<'de> serde::Deserialize<'de> for crate::DerivedXPub {

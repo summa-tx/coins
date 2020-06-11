@@ -233,7 +233,7 @@ mod test {
     use super::*;
     use crate::{
         curve::*,
-        enc::{XKeyEncoder, MainnetEncoder},
+        enc::{MainnetEncoder, XKeyEncoder},
         path::DerivationPath,
         primitives::*,
         BIP32_HARDEN,

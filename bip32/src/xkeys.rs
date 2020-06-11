@@ -254,7 +254,7 @@ mod test {
     use super::*;
     use crate::{
         curve::Secp256k1,
-        enc::{XKeyEncoder, MainnetEncoder},
+        enc::{MainnetEncoder, XKeyEncoder},
         keys::Pubkey,
         primitives::*,
     };
