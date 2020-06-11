@@ -14,10 +14,6 @@ pub enum LedgerError {
     #[error("Ledger device: APDU Response error `{0}`")]
     BadRetcode(APDUResponseCodes),
 
-    /// Transport specific error
-    #[error("APDU Exchange Error")]
-    APDUExchangeError,
-
     /// JsValue Error
     #[error("JsValue Error: {0}")]
     #[cfg(target_arch = "wasm32")]

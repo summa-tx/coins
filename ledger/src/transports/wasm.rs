@@ -50,7 +50,7 @@ impl LedgerTransport {
         // Transport Error
         let result = future
             .await
-            .map_err(|_| LedgerError::APDUExchangeError)?;
+            .map_err(|e| LedgerError::JsError(format!("{:?}", &e)))?;
         let answer = js_sys::Uint8Array::new(&result).to_vec();
 
         Ok(APDUAnswer::from_answer(answer)?)
