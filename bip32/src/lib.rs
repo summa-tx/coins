@@ -24,7 +24,7 @@
 //! ```
 //! use rmn_bip32::{
 //!     Bip32Error, Secp256k1, XPub, XPriv,
-//!     enc::{Encoder, MainnetEncoder},
+//!     enc::{XKeyEncoder, MainnetEncoder},
 //!     model::*,
 //!     curve::model::*,
 //! };
