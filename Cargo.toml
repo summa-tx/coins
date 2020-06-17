@@ -4,6 +4,7 @@ members = [
     "bip32",
     "bitcoins",
     "litecoins",
+    "handshake",
     "psbt",
     "provider",
 ]
