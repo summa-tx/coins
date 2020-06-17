@@ -1,0 +1,21 @@
+[package]
+name = "rmn-hns"
+version = "0.1.0-rc.1"
+authors = ["Mark Tyneway <mark.tyneway@gmail.com>"]
+edition = "2018"
+description = "Handshake transaction construction in Rust"
+repository = "https://github.com/summa-tx/riemann-rs"
+license = "LGPL-3.0-or-later"
+
+[dependencies]
+bitcoin-spv = "2.0.0"
+hex = "0.4.2"
+bech32 = "0.7.2"
+thiserror = "1.0"
+sha2 = "0.8.1"
+sha3 = "0.8.2"
+serde = "1.0.105"
+riemann-core = { path = "../core" }
+rmn-bip32 = { path = "../bip32" }
+rmn-btc = { path = "../bitcoin" }
+
