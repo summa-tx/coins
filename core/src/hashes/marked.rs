@@ -1,5 +1,4 @@
 use std::io::Write;
-
 use crate::ser::ByteFormat;
 
 /// Marks a hash function digest.

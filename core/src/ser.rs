@@ -1,6 +1,7 @@
 //! A simple trait for binary (de)Serialization using std `Read` and `Write` traits.
 
 use base64::DecodeError;
+use crate::hashes::blake2b160::Blake2b160Digest;
 use hex::FromHexError;
 use std::{
     fmt::Debug,
@@ -348,29 +349,28 @@ impl ByteFormat for u8 {
     }
 }
 
-impl ByteFormat for bitcoin_spv::types::RawHeader {
+impl ByteFormat for Blake2b160Digest {
     type Error = SerError;
 
     fn serialized_length(&self) -> usize {
-        80
+        20
     }
 
-    fn read_from<R>(reader: &mut R, _limit: usize) -> Result<Self, Self::Error>
+    fn read_from<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
     where
-        R: std::io::Read,
+        R: Read,
         Self: std::marker::Sized,
     {
-        let mut header = [0u8; 80];
-        reader.read_exact(&mut header)?;
-        Ok(header.into())
+        let mut buf = Blake2b160Digest::default();
+        reader.read_exact(&mut buf)?;
+        Ok(buf)
     }
 
-    fn write_to<W>(&self, writer: &mut W) -> Result<usize, Self::Error>
+    fn write_to<W>(&self, writer: &mut W) -> SerResult<usize>
     where
-        W: std::io::Write,
+        W: Write,
     {
-        writer.write_all(self.as_ref())?;
-        Ok(80)
+        Ok(writer.write(self)?)
     }
 }
 
