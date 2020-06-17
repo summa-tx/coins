@@ -116,9 +116,13 @@ pub mod defaults;
 #[cfg(any(feature = "mainnet", feature = "testnet"))]
 pub use defaults::Encoder;
 
+/// Provides hash functions
+pub mod hashes;
+
 pub use enc::MainnetEncoder;
 pub use model::*;
 pub use primitives::KeyFingerprint;
+pub use hashes::*;
 
 pub use crate::{
     curve::{RecoverableSignature, Secp256k1, Signature},
