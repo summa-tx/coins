@@ -9,9 +9,7 @@ use rmn_btc::{
     enc::encoder::BitcoinEncoderMarker,
     types::{
         script::ScriptType,
-        transactions::{
-            BitcoinTransaction, LegacySighashArgs, LegacyTx, Sighash, WitnessTx,
-        },
+        transactions::{BitcoinTransaction, LegacySighashArgs, LegacyTx, Sighash, WitnessTx},
         txin::BitcoinOutpoint,
         utxo::SpendScript,
     },
@@ -144,7 +142,6 @@ impl Bip32Signer {
         tx: &WitnessTx,
         input_map: &mut PSBTInput,
     ) -> Result<(), PSBTError> {
-
         let paths: Vec<_> = input_map
             .parsed_pubkey_derivations()
             .iter()
@@ -156,7 +153,9 @@ impl Bip32Signer {
         // We immediately discard the outpoint, so it can be wrong.
         let tmp = BitcoinOutpoint::null();
         let prevout = input_map.as_utxo(&tmp)?;
-        let sighash_args = prevout.witness_sighash_args(input_idx, input_map.sighash_or_default()).unwrap();
+        let sighash_args = prevout
+            .witness_sighash_args(input_idx, input_map.sighash_or_default())
+            .unwrap();
 
         for path in paths.iter() {
             let sighash = tx.sighash(&sighash_args)?;
@@ -178,8 +177,6 @@ impl Bip32Signer {
         //     let signature = self.xpriv.descendant_sign_digest(path.clone(), sighash)?;
         //     input_map.insert_partial_sig(&self.xpriv.derive_verifying_key()?, &signature);
         // }
-
-
     }
 }
 

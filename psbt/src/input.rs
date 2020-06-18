@@ -7,10 +7,10 @@ use rmn_bip32::{
 use std::collections::{btree_map, BTreeMap};
 
 use rmn_btc::types::{
-    TxOut,
     script::{Script, ScriptSig, Witness},
     transactions::{LegacyTx, Sighash},
     utxo::UTXO,
+    TxOut,
 };
 
 use crate::{

@@ -1,7 +1,10 @@
+use crate::{input::InputKey, roles::PSTFinalizer, PSBTError, PSBTInput, PSTMap, PSBT, PST};
 use riemann_core::Transaction;
 use rmn_bip32::{self as bip32, curve::SigSerialize, HasPubkey};
-use rmn_btc::{enc::encoder::BitcoinEncoderMarker, types::{BitcoinOutpoint, BitcoinTransaction, ScriptType}};
-use crate::{input::InputKey, roles::PSTFinalizer, PSBTError, PSBTInput, PSTMap, PSBT, PST};
+use rmn_btc::{
+    enc::encoder::BitcoinEncoderMarker,
+    types::{BitcoinOutpoint, BitcoinTransaction, ScriptType},
+};
 
 /// A finalizer that creates WPKH witnesses
 pub struct PSBTWPKHFinalizer();
@@ -29,7 +32,12 @@ fn finalize_input(outpoint: &BitcoinOutpoint, input_map: &mut PSBTInput) -> Resu
     let non_witness_utxo = input_map.non_witness_utxo()?;
     let prevout = non_witness_utxo
         .txout_from_outpoint(outpoint)
-        .ok_or_else(|| PSBTError::MissingInfo(format!("Input TXO does not match while finalizing. Outpoint is {:?}", outpoint)))?;
+        .ok_or_else(|| {
+            PSBTError::MissingInfo(format!(
+                "Input TXO does not match while finalizing. Outpoint is {:?}",
+                outpoint
+            ))
+        })?;
 
     let pkh = match prevout.standard_type() {
         ScriptType::WPKH(data) => data,
@@ -71,7 +79,12 @@ where
     type Error = PSBTError;
 
     fn finalize(&mut self, pst: &mut PSBT<A, E>) -> Result<(), PSBTError> {
-        let outpoints: Vec<BitcoinOutpoint> = pst.tx()?.inputs().iter().map(|txin| txin.outpoint).collect();
+        let outpoints: Vec<BitcoinOutpoint> = pst
+            .tx()?
+            .inputs()
+            .iter()
+            .map(|txin| txin.outpoint)
+            .collect();
         let input_maps = pst.input_maps_mut();
         for (o, i) in outpoints.iter().zip(input_maps.iter_mut()) {
             finalize_input(o, i)?;
