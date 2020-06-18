@@ -8,7 +8,10 @@
 //!
 //! This functionality does NOT currently support nested witness-via-p2sh prevouts. If you' like
 //! to use those, you'll need a processing step in your tx signer.
-use crate::types::{BitcoinOutpoint, BitcoinTransaction, Script, ScriptPubkey, ScriptType, TxOut};
+use crate::types::{
+    BitcoinOutpoint, BitcoinTransaction, LegacySighashArgs, Script, ScriptPubkey, ScriptType,
+    Sighash, TxOut, WitnessSighashArgs,
+};
 use serde::{Deserialize, Serialize};
 
 /// This type specifies whether a script is known to be none, or whether it is unknown.
@@ -145,5 +148,38 @@ impl UTXO {
             _ => return false,
         }
         false
+    }
+
+    /// Construct `LegacySighashArgs` from this UTXO. Returns `None` if the prevout is WSH or SH
+    /// and the witness or redeem script is `Missing`.
+    /// It is safe to unwrap this Option if the signing script is PKH, or WPKH, or if the
+    /// underlying witness or redeem script is `Known`.
+    pub fn sighash_args(&self, index: usize, flag: Sighash) -> Option<LegacySighashArgs> {
+        if let Some(prevout_script) = self.signing_script() {
+            Some(LegacySighashArgs {
+                index,
+                sighash_flag: flag,
+                prevout_script,
+            })
+        } else {
+            None
+        }
+    }
+
+    /// Construct `WitnessSighashArgs` from this UTXO. Returns `None` if the prevout is WSH or SH
+    /// and the witness or redeem script is `Missing`.
+    /// It is safe to unwrap this Option if the signing script is PKH, or WPKH, or if the
+    /// underlying witness or redeem script is `Known`.
+    pub fn witness_sighash_args(&self, index: usize, flag: Sighash) -> Option<WitnessSighashArgs> {
+        if let Some(prevout_script) = self.signing_script() {
+            Some(WitnessSighashArgs {
+                index,
+                sighash_flag: flag,
+                prevout_script,
+                prevout_value: self.value,
+            })
+        } else {
+            None
+        }
     }
 }

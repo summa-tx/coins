@@ -16,7 +16,7 @@ use crate::{
     hashes::{TXID, WTXID},
     types::{
         script::{Script, ScriptSig, Witness},
-        txin::{BitcoinTxIn, Vin},
+        txin::{BitcoinOutpoint, BitcoinTxIn, Vin},
         txout::{TxOut, Vout},
     },
 };
@@ -177,6 +177,15 @@ pub trait BitcoinTransaction:
     /// Return a reference to a slice of witnesses. For legacy txins this will ALWAYS be length 0.
     /// For witness txns, this will ALWAYS be the same length as the input vector.
     fn witnesses(&self) -> &[Witness];
+
+    /// Get a reference to the output by
+    fn txout_from_outpoint(&self, outpoint: &BitcoinOutpoint) -> Option<&TxOut> {
+        if outpoint.txid == self.txid() && (outpoint.idx as usize) < self.outputs().len() {
+            Some(&self.outputs()[outpoint.idx as usize])
+        } else {
+            None
+        }
+    }
 }
 
 /// Basic functionality for a Witness Transacti'on

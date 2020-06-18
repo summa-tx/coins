@@ -7,9 +7,9 @@ use rmn_bip32::{
 use std::collections::{btree_map, BTreeMap};
 
 use rmn_btc::types::{
+    TxOut,
     script::{Script, ScriptSig, Witness},
     transactions::{LegacyTx, Sighash},
-    txout::TxOut,
     utxo::UTXO,
 };
 
@@ -61,6 +61,7 @@ impl PSBTValidate for PSBTInput {
         if self.has_witness_utxo() && self.has_non_witness_utxo() {
             return Err(PSBTError::InvalidPSBT); // TODO: differentiate error
         }
+
         // TODO
         // - validate that all signatures use the sighash type
         // - validate UTXO <> redeem_script <> witness_script consistency for this input
@@ -165,7 +166,7 @@ impl PSBTInput {
 
     /// True if the PSBT knows its utxo, false otherwise
     pub fn has_utxo(&self) -> bool {
-        self.has_witness_utxo() || self.has_non_witness_utxo()
+        self.has_non_witness_utxo()
     }
 
     /// Get the prevout details and return a UTXO object

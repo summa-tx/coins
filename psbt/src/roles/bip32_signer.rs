@@ -10,7 +10,7 @@ use rmn_btc::{
     types::{
         script::ScriptType,
         transactions::{
-            BitcoinTransaction, LegacySighashArgs, LegacyTx, Sighash, WitnessSighashArgs, WitnessTx,
+            BitcoinTransaction, LegacySighashArgs, LegacyTx, Sighash, WitnessTx,
         },
         txin::BitcoinOutpoint,
         utxo::SpendScript,
@@ -144,7 +144,7 @@ impl Bip32Signer {
         tx: &WitnessTx,
         input_map: &mut PSBTInput,
     ) -> Result<(), PSBTError> {
-        let prevout = input_map.witness_utxo()?;
+
         let paths: Vec<_> = input_map
             .parsed_pubkey_derivations()
             .iter()
@@ -153,21 +153,33 @@ impl Bip32Signer {
             .map(Option::unwrap)
             .collect();
 
-        let sighash_args = WitnessSighashArgs {
-            index: input_idx,
-            sighash_flag: input_map.sighash_or_default(),
-            prevout_script: (&prevout.script_pubkey).into(),
-            prevout_value: prevout.value,
-        };
+        // We immediately discard the outpoint, so it can be wrong.
+        let tmp = BitcoinOutpoint::null();
+        let prevout = input_map.as_utxo(&tmp)?;
+        let sighash_args = prevout.witness_sighash_args(input_idx, input_map.sighash_or_default()).unwrap();
 
-        // TODO: DRY
         for path in paths.iter() {
             let sighash = tx.sighash(&sighash_args)?;
             let signature = self.xpriv.descendant_sign_digest(path.clone(), sighash)?;
             input_map.insert_partial_sig(&self.xpriv.derive_verifying_key()?, &signature);
         }
-
         Ok(())
+
+        // WitnessSighashArgs {
+        //     index: input_idx,
+        //     sighash_flag: input_map.sighash_or_default(),
+        //     prevout_script: (&prevout.script_pubkey).into(),
+        //     prevout_value: prevout.value,
+        // };
+        //
+        // // TODO: DRY
+        // for path in paths.iter() {
+        //     let sighash = tx.sighash(&sighash_args)?;
+        //     let signature = self.xpriv.descendant_sign_digest(path.clone(), sighash)?;
+        //     input_map.insert_partial_sig(&self.xpriv.derive_verifying_key()?, &signature);
+        // }
+
+
     }
 }
 

@@ -89,19 +89,11 @@ where
     /// the PST's Error type.
     type Error: std::error::Error + From<P::Error>;
 
-    /// Finalize an input, creating a ScriptSig and/or Witness for it as appropriate
-    fn finalize_input(&mut self, input_map: &mut P::Input) -> Result<(), Self::Error>;
-
     /// Call finalize_input on all inputs. The default implementation will simply silently not
     /// finalize any input that errors in `finalize_input`. This method returns a result to enable
     /// other finalizer implementations to override it with more complex functionality.
     #[allow(unused_must_use)]
-    fn finalize(&mut self, pst: &mut P) -> Result<(), Self::Error> {
-        pst.input_maps_mut()
-            .iter_mut()
-            .try_for_each(|input_map| self.finalize_input(input_map));
-        Ok(())
-    }
+    fn finalize(&mut self, pst: &mut P) -> Result<(), Self::Error>;
 }
 
 pub trait PSTExtractor<A, P>

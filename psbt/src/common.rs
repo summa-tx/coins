@@ -122,6 +122,10 @@ pub enum PSBTError {
     /// first unfinalized input
     #[error("Can't extract Tx. Input {0} is not finalized.")]
     UnfinalizedInput(usize),
+
+    /// Missing info for some processing step
+    #[error("Missing required info: {0}")]
+    MissingInfo(String),
 }
 
 wrap_prefixed_byte_vector!(
