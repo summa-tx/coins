@@ -120,6 +120,7 @@ pub use primitives::KeyFingerprint;
 pub use crate::{
     curve::{RecoverableSignature, Secp256k1, Signature},
     derived::{DerivedXPriv, DerivedXPub},
+    enc::{XKeyEncoder},
     keys::{Privkey, Pubkey},
     xkeys::{XPriv, XPub},
 };

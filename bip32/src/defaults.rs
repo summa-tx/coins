@@ -10,6 +10,22 @@ pub type Encoder = crate::enc::MainnetEncoder;
 #[cfg(feature = "testnet")]
 pub type Encoder = crate::enc::TestnetEncoder;
 
+impl std::str::FromStr for crate::XPriv {
+    type Err = crate::Bip32Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Encoder::xpriv_from_base58(s, Some(&crate::curve::BACKEND))
+    }
+}
+
+impl std::str::FromStr for crate::XPub {
+    type Err = crate::Bip32Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Encoder::xpub_from_base58(s, Some(&crate::curve::BACKEND))
+    }
+}
+
 impl serde::Serialize for crate::XPub {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
