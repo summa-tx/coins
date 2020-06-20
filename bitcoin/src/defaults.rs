@@ -32,6 +32,14 @@ impl std::str::FromStr for crate::enc::Address {
     }
 }
 
+impl std::str::FromStr for crate::types::ScriptPubkey {
+    type Err = <network::Encoder as AddressEncoder>::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        network::Encoder::decode_address(&network::Encoder::string_to_address(s)?)
+    }
+}
+
 impl serde::Serialize for crate::enc::Address {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
