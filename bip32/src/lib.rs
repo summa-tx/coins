@@ -37,8 +37,8 @@
 //! let backend = Secp256k1::static_ref();
 //! let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
 //!
-//! // Encoders are network specific due to the bip32 version byte spec
-//! let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, Some(backend))?;
+//! // Be sure to annotate the type
+//! let xpriv: XPriv = xpriv_str.parse().unwrap();
 //!
 //! let child_xpriv = xpriv.derive_private_child(33)?;
 //! let sig = child_xpriv.sign_digest(digest)?;

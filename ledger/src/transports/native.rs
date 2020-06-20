@@ -15,7 +15,6 @@ impl NativeTransport {
 
     /// Send an APDU command to the device, and receive a response
     pub async fn exchange(&self, command: &APDUCommand) -> Result<APDUAnswer, LedgerError> {
-        println!("{:?}", command.serialize());
         self.0
             .exchange(command)
             .map_err(Into::into)

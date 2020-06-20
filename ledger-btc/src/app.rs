@@ -1,4 +1,4 @@
-use std::sync::Mutex;
+use futures::lock::Mutex;
 use riemann_core::{
     tx::Transaction,
 };
@@ -53,10 +53,10 @@ impl LedgerBTC {
     ///
     /// - XPub lifetimes are bound to the lifetime of the backend. They can outlive the app,
     /// but not the backend
-    pub fn init() -> LedgerBTC {
-        LedgerBTC {
-            transport: Mutex::new(<Ledger as rmn_ledger::transports::LedgerSync>::init().unwrap()),
-        }
+    pub async fn init() -> Result<LedgerBTC, LedgerBTCError> {
+        Ok(LedgerBTC {
+            transport: Mutex::new(Ledger::init().await?),
+        })
     }
 
     /// Consume self and drop the ledger mutex
@@ -98,7 +98,7 @@ impl LedgerBTC {
         &self,
         deriv: &DerivationPath,
     ) -> Result<DerivedXPub, LedgerBTCError> {
-        let transport = self.transport.lock().unwrap();
+        let transport = self.transport.lock().await;
 
         let child = self.get_key_info(&transport, deriv).await?;
 
@@ -208,7 +208,7 @@ impl LedgerBTC {
         }
 
         // Lock the transport and start making packets for exchange
-        let transport = self.transport.lock().unwrap();
+        let transport = self.transport.lock().await;
         let first_packet =
             packetize_version_and_vin_length(tx.version(), tx.inputs().len() as u64);
         let mut packets = vec![first_packet.clone()];
