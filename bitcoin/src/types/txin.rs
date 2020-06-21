@@ -15,7 +15,7 @@ use crate::{hashes::TXID, types::script::ScriptSig};
 ///
 /// `Outpoint::null()` and `Outpoint::default()` return the null Outpoint, which references a txid
 /// of all 0, and a index 0xffff_ffff. This null outpoint is used in every coinbase transaction.
-#[derive(serde::Serialize, serde::Deserialize, Copy, Clone, Debug, Eq, PartialEq)]
+#[derive(serde::Serialize, serde::Deserialize, Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Outpoint<M>
 where
     M: MarkedDigest,

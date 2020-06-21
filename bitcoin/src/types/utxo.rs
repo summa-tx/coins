@@ -15,7 +15,7 @@ use crate::types::{
 use serde::{Deserialize, Serialize};
 
 /// This type specifies whether a script is known to be none, or whether it is unknown.
-#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, Hash)]
 pub enum SpendScript {
     /// ScriptPubkey is known to have no spend script
     None,
@@ -36,7 +36,7 @@ impl SpendScript {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash)]
 /// Information necessary to spend an output.
 pub struct UTXO {
     /// UTXO outpoint
