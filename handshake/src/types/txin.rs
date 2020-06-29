@@ -138,7 +138,6 @@ mod test {
         ];
 
         for case in cases.iter() {
-
             assert_eq!(case.0.serialized_length(), case.1.len() / 2);
             assert_eq!(case.0.serialize_hex().unwrap(), case.1);
             assert_eq!(HandshakeTxIn::deserialize_hex(&case.1).unwrap(), case.0);

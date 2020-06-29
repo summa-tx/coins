@@ -1,8 +1,10 @@
 //! Handshake TxOut and Vout types.
 
 use std::io::{Read, Write};
-
-use crate::types::{LockingScript, LockingScriptType, WitnessProgram};
+use crate::types::{
+    LockingScript, LockingScriptType,
+    WitnessProgram, Covenant
+};
 use riemann_core::{
     ser::{ByteFormat, SerError, SerResult},
     types::tx::Output
@@ -16,10 +18,12 @@ use riemann_core::{
 /// sighash calculations.
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct TxOut {
-    /// The value of the output in satoshis
+    /// The value of the output in dollarydoos.
     pub value: u64,
     /// The `LockingScript` which locks the UTXO.
     pub locking_script: LockingScript,
+    /// The `Covenant` which locks the way the UTXO can be spent.
+    pub covenant: Covenant
 }
 
 impl Output for TxOut {
@@ -35,13 +39,15 @@ impl Default for TxOut {
 
 impl TxOut {
     /// Instantiate a new TxOut.
-    pub fn new<T>(value: u64, LockingScript: T) -> Self
+    pub fn new<T, I>(value: u64, LockingScript: T, Covenant: I) -> Self
     where
         T: Into<LockingScript>,
+        I: Into<Covenant>
     {
         TxOut {
             value,
             locking_script: LockingScript.into(),
+            covenant: Covenant.into()
         }
     }
 
@@ -50,6 +56,7 @@ impl TxOut {
         TxOut {
             value: 0xffff_ffff_ffff_ffff,
             locking_script: LockingScript::null(),
+            covenant: Covenant::null()
         }
     }
 
@@ -62,10 +69,11 @@ impl TxOut {
             version: 31,
             witness_program: WitnessProgram::from(data)
         };
-        
+
         TxOut {
             value: 0,
             locking_script: locking_script,
+            covenant: Covenant::null()
         }
     }
 
@@ -95,9 +103,13 @@ impl ByteFormat for TxOut {
         Self: std::marker::Sized,
     {
         let value = Self::read_u64_le(reader)?;
-        Ok(TxOut {
+        let locking_script = LockingScript::read_from(reader, 0)?;
+        let covenant = Covenant::read_from(reader, 0)?;
+
+        Ok(Self {
             value,
-            locking_script: LockingScript::read_from(reader, 0)?,
+            locking_script,
+            covenant
         })
     }
 
@@ -107,6 +119,7 @@ impl ByteFormat for TxOut {
     {
         let mut len = Self::write_u64_le(writer, self.value)?;
         len += self.locking_script.write_to(writer)?;
+        len += self.covenant.write_to(writer)?;
         Ok(len)
     }
 }
@@ -117,7 +130,8 @@ mod test {
     use riemann_core::ser::ByteFormat;
 
     #[test]
-    fn it_serializes_and_derializes_scripts() {
-
+    fn it_creates_null_output() {
+        let txout = TxOut::null();
+        println!("{:?}", txout);
     }
 }
