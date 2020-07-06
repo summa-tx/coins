@@ -5,6 +5,7 @@ members = [
     "bitcoin",
     "litecoin",
     "psbt",
+    "provider",
 ]
 
 exclude = [
