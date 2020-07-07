@@ -68,6 +68,14 @@ impl BitcoinTx {
         }
     }
 
+    /// Return the TXID of the transaction
+    pub fn txid(&self) -> TXID {
+        match self {
+            BitcoinTx::Witness(tx) => tx.txid(),
+            BitcoinTx::Legacy(tx) => tx.txid(),
+        }
+    }
+
     /// True if the wrapped tx is a witness transaction. False otherwise
     pub fn is_witness(&self) -> bool {
         match self {

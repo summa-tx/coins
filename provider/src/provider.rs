@@ -1,3 +1,4 @@
+use std::time::Duration;
 use async_trait::async_trait;
 
 use riemann_core::enc::AddressEncoder;
@@ -28,16 +29,33 @@ pub trait BTCProvider: Sized {
 
     /// Fetch the UTXOs belonging to a script pubkey from the remote API
     async fn get_utxos_by_script(&self, spk: &ScriptPubkey) -> Result<Vec<UTXO>, Self::Error> {
-        self.get_utxos_by_address(&crate::Encoder::encode_address(spk)?)
+        self
+            .get_utxos_by_address(&crate::Encoder::encode_address(spk)?)
             .await
     }
 
+    /// Broadcast a transaction to the network. Resolves to a TXID when broadcast.
+    async fn broadcast(&self, tx: BitcoinTx) -> Result<TXID, Self::Error>;
+}
+
+/// An extension trait that adds polling watchers for
+#[async_trait]
+pub trait PollingBTCProvider: BTCProvider {
+    /// Return the polling duration of the
+    fn interval(&self) -> Duration;
+
+    // TODO: make sync that returns PendingTx?
     /// Broadcast a transaction, get a future that resolves when the tx is confirmed
-    async fn send_tx(&self, tx: &BitcoinTx) -> PendingTx<'_, Self>;
+    fn send(&self, tx: BitcoinTx, confirmations: usize) -> Result<PendingTx<'_, Self>, Self::Error> {
+        Ok(PendingTx::new(tx, self)
+            .confirmations(confirmations)
+            .interval(self.interval()))
+    }
 
     /// Watch an outpoint, waiting for a tx to spend it
-    async fn watch(&self, outpoint: BitcoinOutpoint, confirmations: usize) -> PollingWatcher<'_, Self>;
-
-    /// Broadcast a transaction to the network
-    async fn broadcast(&self, tx: &BitcoinTx) -> Result<TXID, Self::Error>;
+    fn watch(&self, outpoint: BitcoinOutpoint, confirmations: usize) -> PollingWatcher<'_, Self> {
+        PollingWatcher::new(outpoint, self)
+            .confirmations(confirmations)
+            .interval(self.interval())
+    }
 }

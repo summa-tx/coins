@@ -17,6 +17,7 @@ use crate::{DEFAULT_POLL_INTERVAL, interval, provider::BTCProvider};
 type ProviderFut<'a, T, P> = Pin<Box<dyn Future<Output = Result<T, <P as BTCProvider>::Error>> + 'a + Send>>;
 
 enum PendingTxStates<'a, P: BTCProvider> {
+    Broadcasting(ProviderFut<'a, TXID, P>),
     WaitingMoreConfs(ProviderFut<'a, Option<usize>, P>),
     // Future has completed, and should panic if polled again
     Completed,
@@ -34,12 +35,13 @@ pub struct PendingTx<'a, P: BTCProvider> {
 
 impl<'a, P: BTCProvider> PendingTx<'a, P> {
     /// Creates a new outspend poller
-    pub fn new(txid: TXID, provider: &'a P) -> Self {
-        let fut = Box::pin(provider.get_confs(txid));
+    pub fn new(tx: BitcoinTx, provider: &'a P) -> Self {
+        let txid = tx.txid();
+        let fut = Box::pin(provider.broadcast(tx));
         Self {
             txid,
             confirmations: 0,
-            state: PendingTxStates::WaitingMoreConfs(fut),
+            state: PendingTxStates::Broadcasting(fut),
             interval: Box::new(interval(DEFAULT_POLL_INTERVAL)),
             provider,
         }
@@ -65,6 +67,12 @@ impl<'a, P: BTCProvider> Future for PendingTx<'a, P> {
         let this = self.project();
 
         match this.state {
+            PendingTxStates::Broadcasting(fut) => {
+                if futures_util::ready!(fut.as_mut().poll(ctx)).is_ok() {
+                    let fut = Box::pin(this.provider.get_confs(*this.txid));
+                    *this.state = PendingTxStates::WaitingMoreConfs(fut);
+                }
+            }
             PendingTxStates::WaitingMoreConfs(fut) => {
                 let _ready = futures_util::ready!(this.interval.poll_next_unpin(ctx));
 
@@ -72,7 +80,7 @@ impl<'a, P: BTCProvider> Future for PendingTx<'a, P> {
                     // If we have enough confs, ready now
                     if confs >= *this.confirmations {
                         *this.state = PendingTxStates::Completed;
-                        return Poll::Ready(*this.txid)
+                        return Poll::Ready(*this.txid);
                     }
                 }
                 // If we want more confs, repeat
