@@ -75,6 +75,8 @@ pub(crate) struct Outspend {
     /// The index of the spending input in that transaction's Vin
     #[serde(default = "usize::max_value")]
     pub vin: usize,
+    /// The status of the spending TX
+    pub status: TxStatus,
 }
 
 impl Outspend {

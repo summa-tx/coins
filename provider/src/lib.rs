@@ -32,4 +32,4 @@ pub(crate) fn interval(duration: Duration) -> impl Stream<Item = ()> + Send + Un
 }
 
 /// The default poll interval, set to 300 seconds (5 minutes)
-pub const DEFAULT_POLL_INTERVAL: Duration = Duration::from_millis(300 * 1000);
+pub const DEFAULT_POLL_INTERVAL: Duration = Duration::from_millis(180 * 1000);

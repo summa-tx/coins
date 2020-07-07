@@ -18,12 +18,21 @@ type ProviderFut<'a, T, P> =
 
 enum PendingTxStates<'a, P: BTCProvider> {
     Broadcasting(ProviderFut<'a, TXID, P>),
-    WaitingMoreConfs(ProviderFut<'a, Option<usize>, P>),
+    WaitingMoreConfs(usize, ProviderFut<'a, Option<usize>, P>),
     // Future has completed, and should panic if polled again
     Completed,
 }
 
-/// A Pending transaction. Periodically polls the API to see if it has been confirmed
+/// A Pending transaction. Periodically polls the API to see if it has been confirmed.
+///
+/// This struct implements both `std::future::Future` and `futures::stream::Stream`.
+///
+/// When `await`ed as a future, the future will resolve to the TXID as soon as the poller sees it
+/// receive `>= self.confirmations` confirmations.
+///
+/// When used as a `Stream`, the stream will produce a value when the tx has been broadcast, and
+/// each time the poller sees the number of confirmations increase. After receiving
+/// `>= self.confirmations` confirmations, the stream will finish.
 #[pin_project]
 pub struct PendingTx<'a, P: BTCProvider> {
     txid: TXID,
@@ -70,10 +79,10 @@ impl<'a, P: BTCProvider> Future for PendingTx<'a, P> {
             PendingTxStates::Broadcasting(fut) => {
                 if futures_util::ready!(fut.as_mut().poll(ctx)).is_ok() {
                     let fut = Box::pin(this.provider.get_confs(*this.txid));
-                    *this.state = PendingTxStates::WaitingMoreConfs(fut);
+                    *this.state = PendingTxStates::WaitingMoreConfs(0, fut);
                 }
             }
-            PendingTxStates::WaitingMoreConfs(fut) => {
+            PendingTxStates::WaitingMoreConfs(previous_confs, fut) => {
                 let _ready = futures_util::ready!(this.interval.poll_next_unpin(ctx));
 
                 if let Ok(Some(confs)) = futures_util::ready!(fut.as_mut().poll(ctx)) {
@@ -85,10 +94,53 @@ impl<'a, P: BTCProvider> Future for PendingTx<'a, P> {
                 }
                 // If we want more confs, repeat
                 let fut = Box::pin(this.provider.get_confs(*this.txid));
-                *this.state = PendingTxStates::WaitingMoreConfs(fut)
+                *this.state = PendingTxStates::WaitingMoreConfs(*previous_confs, fut)
             }
             PendingTxStates::Completed => {
                 panic!("polled pending transaction future after completion")
+            }
+        }
+        Poll::Pending
+    }
+}
+
+impl<'a, P: BTCProvider> futures::stream::Stream for PendingTx<'a, P> {
+    type Item = (usize, TXID);
+
+    fn poll_next(self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Option<Self::Item>> {
+        let this = self.project();
+
+        match this.state {
+            PendingTxStates::Broadcasting(fut) => {
+                if futures_util::ready!(fut.as_mut().poll(ctx)).is_ok() {
+                    let fut = Box::pin(this.provider.get_confs(*this.txid));
+                    *this.state = PendingTxStates::WaitingMoreConfs(0, fut);
+                    return Poll::Ready(Some((0, *this.txid)));
+                }
+            },
+            PendingTxStates::WaitingMoreConfs(previous_confs, fut) => {
+                let _ready = futures_util::ready!(this.interval.poll_next_unpin(ctx));
+
+                if let Ok(Some(confs)) = futures_util::ready!(fut.as_mut().poll(ctx)) {
+                    // If we're not at our limit
+                    if confs > *previous_confs && confs < *this.confirmations {
+                        let fut = Box::pin(this.provider.get_confs(*this.txid));
+                        *this.state = PendingTxStates::WaitingMoreConfs(confs, fut);
+                        return Poll::Ready(Some((confs, *this.txid)));
+                    }
+
+                    // If we have enough confs, ready now
+                    if confs >= *this.confirmations {
+                        *this.state = PendingTxStates::Completed;
+                        return Poll::Ready(Some((0, *this.txid)));
+                    }
+                }
+                // If we want more confs, repeat
+                let fut = Box::pin(this.provider.get_confs(*this.txid));
+                *this.state = PendingTxStates::WaitingMoreConfs(*previous_confs, fut);
+            },
+            PendingTxStates::Completed => {
+                return Poll::Ready(None);
             }
         }
         Poll::Pending
