@@ -39,10 +39,8 @@ use crate::{
         encoder::{Address, BitcoinEncoderMarker, MainnetEncoder, SignetEncoder, TestnetEncoder},
     },
     types::{
-        script::ScriptPubkey,
-        transactions::{BitcoinTransaction, LegacyTx, WitnessTransaction, WitnessTx},
-        txin::BitcoinTxIn,
-        txout::TxOut,
+        BitcoinTransaction, BitcoinTxIn, LegacyTx, ScriptPubkey, TxOut, WitnessTransaction,
+        WitnessTx,
     },
 };
 

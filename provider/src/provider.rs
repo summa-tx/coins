@@ -1,5 +1,5 @@
-use std::time::Duration;
 use async_trait::async_trait;
+use std::time::Duration;
 
 use riemann_core::enc::AddressEncoder;
 use rmn_btc::{enc::Address, hashes::TXID, types::*};
@@ -27,15 +27,14 @@ pub trait BTCProvider: Sized {
     /// Fetch the UTXOs belonging to an address from the remote API
     async fn get_utxos_by_address(&self, address: &Address) -> Result<Vec<UTXO>, Self::Error>;
 
-    /// Fetch the UTXOs belonging to a script pubkey from the remote API
-    async fn get_utxos_by_script(&self, spk: &ScriptPubkey) -> Result<Vec<UTXO>, Self::Error> {
-        self
-            .get_utxos_by_address(&crate::Encoder::encode_address(spk)?)
-            .await
-    }
-
     /// Broadcast a transaction to the network. Resolves to a TXID when broadcast.
     async fn broadcast(&self, tx: BitcoinTx) -> Result<TXID, Self::Error>;
+
+    /// Fetch the UTXOs belonging to a script pubkey from the remote API
+    async fn get_utxos_by_script(&self, spk: &ScriptPubkey) -> Result<Vec<UTXO>, Self::Error> {
+        self.get_utxos_by_address(&crate::Encoder::encode_address(spk)?)
+            .await
+    }
 }
 
 /// An extension trait that adds polling watchers for
@@ -44,15 +43,17 @@ pub trait PollingBTCProvider: BTCProvider {
     /// Return the polling duration of the
     fn interval(&self) -> Duration;
 
-    // TODO: make sync that returns PendingTx?
-    /// Broadcast a transaction, get a future that resolves when the tx is confirmed
-    fn send(&self, tx: BitcoinTx, confirmations: usize) -> Result<PendingTx<'_, Self>, Self::Error> {
-        Ok(PendingTx::new(tx, self)
+    /// Broadcast a transaction, get a future that resolves when the tx is confirmed. This
+    /// returns a `PendingTx` future. The tx will not be braodcast until that future is scheduled
+    /// to run.
+    fn send(&self, tx: BitcoinTx, confirmations: usize) -> PendingTx<'_, Self> {
+        PendingTx::new(tx, self)
             .confirmations(confirmations)
-            .interval(self.interval()))
+            .interval(self.interval())
     }
 
-    /// Watch an outpoint, waiting for a tx to spend it
+    /// Watch an outpoint, waiting for a tx to spend it. This returns a `PollingWatcher` future.
+    /// The observation will not start until that future is scheduled to run.
     fn watch(&self, outpoint: BitcoinOutpoint, confirmations: usize) -> PollingWatcher<'_, Self> {
         PollingWatcher::new(outpoint, self)
             .confirmations(confirmations)

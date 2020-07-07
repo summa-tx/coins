@@ -12,11 +12,7 @@ use rmn_bip32::{
     Bip32Error, Secp256k1, XPub,
 };
 
-use rmn_btc::types::{
-    script::{ScriptType, Witness},
-    transactions::{LegacyTx, Sighash, TxError},
-    txout::TxOut,
-};
+use rmn_btc::types::{LegacyTx, ScriptType, Sighash, TxError, TxOut, Witness};
 
 use crate::common::{PSBTError, PSBTKey, PSBTValue};
 

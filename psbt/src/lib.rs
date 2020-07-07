@@ -38,11 +38,7 @@ use riemann_core::prelude::*;
 use rmn_btc::{
     builder::LegacyBuilder,
     enc::encoder::{BitcoinEncoderMarker, MainnetEncoder, TestnetEncoder},
-    types::{
-        transactions::{BitcoinTransaction, LegacyTx},
-        txin::BitcoinTxIn,
-        txout::TxOut,
-    },
+    types::{BitcoinTransaction, BitcoinTxIn, LegacyTx, TxOut},
 };
 
 /// A generic Partially Signed Transaction

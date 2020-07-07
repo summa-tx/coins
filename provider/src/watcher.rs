@@ -5,15 +5,16 @@ use std::{
     time::Duration,
 };
 
-use pin_project::pin_project;
 use futures_core::stream::Stream;
 use futures_util::stream::StreamExt;
+use pin_project::pin_project;
 
 use rmn_btc::prelude::*;
 
-use crate::{DEFAULT_POLL_INTERVAL, interval, provider::BTCProvider};
+use crate::{interval, provider::BTCProvider, DEFAULT_POLL_INTERVAL};
 
-type ProviderFut<'a, T, P> = Pin<Box<dyn Future<Output = Result<T, <P as BTCProvider>::Error>> + 'a + Send>>;
+type ProviderFut<'a, T, P> =
+    Pin<Box<dyn Future<Output = Result<T, <P as BTCProvider>::Error>> + 'a + Send>>;
 
 enum WatcherStates<'a, P: BTCProvider> {
     // Waiting for a tx to spend
@@ -74,7 +75,7 @@ impl<'a, P: BTCProvider> Future for PollingWatcher<'a, P> {
                     // If a tx has been found, and we want 0 confs, ready now.
                     if *this.confirmations == 0 {
                         *this.state = WatcherStates::Completed;
-                        return Poll::Ready(txid)
+                        return Poll::Ready(txid);
                     }
                     // If we want >0 confs, go to getting confs
                     let fut = Box::pin(this.provider.get_confs(txid));
@@ -84,7 +85,7 @@ impl<'a, P: BTCProvider> Future for PollingWatcher<'a, P> {
                     let fut = Box::pin(this.provider.get_outspend(*this.outpoint));
                     *this.state = WatcherStates::WaitingSpends(fut)
                 }
-            },
+            }
             WatcherStates::WaitingMoreConfs(txid, fut) => {
                 let _ready = futures_util::ready!(this.interval.poll_next_unpin(ctx));
 
@@ -93,13 +94,13 @@ impl<'a, P: BTCProvider> Future for PollingWatcher<'a, P> {
                     if confs >= *this.confirmations {
                         let txid = *txid;
                         *this.state = WatcherStates::Completed;
-                        return Poll::Ready(txid)
+                        return Poll::Ready(txid);
                     }
                 }
                 // If we want more confs, repeat
                 let fut = Box::pin(this.provider.get_confs(*txid));
                 *this.state = WatcherStates::WaitingMoreConfs(*txid, fut)
-            },
+            }
             WatcherStates::Completed => {
                 panic!("polled pending transaction future after completion")
             }

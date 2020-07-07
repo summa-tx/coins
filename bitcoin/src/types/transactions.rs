@@ -1,23 +1,21 @@
 //! Bitcoin transaction types and associated sighash arguments.
-use bitcoin_spv::types::Hash256Digest;
-use std::io::{Error as IOError, Read, Write};
+use std::io::Error as IOError;
 use thiserror::Error;
 
 use riemann_core::{
-    hashes::{
-        hash256::Hash256Writer,
-        marked::{MarkedDigest, MarkedDigestWriter},
-    },
+    hashes::hash256::Hash256Writer,
     ser::{ByteFormat, SerError},
     types::tx::Transaction,
 };
 
 use crate::{
-    hashes::{TXID, WTXID},
+    hashes::{TXID},
     types::{
-        script::{Script, ScriptSig, Witness},
-        txin::{BitcoinOutpoint, BitcoinTxIn, Vin},
-        txout::{TxOut, Vout},
+        legacy::*,
+        script::{Witness},
+        txin::{BitcoinOutpoint, BitcoinTxIn},
+        txout::{TxOut},
+        witness::*,
     },
 };
 
@@ -116,6 +114,60 @@ impl BitcoinTx {
             BitcoinTx::Legacy(tx) => tx.into_witness(),
         }
     }
+
+    /// Instantiate a new `BitcoinTx`. This always returns a `BitcoinTx::Legacy`
+    pub fn new<I, O>(version: u32, vin: I, vout: O, locktime: u32) -> Self
+    where
+        I: Into<Vec<BitcoinTxIn>>,
+        O: Into<Vec<TxOut>>,
+    {
+        Self::Legacy(LegacyTx {
+            version,
+            vin: vin.into(),
+            vout: vout.into(),
+            locktime,
+        })
+    }
+
+    /// Get the inputs from the underlying tx
+    pub fn inputs(&self) -> &[BitcoinTxIn] {
+        match self {
+            BitcoinTx::Witness(tx) => tx.inputs(),
+            BitcoinTx::Legacy(tx) => tx.inputs(),
+        }
+    }
+
+    /// Get the outputs from the underlying tx
+    pub fn outputs(&self) -> &[TxOut] {
+        match self {
+            BitcoinTx::Witness(tx) => tx.outputs(),
+            BitcoinTx::Legacy(tx) => tx.outputs(),
+        }
+    }
+
+    /// Get the version number from the underlying tx
+    pub fn version(&self) -> u32 {
+        match self {
+            BitcoinTx::Witness(tx) => tx.version(),
+            BitcoinTx::Legacy(tx) => tx.version(),
+        }
+    }
+
+    /// Get the locktime from the underlying tx
+    pub fn locktime(&self) -> u32 {
+        match self {
+            BitcoinTx::Witness(tx) => tx.locktime(),
+            BitcoinTx::Legacy(tx) => tx.locktime(),
+        }
+    }
+
+    /// Get the locktime from the underlying tx. Returns a 0-length slice for legacy txns
+    pub fn witnesses(&self) -> &[Witness] {
+        match self {
+            BitcoinTx::Witness(tx) => tx.witnesses(),
+            BitcoinTx::Legacy(_) => &[],
+        }
+    }
 }
 
 /// An Error type for transaction objects
@@ -196,64 +248,6 @@ pub trait BitcoinTransaction:
     }
 }
 
-/// Basic functionality for a Witness Transacti'on
-///
-/// This trait has been generalized to support transactions from Non-Bitcoin networks. The
-/// transaction specificies which types it considers to be inputs and outputs, and a struct that
-/// contains its Sighash arguments. This allows others to define custom transaction types with
-/// unique functionality.
-pub trait WitnessTransaction: BitcoinTransaction {
-    /// The MarkedDigest type for the Transaction's Witness TXID
-    type WTXID: MarkedDigest<Digest = Self::Digest>;
-    /// The BIP143 sighash args needed to sign an input
-    type WitnessSighashArgs;
-    /// A type that represents this transactions per-input `Witness`.
-    type Witness;
-
-    /// Instantiate a new WitnessTx from the arguments.
-    fn new<I, O, W>(version: u32, vin: I, vout: O, witnesses: W, locktime: u32) -> Self
-    where
-        I: Into<Vec<Self::TxIn>>,
-        O: Into<Vec<Self::TxOut>>,
-        W: Into<Vec<Self::Witness>>;
-
-    /// Calculates the witness txid of the transaction.
-    fn wtxid(&self) -> Self::WTXID;
-
-    /// Writes the Legacy sighash preimage to the provider writer.
-    fn write_legacy_sighash_preimage<W: Write>(
-        &self,
-        writer: &mut W,
-        args: &LegacySighashArgs,
-    ) -> Result<(), Self::TxError>;
-
-    /// Calculates the Legacy sighash preimage given the sighash args.
-    fn legacy_sighash(&self, args: &LegacySighashArgs) -> Result<Self::Digest, Self::TxError> {
-        let mut w = Self::HashWriter::default();
-        self.write_legacy_sighash_preimage(&mut w, args)?;
-        Ok(w.finish())
-    }
-
-    /// Writes the BIP143 sighash preimage to the provided `writer`. See the
-    /// `WitnessSighashArgsSigh` documentation for more in-depth discussion of sighash.
-    fn write_witness_sighash_preimage<W: Write>(
-        &self,
-        writer: &mut W,
-        args: &Self::WitnessSighashArgs,
-    ) -> Result<(), Self::TxError>;
-
-    /// Calculates the BIP143 sighash given the sighash args. See the
-    /// `WitnessSighashArgsSigh` documentation for more in-depth discussion of sighash.
-    fn witness_sighash(
-        &self,
-        args: &Self::WitnessSighashArgs,
-    ) -> Result<Self::Digest, Self::TxError> {
-        let mut w = Self::HashWriter::default();
-        self.write_witness_sighash_preimage(&mut w, args)?;
-        Ok(w.finish())
-    }
-}
-
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 /// All possible Sighash modes
@@ -292,588 +286,11 @@ impl Sighash {
     }
 }
 
-/// Arguments required to serialize the transaction to create the sighash digest.Used in
-/// `legacy_sighash`to abstract the sighash serialization logic from the hasher used.
-///
-/// SIGHASH_ALL commits to ALL inputs, and ALL outputs. It indicates that no further modification
-/// of the transaction is allowed without invalidating the signature.
-///
-/// SIGHASH_ALL + ANYONECANPAY commits to ONE input and ALL outputs. It indicates that anyone may
-/// add additional value to the transaction, but that no one may modify the payments made. Any
-/// extra value added above the sum of output values will be given to miners as part of the tx
-/// fee.
-///
-/// SIGHASH_SINGLE commits to ALL inputs, and ONE output. It indicates that anyone may append
-/// additional outputs to the transaction to reroute funds from the inputs. Additional inputs
-/// cannot be added without invalidating the signature. It is logically difficult to use securely,
-/// as it consents to funds being moved, without specifying their destination.
-///
-/// SIGHASH_SINGLE commits specifically the the output at the same index as the input being
-/// signed. If there is no output at that index, (because, e.g. the input vector is longer than
-/// the output vector) it behaves insecurely, and we do not implement that protocol bug.
-///
-/// SIGHASH_SINGLE + ANYONECANPAY commits to ONE input and ONE output. It indicates that anyone
-/// may add additional value to the transaction, and route value to any other location. The
-/// signed input and output must be included in the fully-formed transaction at the same index in
-/// their respective vectors.
-///
-/// For Legacy sighash documentation, see here:
-///
-/// - https://en.bitcoin.it/wiki/OP_CHECKSIG#Hashtype_SIGHASH_ALL_.28default.29
-///
-/// # Note
-///
-/// After signing the digest, you MUST append the sighash indicator
-/// byte to the resulting signature.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct LegacySighashArgs {
-    /// The index of the input we'd like to sign
-    pub index: usize,
-    /// The sighash mode to use.
-    pub sighash_flag: Sighash,
-    /// The script used in the prevout, which must be signed. In complex cases involving
-    /// `OP_CODESEPARATOR` this must be the subset of the script containing the `OP_CHECKSIG`
-    /// currently being executed.
-    pub prevout_script: Script,
-}
-
-/// A Legacy (non-witness) Transaction.
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Eq, PartialEq, Default)]
-pub struct LegacyTx {
-    /// The version number. Usually 1 or 2.
-    pub(crate) version: u32,
-    /// The vector of inputs
-    pub(crate) vin: Vin,
-    /// The vector of outputs
-    pub(crate) vout: Vout,
-    /// The nLocktime field.
-    pub(crate) locktime: u32,
-}
-
-impl LegacyTx {
-    /// Performs steps 6, 7, and 8 of the sighash setup described here:
-    /// https://en.bitcoin.it/wiki/OP_CHECKSIG#How_it_works
-    /// https://bitcoin.stackexchange.com/questions/3374/how-to-redeem-a-basic-tx
-    ///
-    /// OP_CODESEPARATOR functionality is NOT provided here.
-    ///
-    /// TODO: memoize
-    fn legacy_sighash_prep(&self, index: usize, prevout_script: &Script) -> Self {
-        let mut copy_tx = self.clone();
-
-        for i in 0..copy_tx.vin.len() {
-            copy_tx.vin[i].script_sig = if i == index {
-                ScriptSig::from(prevout_script.items())
-            } else {
-                ScriptSig::null()
-            };
-        }
-        copy_tx
-    }
-
-    /// Modifies copy_tx according to legacy SIGHASH_SINGLE semantics.
-    ///
-    /// For Legacy sighash documentation, see here:
-    ///
-    /// - https://en.bitcoin.it/wiki/OP_CHECKSIG#Hashtype_SIGHASH_ALL_.28default.29
-    fn legacy_sighash_single(copy_tx: &mut Self, index: usize) -> TxResult<()> {
-        let mut tx_outs: Vec<TxOut> = (0..index).map(|_| TxOut::null()).collect();
-        tx_outs.push(copy_tx.vout[index].clone());
-        copy_tx.vout = tx_outs;
-
-        let mut vin = vec![];
-
-        // let mut vin = copy_tx.vin.clone();
-        for i in 0..copy_tx.vin.len() {
-            let mut txin = copy_tx.vin[i].clone();
-            if i != index {
-                txin.sequence = 0;
-            }
-            vin.push(txin);
-        }
-        copy_tx.vin = vin;
-        Ok(())
-    }
-
-    /// Modifies copy_tx according to legacy SIGHASH_ANYONECANPAY semantics.
-    ///
-    /// For Legacy sighash documentation, see here:
-    ///
-    /// - https://en.bitcoin.it/wiki/OP_CHECKSIG#Hashtype_SIGHASH_ALL_.28default.29
-    fn legacy_sighash_anyone_can_pay(copy_tx: &mut Self, index: usize) -> TxResult<()> {
-        copy_tx.vin = vec![copy_tx.vin[index].clone()];
-        Ok(())
-    }
-}
-
-impl Transaction for LegacyTx {
-    type TxError = TxError;
-    type Digest = Hash256Digest;
-    type TxIn = BitcoinTxIn;
-    type TxOut = TxOut;
-    type SighashArgs = LegacySighashArgs;
-    type TXID = TXID;
-    type HashWriter = Hash256Writer;
-
-    fn new<I, O>(version: u32, vin: I, vout: O, locktime: u32) -> Self
-    where
-        I: Into<Vec<Self::TxIn>>,
-        O: Into<Vec<Self::TxOut>>,
-    {
-        Self {
-            version,
-            vin: vin.into(),
-            vout: vout.into(),
-            locktime,
-        }
-    }
-
-    fn inputs(&self) -> &[Self::TxIn] {
-        &self.vin
-    }
-
-    fn outputs(&self) -> &[Self::TxOut] {
-        &self.vout
-    }
-
-    fn version(&self) -> u32 {
-        self.version
-    }
-
-    fn locktime(&self) -> u32 {
-        self.locktime
-    }
-
-    fn write_sighash_preimage<W: Write>(
-        &self,
-        writer: &mut W,
-        args: &LegacySighashArgs,
-    ) -> TxResult<()> {
-        if args.sighash_flag == Sighash::None || args.sighash_flag == Sighash::NoneACP {
-            return Err(TxError::NoneUnsupported);
-        }
-
-        let mut copy_tx: Self = self.legacy_sighash_prep(args.index, &args.prevout_script);
-        if args.sighash_flag == Sighash::Single || args.sighash_flag == Sighash::SingleACP {
-            if args.index >= self.outputs().len() {
-                return Err(TxError::SighashSingleBug);
-            }
-            Self::legacy_sighash_single(&mut copy_tx, args.index)?;
-        }
-
-        if args.sighash_flag as u8 & 0x80 == 0x80 {
-            Self::legacy_sighash_anyone_can_pay(&mut copy_tx, args.index)?;
-        }
-
-        copy_tx.write_to(writer)?;
-        Self::write_u32_le(writer, args.sighash_flag as u32)?;
-
-        Ok(())
-    }
-}
-
-impl BitcoinTransaction for LegacyTx {
-    fn as_legacy(&self) -> &LegacyTx {
-        &self
-    }
-
-    fn into_witness(self) -> WitnessTx {
-        WitnessTx::from_legacy(self)
-    }
-
-    fn into_legacy(self) -> LegacyTx {
-        self
-    }
-
-    fn witnesses(&self) -> &[Witness] {
-        &[]
-    }
-}
-
-impl ByteFormat for LegacyTx {
-    type Error = TxError;
-
-    fn serialized_length(&self) -> usize {
-        let mut len = 4; // version
-        len += riemann_core::ser::prefix_byte_len(self.vin.len() as u64) as usize;
-        len += self.vin.serialized_length();
-        len += riemann_core::ser::prefix_byte_len(self.vout.len() as u64) as usize;
-        len += self.vout.serialized_length();
-        len += 4; // locktime
-        len
-    }
-
-    fn read_from<R>(reader: &mut R, _limit: usize) -> Result<Self, Self::Error>
-    where
-        R: Read,
-        Self: std::marker::Sized,
-    {
-        let version = Self::read_u32_le(reader)?;
-        let vin = Self::read_prefix_vec(reader)?;
-        let vout = Self::read_prefix_vec(reader)?;
-        let locktime = Self::read_u32_le(reader)?;
-        Ok(Self {
-            version,
-            vin,
-            vout,
-            locktime,
-        })
-    }
-
-    fn write_to<W>(&self, writer: &mut W) -> Result<usize, Self::Error>
-    where
-        W: Write,
-    {
-        let mut len = Self::write_u32_le(writer, self.version())?;
-        Self::write_prefix_vec(writer, &self.vin)?;
-        Self::write_prefix_vec(writer, &self.vout)?;
-        len += Self::write_u32_le(writer, self.locktime())?;
-        Ok(len)
-    }
-}
-
-/// Arguments required to serialize the transaction to create the BIP143 (witness) sighash
-/// digest. Used in `witness_sighash` to abstract the sighash serialization logic from the hash
-/// used.
-///
-/// SIGHASH_ALL commits to ALL inputs, and ALL outputs. It indicates that no further modification
-/// of the transaction is allowed without invalidating the signature.
-///
-/// SIGHASH_ALL + ANYONECANPAY commits to ONE input and ALL outputs. It indicates that anyone may
-/// add additional value to the transaction, but that no one may modify the payments made. Any
-/// extra value added above the sum of output values will be given to miners as part of the tx
-/// fee.
-///
-/// SIGHASH_SINGLE commits to ALL inputs, and ONE output. It indicates that anyone may append
-/// additional outputs to the transaction to reroute funds from the inputs. Additional inputs
-/// cannot be added without invalidating the signature. It is logically difficult to use securely,
-/// as it consents to funds being moved, without specifying their destination.
-///
-/// SIGHASH_SINGLE commits specifically the the output at the same index as the input being
-/// signed. If there is no output at that index, (because, e.g. the input vector is longer than
-/// the output vector) it behaves insecurely, and we do not implement that protocol bug.
-///
-/// SIGHASH_SINGLE + ANYONECANPAY commits to ONE input and ONE output. It indicates that anyone
-/// may add additional value to the transaction, and route value to any other location. The
-/// signed input and output must be included in the fully-formed transaction at the same index in
-/// their respective vectors.
-///
-/// For BIP143 sighash documentation, see here:
-///
-/// - https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
-///
-/// # Note
-///
-/// After signing the digest, you MUST append the sighash indicator byte to the resulting
-/// signature.
-#[derive(Clone, Debug, Eq, PartialEq)]
-pub struct WitnessSighashArgs {
-    /// The index of the input we'd like to sign
-    pub index: usize,
-    /// The sighash mode to use.
-    pub sighash_flag: Sighash,
-    /// The script used in the prevout, which must be signed. In complex cases involving
-    /// `OP_CODESEPARATOR` this must be the subset of the script containing the `OP_CHECKSIG`
-    /// currently being executed.
-    pub prevout_script: Script,
-    /// The value of the prevout.
-    pub prevout_value: u64,
-}
-
-/// A witness transaction. Any transaction that contains 1 or more witnesses.
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Eq, PartialEq, Default)]
-pub struct WitnessTx {
-    pub(crate) legacy_tx: LegacyTx,
-    pub(crate) witnesses: Vec<Witness>,
-}
-
-impl WitnessTx {
-    /// Calculates `hash_prevouts` according to BIP143 semantics.`
-    ///
-    /// For BIP143 (Witness and Compatibility sighash) documentation, see here:
-    ///
-    /// - https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
-    ///
-    /// TODO: memoize
-    fn hash_prevouts(&self, sighash_flag: Sighash) -> TxResult<Hash256Digest> {
-        if sighash_flag as u8 & 0x80 == 0x80 {
-            Ok(Hash256Digest::default())
-        } else {
-            let mut w = Hash256Writer::default();
-            for input in self.legacy_tx.vin.iter() {
-                input.outpoint.write_to(&mut w)?;
-            }
-            Ok(w.finish())
-        }
-    }
-
-    /// Calculates `hash_sequence` according to BIP143 semantics.`
-    ///
-    /// For BIP143 (Witness and Compatibility sighash) documentation, see here:
-    ///
-    /// - https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
-    ///
-    /// TODO: memoize
-    fn hash_sequence(&self, sighash_flag: Sighash) -> TxResult<Hash256Digest> {
-        if sighash_flag == Sighash::Single || sighash_flag as u8 & 0x80 == 0x80 {
-            Ok(Hash256Digest::default())
-        } else {
-            let mut w = Hash256Writer::default();
-            for input in self.legacy_tx.vin.iter() {
-                Self::write_u32_le(&mut w, input.sequence)?;
-            }
-            Ok(w.finish())
-        }
-    }
-
-    /// Calculates `hash_outputs` according to BIP143 semantics.`
-    ///
-    /// For BIP143 (Witness and Compatibility sighash) documentation, see here:
-    ///
-    /// - https://github.com/bitcoin/bips/blob/master/bip-0143.mediawiki
-    ///
-    /// TODO: memoize
-    fn hash_outputs(&self, index: usize, sighash_flag: Sighash) -> TxResult<Hash256Digest> {
-        match sighash_flag {
-            Sighash::All | Sighash::AllACP => {
-                let mut w = Hash256Writer::default();
-                for output in self.legacy_tx.vout.iter() {
-                    output.write_to(&mut w)?;
-                }
-                Ok(w.finish())
-            }
-            Sighash::Single | Sighash::SingleACP => {
-                let mut w = Hash256Writer::default();
-                self.legacy_tx.vout[index].write_to(&mut w)?;
-                Ok(w.finish())
-            }
-            _ => Ok(Hash256Digest::default()),
-        }
-    }
-}
-
-impl WitnessTx {
-    /// Consumes a `LegacyTx` and instantiates a new `WitnessTx` with empty witnesses
-    pub fn from_legacy(legacy_tx: LegacyTx) -> Self {
-        let witnesses = (0..legacy_tx.inputs().len())
-            .map(|_| Witness::default())
-            .collect();
-        Self {
-            legacy_tx,
-            witnesses,
-        }
-    }
-}
-
-impl Transaction for WitnessTx {
-    type TxError = TxError;
-    type Digest = Hash256Digest;
-    type TxIn = BitcoinTxIn;
-    type TxOut = TxOut;
-    type SighashArgs = WitnessSighashArgs;
-    type TXID = TXID;
-    type HashWriter = Hash256Writer;
-
-    fn new<I, O>(version: u32, vin: I, vout: O, locktime: u32) -> Self
-    where
-        I: Into<Vec<Self::TxIn>>,
-        O: Into<Vec<Self::TxOut>>,
-    {
-        let input_vector: Vec<BitcoinTxIn> = vin.into();
-        let witnesses = input_vector.iter().map(|_| Witness::default()).collect();
-
-        let legacy_tx = LegacyTx::new(version, input_vector, vout, locktime);
-        Self {
-            legacy_tx,
-            witnesses,
-        }
-    }
-
-    fn inputs(&self) -> &[Self::TxIn] {
-        &self.legacy_tx.vin
-    }
-
-    fn outputs(&self) -> &[Self::TxOut] {
-        &self.legacy_tx.vout
-    }
-
-    fn version(&self) -> u32 {
-        self.legacy_tx.version
-    }
-
-    fn locktime(&self) -> u32 {
-        self.legacy_tx.locktime
-    }
-
-    // Override the txid method to exclude witnesses
-    fn txid(&self) -> Self::TXID {
-        self.legacy_tx.txid()
-    }
-
-    fn write_sighash_preimage<W: Write>(
-        &self,
-        writer: &mut W,
-        args: &Self::SighashArgs,
-    ) -> TxResult<()> {
-        self.write_witness_sighash_preimage(writer, args)
-    }
-}
-
-impl BitcoinTransaction for WitnessTx {
-    fn as_legacy(&self) -> &LegacyTx {
-        &self.legacy_tx
-    }
-
-    fn into_witness(self) -> WitnessTx {
-        self
-    }
-
-    fn into_legacy(self) -> LegacyTx {
-        self.legacy_tx
-    }
-
-    fn witnesses(&self) -> &[Witness] {
-        &self.witnesses
-    }
-}
-
-impl WitnessTransaction for WitnessTx {
-    type WTXID = WTXID;
-    type WitnessSighashArgs = WitnessSighashArgs;
-    type Witness = Witness;
-
-    fn new<I, O, W>(version: u32, vin: I, vout: O, witnesses: W, locktime: u32) -> Self
-    where
-        I: Into<Vec<Self::TxIn>>,
-        O: Into<Vec<Self::TxOut>>,
-        W: Into<Vec<Self::Witness>>,
-    {
-        let legacy_tx = LegacyTx::new(version, vin, vout, locktime);
-        Self {
-            legacy_tx,
-            witnesses: witnesses.into(),
-        }
-    }
-
-    fn wtxid(&self) -> Self::WTXID {
-        let mut w = Self::HashWriter::default();
-        self.write_to(&mut w).expect("No IOError from SHA2");
-        w.finish_marked()
-    }
-
-    fn write_legacy_sighash_preimage<W: Write>(
-        &self,
-        writer: &mut W,
-        args: &LegacySighashArgs,
-    ) -> Result<(), Self::TxError> {
-        self.legacy_tx.write_sighash_preimage(writer, args)
-    }
-
-    fn write_witness_sighash_preimage<W>(
-        &self,
-        writer: &mut W,
-        args: &WitnessSighashArgs,
-    ) -> TxResult<()>
-    where
-        W: Write,
-    {
-        if args.sighash_flag == Sighash::None || args.sighash_flag == Sighash::NoneACP {
-            return Err(TxError::NoneUnsupported);
-        }
-
-        if (args.sighash_flag == Sighash::Single || args.sighash_flag == Sighash::SingleACP)
-            && args.index >= self.outputs().len()
-        {
-            return Err(TxError::SighashSingleBug);
-        }
-
-        let input = &self.legacy_tx.vin[args.index];
-
-        Self::write_u32_le(writer, self.legacy_tx.version)?;
-        self.hash_prevouts(args.sighash_flag)?.write_to(writer)?;
-        self.hash_sequence(args.sighash_flag)?.write_to(writer)?;
-        input.outpoint.write_to(writer)?;
-        args.prevout_script.write_to(writer)?;
-        Self::write_u64_le(writer, args.prevout_value)?;
-        Self::write_u32_le(writer, input.sequence)?;
-        self.hash_outputs(args.index, args.sighash_flag)?
-            .write_to(writer)?;
-        Self::write_u32_le(writer, self.legacy_tx.locktime)?;
-        Self::write_u32_le(writer, args.sighash_flag as u32)?;
-        Ok(())
-    }
-}
-
-impl ByteFormat for WitnessTx {
-    type Error = TxError;
-
-    fn serialized_length(&self) -> usize {
-        let mut len = 4; // version
-        len += 2; // Segwit Flag
-        len += riemann_core::ser::prefix_byte_len(self.legacy_tx.vin.len() as u64) as usize;
-        len += self.legacy_tx.vin.serialized_length();
-        len += riemann_core::ser::prefix_byte_len(self.legacy_tx.vout.len() as u64) as usize;
-        len += self.legacy_tx.vout.serialized_length();
-        for witness in self.witnesses.iter() {
-            len += riemann_core::ser::prefix_byte_len(self.witnesses.len() as u64) as usize;
-            len += witness.serialized_length();
-        }
-        len += 4; // locktime
-        len
-    }
-
-    fn read_from<R>(reader: &mut R, _limit: usize) -> Result<Self, Self::Error>
-    where
-        R: Read,
-        Self: std::marker::Sized,
-    {
-        let version = Self::read_u32_le(reader)?;
-        let mut flag = [0u8; 2];
-        reader.read_exact(&mut flag)?;
-        if flag != [0u8, 1u8] {
-            return Err(TxError::BadWitnessFlag(flag));
-        };
-        let vin = Self::read_prefix_vec(reader)?;
-        let vout = Self::read_prefix_vec(reader)?;
-        let mut witnesses = vec![];
-        for _ in vin.iter() {
-            witnesses.push(Self::read_prefix_vec(reader)?);
-        }
-        let locktime = Self::read_u32_le(reader)?;
-
-        let legacy_tx = LegacyTx {
-            version,
-            vin,
-            vout,
-            locktime,
-        };
-
-        Ok(Self {
-            legacy_tx,
-            witnesses,
-        })
-    }
-
-    fn write_to<W>(&self, writer: &mut W) -> Result<usize, Self::Error>
-    where
-        W: Write,
-    {
-        let mut len = Self::write_u32_le(writer, self.version())?;
-        len += writer.write(&[0u8, 1u8])?;
-
-        len += Self::write_prefix_vec(writer, &self.legacy_tx.vin)?;
-        len += Self::write_prefix_vec(writer, &self.legacy_tx.vout)?;
-        for wit in self.witnesses.iter() {
-            len += Self::write_prefix_vec(writer, &wit)?;
-        }
-        len += Self::write_u32_le(writer, self.locktime())?;
-        Ok(len)
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::prelude::*;
+    use bitcoin_spv::types::Hash256Digest;
 
     #[test]
     fn it_calculates_legacy_sighashes_and_txids() {

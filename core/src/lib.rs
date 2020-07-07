@@ -21,8 +21,8 @@ pub mod builder;
 pub mod enc;
 pub mod hashes;
 pub mod nets;
+pub mod prelude;
 pub mod ser;
 pub mod types;
-pub mod prelude;
 
 pub use prelude::*;

@@ -5,5 +5,5 @@ pub use crate::{
     types::*,
 };
 
-#[cfg(any(feature = "mainnet", feature = "testnet"))]
+#[cfg(any(feature = "mainnet", feature = "testnet", feature = "signet"))]
 pub use crate::defaults::*;

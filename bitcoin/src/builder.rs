@@ -19,10 +19,12 @@ use crate::{
         encoder::Address,
     },
     types::{
+        legacy::LegacyTx,
         script::{ScriptPubkey, ScriptSig, Witness},
-        transactions::{BitcoinTransaction, LegacyTx, WitnessTransaction, WitnessTx},
+        transactions::BitcoinTransaction,
         txin::{BitcoinOutpoint, BitcoinTxIn},
         txout::TxOut,
+        witness::{WitnessTransaction, WitnessTx},
     },
 };
 

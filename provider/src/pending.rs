@@ -5,16 +5,16 @@ use std::{
     time::Duration,
 };
 
-use pin_project::pin_project;
 use futures_core::stream::Stream;
 use futures_util::stream::StreamExt;
+use pin_project::pin_project;
 
 use rmn_btc::prelude::*;
 
-use crate::{DEFAULT_POLL_INTERVAL, interval, provider::BTCProvider};
+use crate::{interval, provider::BTCProvider, DEFAULT_POLL_INTERVAL};
 
-
-type ProviderFut<'a, T, P> = Pin<Box<dyn Future<Output = Result<T, <P as BTCProvider>::Error>> + 'a + Send>>;
+type ProviderFut<'a, T, P> =
+    Pin<Box<dyn Future<Output = Result<T, <P as BTCProvider>::Error>> + 'a + Send>>;
 
 enum PendingTxStates<'a, P: BTCProvider> {
     Broadcasting(ProviderFut<'a, TXID, P>),
@@ -23,7 +23,7 @@ enum PendingTxStates<'a, P: BTCProvider> {
     Completed,
 }
 
-/// A Pending transaction. Periodically polls the API
+/// A Pending transaction. Periodically polls the API to see if it has been confirmed
 #[pin_project]
 pub struct PendingTx<'a, P: BTCProvider> {
     txid: TXID,
@@ -86,7 +86,7 @@ impl<'a, P: BTCProvider> Future for PendingTx<'a, P> {
                 // If we want more confs, repeat
                 let fut = Box::pin(this.provider.get_confs(*this.txid));
                 *this.state = PendingTxStates::WaitingMoreConfs(fut)
-            },
+            }
             PendingTxStates::Completed => {
                 panic!("polled pending transaction future after completion")
             }

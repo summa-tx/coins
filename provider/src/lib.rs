@@ -17,10 +17,10 @@ pub use provider::*;
 
 type Encoder = rmn_btc::Encoder;
 
-use std::time::Duration;
 use futures_core::Stream;
-use futures_util::{stream, FutureExt, StreamExt};
 use futures_timer::Delay;
+use futures_util::{stream, FutureExt, StreamExt};
+use std::time::Duration;
 
 // Async delay stream
 pub(crate) fn interval(duration: Duration) -> impl Stream<Item = ()> + Send + Unpin {
