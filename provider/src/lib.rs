@@ -13,6 +13,10 @@ pub mod pending;
 /// Outpoint spend watcher
 pub mod watcher;
 
+#[cfg(feature = "esplora")]
+/// EsploraProvider
+pub mod esplora;
+
 pub use provider::*;
 
 type Encoder = rmn_btc::Encoder;

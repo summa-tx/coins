@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use std::time::Duration;
 
-use riemann_core::enc::AddressEncoder;
+use riemann_core::prelude::*;
 use rmn_btc::{enc::Address, hashes::TXID, types::*};
 
 use crate::{pending::PendingTx, watcher::PollingWatcher};
@@ -40,8 +40,11 @@ pub trait BTCProvider: Sized {
 /// An extension trait that adds polling watchers for
 #[async_trait]
 pub trait PollingBTCProvider: BTCProvider {
-    /// Return the polling duration of the
+    /// Return the polling duration of the provider
     fn interval(&self) -> Duration;
+
+    /// Set the polling interval of the provider. Interval is seconds.
+    fn set_interval(&mut self, interval: usize);
 
     /// Broadcast a transaction, get a future that resolves when the tx is confirmed. This
     /// returns a `PendingTx` future. The tx will not be braodcast until that future is scheduled
