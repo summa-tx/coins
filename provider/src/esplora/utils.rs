@@ -1,6 +1,6 @@
-use serde::Deserialize;
+use riemann_core::{hashes::marked::MarkedDigest, ser::ByteFormat};
 use rmn_btc::prelude::TXID;
-use riemann_core::{ser::ByteFormat, hashes::marked::MarkedDigest};
+use serde::Deserialize;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -14,7 +14,6 @@ pub type FetchError = JsValue;
 /// the SwapError::APIError type.
 #[cfg(not(target_arch = "wasm32"))]
 pub type FetchError = reqwest::Error;
-
 
 /// Fetch a raw hex transaction by its BE txid
 pub(crate) async fn fetch_tx_hex(api_root: &str, txid_be: &str) -> Result<String, FetchError> {
@@ -32,7 +31,7 @@ pub(crate) async fn fetch_it(url: &str) -> Result<reqwest::Response, FetchError>
 }
 
 /// Easy fetching of a URL. Attempts to serde JSON deserialize the result
-/// 
+///
 /// TODO: differentiate deserialization errors
 pub(crate) async fn ez_fetch_json<T: for<'a> Deserialize<'a>>(url: &str) -> Result<T, FetchError> {
     let res = fetch_it(url).await?;
@@ -47,13 +46,19 @@ pub(crate) async fn ez_fetch_string(url: &str) -> Result<String, FetchError> {
 }
 
 pub(crate) async fn post_str(url: &str, body: &str) -> Result<String, FetchError> {
-    Ok(reqwest::Client::new().post(url).body(body.to_owned()).send().await?.text().await?)
+    Ok(reqwest::Client::new()
+        .post(url)
+        .body(body.to_owned())
+        .send()
+        .await?
+        .text()
+        .await?)
 }
 
 /// Easy posting hex to a url
 pub(crate) async fn post_hex<T>(url: &str, bytes: T) -> Result<String, FetchError>
 where
-    T : AsRef<[u8]>,
+    T: AsRef<[u8]>,
 {
     post_str(url, &hex::encode(bytes)).await
 }

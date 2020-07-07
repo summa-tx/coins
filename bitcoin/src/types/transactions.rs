@@ -9,12 +9,12 @@ use riemann_core::{
 };
 
 use crate::{
-    hashes::{TXID},
+    hashes::TXID,
     types::{
         legacy::*,
-        script::{Witness},
+        script::Witness,
         txin::{BitcoinOutpoint, BitcoinTxIn},
-        txout::{TxOut},
+        txout::TxOut,
         witness::*,
     },
 };

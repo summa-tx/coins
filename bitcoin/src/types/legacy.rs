@@ -2,14 +2,10 @@
 use bitcoin_spv::types::Hash256Digest;
 use std::io::{Read, Write};
 
-use riemann_core::{
-    hashes::hash256::Hash256Writer,
-    ser::{ByteFormat},
-    types::tx::Transaction,
-};
+use riemann_core::{hashes::hash256::Hash256Writer, ser::ByteFormat, types::tx::Transaction};
 
 use crate::{
-    hashes::{TXID},
+    hashes::TXID,
     types::{
         script::{Script, ScriptSig, Witness},
         transactions::*,
