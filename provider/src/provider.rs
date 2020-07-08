@@ -8,13 +8,13 @@ use rmn_btc::{
     types::*,
 };
 
-use crate::{pending::PendingTx, watcher::PollingWatcher};
+use crate::{chain::Tips, pending::PendingTx, watcher::PollingWatcher};
 
 /// A Bitcoin Provider
 #[async_trait]
 pub trait BTCProvider: Sized {
     /// An error type
-    type Error: From<rmn_btc::enc::bases::EncodingError>;
+    type Error: From<rmn_btc::enc::bases::EncodingError> + std::error::Error;
 
     /// Fetch the LE digest of the chain tip
     async fn tip_hash(&self) -> Result<BlockHash, Self::Error>;
@@ -74,5 +74,13 @@ pub trait PollingBTCProvider: BTCProvider {
         PollingWatcher::new(outpoint, self)
             .confirmations(confirmations)
             .interval(self.interval())
+    }
+
+    /// Watch the chain tip. Get notified of the new `BlockHash` every time it changes.
+    ///
+    /// Note: A new hash does not necessarily mean the chain height has increased. Reorgs may
+    /// result in the height decreasing in rare cases.
+    fn tips(&self, limit: usize) -> Tips<Self> {
+        Tips::new(limit, self).interval(self.interval())
     }
 }

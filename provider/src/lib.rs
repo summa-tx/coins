@@ -13,6 +13,9 @@ pub mod pending;
 /// Outpoint spend watcher
 pub mod watcher;
 
+/// Chain watcher
+pub mod chain;
+
 /// Utils
 pub mod utils;
 
