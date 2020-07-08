@@ -14,6 +14,11 @@ mark_hash256!(
     WTXID
 );
 
+mark_hash256!(
+    /// A marked Hash256Digest representing witness transaction IDs
+    BlockHash
+);
+
 #[cfg(test)]
 mod test {
     use super::*;

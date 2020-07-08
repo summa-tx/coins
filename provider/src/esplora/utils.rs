@@ -1,5 +1,5 @@
-use thiserror::Error;
 use serde::Deserialize;
+use thiserror::Error;
 
 use riemann_core::{hashes::marked::MarkedDigest, ser::ByteFormat};
 use rmn_btc::prelude::TXID;

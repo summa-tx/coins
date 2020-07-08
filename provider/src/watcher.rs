@@ -1,5 +1,4 @@
 use std::{
-    future::Future,
     pin::Pin,
     task::{Context, Poll},
     time::Duration,
@@ -14,11 +13,8 @@ use rmn_btc::prelude::*;
 use crate::{
     provider::BTCProvider,
     utils::{interval, StreamLast},
-    DEFAULT_POLL_INTERVAL,
+    ProviderFut, DEFAULT_POLL_INTERVAL,
 };
-
-type ProviderFut<'a, T, P> =
-    Pin<Box<dyn Future<Output = Result<T, <P as BTCProvider>::Error>> + 'a + Send>>;
 
 enum WatcherStates<'a, P: BTCProvider> {
     // Waiting for a tx to spend

@@ -196,6 +196,19 @@ macro_rules! mark_hash256 {
         $(#[$outer])*
         #[derive(Hash, serde::Serialize, serde::Deserialize, Copy, Clone, Default, Debug, Eq, PartialEq, PartialOrd, Ord)]
         pub struct $hash_name(pub Hash256Digest);
+
+        impl $hash_name {
+            /// Deserialize to BE hex
+            pub fn from_be_hex(be: &str) -> riemann_core::ser::SerResult<Self> {
+                Ok(<Self as riemann_core::ser::ByteFormat>::deserialize_hex(be)?.reversed())
+            }
+
+            /// Convert to BE hex
+            pub fn to_be_hex(&self) -> String {
+                riemann_core::ser::ByteFormat::serialize_hex(&self.reversed()).unwrap()
+            }
+        }
+
         impl riemann_core::ser::ByteFormat for $hash_name {
             type Error = riemann_core::ser::SerError;
 
@@ -235,6 +248,7 @@ macro_rules! mark_hash256 {
                 self.0.to_vec()
             }
         }
+
         impl From<Hash256Digest> for $hash_name {
             fn from(h: Hash256Digest) -> Self {
                 Self::new(h)

@@ -2,7 +2,11 @@ use async_trait::async_trait;
 use std::time::Duration;
 
 use riemann_core::prelude::*;
-use rmn_btc::{enc::Address, hashes::TXID, types::*};
+use rmn_btc::{
+    enc::Address,
+    hashes::{BlockHash, TXID},
+    types::*,
+};
 
 use crate::{pending::PendingTx, watcher::PollingWatcher};
 
@@ -11,6 +15,15 @@ use crate::{pending::PendingTx, watcher::PollingWatcher};
 pub trait BTCProvider: Sized {
     /// An error type
     type Error: From<rmn_btc::enc::bases::EncodingError>;
+
+    /// Fetch the LE digest of the chain tip
+    async fn tip_hash(&self) -> Result<BlockHash, Self::Error>;
+
+    /// Fetch the height of the chain tip
+    async fn tip_height(&self) -> Result<usize, Self::Error>;
+
+    /// Query the backend to determine if the header with `digest` is in the main chain.
+    async fn in_best_chain(&self, digest: BlockHash) -> Result<bool, Self::Error>;
 
     /// Get the number of confs a tx has. If the TX is unconfirmed this will be `Ok(Some(0))`. If
     /// the TX is unknown to the API, it will be `Ok(None)`.

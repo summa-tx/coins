@@ -22,9 +22,13 @@ pub mod esplora;
 
 pub use provider::*;
 
+/// The default poll interval, set to 300 seconds (5 minutes)
+pub const DEFAULT_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(180 * 1000);
+
+// Alias the default encoder
 type Encoder = rmn_btc::Encoder;
 
-use std::time::Duration;
-
-/// The default poll interval, set to 300 seconds (5 minutes)
-pub const DEFAULT_POLL_INTERVAL: Duration = Duration::from_millis(180 * 1000);
+// Useful alias for the stateful streams
+type ProviderFut<'a, T, P> = std::pin::Pin<
+    Box<dyn std::future::Future<Output = Result<T, <P as BTCProvider>::Error>> + 'a + Send>,
+>;

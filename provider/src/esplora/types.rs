@@ -3,29 +3,49 @@ use rmn_btc::prelude::*;
 
 use crate::esplora::*;
 
+// TODO: refactor to use a connection?
 #[derive(serde::Deserialize, Clone, Debug)]
 pub(crate) struct BlockStatus {
     pub in_best_chain: bool,
-    #[serde(default = "Hash256Digest::default")]
-    pub next_best: Hash256Digest,
+    #[serde(default = "String::new")]
+    pub next_best: String,
+}
+
+impl BlockStatus {
+    pub(crate) async fn fetch_by_digest(
+        api_root: &str,
+        digest: BlockHash,
+    ) -> Result<Self, FetchError> {
+        let url = format!("{}/block/{}/status", api_root, digest.to_be_hex());
+        Ok(utils::ez_fetch_json(&url).await?)
+    }
 }
 
 #[derive(serde::Deserialize, Clone, Debug)]
-pub(crate) struct TxStatus {
+pub(crate) struct EsploraTxStatus {
     pub confirmed: bool,
     #[serde(default = "usize::min_value")]
     pub block_height: usize,
-    #[serde(default = "Hash256Digest::default")]
-    pub block_hash: Hash256Digest,
+    #[serde(default = "String::new")]
+    pub block_hash: String,
 }
 
-impl TxStatus {
+impl EsploraTxStatus {
     pub(crate) async fn fetch_by_txid(api_root: &str, txid: TXID) -> Result<Self, FetchError> {
-        let url = format!(
-            "{}/tx/{}/status",
-            api_root,
-            txid.reversed().serialize_hex().unwrap()
-        );
+        let url = format!("{}/tx/{}/status", api_root, txid.to_be_hex());
+        Ok(utils::ez_fetch_json(&url).await?)
+    }
+}
+
+#[derive(serde::Deserialize, Clone, Debug)]
+pub(crate) struct EsploraTx {
+    pub status: EsploraTxStatus,
+    pub txid: String,
+}
+
+impl EsploraTx {
+    pub(crate) async fn fetch_by_txid(api_root: &str, txid: TXID) -> Result<Self, FetchError> {
+        let url = format!("{}/tx/{}", api_root, txid.to_be_hex());
         Ok(utils::ez_fetch_json(&url).await?)
     }
 }
@@ -76,7 +96,7 @@ pub(crate) struct Outspend {
     #[serde(default = "usize::max_value")]
     pub vin: usize,
     /// The status of the spending TX
-    pub status: TxStatus,
+    pub status: EsploraTxStatus,
 }
 
 impl Outspend {

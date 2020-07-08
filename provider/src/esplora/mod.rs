@@ -85,26 +85,42 @@ pub enum EsploraError {
 impl BTCProvider for EsploraProvider {
     type Error = EsploraError;
 
-    // async fn tip_hash(&self) -> Result<Hash256Digest, Self::Error> {
-    //     let url = format!("{}/blocks/tip/hash", self.api_root);
-    //     let response = ez_fetch_string(&url).await?;
-    //     let mut digest = Hash256Digest::deserialize_hex(&response)?;
-    //     digest.reverse();
-    //     Ok(digest)
-    // }
-    //
-    // async fn tip_height(&self) -> Result<usize, Self::Error> {
-    //     let url = format!("{}/blocks/tip/height", self.api_root);
-    //     let response = ez_fetch_string(&url).await?;
-    //     Ok(response.parse().unwrap())
-    // }
-    //
-    // async fn in_best_chain(&self, digest: Hash256Digest) -> Result<BlockStatus, Self::Error> {
-    //     let status =
-    // }
+    async fn tip_hash(&self) -> Result<BlockHash, Self::Error> {
+        let url = format!("{}/blocks/tip/hash", self.api_root);
+        let response = ez_fetch_string(&url).await?;
+        Ok(BlockHash::from_be_hex(&response)?)
+    }
 
-    async fn get_confs(&self, _txid: TXID) -> Result<Option<usize>, Self::Error> {
-        unimplemented!()
+    async fn tip_height(&self) -> Result<usize, Self::Error> {
+        let url = format!("{}/blocks/tip/height", self.api_root);
+        let response = ez_fetch_string(&url).await?;
+        Ok(response.parse().unwrap())
+    }
+
+    async fn in_best_chain(&self, digest: BlockHash) -> Result<bool, Self::Error> {
+        Ok(BlockStatus::fetch_by_digest(&self.api_root, digest)
+            .await?
+            .in_best_chain)
+    }
+
+    async fn get_confs(&self, txid: TXID) -> Result<Option<usize>, Self::Error> {
+        let tx_res = EsploraTx::fetch_by_txid(&self.api_root, txid).await;
+        match tx_res {
+            Ok(tx) => {
+                if !tx.status.confirmed {
+                    return Ok(Some(0));
+                }
+                let digest = BlockHash::from_be_hex(&tx.status.block_hash)
+                    .expect("No bad hex in API response");
+                if !self.in_best_chain(digest).await? {
+                    return Ok(Some(0));
+                }
+                let height = self.tip_height().await?;
+                Ok(Some(height - tx.status.block_height))
+            }
+            Err(FetchError::SerdeError(_)) => Ok(None),
+            Err(FetchError::RequestError(e)) => Err(FetchError::RequestError(e).into()),
+        }
     }
 
     async fn get_tx(&self, txid: TXID) -> Result<Option<BitcoinTx>, Self::Error> {
