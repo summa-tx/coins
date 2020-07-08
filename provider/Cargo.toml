@@ -22,10 +22,11 @@ futures = { version = "0.3.5", optional = true }
 reqwest = { version = "0.10.4", features = ["json"], optional = true }
 hex = { version = "0.4.2", optional = true }
 serde = { version = "1.0.106", features = ["derive"], optional = true }
+serde_json = { version = "1.0.55", optional = true }
 
 [features]
 default = ["mainnet", "esplora"]
-esplora = ["lru", "reqwest", "thiserror", "futures", "hex", "serde"]
+esplora = ["lru", "reqwest", "thiserror", "futures", "hex", "serde", "serde_json"]
 
 # mutually exclusive
 mainnet = ["rmn-btc/mainnet"]

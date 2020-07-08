@@ -1,6 +1,8 @@
+use thiserror::Error;
+use serde::Deserialize;
+
 use riemann_core::{hashes::marked::MarkedDigest, ser::ByteFormat};
 use rmn_btc::prelude::TXID;
-use serde::Deserialize;
 
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
@@ -8,12 +10,26 @@ use wasm_bindgen::prelude::*;
 /// An error type returned by the networking layer. We alias this to abstract it and unify
 /// the SwapError::APIError type.
 #[cfg(target_arch = "wasm32")]
-pub type FetchError = JsValue;
+pub type RequestError = JsValue;
 
 /// An error type returned by the networking layer. We alias this to abstract it and unify
 /// the SwapError::APIError type.
 #[cfg(not(target_arch = "wasm32"))]
-pub type FetchError = reqwest::Error;
+pub type RequestError = reqwest::Error;
+
+#[derive(Debug, Error)]
+pub enum FetchError {
+    #[error(transparent)]
+    SerdeError(#[from] serde_json::Error),
+    #[error("RequestError: {0:?}")]
+    RequestError(RequestError),
+}
+
+impl From<RequestError> for FetchError {
+    fn from(v: RequestError) -> FetchError {
+        FetchError::RequestError(v)
+    }
+}
 
 /// Fetch a raw hex transaction by its BE txid
 pub(crate) async fn fetch_tx_hex(api_root: &str, txid_be: &str) -> Result<String, FetchError> {
@@ -31,11 +47,10 @@ pub(crate) async fn fetch_it(url: &str) -> Result<reqwest::Response, FetchError>
 }
 
 /// Easy fetching of a URL. Attempts to serde JSON deserialize the result
-///
-/// TODO: differentiate deserialization errors
 pub(crate) async fn ez_fetch_json<T: for<'a> Deserialize<'a>>(url: &str) -> Result<T, FetchError> {
     let res = fetch_it(url).await?;
-    Ok(res.json().await?)
+    let text = res.text().await?;
+    Ok(serde_json::from_str(&text)?)
 }
 
 /// Easy fetching of a URL. Returns result as a String

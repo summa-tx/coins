@@ -69,8 +69,8 @@ pub enum EsploraError {
     TxError(#[from] rmn_btc::types::transactions::TxError),
 
     /// Error in networking
-    #[error("Fetch Error: {0:?}")]
-    FetchError(utils::FetchError),
+    #[error(transparent)]
+    FetchError(#[from] utils::FetchError),
 
     /// Bubbled up from riemann
     #[error(transparent)]
@@ -79,12 +79,6 @@ pub enum EsploraError {
     /// Bubbled up from Riemann
     #[error(transparent)]
     RmnSerError(#[from] riemann_core::ser::SerError),
-}
-
-impl From<FetchError> for EsploraError {
-    fn from(v: FetchError) -> EsploraError {
-        EsploraError::FetchError(v)
-    }
 }
 
 #[async_trait]
