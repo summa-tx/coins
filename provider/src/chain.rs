@@ -22,7 +22,7 @@ pub struct Tips<'a, P: BTCProvider> {
     limit: usize,
     interval: Box<dyn Stream<Item = ()> + Send + Unpin>,
     provider: &'a P,
-    fut: ProviderFut<'a, BlockHash, P>,
+    fut_opt: Option<ProviderFut<'a, BlockHash, P>>,
     last: Option<BlockHash>,
 }
 
@@ -34,7 +34,7 @@ impl<'a, P: BTCProvider> Tips<'a, P> {
             limit,
             interval: Box::new(interval(DEFAULT_POLL_INTERVAL)),
             provider,
-            fut,
+            fut_opt: Some(fut),
             last: None,
         }
     }
@@ -50,30 +50,35 @@ impl<'a, P: BTCProvider> futures::stream::Stream for Tips<'a, P> {
     type Item = BlockHash;
 
     fn poll_next(self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Option<Self::Item>> {
-        let TipsProj { limit, interval, provider, fut, last } = self.project();
+        let TipsProj { limit, interval, provider, fut_opt, last } = self.project();
 
+        // if our limit has run down, end the stream
         if *limit == 0 {
             return Poll::Ready(None);
         }
 
-        // check the interval
-        let _ready = futures_util::ready!(interval.poll_next_unpin(ctx));
+        if let Some(fut) = fut_opt {
+            let result = futures_util::ready!(fut.as_mut().poll(ctx));
+            *fut_opt = None;
 
-        let result = futures_util::ready!(fut.as_mut().poll(ctx));
-
-        // reset the future regardless of if it errored
-        *fut = Box::pin(provider.tip_hash());
-
-        if let Ok(block_hash) = result {
-            if let Some(hash) = *last {
-                if hash == block_hash {
-                    return Poll::Pending;
+            // Errors will fail through to being retried at the interval
+            if let Ok(block_hash) = result {
+                // if we just saw it, don't emit again
+                if let Some(hash) = *last {
+                    if hash == block_hash {
+                        return Poll::Pending;
+                    }
                 }
+                // if it has changed, or this is the first, emit it
+                *last = Some(block_hash);
+                *limit -= 1;
+                return Poll::Ready(Some(block_hash));
             }
-            *last = Some(block_hash);
-            *limit -= 1;
-            return Poll::Ready(Some(block_hash));
         }
+
+        // if the interval has elapsed, reset the fut
+        let _ready = futures_util::ready!(interval.poll_next_unpin(ctx));
+        *fut_opt = Some(Box::pin(provider.tip_hash()));
         Poll::Pending
     }
 }
