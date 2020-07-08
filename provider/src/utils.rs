@@ -8,7 +8,10 @@ use pin_project::pin_project;
 
 use futures_core::Stream;
 use futures_timer::Delay;
-use futures_util::{stream::{self, StreamExt}, FutureExt};
+use futures_util::{
+    stream::{self, StreamExt},
+    FutureExt,
+};
 use std::time::Duration;
 
 // Async delay stream
@@ -22,7 +25,7 @@ pub(crate) fn interval(duration: Duration) -> impl Stream<Item = ()> + Send + Un
 #[must_use = "futures do nothing unless awaited or polled"]
 pub struct Last<St, I>
 where
-     St: Stream<Item = I> + StreamExt,
+    St: Stream<Item = I> + StreamExt,
 {
     #[pin]
     stream: St,
@@ -31,17 +34,14 @@ where
 
 impl<St, I> Last<St, I>
 where
-     St: Stream<Item = I> + StreamExt,
+    St: Stream<Item = I> + StreamExt,
 {
     fn new(stream: St) -> Last<St, I> {
-        Self {
-            stream,
-            item: None,
-        }
+        Self { stream, item: None }
     }
 }
 
-/// Extension trait for streams. Provides a method that resolves to the last item in the stream.
+/// Extension trait for streams. Provides a future that resolves to the last item in the stream.
 pub trait StreamLast: Sized + Stream + StreamExt {
     /// Consume this stream, return a future that resolves to the last item. This future resolves
     /// to the most recently yielded item when the stream yields `None`.
@@ -70,7 +70,7 @@ where
                 *item = Some(i);
                 Poll::Pending
             }
-            None => Poll::Ready(Some(item.take().unwrap()))
+            None => Poll::Ready(Some(item.take().unwrap())),
         }
     }
 }

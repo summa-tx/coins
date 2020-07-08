@@ -11,7 +11,11 @@ use pin_project::pin_project;
 
 use rmn_btc::prelude::*;
 
-use crate::{provider::BTCProvider, DEFAULT_POLL_INTERVAL, utils::{StreamLast, interval}};
+use crate::{
+    provider::BTCProvider,
+    utils::{interval, StreamLast},
+    DEFAULT_POLL_INTERVAL,
+};
 
 type ProviderFut<'a, T, P> =
     Pin<Box<dyn Future<Output = Result<T, <P as BTCProvider>::Error>> + 'a + Send>>;
@@ -25,14 +29,13 @@ enum PendingTxStates<'a, P: BTCProvider> {
 
 /// A Pending transaction. Periodically polls the API to see if it has been confirmed.
 ///
-/// This struct implements both `std::future::Future` and `futures::stream::Stream`.
-///
-/// When `await`ed as a future, the future will resolve to the TXID as soon as the poller sees it
-/// receive `>= self.confirmations` confirmations.
+/// This struct implements both `futures::stream::Stream`.
 ///
 /// When used as a `Stream`, the stream will produce a value when the tx has been broadcast, and
 /// each time the poller sees the number of confirmations increase. After receiving
 /// `>= self.confirmations` confirmations, the stream will finish.
+///
+/// To get only a single event when the stream ends, use `StreamLast::last()`
 #[pin_project]
 pub struct PendingTx<'a, P: BTCProvider> {
     txid: TXID,
@@ -84,7 +87,7 @@ impl<'a, P: BTCProvider> futures::stream::Stream for PendingTx<'a, P> {
                     *this.state = PendingTxStates::WaitingMoreConfs(0, fut);
                     return Poll::Ready(Some((0, *this.txid)));
                 }
-            },
+            }
             PendingTxStates::WaitingMoreConfs(previous_confs, fut) => {
                 let _ready = futures_util::ready!(this.interval.poll_next_unpin(ctx));
 
@@ -106,7 +109,7 @@ impl<'a, P: BTCProvider> futures::stream::Stream for PendingTx<'a, P> {
                 // If we want more confs, repeat
                 let fut = Box::pin(this.provider.get_confs(*this.txid));
                 *this.state = PendingTxStates::WaitingMoreConfs(*previous_confs, fut);
-            },
+            }
             PendingTxStates::Completed => {
                 return Poll::Ready(None);
             }

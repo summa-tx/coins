@@ -11,7 +11,11 @@ use pin_project::pin_project;
 
 use rmn_btc::prelude::*;
 
-use crate::{provider::BTCProvider, DEFAULT_POLL_INTERVAL, utils::{StreamLast, interval}};
+use crate::{
+    provider::BTCProvider,
+    utils::{interval, StreamLast},
+    DEFAULT_POLL_INTERVAL,
+};
 
 type ProviderFut<'a, T, P> =
     Pin<Box<dyn Future<Output = Result<T, <P as BTCProvider>::Error>> + 'a + Send>>;
@@ -65,7 +69,6 @@ impl<'a, P: BTCProvider> PollingWatcher<'a, P> {
 
 impl<P: BTCProvider> StreamLast for PollingWatcher<'_, P> {}
 
-
 impl<'a, P: BTCProvider> futures::stream::Stream for PollingWatcher<'a, P> {
     type Item = (usize, TXID);
 
@@ -86,7 +89,7 @@ impl<'a, P: BTCProvider> futures::stream::Stream for PollingWatcher<'a, P> {
                     let fut = Box::pin(this.provider.get_outspend(*this.outpoint));
                     *this.state = WatcherStates::WaitingSpends(fut);
                 }
-            },
+            }
             WatcherStates::WaitingMoreConfs(previous_confs, txid, fut) => {
                 let _ready = futures_util::ready!(this.interval.poll_next_unpin(ctx));
 
