@@ -49,7 +49,7 @@ pub trait PollingBTCProvider: BTCProvider {
     /// Broadcast a transaction, get a future that resolves when the tx is confirmed. This
     /// returns a `PendingTx` future. The tx will not be braodcast until that future is scheduled
     /// to run.
-    fn send(&self, tx: BitcoinTx, confirmations: usize) -> PendingTx<'_, Self> {
+    fn send(&self, tx: BitcoinTx, confirmations: usize) -> PendingTx<Self> {
         PendingTx::new(tx, self)
             .confirmations(confirmations)
             .interval(self.interval())
@@ -57,7 +57,7 @@ pub trait PollingBTCProvider: BTCProvider {
 
     /// Watch an outpoint, waiting for a tx to spend it. This returns a `PollingWatcher` future.
     /// The observation will not start until that future is scheduled to run.
-    fn watch(&self, outpoint: BitcoinOutpoint, confirmations: usize) -> PollingWatcher<'_, Self> {
+    fn watch(&self, outpoint: BitcoinOutpoint, confirmations: usize) -> PollingWatcher<Self> {
         PollingWatcher::new(outpoint, self)
             .confirmations(confirmations)
             .interval(self.interval())

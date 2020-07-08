@@ -11,7 +11,7 @@ use pin_project::pin_project;
 
 use rmn_btc::prelude::*;
 
-use crate::{interval, provider::BTCProvider, DEFAULT_POLL_INTERVAL};
+use crate::{provider::BTCProvider, DEFAULT_POLL_INTERVAL, utils::{StreamLast, interval}};
 
 type ProviderFut<'a, T, P> =
     Pin<Box<dyn Future<Output = Result<T, <P as BTCProvider>::Error>> + 'a + Send>>;
@@ -69,40 +69,7 @@ impl<'a, P: BTCProvider> PendingTx<'a, P> {
     }
 }
 
-impl<'a, P: BTCProvider> Future for PendingTx<'a, P> {
-    type Output = TXID;
-
-    fn poll(self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Self::Output> {
-        let this = self.project();
-
-        match this.state {
-            PendingTxStates::Broadcasting(fut) => {
-                if futures_util::ready!(fut.as_mut().poll(ctx)).is_ok() {
-                    let fut = Box::pin(this.provider.get_confs(*this.txid));
-                    *this.state = PendingTxStates::WaitingMoreConfs(0, fut);
-                }
-            }
-            PendingTxStates::WaitingMoreConfs(previous_confs, fut) => {
-                let _ready = futures_util::ready!(this.interval.poll_next_unpin(ctx));
-
-                if let Ok(Some(confs)) = futures_util::ready!(fut.as_mut().poll(ctx)) {
-                    // If we have enough confs, ready now
-                    if confs >= *this.confirmations {
-                        *this.state = PendingTxStates::Completed;
-                        return Poll::Ready(*this.txid);
-                    }
-                }
-                // If we want more confs, repeat
-                let fut = Box::pin(this.provider.get_confs(*this.txid));
-                *this.state = PendingTxStates::WaitingMoreConfs(*previous_confs, fut)
-            }
-            PendingTxStates::Completed => {
-                panic!("polled pending transaction future after completion")
-            }
-        }
-        Poll::Pending
-    }
-}
+impl<P: BTCProvider> StreamLast for PendingTx<'_, P> {}
 
 impl<'a, P: BTCProvider> futures::stream::Stream for PendingTx<'a, P> {
     type Item = (usize, TXID);
@@ -132,7 +99,8 @@ impl<'a, P: BTCProvider> futures::stream::Stream for PendingTx<'a, P> {
                     // If we have enough confs, ready now
                     if confs >= *this.confirmations {
                         *this.state = PendingTxStates::Completed;
-                        return Poll::Ready(Some((0, *this.txid)));
+                        ctx.waker().wake_by_ref();
+                        return Poll::Ready(Some((confs, *this.txid)));
                     }
                 }
                 // If we want more confs, repeat

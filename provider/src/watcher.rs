@@ -11,7 +11,7 @@ use pin_project::pin_project;
 
 use rmn_btc::prelude::*;
 
-use crate::{interval, provider::BTCProvider, DEFAULT_POLL_INTERVAL};
+use crate::{provider::BTCProvider, DEFAULT_POLL_INTERVAL, utils::{StreamLast, interval}};
 
 type ProviderFut<'a, T, P> =
     Pin<Box<dyn Future<Output = Result<T, <P as BTCProvider>::Error>> + 'a + Send>>;
@@ -63,54 +63,8 @@ impl<'a, P: BTCProvider> PollingWatcher<'a, P> {
     }
 }
 
-impl<'a, P: BTCProvider> Future for PollingWatcher<'a, P> {
-    type Output = TXID;
+impl<P: BTCProvider> StreamLast for PollingWatcher<'_, P> {}
 
-    fn poll(self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Self::Output> {
-        let this = self.project();
-
-        match this.state {
-            WatcherStates::WaitingSpends(fut) => {
-                let _ready = futures_util::ready!(this.interval.poll_next_unpin(ctx));
-
-                if let Ok(Some(txid)) = futures_util::ready!(fut.as_mut().poll(ctx)) {
-                    // If a tx has been found, and we want 0 confs, ready now.
-                    if *this.confirmations == 0 {
-                        *this.state = WatcherStates::Completed;
-                        return Poll::Ready(txid);
-                    }
-                    // If we want >0 confs, go to getting confs
-                    let fut = Box::pin(this.provider.get_confs(txid));
-                    *this.state = WatcherStates::WaitingMoreConfs(0, txid, fut)
-                } else {
-                    // Continue otherwise
-                    let fut = Box::pin(this.provider.get_outspend(*this.outpoint));
-                    *this.state = WatcherStates::WaitingSpends(fut)
-                }
-            }
-            WatcherStates::WaitingMoreConfs(previous_confs, txid, fut) => {
-                let _ready = futures_util::ready!(this.interval.poll_next_unpin(ctx));
-
-                if let Ok(Some(confs)) = futures_util::ready!(fut.as_mut().poll(ctx)) {
-                    // If we have enough confs, ready now
-                    if confs >= *this.confirmations {
-                        let t = *txid;
-                        *this.state = WatcherStates::Completed;
-                        return Poll::Ready(t);
-                    }
-                }
-                // If we want more confs, repeat
-                let fut = Box::pin(this.provider.get_confs(*txid));
-                *this.state = WatcherStates::WaitingMoreConfs(*previous_confs, *txid, fut)
-            }
-            WatcherStates::Completed => {
-                panic!("polled pending transaction future after completion")
-            }
-        }
-
-        Poll::Pending
-    }
-}
 
 impl<'a, P: BTCProvider> futures::stream::Stream for PollingWatcher<'a, P> {
     type Item = (usize, TXID);
@@ -149,12 +103,13 @@ impl<'a, P: BTCProvider> futures::stream::Stream for PollingWatcher<'a, P> {
                     if confs >= *this.confirmations {
                         let t = *txid;
                         *this.state = WatcherStates::Completed;
+                        ctx.waker().wake_by_ref();
                         return Poll::Ready(Some((confs, t)));
                     }
                 }
                 // If we want more confs, repeat
                 let fut = Box::pin(this.provider.get_confs(*txid));
-                *this.state = WatcherStates::WaitingMoreConfs(*previous_confs, *txid, fut)
+                *this.state = WatcherStates::WaitingMoreConfs(*previous_confs, *txid, fut);
             }
 
             WatcherStates::Completed => {
