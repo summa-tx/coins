@@ -14,6 +14,7 @@ use crate::{provider::BTCProvider, utils::interval, ProviderFut, DEFAULT_POLL_IN
 
 /// Polls the API for the chain tip. Updates every time the tip changes
 #[pin_project(project = TipsProj)]
+#[must_use = "streams do nothing unless polled"]
 pub struct Tips<'a, P: BTCProvider> {
     limit: usize,
     interval: Box<dyn Stream<Item = ()> + Send + Unpin>,

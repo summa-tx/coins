@@ -24,6 +24,9 @@ hex = { version = "0.4.2", optional = true }
 serde = { version = "1.0.106", features = ["derive"], optional = true }
 serde_json = { version = "1.0.55", optional = true }
 
+[dev-dependencies]
+tokio = "0.2.21"
+
 [features]
 default = ["mainnet", "esplora"]
 esplora = ["lru", "reqwest", "thiserror", "futures", "hex", "serde", "serde_json"]

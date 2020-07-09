@@ -190,3 +190,25 @@ impl PollingBTCProvider for EsploraProvider {
         self.interval = interval;
     }
 }
+
+#[cfg(test)]
+mod test {
+    // use super::*;
+    // use futures::stream::StreamExt;
+    // use tokio::runtime;
+    //
+    // // runs against live API. leave commented
+    // #[test]
+    // fn it_prints_headers() {
+    //     let fut = async move {
+    //         let provider = EsploraProvider::default();
+    //         let mut tips = provider.tips(10).interval(Duration::from_secs(10));
+    //
+    //         while let Some(next) = tips.next().await {
+    //             dbg!(next.serialize_hex().unwrap());
+    //         }
+    //     };
+    //
+    //     runtime::Runtime::new().unwrap().block_on(fut);
+    // }
+}
