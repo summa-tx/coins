@@ -13,11 +13,12 @@ pub(crate) struct BlockStatus {
 
 impl BlockStatus {
     pub(crate) async fn fetch_by_digest(
+        client: &reqwest::Client,
         api_root: &str,
         digest: BlockHash,
     ) -> Result<Self, FetchError> {
         let url = format!("{}/block/{}/status", api_root, digest.to_be_hex());
-        Ok(utils::ez_fetch_json(&url).await?)
+        Ok(utils::ez_fetch_json(client, &url).await?)
     }
 }
 
@@ -31,9 +32,9 @@ pub(crate) struct EsploraTxStatus {
 }
 
 impl EsploraTxStatus {
-    pub(crate) async fn fetch_by_txid(api_root: &str, txid: TXID) -> Result<Self, FetchError> {
+    pub(crate) async fn fetch_by_txid(client: &reqwest::Client, api_root: &str, txid: TXID) -> Result<Self, FetchError> {
         let url = format!("{}/tx/{}/status", api_root, txid.to_be_hex());
-        Ok(utils::ez_fetch_json(&url).await?)
+        Ok(utils::ez_fetch_json(client, &url).await?)
     }
 }
 
@@ -44,9 +45,9 @@ pub(crate) struct EsploraTx {
 }
 
 impl EsploraTx {
-    pub(crate) async fn fetch_by_txid(api_root: &str, txid: TXID) -> Result<Self, FetchError> {
+    pub(crate) async fn fetch_by_txid(client: &reqwest::Client, api_root: &str, txid: TXID) -> Result<Self, FetchError> {
         let url = format!("{}/tx/{}", api_root, txid.to_be_hex());
-        Ok(utils::ez_fetch_json(&url).await?)
+        Ok(utils::ez_fetch_json(client, &url).await?)
     }
 }
 
@@ -62,11 +63,12 @@ pub(crate) struct EsploraUTXO {
 
 impl EsploraUTXO {
     pub(crate) async fn fetch_by_address(
+        client: &reqwest::Client,
         api_root: &str,
         addr: &Address,
     ) -> Result<Vec<EsploraUTXO>, FetchError> {
         let url = format!("{}/address/{}/utxo", api_root, addr.as_string());
-        Ok(utils::ez_fetch_json(&url).await?)
+        Ok(utils::ez_fetch_json(client, &url).await?)
     }
 
     pub(crate) fn into_utxo(self, addr: &Address) -> Result<UTXO, EsploraError> {
@@ -102,23 +104,25 @@ pub(crate) struct Outspend {
 impl Outspend {
     /// Fetch an Outspend by an outpoint referencing it
     pub(crate) async fn fetch_by_outpoint(
+        client: &reqwest::Client,
         api_root: &str,
         outpoint: &BitcoinOutpoint,
     ) -> Result<Option<Outspend>, FetchError> {
         let txid_be = outpoint.txid_be_hex();
         let idx = outpoint.idx;
-        Outspend::fetch_one(api_root, &txid_be, idx).await
+        Outspend::fetch_one(client, api_root, &txid_be, idx).await
     }
 
     /// Fetch the outspend at a specific index. If this index does not exist, an error will be
     /// returned.
     pub(crate) async fn fetch_one(
+        client: &reqwest::Client,
         api_root: &str,
         txid_be_hex: &str,
         idx: u32,
     ) -> Result<Option<Outspend>, FetchError> {
         let url = format!("{}/tx/{}/outspend/{}", api_root, txid_be_hex, idx);
-        let o: Outspend = utils::ez_fetch_json(&url).await?;
+        let o: Outspend = utils::ez_fetch_json(client, &url).await?;
         if o.txid_be == "" {
             Ok(None)
         } else {
