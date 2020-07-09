@@ -118,7 +118,7 @@ impl BTCProvider for EsploraProvider {
                     return Ok(Some(0));
                 }
                 let height = self.tip_height().await?;
-                Ok(Some(height - tx.status.block_height))
+                Ok(Some(height - tx.status.block_height + 1))
             }
             Err(FetchError::SerdeError(_)) => Ok(None),
             Err(FetchError::RequestError(e)) => Err(FetchError::RequestError(e).into()),

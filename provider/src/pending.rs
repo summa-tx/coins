@@ -32,7 +32,7 @@ enum PendingTxStates<'a, P: BTCProvider> {
 /// each time the poller sees the number of confirmations increase. After receiving
 /// `>= self.confirmations` confirmations, the stream will finish.
 ///
-/// To get only a single event when the stream ends, use `StreamLast::last()`
+/// To get a future yielding a single event when the stream ends, use `StreamLast::last()`
 #[pin_project]
 #[must_use = "streams do nothing unless polled"]
 pub struct PendingTx<'a, P: BTCProvider> {
