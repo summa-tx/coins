@@ -32,6 +32,13 @@ pub const DEFAULT_POLL_INTERVAL: std::time::Duration = std::time::Duration::from
 type Encoder = rmn_btc::Encoder;
 
 // Useful alias for the stateful streams
+#[cfg(target_arch = "wasm32")]
 type ProviderFut<'a, T, P> = std::pin::Pin<
     Box<dyn std::future::Future<Output = Result<T, <P as BTCProvider>::Error>> + 'a>,
+>;
+
+// Useful alias for the stateful streams
+#[cfg(not(target_arch = "wasm32"))]
+type ProviderFut<'a, T, P> = std::pin::Pin<
+    Box<dyn std::future::Future<Output = Result<T, <P as BTCProvider>::Error>> + 'a + Send>,
 >;

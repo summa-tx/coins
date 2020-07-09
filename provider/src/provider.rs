@@ -19,7 +19,8 @@ pub trait ProviderError: std::error::Error {
 }
 
 /// A Bitcoin Provider
-#[async_trait(?Send)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait BTCProvider: Sized {
     /// An error type
     type Error: From<rmn_btc::enc::bases::EncodingError> + ProviderError;
@@ -59,7 +60,8 @@ pub trait BTCProvider: Sized {
 }
 
 /// An extension trait that adds polling watchers for
-#[async_trait(?Send)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait PollingBTCProvider: BTCProvider {
     /// Return the polling duration of the provider
     fn interval(&self) -> Duration;

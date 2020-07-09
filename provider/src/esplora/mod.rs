@@ -92,7 +92,8 @@ impl ProviderError for EsploraError {
     }
 }
 
-#[async_trait(?Send)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl BTCProvider for EsploraProvider {
     type Error = EsploraError;
 
@@ -186,7 +187,8 @@ impl BTCProvider for EsploraProvider {
     }
 }
 
-#[async_trait(?Send)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl PollingBTCProvider for EsploraProvider {
     fn interval(&self) -> Duration {
         Duration::from_secs(self.interval as u64)
