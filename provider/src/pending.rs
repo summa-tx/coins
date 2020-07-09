@@ -80,7 +80,7 @@ impl<'a, P: BTCProvider> PendingTx<'a, P> {
 
 impl<P: BTCProvider> StreamLast for PendingTx<'_, P> {}
 
-impl<'a, P: BTCProvider> futures::stream::Stream for PendingTx<'a, P> {
+impl<'a, P: BTCProvider> futures_core::stream::Stream for PendingTx<'a, P> {
     type Item = Result<(usize, TXID), BitcoinTx>;
 
     fn poll_next(self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Option<Self::Item>> {

@@ -43,7 +43,7 @@ impl<'a, P: BTCProvider> Tips<'a, P> {
     }
 }
 
-impl<'a, P: BTCProvider> futures::stream::Stream for Tips<'a, P> {
+impl<'a, P: BTCProvider> futures_core::Stream for Tips<'a, P> {
     type Item = BlockHash;
 
     fn poll_next(self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Option<Self::Item>> {

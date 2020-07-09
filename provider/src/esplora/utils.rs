@@ -7,27 +7,24 @@ use rmn_btc::prelude::TXID;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-/// An error type returned by the networking layer. We alias this to abstract it and unify
-/// the SwapError::APIError type.
-#[cfg(target_arch = "wasm32")]
-pub type RequestError = JsValue;
-
-/// An error type returned by the networking layer. We alias this to abstract it and unify
-/// the SwapError::APIError type.
-#[cfg(not(target_arch = "wasm32"))]
-pub type RequestError = reqwest::Error;
-
 #[derive(Debug, Error)]
 pub enum FetchError {
+    /// Serde issue
     #[error(transparent)]
     SerdeError(#[from] serde_json::Error),
-    #[error("RequestError: {0:?}")]
-    RequestError(RequestError),
+    /// Reqwest issue
+    #[error(transparent)]
+    ReqwestError(#[from] reqwest::Error),
+
+    #[cfg(target_arch = "wasm32")]
+    #[error("JsValue: {0:?}")]
+    JsValue(JsValue),
 }
 
-impl From<RequestError> for FetchError {
-    fn from(v: RequestError) -> FetchError {
-        FetchError::RequestError(v)
+#[cfg(target_arch = "wasm32")]
+impl From<JsValue> for FetchError {
+    fn from(v: JsValue) -> FetchError {
+        FetchError::JsValue(v)
     }
 }
 

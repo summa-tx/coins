@@ -19,7 +19,7 @@ pub trait ProviderError: std::error::Error {
 }
 
 /// A Bitcoin Provider
-#[async_trait]
+#[async_trait(?Send)]
 pub trait BTCProvider: Sized {
     /// An error type
     type Error: From<rmn_btc::enc::bases::EncodingError> + ProviderError;
@@ -59,7 +59,7 @@ pub trait BTCProvider: Sized {
 }
 
 /// An extension trait that adds polling watchers for
-#[async_trait]
+#[async_trait(?Send)]
 pub trait PollingBTCProvider: BTCProvider {
     /// Return the polling duration of the provider
     fn interval(&self) -> Duration;

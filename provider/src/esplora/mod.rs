@@ -5,7 +5,7 @@ use types::*;
 use utils::*;
 
 use async_trait::async_trait;
-use futures::lock::Mutex;
+use futures_util::lock::Mutex;
 use lru::LruCache;
 use std::time::Duration;
 use thiserror::Error;
@@ -86,13 +86,13 @@ pub enum EsploraError {
 impl ProviderError for EsploraError {
     fn is_network(&self) -> bool {
         match self {
-            EsploraError::FetchError(FetchError::RequestError(_)) => true,
+            EsploraError::FetchError(FetchError::ReqwestError(_)) => true,
             _ => false,
         }
     }
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl BTCProvider for EsploraProvider {
     type Error = EsploraError;
 
@@ -131,8 +131,14 @@ impl BTCProvider for EsploraProvider {
                 let height = self.tip_height().await?;
                 Ok(Some(height - tx.status.block_height + 1))
             }
-            Err(FetchError::SerdeError(_)) => Ok(None),
-            Err(FetchError::RequestError(e)) => Err(FetchError::RequestError(e).into()),
+            Err(e) => {
+                let e: Self::Error = e.into();
+                if e.is_network() {
+                    Err(e)
+                } else  {
+                    Ok(None)
+                }
+            }
         }
     }
 
@@ -180,7 +186,7 @@ impl BTCProvider for EsploraProvider {
     }
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl PollingBTCProvider for EsploraProvider {
     fn interval(&self) -> Duration {
         Duration::from_secs(self.interval as u64)
@@ -194,7 +200,7 @@ impl PollingBTCProvider for EsploraProvider {
 #[cfg(test)]
 mod test {
     // use super::*;
-    // use futures::stream::StreamExt;
+    // use futures_core::stream::StreamExt;
     // use tokio::runtime;
     //
     // // runs against live API. leave commented

@@ -74,7 +74,7 @@ impl<'a, P: BTCProvider> PollingWatcher<'a, P> {
 
 impl<P: BTCProvider> StreamLast for PollingWatcher<'_, P> {}
 
-impl<'a, P: BTCProvider> futures::stream::Stream for PollingWatcher<'a, P> {
+impl<'a, P: BTCProvider> futures_core::stream::Stream for PollingWatcher<'a, P> {
     type Item = (usize, TXID);
 
     fn poll_next(self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Option<Self::Item>> {

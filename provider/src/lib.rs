@@ -33,5 +33,5 @@ type Encoder = rmn_btc::Encoder;
 
 // Useful alias for the stateful streams
 type ProviderFut<'a, T, P> = std::pin::Pin<
-    Box<dyn std::future::Future<Output = Result<T, <P as BTCProvider>::Error>> + 'a + Send>,
+    Box<dyn std::future::Future<Output = Result<T, <P as BTCProvider>::Error>> + 'a>,
 >;
