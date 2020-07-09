@@ -13,7 +13,7 @@ use thiserror::Error;
 use riemann_core::prelude::*;
 use rmn_btc::prelude::*;
 
-use crate::{BTCProvider, PollingBTCProvider};
+use crate::{BTCProvider, PollingBTCProvider, ProviderError};
 
 #[cfg(feature = "mainnet")]
 static BLOCKSTREAM: &str = "https://blockstream.info/api";
@@ -43,7 +43,7 @@ impl EsploraProvider {
             interval: 300,
             api_root: api_root.to_owned(),
             cache: Mutex::new(LruCache::new(100)),
-            client: Default::default()
+            client: Default::default(),
         }
     }
 
@@ -83,6 +83,15 @@ pub enum EsploraError {
     RmnSerError(#[from] riemann_core::ser::SerError),
 }
 
+impl ProviderError for EsploraError {
+    fn is_network(&self) -> bool {
+        match self {
+            EsploraError::FetchError(FetchError::RequestError(_)) => true,
+            _ => false,
+        }
+    }
+}
+
 #[async_trait]
 impl BTCProvider for EsploraProvider {
     type Error = EsploraError;
@@ -100,9 +109,11 @@ impl BTCProvider for EsploraProvider {
     }
 
     async fn in_best_chain(&self, digest: BlockHash) -> Result<bool, Self::Error> {
-        Ok(BlockStatus::fetch_by_digest(&self.client, &self.api_root, digest)
-            .await?
-            .in_best_chain)
+        Ok(
+            BlockStatus::fetch_by_digest(&self.client, &self.api_root, digest)
+                .await?
+                .in_best_chain,
+        )
     }
 
     async fn get_confs(&self, txid: TXID) -> Result<Option<usize>, Self::Error> {
@@ -136,7 +147,8 @@ impl BTCProvider for EsploraProvider {
     }
 
     async fn get_outspend(&self, outpoint: BitcoinOutpoint) -> Result<Option<TXID>, Self::Error> {
-        let outspend_opt = Outspend::fetch_by_outpoint(&self.client, &self.api_root, &outpoint).await?;
+        let outspend_opt =
+            Outspend::fetch_by_outpoint(&self.client, &self.api_root, &outpoint).await?;
 
         match outspend_opt {
             Some(outspend) => {

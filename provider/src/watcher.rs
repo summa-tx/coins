@@ -121,7 +121,6 @@ impl<'a, P: BTCProvider> futures::stream::Stream for PollingWatcher<'a, P> {
                         return Poll::Ready(Some((confs, t)));
                     }
                 }
-
             }
             WatcherStates::Completed => {
                 return Poll::Ready(None);

@@ -10,11 +10,7 @@ use pin_project::pin_project;
 
 use rmn_btc::prelude::*;
 
-use crate::{
-    provider::BTCProvider,
-    utils::interval,
-    ProviderFut, DEFAULT_POLL_INTERVAL,
-};
+use crate::{provider::BTCProvider, utils::interval, ProviderFut, DEFAULT_POLL_INTERVAL};
 
 /// Polls the API for the chain tip. Updates every time the tip changes
 #[pin_project(project = TipsProj)]
@@ -28,7 +24,7 @@ pub struct Tips<'a, P: BTCProvider> {
 
 impl<'a, P: BTCProvider> Tips<'a, P> {
     /// Instantiate a new Tips. Return at most `limit` new chaintips.
-    pub fn new(limit: usize, provider: &'a P,) -> Self {
+    pub fn new(limit: usize, provider: &'a P) -> Self {
         let fut = Box::pin(provider.tip_hash());
         Self {
             limit,
@@ -50,7 +46,13 @@ impl<'a, P: BTCProvider> futures::stream::Stream for Tips<'a, P> {
     type Item = BlockHash;
 
     fn poll_next(self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Option<Self::Item>> {
-        let TipsProj { limit, interval, provider, fut_opt, last } = self.project();
+        let TipsProj {
+            limit,
+            interval,
+            provider,
+            fut_opt,
+            last,
+        } = self.project();
 
         // if our limit has run down, end the stream
         if *limit == 0 {

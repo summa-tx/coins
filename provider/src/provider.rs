@@ -10,11 +10,19 @@ use rmn_btc::{
 
 use crate::{chain::Tips, pending::PendingTx, watcher::PollingWatcher};
 
+/// A trait
+pub trait ProviderError: std::error::Error {
+    /// Returns true if the error originated from network issues.
+    ///
+    /// This is used to determine if retrying a request is appropriate
+    fn is_network(&self) -> bool;
+}
+
 /// A Bitcoin Provider
 #[async_trait]
 pub trait BTCProvider: Sized {
     /// An error type
-    type Error: From<rmn_btc::enc::bases::EncodingError> + std::error::Error;
+    type Error: From<rmn_btc::enc::bases::EncodingError> + ProviderError;
 
     /// Fetch the LE digest of the chain tip
     async fn tip_hash(&self) -> Result<BlockHash, Self::Error>;

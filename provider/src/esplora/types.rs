@@ -31,7 +31,11 @@ pub(crate) struct EsploraTxStatus {
 }
 
 impl EsploraTxStatus {
-    pub(crate) async fn fetch_by_txid(client: &reqwest::Client, api_root: &str, txid: TXID) -> Result<Self, FetchError> {
+    pub(crate) async fn fetch_by_txid(
+        client: &reqwest::Client,
+        api_root: &str,
+        txid: TXID,
+    ) -> Result<Self, FetchError> {
         let url = format!("{}/tx/{}/status", api_root, txid.to_be_hex());
         Ok(utils::ez_fetch_json(client, &url).await?)
     }
@@ -44,7 +48,11 @@ pub(crate) struct EsploraTx {
 }
 
 impl EsploraTx {
-    pub(crate) async fn fetch_by_txid(client: &reqwest::Client, api_root: &str, txid: TXID) -> Result<Self, FetchError> {
+    pub(crate) async fn fetch_by_txid(
+        client: &reqwest::Client,
+        api_root: &str,
+        txid: TXID,
+    ) -> Result<Self, FetchError> {
         let url = format!("{}/tx/{}", api_root, txid.to_be_hex());
         Ok(utils::ez_fetch_json(client, &url).await?)
     }
