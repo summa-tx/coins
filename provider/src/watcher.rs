@@ -19,6 +19,7 @@ use crate::{
 enum WatcherStates<'a, P: BTCProvider> {
     // Waiting for a tx to spend
     WaitingSpends(ProviderFut<'a, Option<TXID>, P>),
+    Paused(usize, TXID),
     // Tx known, getting confs
     WaitingMoreConfs(usize, TXID, ProviderFut<'a, Option<usize>, P>),
     // Future has completed, and should panic if polled again
@@ -29,6 +30,7 @@ enum WatcherStates<'a, P: BTCProvider> {
 ///
 /// TODO: refactor to use `Outspend`?
 #[pin_project]
+#[must_use = "streams do nothing unless polled"]
 pub struct PollingWatcher<'a, P: BTCProvider> {
     outpoint: BitcoinOutpoint,
     confirmations: usize,
@@ -73,28 +75,34 @@ impl<'a, P: BTCProvider> futures::stream::Stream for PollingWatcher<'a, P> {
 
         match this.state {
             WatcherStates::WaitingSpends(fut) => {
-                let _ready = futures_util::ready!(this.interval.poll_next_unpin(ctx));
-
-                if let Ok(Some(txid)) = futures_util::ready!(fut.as_mut().poll(ctx)) {
-                    // If we want >0 confs, go to getting confs
-                    let fut = Box::pin(this.provider.get_confs(txid));
-                    *this.state = WatcherStates::WaitingMoreConfs(0, txid, fut);
-                    return Poll::Ready(Some((0, txid)));
+                if let Poll::Ready(Ok(Some(txid))) = fut.as_mut().poll(ctx) {
+                    if *this.confirmations > 0 {
+                        let fut = Box::pin(this.provider.get_confs(txid));
+                        *this.state = WatcherStates::WaitingMoreConfs(0, txid, fut);
+                        return Poll::Ready(Some((0, txid)));
+                    } else {
+                        *this.state = WatcherStates::Completed;
+                        ctx.waker().wake_by_ref();
+                        return Poll::Ready(Some((0, txid)));
+                    }
                 } else {
                     // Continue otherwise
+                    let _ready = futures_util::ready!(this.interval.poll_next_unpin(ctx));
                     let fut = Box::pin(this.provider.get_outspend(*this.outpoint));
                     *this.state = WatcherStates::WaitingSpends(fut);
                 }
             }
-            WatcherStates::WaitingMoreConfs(previous_confs, txid, fut) => {
+            WatcherStates::Paused(previous_confs, txid) => {
                 let _ready = futures_util::ready!(this.interval.poll_next_unpin(ctx));
-
+                let fut = Box::pin(this.provider.get_confs(*txid));
+                *this.state = WatcherStates::WaitingMoreConfs(*previous_confs, *txid, fut);
+            }
+            WatcherStates::WaitingMoreConfs(previous_confs, txid, fut) => {
                 if let Ok(Some(confs)) = futures_util::ready!(fut.as_mut().poll(ctx)) {
                     // If we're not at our limit
                     if confs > *previous_confs && confs < *this.confirmations {
                         let t = *txid;
-                        let fut = Box::pin(this.provider.get_confs(t));
-                        *this.state = WatcherStates::WaitingMoreConfs(confs, t, fut);
+                        *this.state = WatcherStates::Paused(confs, t);
                         return Poll::Ready(Some((confs, t)));
                     }
 
@@ -106,11 +114,8 @@ impl<'a, P: BTCProvider> futures::stream::Stream for PollingWatcher<'a, P> {
                         return Poll::Ready(Some((confs, t)));
                     }
                 }
-                // If we want more confs, repeat
-                let fut = Box::pin(this.provider.get_confs(*txid));
-                *this.state = WatcherStates::WaitingMoreConfs(*previous_confs, *txid, fut);
-            }
 
+            }
             WatcherStates::Completed => {
                 return Poll::Ready(None);
             }
