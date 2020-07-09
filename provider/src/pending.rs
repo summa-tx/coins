@@ -24,9 +24,9 @@ enum PendingTxStates<'a, P: BTCProvider> {
     Completed,
 }
 
-/// A Pending transaction. Periodically polls the API to see if it has been confirmed.
+/// A pending transaction. Periodically polls the API to see if it has been confirmed.
 ///
-/// This struct implements both `futures::stream::Stream`.
+/// This struct implements `futures::stream::Stream`.
 ///
 /// When used as a `Stream`, the stream will produce a value when the tx has been broadcast, and
 /// each time the poller sees the number of confirmations increase. After receiving

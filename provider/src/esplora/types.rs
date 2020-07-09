@@ -3,7 +3,6 @@ use rmn_btc::prelude::*;
 
 use crate::esplora::*;
 
-// TODO: refactor to use a connection?
 #[derive(serde::Deserialize, Clone, Debug)]
 pub(crate) struct BlockStatus {
     pub in_best_chain: bool,

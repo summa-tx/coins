@@ -26,9 +26,16 @@ enum WatcherStates<'a, P: BTCProvider> {
     Completed,
 }
 
-/// Polls the API for the tx that spends an outpoint
+/// An stream that monitors a UTXO by its outpoint. Periodically polls the API to see if the UTXO
+/// has been spent.
 ///
-/// TODO: refactor to use `Outspend`?
+/// This struct implements `futures::stream::Stream`.
+///
+/// When used as a `Stream`, the stream will produce a value when a tx has been broadcast, and
+/// each time the poller sees the number of confirmations increase. After receiving
+/// `>= self.confirmations` confirmations, the stream will finish.
+///
+/// To get only a single event when the stream ends, use `StreamLast::last()`
 #[pin_project]
 #[must_use = "streams do nothing unless polled"]
 pub struct PollingWatcher<'a, P: BTCProvider> {
