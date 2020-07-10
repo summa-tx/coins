@@ -134,8 +134,7 @@ mod test {
             )
             .unwrap()
             .build()
-            .serialize_hex()
-            .unwrap();
+            .serialize_hex();
         BitcoinMainnet::builder_from_hex(&tx_hex).unwrap();
         // println!("{:?}", b);
     }

@@ -44,7 +44,7 @@ pub(crate) async fn fetch_tx_hex_by_id(
     api_root: &str,
     txid: TXID,
 ) -> Result<String, FetchError> {
-    fetch_tx_hex(client, api_root, &txid.reversed().serialize_hex().unwrap()).await
+    fetch_tx_hex(client, api_root, &txid.reversed().serialize_hex()).await
 }
 
 pub(crate) async fn fetch_it(

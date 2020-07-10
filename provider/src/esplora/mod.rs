@@ -182,7 +182,7 @@ impl BTCProvider for EsploraProvider {
 
     async fn broadcast(&self, tx: BitcoinTx) -> Result<TXID, Self::Error> {
         let url = format!("{}/tx", self.api_root);
-        let response = utils::post_hex(&self.client, &url, tx.serialize_hex()?).await?;
+        let response = utils::post_hex(&self.client, &url, tx.serialize_hex()).await?;
         Ok(TXID::deserialize_hex(&response)?)
     }
 }

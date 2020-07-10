@@ -34,8 +34,8 @@ mod test {
             let digest = TXID::deserialize_hex(case.1).unwrap();
             assert_eq!(digest.serialized_length(), 32);
             assert_eq!(digest, case.0);
-            assert_eq!(digest.serialize_hex().unwrap(), case.1);
-            assert_eq!(case.0.serialize_hex().unwrap(), case.1);
+            assert_eq!(digest.serialize_hex(), case.1);
+            assert_eq!(case.0.serialize_hex(), case.1);
         }
     }
 }

@@ -59,7 +59,7 @@ impl BitcoinTx {
     }
 
     /// Serialize the transaction to a hex string.
-    pub fn serialize_hex(&self) -> Result<String, TxError> {
+    pub fn serialize_hex(&self) -> String {
         match self {
             BitcoinTx::Witness(tx) => tx.serialize_hex(),
             BitcoinTx::Legacy(tx) => tx.serialize_hex(),

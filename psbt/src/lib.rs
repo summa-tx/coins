@@ -117,10 +117,7 @@ impl<T: BitcoinEncoderMarker, E: Bip32Encoder> serde::Serialize for PSBT<T, E> {
     where
         S: serde::Serializer,
     {
-        let s = self
-            .serialize_base64()
-            .map_err(|e| serde::ser::Error::custom(e.to_string()))?;
-        serializer.serialize_str(&s)
+        serializer.serialize_str(&self.serialize_base64())
     }
 }
 
@@ -435,7 +432,7 @@ mod test {
             let p = MainnetPSBT::deserialize_hex(case).unwrap();
 
             // Check for non-modification
-            assert_eq!(p.serialize_hex().unwrap(), case.to_owned().to_string());
+            assert_eq!(p.serialize_hex(), case.to_owned().to_string());
             // println!("{:?}", p);
         }
     }

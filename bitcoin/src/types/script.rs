@@ -223,12 +223,12 @@ mod test {
         ];
         for case in cases.iter() {
             let prevout_script = Script::deserialize_hex(case.1).unwrap();
-            assert_eq!(case.0.serialize_hex().unwrap(), case.1);
+            assert_eq!(case.0.serialize_hex(), case.1);
             assert_eq!(case.0.len(), case.2);
             assert_eq!(case.0.is_empty(), case.2 == 0);
 
             assert_eq!(prevout_script, case.0);
-            assert_eq!(prevout_script.serialize_hex().unwrap(), case.1);
+            assert_eq!(prevout_script.serialize_hex(), case.1);
             assert_eq!(prevout_script.len(), case.2);
             assert_eq!(prevout_script.is_empty(), case.2 == 0);
         }
@@ -249,12 +249,12 @@ mod test {
         ];
         for case in cases.iter() {
             let prevout_script = WitnessStackItem::deserialize_hex(case.1).unwrap();
-            assert_eq!(case.0.serialize_hex().unwrap(), case.1);
+            assert_eq!(case.0.serialize_hex(), case.1);
             assert_eq!(case.0.len(), case.2);
             assert_eq!(case.0.is_empty(), case.2 == 0);
 
             assert_eq!(prevout_script, case.0);
-            assert_eq!(prevout_script.serialize_hex().unwrap(), case.1);
+            assert_eq!(prevout_script.serialize_hex(), case.1);
             assert_eq!(prevout_script.len(), case.2);
             assert_eq!(prevout_script.is_empty(), case.2 == 0);
         }

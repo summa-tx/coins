@@ -43,7 +43,8 @@
 #![warn(missing_docs)]
 
 #[macro_use]
-pub(crate) mod prelude;
+#[doc(hidden)]
+pub mod macros;
 
 pub mod builder;
 pub mod enc;

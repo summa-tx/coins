@@ -279,17 +279,17 @@ pub trait ByteFormat {
         W: Write;
 
     /// Serializes `self` to a vector, returns the hex-encoded vector
-    fn serialize_hex(&self) -> Result<String, <Self as ByteFormat>::Error> {
+    fn serialize_hex(&self) -> String {
         let mut v: Vec<u8> = vec![];
-        self.write_to(&mut v)?;
-        Ok(hex::encode(v))
+        self.write_to(&mut v).expect("No error on heap write");
+        hex::encode(v)
     }
 
     /// Serialize `self` to a base64 string, using standard RFC4648 non-url safe characters
-    fn serialize_base64(&self) -> Result<String, <Self as ByteFormat>::Error> {
+    fn serialize_base64(&self) -> String {
         let mut v: Vec<u8> = vec![];
-        self.write_to(&mut v)?;
-        Ok(base64::encode(v))
+        self.write_to(&mut v).expect("No error on heap write");
+        base64::encode(v)
     }
 }
 

@@ -80,10 +80,8 @@ macro_rules! wrap_struct {
             }
 
             /// Serialize to a hex string.
-            pub fn serialize_hex(&self) -> Result<String, JsValue> {
+            pub fn serialize_hex(&self) -> String {
                 self.0.serialize_hex()
-                    .map_err(crate::types::errors::WasmError::from)
-                    .map_err(JsValue::from)
             }
 
             /// Deserialize from base64.
@@ -95,10 +93,8 @@ macro_rules! wrap_struct {
             }
 
             /// Serialize to a base64 string.
-            pub fn serialize_base64(&self) -> Result<String, JsValue> {
+            pub fn serialize_base64(&self) -> String {
                 self.0.serialize_base64()
-                    .map_err(crate::types::errors::WasmError::from)
-                    .map_err(JsValue::from)
             }
         }
     }

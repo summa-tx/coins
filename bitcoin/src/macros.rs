@@ -9,8 +9,7 @@ macro_rules! impl_hex_serde {
             where
                 S: serde::Serializer,
             {
-                let s = riemann_core::ser::ByteFormat::serialize_hex(self)
-                    .map_err(|e| serde::ser::Error::custom(e.to_string()))?;
+                let s = riemann_core::ser::ByteFormat::serialize_hex(self);
                 serializer.serialize_str(&s)
             }
         }
@@ -205,7 +204,7 @@ macro_rules! mark_hash256 {
 
             /// Convert to BE hex
             pub fn to_be_hex(&self) -> String {
-                riemann_core::ser::ByteFormat::serialize_hex(&self.reversed()).unwrap()
+                riemann_core::ser::ByteFormat::serialize_hex(&self.reversed())
             }
         }
 
