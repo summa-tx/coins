@@ -12,6 +12,8 @@ The `PollingBTCProvider` trait can extend the `BTCProvider` with useful
 functionality like a polling chain-tip stream, a pending tx that streams
 confirmations, and a UTXO watcher that streams spend notifications.
 
+## Usage example
+
 ```rust
 use futures_core::stream::StreamExt;
 use tokio::runtime;

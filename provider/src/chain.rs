@@ -82,6 +82,7 @@ impl<'a, P: BTCProvider> futures_core::Stream for Tips<'a, P> {
         // if the interval has elapsed, reset the fut
         let _ready = futures_util::ready!(interval.poll_next_unpin(ctx));
         *fut_opt = Some(Box::pin(provider.tip_hash()));
+        ctx.waker().wake_by_ref();
         Poll::Pending
     }
 }

@@ -26,7 +26,7 @@ enum WatcherStates<'a, P: BTCProvider> {
     Completed,
 }
 
-/// An stream that monitors a UTXO by its outpoint. Periodically polls the API to see if the UTXO
+/// A stream that monitors a UTXO by its outpoint. Periodically polls the API to see if the UTXO
 /// has been spent.
 ///
 /// This struct implements `futures::stream::Stream`.
@@ -109,6 +109,7 @@ impl<'a, P: BTCProvider> futures_core::stream::Stream for PollingWatcher<'a, P> 
                 let _ready = futures_util::ready!(interval.poll_next_unpin(ctx));
                 let fut = Box::pin(provider.get_confs(*txid));
                 *state = WatcherStates::WaitingMoreConfs(*previous_confs, *txid, fut);
+                ctx.waker().wake_by_ref();
             }
             WatcherStates::WaitingMoreConfs(previous_confs, txid, fut) => {
                 if let Ok(Some(confs)) = futures_util::ready!(fut.as_mut().poll(ctx)) {

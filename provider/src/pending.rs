@@ -107,6 +107,7 @@ impl<'a, P: BTCProvider> futures_core::stream::Stream for PendingTx<'a, P> {
                 // If we want more confs, repeat
                 let fut = Box::pin(provider.get_confs(*txid));
                 *state = PendingTxStates::WaitingConfFut(fut);
+                ctx.waker().wake_by_ref();
             }
             PendingTxStates::WaitingConfFut(fut) => {
                 match futures_util::ready!(fut.as_mut().poll(ctx)) {
