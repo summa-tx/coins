@@ -4,6 +4,10 @@
 #![warn(missing_docs)]
 #![warn(unused_extern_crates)]
 
+#[doc(hidden)]
+#[macro_use]
+pub mod macros;
+
 /// Bitcoin Provider trait
 pub mod provider;
 

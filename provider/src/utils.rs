@@ -15,7 +15,7 @@ use futures_util::{
 use std::time::Duration;
 
 // Async delay stream
-pub(crate) fn interval(duration: Duration) -> impl Stream<Item = ()> + Send + Unpin {
+pub(crate) fn new_interval(duration: Duration) -> impl Stream<Item = ()> + Send + Unpin {
     stream::unfold((), move |_| Delay::new(duration).map(|_| Some(((), ())))).map(drop)
 }
 

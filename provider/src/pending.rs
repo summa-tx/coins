@@ -12,7 +12,7 @@ use rmn_btc::prelude::*;
 
 use crate::{
     provider::{BTCProvider, ProviderError},
-    utils::{interval, StreamLast},
+    utils::{new_interval, StreamLast},
     ProviderFut, DEFAULT_POLL_INTERVAL,
 };
 
@@ -60,7 +60,7 @@ impl<'a, P: BTCProvider> PendingTx<'a, P> {
             confs_wanted: 0,
             confs_have: 0,
             state: PendingTxStates::Broadcasting(fut),
-            interval: Box::new(interval(DEFAULT_POLL_INTERVAL)),
+            interval: Box::new(new_interval(DEFAULT_POLL_INTERVAL)),
             provider,
         }
     }
@@ -73,7 +73,7 @@ impl<'a, P: BTCProvider> PendingTx<'a, P> {
 
     /// Sets the polling interval
     pub fn interval<T: Into<Duration>>(mut self, duration: T) -> Self {
-        self.interval = Box::new(interval(duration.into()));
+        self.interval = Box::new(new_interval(duration.into()));
         self
     }
 }
@@ -103,11 +103,8 @@ impl<'a, P: BTCProvider> futures_core::stream::Stream for PendingTx<'a, P> {
                 }
             }
             PendingTxStates::Paused => {
-                let _ready = futures_util::ready!(interval.poll_next_unpin(ctx));
-                // If we want more confs, repeat
-                let fut = Box::pin(provider.get_confs(*txid));
+                let fut = unpause!(ctx, interval, provider.get_confs(*txid));
                 *state = PendingTxStates::WaitingConfFut(fut);
-                ctx.waker().wake_by_ref();
             }
             PendingTxStates::WaitingConfFut(fut) => {
                 match futures_util::ready!(fut.as_mut().poll(ctx)) {

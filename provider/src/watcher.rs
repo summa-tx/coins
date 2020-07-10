@@ -12,7 +12,7 @@ use rmn_btc::prelude::*;
 
 use crate::{
     provider::BTCProvider,
-    utils::{interval, StreamLast},
+    utils::{new_interval, StreamLast},
     ProviderFut, DEFAULT_POLL_INTERVAL,
 };
 
@@ -54,7 +54,7 @@ impl<'a, P: BTCProvider> PollingWatcher<'a, P> {
             outpoint,
             confirmations: 0,
             state: WatcherStates::WaitingSpends(fut),
-            interval: Box::new(interval(DEFAULT_POLL_INTERVAL)),
+            interval: Box::new(new_interval(DEFAULT_POLL_INTERVAL)),
             provider,
         }
     }
@@ -67,7 +67,7 @@ impl<'a, P: BTCProvider> PollingWatcher<'a, P> {
 
     /// Sets the polling interval
     pub fn interval<T: Into<Duration>>(mut self, duration: T) -> Self {
-        self.interval = Box::new(interval(duration.into()));
+        self.interval = Box::new(new_interval(duration.into()));
         self
     }
 }
@@ -100,16 +100,13 @@ impl<'a, P: BTCProvider> futures_core::stream::Stream for PollingWatcher<'a, P> 
                     }
                 } else {
                     // Continue otherwise
-                    let _ready = futures_util::ready!(interval.poll_next_unpin(ctx));
-                    let fut = Box::pin(provider.get_outspend(*outpoint));
+                    let fut = unpause!(ctx, interval, provider.get_outspend(*outpoint));
                     *state = WatcherStates::WaitingSpends(fut);
                 }
             }
             WatcherStates::Paused(previous_confs, txid) => {
-                let _ready = futures_util::ready!(interval.poll_next_unpin(ctx));
-                let fut = Box::pin(provider.get_confs(*txid));
+                let fut = unpause!(ctx, interval, provider.get_confs(*txid));
                 *state = WatcherStates::WaitingMoreConfs(*previous_confs, *txid, fut);
-                ctx.waker().wake_by_ref();
             }
             WatcherStates::WaitingMoreConfs(previous_confs, txid, fut) => {
                 if let Ok(Some(confs)) = futures_util::ready!(fut.as_mut().poll(ctx)) {

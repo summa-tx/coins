@@ -10,7 +10,7 @@ use pin_project::pin_project;
 
 use rmn_btc::prelude::*;
 
-use crate::{provider::BTCProvider, utils::interval, ProviderFut, DEFAULT_POLL_INTERVAL};
+use crate::{provider::BTCProvider, utils::new_interval, ProviderFut, DEFAULT_POLL_INTERVAL};
 
 /// Polls the API for the chain tip. Updates every time the tip changes
 #[pin_project(project = TipsProj)]
@@ -29,7 +29,7 @@ impl<'a, P: BTCProvider> Tips<'a, P> {
         let fut = Box::pin(provider.tip_hash());
         Self {
             limit,
-            interval: Box::new(interval(DEFAULT_POLL_INTERVAL)),
+            interval: Box::new(new_interval(DEFAULT_POLL_INTERVAL)),
             provider,
             fut_opt: Some(fut),
             last: None,
@@ -38,7 +38,7 @@ impl<'a, P: BTCProvider> Tips<'a, P> {
 
     /// Sets the polling interval
     pub fn interval<T: Into<Duration>>(mut self, duration: T) -> Self {
-        self.interval = Box::new(interval(duration.into()));
+        self.interval = Box::new(new_interval(duration.into()));
         self
     }
 }
@@ -80,9 +80,8 @@ impl<'a, P: BTCProvider> futures_core::Stream for Tips<'a, P> {
         }
 
         // if the interval has elapsed, reset the fut
-        let _ready = futures_util::ready!(interval.poll_next_unpin(ctx));
-        *fut_opt = Some(Box::pin(provider.tip_hash()));
-        ctx.waker().wake_by_ref();
+        let fut = unpause!(ctx, interval, provider.tip_hash());
+        *fut_opt = Some(fut);
         Poll::Pending
     }
 }
