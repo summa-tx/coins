@@ -11,7 +11,7 @@ use pin_project::pin_project;
 use rmn_btc::prelude::*;
 
 use crate::{
-    provider::BTCProvider,
+    provider::{BTCProvider, ProviderError},
     utils::{new_interval, StreamLast},
     ProviderFut, DEFAULT_POLL_INTERVAL,
 };
@@ -90,10 +90,12 @@ impl<'a, P: BTCProvider> futures_core::stream::Stream for PollingWatcher<'a, P> 
             WatcherStates::WaitingSpends(fut) => {
                 if let Poll::Ready(Ok(Some(txid))) = fut.as_mut().poll(ctx) {
                     if *confirmations > 0 {
+                        // if we need >0 confs start waiting for more
                         let fut = Box::pin(provider.get_confs(txid));
                         *state = WatcherStates::WaitingMoreConfs(0, txid, fut);
                         return Poll::Ready(Some((0, txid)));
                     } else {
+                        // if 0 confs, end the stream on the first seen tx
                         *state = WatcherStates::Completed;
                         ctx.waker().wake_by_ref();
                         return Poll::Ready(Some((0, txid)));
@@ -109,20 +111,39 @@ impl<'a, P: BTCProvider> futures_core::stream::Stream for PollingWatcher<'a, P> 
                 *state = WatcherStates::WaitingMoreConfs(*previous_confs, *txid, fut);
             }
             WatcherStates::WaitingMoreConfs(previous_confs, txid, fut) => {
-                if let Ok(Some(confs)) = futures_util::ready!(fut.as_mut().poll(ctx)) {
-                    // If we're not at our limit
-                    if confs > *previous_confs && confs < *confirmations {
-                        let t = *txid;
-                        *state = WatcherStates::Paused(confs, t);
-                        return Poll::Ready(Some((confs, t)));
-                    }
+                match futures_util::ready!(fut.as_mut().poll(ctx)) {
+                    // Spend tx has dropped from the mempool. Go back to `WaitingSpends`
+                    Ok(None) => {
+                        let fut = Box::pin(provider.get_outspend(*outpoint));
+                        *state = WatcherStates::WaitingSpends(fut);
+                    },
+                    // Spend tx has confs. Check if there are any new ones
+                    Ok(Some(confs)) => {
+                        // If we're not at our limit, pause for the interval
+                        if confs > *previous_confs && confs < *confirmations {
+                            let t = *txid;
+                            *state = WatcherStates::Paused(confs, t);
+                            return Poll::Ready(Some((confs, t)));
+                        }
 
-                    // If we have enough confs, ready now
-                    if confs >= *confirmations {
-                        let t = *txid;
-                        *state = WatcherStates::Completed;
-                        ctx.waker().wake_by_ref();
-                        return Poll::Ready(Some((confs, t)));
+                        // If we have enough confs, go to completed
+                        if confs >= *confirmations {
+                            let t = *txid;
+                            *state = WatcherStates::Completed;
+                            ctx.waker().wake_by_ref();
+                            return Poll::Ready(Some((confs, t)));
+                        }
+                    },
+                    Err(e) => {
+                        // Retry network errors
+                        if e.is_network() {
+                            *state = WatcherStates::Paused(*previous_confs, *txid);
+                            return Poll::Pending;
+                        }
+                        // TODO: handle better?
+                        panic!(
+                            "Non-network error in pending tx polling. This shouldn't be reachable"
+                        );
                     }
                 }
             }
