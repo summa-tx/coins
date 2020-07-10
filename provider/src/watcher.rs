@@ -75,7 +75,7 @@ impl<'a, P: BTCProvider> PollingWatcher<'a, P> {
 impl<P: BTCProvider> StreamLast for PollingWatcher<'_, P> {}
 
 impl<'a, P: BTCProvider> futures_core::stream::Stream for PollingWatcher<'a, P> {
-    type Item = (usize, TXID);
+    type Item = (usize, Option<TXID>);
 
     fn poll_next(self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Option<Self::Item>> {
         let PollingWatcherProj {
@@ -93,12 +93,12 @@ impl<'a, P: BTCProvider> futures_core::stream::Stream for PollingWatcher<'a, P> 
                         // if we need >0 confs start waiting for more
                         let fut = Box::pin(provider.get_confs(txid));
                         *state = WatcherStates::WaitingMoreConfs(0, txid, fut);
-                        return Poll::Ready(Some((0, txid)));
+                        return Poll::Ready(Some((0, Some(txid))));
                     } else {
                         // if 0 confs, end the stream on the first seen tx
                         *state = WatcherStates::Completed;
                         ctx.waker().wake_by_ref();
-                        return Poll::Ready(Some((0, txid)));
+                        return Poll::Ready(Some((0, Some(txid))));
                     }
                 } else {
                     // Continue otherwise
@@ -116,6 +116,7 @@ impl<'a, P: BTCProvider> futures_core::stream::Stream for PollingWatcher<'a, P> 
                     Ok(None) => {
                         let fut = Box::pin(provider.get_outspend(*outpoint));
                         *state = WatcherStates::WaitingSpends(fut);
+                        return Poll::Ready(Some((0, None)));
                     },
                     // Spend tx has confs. Check if there are any new ones
                     Ok(Some(confs)) => {
@@ -123,7 +124,7 @@ impl<'a, P: BTCProvider> futures_core::stream::Stream for PollingWatcher<'a, P> 
                         if confs > *previous_confs && confs < *confirmations {
                             let t = *txid;
                             *state = WatcherStates::Paused(confs, t);
-                            return Poll::Ready(Some((confs, t)));
+                            return Poll::Ready(Some((confs, Some(t))));
                         }
 
                         // If we have enough confs, go to completed
@@ -131,7 +132,7 @@ impl<'a, P: BTCProvider> futures_core::stream::Stream for PollingWatcher<'a, P> 
                             let t = *txid;
                             *state = WatcherStates::Completed;
                             ctx.waker().wake_by_ref();
-                            return Poll::Ready(Some((confs, t)));
+                            return Poll::Ready(Some((confs, Some(t))));
                         }
                     },
                     Err(e) => {
