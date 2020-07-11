@@ -11,15 +11,15 @@ use pin_project::pin_project;
 use rmn_btc::prelude::*;
 
 use crate::{
-    provider::{BTCProvider, ProviderError},
+    provider::BTCProvider,
     utils::{new_interval, StreamLast},
     ProviderFut, DEFAULT_POLL_INTERVAL,
 };
 
-enum PendingTxStates<'a, P: BTCProvider> {
-    Broadcasting(ProviderFut<'a, TXID, P>),
+enum PendingTxStates<'a> {
+    Broadcasting(ProviderFut<'a, TXID>),
     Paused,
-    WaitingConfFut(ProviderFut<'a, Option<usize>, P>),
+    WaitingConfFut(ProviderFut<'a, Option<usize>>),
     // Stream has failed and should not be polled again
     Dropped,
     // Stream has completed, and should not be polled again
@@ -39,19 +39,19 @@ enum PendingTxStates<'a, P: BTCProvider> {
 /// To get a future yielding a single event when the stream ends, use `StreamLast::last()`
 #[pin_project(project = PendingTxProj)]
 #[must_use = "streams do nothing unless polled"]
-pub struct PendingTx<'a, P: BTCProvider> {
+pub struct PendingTx<'a> {
     txid: TXID,
     tx: BitcoinTx,
     confs_wanted: usize,
     confs_have: usize,
-    state: PendingTxStates<'a, P>,
+    state: PendingTxStates<'a>,
     interval: Box<dyn Stream<Item = ()> + Send + Unpin>,
-    provider: &'a P,
+    provider: &'a dyn BTCProvider,
 }
 
-impl<'a, P: BTCProvider> PendingTx<'a, P> {
+impl<'a> PendingTx<'a> {
     /// Creates a new outspend poller
-    pub fn new(tx: BitcoinTx, provider: &'a P) -> Self {
+    pub fn new(tx: BitcoinTx, provider: &'a dyn BTCProvider) -> Self {
         let txid = tx.txid();
         let fut = Box::pin(provider.broadcast(tx.clone()));
         Self {
@@ -78,9 +78,9 @@ impl<'a, P: BTCProvider> PendingTx<'a, P> {
     }
 }
 
-impl<P: BTCProvider> StreamLast for PendingTx<'_, P> {}
+impl StreamLast for PendingTx<'_> {}
 
-impl<'a, P: BTCProvider> futures_core::stream::Stream for PendingTx<'a, P> {
+impl<'a> futures_core::stream::Stream for PendingTx<'a> {
     type Item = Result<(usize, TXID), BitcoinTx>;
 
     fn poll_next(self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Option<Self::Item>> {
@@ -131,8 +131,7 @@ impl<'a, P: BTCProvider> futures_core::stream::Stream for PendingTx<'a, P> {
                         return Poll::Ready(Some(Err(tx.clone())));
                     }
                     Err(e) => {
-                        // Retry network errors
-                        if e.is_network() {
+                        if e.should_retry() {
                             *state = PendingTxStates::Paused;
                             return Poll::Pending;
                         }

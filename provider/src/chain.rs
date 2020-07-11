@@ -15,17 +15,17 @@ use crate::{provider::BTCProvider, utils::new_interval, ProviderFut, DEFAULT_POL
 /// Polls the API for the chain tip. Updates every time the tip changes
 #[pin_project(project = TipsProj)]
 #[must_use = "streams do nothing unless polled"]
-pub struct Tips<'a, P: BTCProvider> {
+pub struct Tips<'a> {
     limit: usize,
     interval: Box<dyn Stream<Item = ()> + Send + Unpin>,
-    provider: &'a P,
-    fut_opt: Option<ProviderFut<'a, BlockHash, P>>,
+    provider: &'a dyn BTCProvider,
+    fut_opt: Option<ProviderFut<'a, BlockHash>>,
     last: Option<BlockHash>,
 }
 
-impl<'a, P: BTCProvider> Tips<'a, P> {
+impl<'a> Tips<'a> {
     /// Instantiate a new Tips. Return at most `limit` new chaintips.
-    pub fn new(limit: usize, provider: &'a P) -> Self {
+    pub fn new(limit: usize, provider: &'a dyn BTCProvider) -> Self {
         let fut = Box::pin(provider.tip_hash());
         Self {
             limit,
@@ -43,7 +43,7 @@ impl<'a, P: BTCProvider> Tips<'a, P> {
     }
 }
 
-impl<'a, P: BTCProvider> futures_core::Stream for Tips<'a, P> {
+impl<'a> futures_core::Stream for Tips<'a> {
     type Item = BlockHash;
 
     fn poll_next(self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Option<Self::Item>> {

@@ -13,58 +13,11 @@ use rmn_btc::prelude::*;
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
-use thiserror::Error;
 
 use crate::{
-    reqwest_utils::FetchError,
-    rpc::{
-        common::{ErrorResponse, JsonRPCTransport},
-        http::HttpTransport,
-        rpc_types::*,
-    },
-    BTCProvider, PollingBTCProvider, ProviderError,
+    provider::*,
+    rpc::{common::*, http::HttpTransport, rpc_types::*},
 };
-
-/// Enum of errors that can be produced by this updater
-#[derive(Debug, Error)]
-pub enum RPCError {
-    /// Error in networking
-    #[error(transparent)]
-    FetchError(#[from] FetchError),
-
-    /// Bubbled up from riemann
-    #[error(transparent)]
-    EncoderError(#[from] rmn_btc::enc::bases::EncodingError),
-
-    /// Bubbled up from Riemann
-    #[error(transparent)]
-    RmnSerError(#[from] riemann_core::ser::SerError),
-
-    /// Received an Error response from the RPC server
-    #[error("Error Response: {0}")]
-    ErrorResponse(ErrorResponse),
-}
-
-impl From<ErrorResponse> for RPCError {
-    fn from(e: ErrorResponse) -> Self {
-        RPCError::ErrorResponse(e)
-    }
-}
-
-impl From<reqwest::Error> for RPCError {
-    fn from(e: reqwest::Error) -> Self {
-        FetchError::from(e).into()
-    }
-}
-
-impl ProviderError for RPCError {
-    fn is_network(&self) -> bool {
-        match self {
-            RPCError::FetchError(FetchError::ReqwestError(_)) => true,
-            _ => false,
-        }
-    }
-}
 
 /// A Bitcoin RPC connection
 #[derive(Debug)]
@@ -114,7 +67,7 @@ impl<T: JsonRPCTransport> BitcoindRPC<T> {
         &self,
         method: &str,
         params: P,
-    ) -> Result<R, RPCError> {
+    ) -> Result<R, ProviderError> {
         self.transport
             .request(method, params)
             .await
@@ -122,12 +75,12 @@ impl<T: JsonRPCTransport> BitcoindRPC<T> {
     }
 
     /// Get the digest of the best block
-    pub async fn get_best_block_hash(&self) -> Result<String, RPCError> {
+    pub async fn get_best_block_hash(&self) -> Result<String, ProviderError> {
         self.request("getbestblockhash", Vec::<String>::new()).await
     }
 
     /// Get a block by its digest
-    pub async fn get_block(&self, block: BlockHash) -> Result<GetBlockResponse, RPCError> {
+    pub async fn get_block(&self, block: BlockHash) -> Result<GetBlockResponse, ProviderError> {
         self.request("getblock", vec![block.to_be_hex()]).await
     }
 
@@ -135,15 +88,15 @@ impl<T: JsonRPCTransport> BitcoindRPC<T> {
     pub async fn get_raw_transaction(
         &self,
         txid: TXID,
-    ) -> Result<GetRawTransactionResponse, RPCError> {
+    ) -> Result<GetRawTransactionResponse, ProviderError> {
         self.request("getrawtransaction", GetRawTxParams(txid.to_be_hex(), 1))
             .await
     }
 
     /// Send a raw transaction to the network
-    pub async fn send_raw_transaction(&self, tx: BitcoinTx) -> Result<TXID, RPCError> {
-        let txid_be: String = self.request("sendrawtransaction", vec![tx.serialize_hex()]).await?;
-        Ok(TXID::from_be_hex(&txid_be)?)
+    pub async fn send_raw_transaction(&self, tx: BitcoinTx) -> Result<String, ProviderError> {
+        self.request("sendrawtransaction", vec![tx.serialize_hex()])
+            .await
     }
 
     /// Start a txout scan. This may take some time, and will be interrupted by future requests.
@@ -151,7 +104,7 @@ impl<T: JsonRPCTransport> BitcoindRPC<T> {
     pub async fn scan_tx_out_set_for_address_start(
         &self,
         addr: Address,
-    ) -> Result<ScanTxOutResponse, RPCError> {
+    ) -> Result<ScanTxOutResponse, ProviderError> {
         let _lock = self.scan_guard.lock().await;
         self.request(
             "scantxoutset",
@@ -164,26 +117,24 @@ impl<T: JsonRPCTransport> BitcoindRPC<T> {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
-    type Error = RPCError;
-
-    async fn tip_hash(&self) -> Result<BlockHash, Self::Error> {
+    async fn tip_hash(&self) -> Result<BlockHash, ProviderError> {
         Ok(BlockHash::from_be_hex(&self.get_best_block_hash().await?)?)
     }
 
-    async fn tip_height(&self) -> Result<usize, Self::Error> {
+    async fn tip_height(&self) -> Result<usize, ProviderError> {
         let tip = self.tip_hash().await?;
         Ok(self.get_block(tip).await?.height)
     }
 
-    async fn in_best_chain(&self, digest: BlockHash) -> Result<bool, Self::Error> {
+    async fn in_best_chain(&self, digest: BlockHash) -> Result<bool, ProviderError> {
         Ok(self.get_block(digest).await?.confirmations != -1)
     }
 
-    async fn get_confs(&self, txid: TXID) -> Result<Option<usize>, Self::Error> {
+    async fn get_confs(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {
         let tx_res = self.get_raw_transaction(txid).await;
         match tx_res {
             Err(e) => {
-                if e.is_network() {
+                if e.should_retry() {
                     Err(e)
                 } else {
                     Ok(None)
@@ -199,11 +150,11 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
         }
     }
 
-    async fn get_tx(&self, txid: TXID) -> Result<Option<BitcoinTx>, Self::Error> {
+    async fn get_tx(&self, txid: TXID) -> Result<Option<BitcoinTx>, ProviderError> {
         let tx_res = self.get_raw_transaction(txid).await;
         match tx_res {
             Err(e) => {
-                if e.is_network() {
+                if e.should_retry() {
                     Err(e)
                 } else {
                     Ok(None)
@@ -215,8 +166,27 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
         }
     }
 
-    async fn broadcast(&self, tx: BitcoinTx) -> Result<TXID, Self::Error> {
-        self.send_raw_transaction(tx).await
+    async fn broadcast(&self, tx: BitcoinTx) -> Result<TXID, ProviderError> {
+        Ok(TXID::from_be_hex(&self.send_raw_transaction(tx).await?)?)
+    }
+
+    /// Unsupported
+    async fn get_outspend(
+        &self,
+        _outpoint: BitcoinOutpoint,
+    ) -> Result<Option<TXID>, ProviderError> {
+        Err(ProviderError::Unsupported(
+            "get_outspend not currently supported without wallet".to_owned(),
+        ))
+    }
+
+    /// Unsupported
+    ///
+    /// TODO: support using scantxoutset
+    async fn get_utxos_by_address(&self, _address: &Address) -> Result<Vec<UTXO>, ProviderError> {
+        Err(ProviderError::Unsupported(
+            "get_utxos_by_address not currently supported without wallet".to_owned(),
+        ))
     }
 }
 

@@ -45,11 +45,10 @@ type Encoder = rmn_btc::Encoder;
 
 // Useful alias for the stateful streams
 #[cfg(target_arch = "wasm32")]
-type ProviderFut<'a, T, P> =
-    std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, <P as BTCProvider>::Error>> + 'a>>;
+type ProviderFut<'a, T> =
+    std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, ProviderError>> + 'a>>;
 
 // Useful alias for the stateful streams
 #[cfg(not(target_arch = "wasm32"))]
-type ProviderFut<'a, T, P> = std::pin::Pin<
-    Box<dyn std::future::Future<Output = Result<T, <P as BTCProvider>::Error>> + 'a + Send>,
->;
+type ProviderFut<'a, T> =
+    std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, ProviderError>> + 'a + Send>>;

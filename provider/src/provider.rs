@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use std::time::Duration;
+use thiserror::Error;
 
 use riemann_core::prelude::*;
 use rmn_btc::{
@@ -10,61 +11,94 @@ use rmn_btc::{
 
 use crate::{chain::Tips, pending::PendingTx, watcher::PollingWatcher};
 
-/// A trait
-pub trait ProviderError: std::error::Error {
-    /// Returns true if the error originated from network issues.
+/// Errors thrown by providers
+#[derive(Debug, Error)]
+pub enum ProviderError {
+    /// Serde issue
+    #[error(transparent)]
+    SerdeJSONError(#[from] serde_json::Error),
+
+    /// Bubbled up from riemann
+    #[error(transparent)]
+    EncoderError(#[from] rmn_btc::enc::bases::EncodingError),
+
+    /// Bubbled up from Riemann
+    #[error(transparent)]
+    RmnSerError(#[from] riemann_core::ser::SerError),
+
+    /// Unsupported action. Provider should give a string describing the action and reason
+    #[error("Unsupported action: {0}")]
+    Unsupported(String),
+
+    /// Custom provider error. Indicates whether the request should be retried
+    #[error("Proivder error {e}")]
+    Custom {
+        /// Whether the Custom error suggests that the request be retried
+        should_retry: bool,
+        /// The error
+        e: Box<dyn std::error::Error>,
+    },
+
+    /// RPC Error Response
+    #[cfg(feature = "rpc")]
+    #[error("RPC Error Response: {0}")]
+    RPCErrorResponse(crate::rpc::common::ErrorResponse),
+}
+
+impl ProviderError {
+    /// Returns true if the request should be retried. E.g. it failed due to a network issue.
     ///
     /// This is used to determine if retrying a request is appropriate
-    fn is_network(&self) -> bool;
+    pub fn should_retry(&self) -> bool {
+        match self {
+            ProviderError::Custom {
+                should_retry: true,
+                e: _,
+            } => true,
+            _ => false,
+        }
+    }
 }
 
 /// A Bitcoin Provider
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait BTCProvider: Sized {
-    /// An error type
-    type Error: From<rmn_btc::enc::bases::EncodingError> + ProviderError;
-
+pub trait BTCProvider: Sync {
     /// Fetch the LE digest of the chain tip
-    async fn tip_hash(&self) -> Result<BlockHash, Self::Error>;
+    async fn tip_hash(&self) -> Result<BlockHash, ProviderError>;
 
     /// Fetch the height of the chain tip
-    async fn tip_height(&self) -> Result<usize, Self::Error>;
+    async fn tip_height(&self) -> Result<usize, ProviderError>;
 
     /// Query the backend to determine if the header with `digest` is in the main chain.
-    async fn in_best_chain(&self, digest: BlockHash) -> Result<bool, Self::Error>;
+    async fn in_best_chain(&self, digest: BlockHash) -> Result<bool, ProviderError>;
 
     /// Get the number of confs a tx has. If the TX is unconfirmed this will be `Ok(Some(0))`. If
     /// the TX is unknown to the API, it will be `Ok(None)`.
-    async fn get_confs(&self, txid: TXID) -> Result<Option<usize>, Self::Error>;
+    async fn get_confs(&self, txid: TXID) -> Result<Option<usize>, ProviderError>;
 
     /// Fetch a transaction from the remote API. If the tx is not found, the result will be
     /// `Ok(None)`
-    async fn get_tx(&self, txid: TXID) -> Result<Option<BitcoinTx>, Self::Error>;
+    async fn get_tx(&self, txid: TXID) -> Result<Option<BitcoinTx>, ProviderError>;
 
     /// Broadcast a transaction to the network. Resolves to a TXID when broadcast.
-    async fn broadcast(&self, tx: BitcoinTx) -> Result<TXID, Self::Error>;
-}
+    async fn broadcast(&self, tx: BitcoinTx) -> Result<TXID, ProviderError>;
 
-/// Useful extra functionality for wallets
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait BTCWalletProvider: BTCProvider {
     /// Fetch the ID of a transaction that spends an outpoint. If no TX known to the remote source
     /// spends that outpoint, the result will be `Ok(None)`.
-    async fn get_outspend(
-        &self,
-        outpoint: BitcoinOutpoint,
-    ) -> Result<Option<TXID>, <Self as BTCProvider>::Error>;
+    ///
+    /// Note: some providers may not implement this functionality.
+    async fn get_outspend(&self, outpoint: BitcoinOutpoint) -> Result<Option<TXID>, ProviderError>;
 
     /// Fetch the UTXOs belonging to an address from the remote API
-    async fn get_utxos_by_address(
-        &self,
-        address: &Address,
-    ) -> Result<Vec<UTXO>, <Self as BTCProvider>::Error>;
+    ///
+    /// Note: some providers may not implement this functionality.
+    async fn get_utxos_by_address(&self, address: &Address) -> Result<Vec<UTXO>, ProviderError>;
 
     /// Fetch the UTXOs belonging to a script pubkey from the remote API
-    async fn get_utxos_by_script(&self, spk: &ScriptPubkey) -> Result<Vec<UTXO>, Self::Error> {
+    ///
+    /// Note: some providers may not implement this functionality.
+    async fn get_utxos_by_script(&self, spk: &ScriptPubkey) -> Result<Vec<UTXO>, ProviderError> {
         self.get_utxos_by_address(&crate::Encoder::encode_address(spk)?)
             .await
     }
@@ -83,7 +117,10 @@ pub trait PollingBTCProvider: BTCProvider {
     /// Broadcast a transaction, get a future that resolves when the tx is confirmed. This
     /// returns a `PendingTx` future. The tx will not be braodcast until that future is scheduled
     /// to run.
-    fn send(&self, tx: BitcoinTx, confirmations: usize) -> PendingTx<Self> {
+    fn send(&self, tx: BitcoinTx, confirmations: usize) -> PendingTx
+    where
+        Self: Sized,
+    {
         PendingTx::new(tx, self)
             .confirmations(confirmations)
             .interval(self.interval())
@@ -93,18 +130,21 @@ pub trait PollingBTCProvider: BTCProvider {
     ///
     /// Note: A new hash does not necessarily mean the chain height has increased. Reorgs may
     /// result in the height decreasing in rare cases.
-    fn tips(&self, limit: usize) -> Tips<Self> {
+    fn tips(&self, limit: usize) -> Tips
+    where
+        Self: Sized,
+    {
         Tips::new(limit, self).interval(self.interval())
     }
-}
 
-/// Extends polling wallet watchers with additional functionality
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait PollingBTCWalletProvider: BTCWalletProvider + PollingBTCProvider {
     /// Watch an outpoint, waiting for a tx to spend it. This returns a `PollingWatcher` future.
     /// The observation will not start until that future is scheduled to run.
-    fn watch(&self, outpoint: BitcoinOutpoint, confirmations: usize) -> PollingWatcher<Self> {
+    ///
+    /// Note: some providers may not implement this functionality.
+    fn watch(&self, outpoint: BitcoinOutpoint, confirmations: usize) -> PollingWatcher
+    where
+        Self: Sized,
+    {
         PollingWatcher::new(outpoint, self)
             .confirmations(confirmations)
             .interval(self.interval())

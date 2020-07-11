@@ -1,17 +1,20 @@
 use serde::Deserialize;
 use thiserror::Error;
 
+#[cfg(target_arch = "wasm32")]
+use wasm_bindgen::prelude::*;
+
 use riemann_core::{hashes::marked::MarkedDigest, ser::ByteFormat};
 use rmn_btc::prelude::TXID;
 
-#[cfg(target_arch = "wasm32")]
-use wasm_bindgen::prelude::*;
+use crate::ProviderError;
 
 #[derive(Debug, Error)]
 pub enum FetchError {
     /// Serde issue
     #[error(transparent)]
     SerdeError(#[from] serde_json::Error),
+
     /// Reqwest issue
     #[error(transparent)]
     ReqwestError(#[from] reqwest::Error),
@@ -19,6 +22,19 @@ pub enum FetchError {
     #[cfg(target_arch = "wasm32")]
     #[error("JsValue: {0:?}")]
     JsValue(JsValue),
+}
+
+impl From<FetchError> for ProviderError {
+    fn from(e: FetchError) -> ProviderError {
+        let should_retry = match e {
+            FetchError::SerdeError(_) => false,
+            _ => true,
+        };
+        ProviderError::Custom {
+            should_retry,
+            e: Box::new(e),
+        }
+    }
 }
 
 #[cfg(target_arch = "wasm32")]

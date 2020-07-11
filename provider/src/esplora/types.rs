@@ -2,7 +2,7 @@ use riemann_core::prelude::*;
 use rmn_btc::prelude::*;
 
 use crate::esplora::*;
-use crate::reqwest_utils;
+use crate::{reqwest_utils, ProviderError};
 
 #[derive(serde::Deserialize, Clone, Debug)]
 pub(crate) struct BlockStatus {
@@ -79,7 +79,7 @@ impl EsploraUTXO {
         Ok(reqwest_utils::ez_fetch_json(client, &url).await?)
     }
 
-    pub(crate) fn into_utxo(self, addr: &Address) -> Result<UTXO, EsploraError> {
+    pub(crate) fn into_utxo(self, addr: &Address) -> Result<UTXO, ProviderError> {
         let script_pubkey = rmn_btc::Network::decode_address(addr)?;
         let outpoint = BitcoinOutpoint::from_explorer_format(
             TXID::deserialize_hex(&self.txid)?,

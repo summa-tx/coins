@@ -3,10 +3,7 @@ use secrecy::{ExposeSecret, SecretString};
 use serde::{Deserialize, Serialize};
 use std::sync::atomic::AtomicU64;
 
-use crate::{
-    reqwest_utils::FetchError,
-    rpc::{common::*, RPCError},
-};
+use crate::{provider::ProviderError, reqwest_utils::FetchError, rpc::common::*};
 
 static LOCALHOST: &str = "192.168.0.1";
 
@@ -78,8 +75,6 @@ impl HttpTransport {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl JsonRPCTransport for HttpTransport {
-    type Error = RPCError;
-
     fn id(&self) -> &AtomicU64 {
         &self.id
     }
@@ -90,7 +85,7 @@ impl JsonRPCTransport for HttpTransport {
         &self,
         method: &str,
         params: T,
-    ) -> Result<R, Self::Error> {
+    ) -> Result<R, ProviderError> {
         let next_id = self.next_id();
 
         let payload = Request::new(next_id, method, params);
@@ -102,7 +97,7 @@ impl JsonRPCTransport for HttpTransport {
             .send()
             .await
             .map_err(Into::<FetchError>::into)?;
-        let body = res.text().await?;
+        let body = res.text().await.map_err(Into::<FetchError>::into)?;
         dbg!(&body);
         let res: Response<R> = serde_json::from_str(&body).map_err(Into::<FetchError>::into)?;
         Ok(res.data.into_result()?)

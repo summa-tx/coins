@@ -30,6 +30,12 @@ impl fmt::Display for ErrorResponse {
     }
 }
 
+impl From<ErrorResponse> for ProviderError {
+    fn from(e: ErrorResponse) -> Self {
+        ProviderError::RPCErrorResponse(e)
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug)]
 /// A JSON-RPC request
 pub struct Request<'a, T> {
@@ -56,7 +62,6 @@ static RPC2: &str = "2.0";
 fn rpc_version() -> String {
     RPC2.to_owned()
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 /// A succesful response
@@ -99,11 +104,6 @@ impl<R> ResponseData<R> {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait JsonRPCTransport: Default {
-    /// The transport's error type
-    type Error: From<rmn_btc::enc::bases::EncodingError>
-        + ProviderError
-        + Into<crate::rpc::RPCError>;
-
     /// Return a reference to the underlying AtomicU64 used for creating request IDs
     fn id(&self) -> &AtomicU64;
 
@@ -117,7 +117,7 @@ pub trait JsonRPCTransport: Default {
         &self,
         method: &str,
         params: T,
-    ) -> Result<R, Self::Error>;
+    ) -> Result<R, ProviderError>;
 }
 
 /*

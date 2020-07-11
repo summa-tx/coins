@@ -8,14 +8,11 @@ use async_trait::async_trait;
 use futures_util::lock::Mutex;
 use lru::LruCache;
 use std::time::Duration;
-use thiserror::Error;
 
 use riemann_core::prelude::*;
 use rmn_btc::prelude::*;
 
-use crate::{
-    BTCProvider, BTCWalletProvider, PollingBTCProvider, PollingBTCWalletProvider, ProviderError,
-};
+use crate::{BTCProvider, PollingBTCProvider, ProviderError};
 
 #[cfg(feature = "mainnet")]
 static BLOCKSTREAM: &str = "https://blockstream.info/api";
@@ -60,49 +57,22 @@ impl EsploraProvider {
     }
 }
 
-/// Enum of errors that can be produced by this updater
-#[derive(Debug, Error)]
-pub enum EsploraError {
-    /// Error in networking
-    #[error(transparent)]
-    FetchError(#[from] FetchError),
-
-    /// Bubbled up from riemann
-    #[error(transparent)]
-    EncoderError(#[from] rmn_btc::enc::bases::EncodingError),
-
-    /// Bubbled up from Riemann
-    #[error(transparent)]
-    RmnSerError(#[from] riemann_core::ser::SerError),
-}
-
-impl ProviderError for EsploraError {
-    fn is_network(&self) -> bool {
-        match self {
-            EsploraError::FetchError(FetchError::ReqwestError(_)) => true,
-            _ => false,
-        }
-    }
-}
-
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl BTCProvider for EsploraProvider {
-    type Error = EsploraError;
-
-    async fn tip_hash(&self) -> Result<BlockHash, Self::Error> {
+    async fn tip_hash(&self) -> Result<BlockHash, ProviderError> {
         let url = format!("{}/blocks/tip/hash", self.api_root);
         let response = ez_fetch_string(&self.client, &url).await?;
         Ok(BlockHash::from_be_hex(&response)?)
     }
 
-    async fn tip_height(&self) -> Result<usize, Self::Error> {
+    async fn tip_height(&self) -> Result<usize, ProviderError> {
         let url = format!("{}/blocks/tip/height", self.api_root);
         let response = ez_fetch_string(&self.client, &url).await?;
         Ok(response.parse().unwrap())
     }
 
-    async fn in_best_chain(&self, digest: BlockHash) -> Result<bool, Self::Error> {
+    async fn in_best_chain(&self, digest: BlockHash) -> Result<bool, ProviderError> {
         Ok(
             BlockStatus::fetch_by_digest(&self.client, &self.api_root, digest)
                 .await?
@@ -110,7 +80,7 @@ impl BTCProvider for EsploraProvider {
         )
     }
 
-    async fn get_confs(&self, txid: TXID) -> Result<Option<usize>, Self::Error> {
+    async fn get_confs(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {
         let tx_res = EsploraTx::fetch_by_txid(&self.client, &self.api_root, txid).await;
         match tx_res {
             Ok(tx) => {
@@ -126,8 +96,8 @@ impl BTCProvider for EsploraProvider {
                 Ok(Some(height - tx.status.block_height + 1))
             }
             Err(e) => {
-                let e: Self::Error = e.into();
-                if e.is_network() {
+                let e: ProviderError = e.into();
+                if e.should_retry() {
                     Err(e)
                 } else {
                     Ok(None)
@@ -136,7 +106,7 @@ impl BTCProvider for EsploraProvider {
         }
     }
 
-    async fn get_tx(&self, txid: TXID) -> Result<Option<BitcoinTx>, Self::Error> {
+    async fn get_tx(&self, txid: TXID) -> Result<Option<BitcoinTx>, ProviderError> {
         if !self.has_tx(txid).await {
             let tx_hex = fetch_tx_hex_by_id(&self.client, &self.api_root, txid).await?;
             if let Ok(tx) = BitcoinTx::deserialize_hex(&tx_hex) {
@@ -146,20 +116,13 @@ impl BTCProvider for EsploraProvider {
         Ok(self.cache.lock().await.get(&txid).cloned())
     }
 
-    async fn broadcast(&self, tx: BitcoinTx) -> Result<TXID, Self::Error> {
+    async fn broadcast(&self, tx: BitcoinTx) -> Result<TXID, ProviderError> {
         let url = format!("{}/tx", self.api_root);
         let response = post_hex(&self.client, &url, tx.serialize_hex()).await?;
         Ok(TXID::deserialize_hex(&response)?)
     }
-}
 
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl BTCWalletProvider for EsploraProvider {
-    async fn get_outspend(
-        &self,
-        outpoint: BitcoinOutpoint,
-    ) -> Result<Option<TXID>, <Self as BTCProvider>::Error> {
+    async fn get_outspend(&self, outpoint: BitcoinOutpoint) -> Result<Option<TXID>, ProviderError> {
         let outspend_opt =
             Outspend::fetch_by_outpoint(&self.client, &self.api_root, &outpoint).await?;
 
@@ -176,11 +139,8 @@ impl BTCWalletProvider for EsploraProvider {
         }
     }
 
-    async fn get_utxos_by_address(
-        &self,
-        address: &Address,
-    ) -> Result<Vec<UTXO>, <Self as BTCProvider>::Error> {
-        let res: Result<Vec<_>, EsploraError> =
+    async fn get_utxos_by_address(&self, address: &Address) -> Result<Vec<UTXO>, ProviderError> {
+        let res: Result<Vec<_>, _> =
             EsploraUTXO::fetch_by_address(&self.client, &self.api_root, address)
                 .await?
                 .into_iter()
@@ -201,10 +161,6 @@ impl PollingBTCProvider for EsploraProvider {
         self.interval = Duration::from_secs(interval as u64);
     }
 }
-
-#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
-#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl PollingBTCWalletProvider for EsploraProvider {}
 
 #[cfg(test)]
 mod test {
