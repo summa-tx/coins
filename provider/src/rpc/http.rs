@@ -29,8 +29,10 @@ pub struct HttpTransport {
 impl Default for HttpTransport {
     fn default() -> Self {
         Self {
+            id: 0.into(),
             url: LOCALHOST.to_owned(),
-            ..Default::default()
+            client: reqwest::Client::new(),
+            credentials: None,
         }
     }
 }
@@ -64,9 +66,10 @@ impl HttpTransport {
         password: SecretString,
         url: &str,
     ) -> Self {
+        let credentials = Some(BasicAuth { username, password });
         Self {
-            credentials: Some(BasicAuth { username, password }),
             url: url.to_owned(),
+            credentials,
             ..Default::default()
         }
     }
@@ -100,8 +103,34 @@ impl JsonRPCTransport for HttpTransport {
             .await
             .map_err(Into::<FetchError>::into)?;
         let body = res.text().await?;
+        dbg!(&body);
         let res: Response<R> = serde_json::from_str(&body).map_err(Into::<FetchError>::into)?;
-
         Ok(res.data.into_result()?)
     }
 }
+//
+// #[cfg(test)]
+// mod test {
+//     use super::*;
+//     use tokio::runtime;
+//     use futures_util::stream::StreamExt;
+//
+//     use riemann_core::ser::ByteFormat;
+//
+//     // runs against live API. leave commented
+//     #[test]
+//     fn it_makes_a_request() {
+//         let fut = async move {
+//             let transport = HttpTransport::with_credentials_and_url(
+//                 "x".parse().unwrap(),
+//                 "xxx".parse().unwrap(),
+//                 &"xxxxx",
+//             );
+//             let res = transport.request::<_, serde_json::Value>("getbestblockhash", Vec::<String>::new()).await;
+//
+//             dbg!(res);
+//             // serde_json::from_str::<serde_json::Value>()
+//         };
+//         runtime::Runtime::new().unwrap().block_on(fut);
+//     }
+// }

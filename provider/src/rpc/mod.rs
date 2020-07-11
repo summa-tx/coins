@@ -68,33 +68,32 @@ impl ProviderError for RPCError {
 
 /// A Bitcoin RPC connection
 #[derive(Debug)]
-pub struct BitcoinRPC<T: JsonRPCTransport> {
+pub struct BitcoindRPC<T: JsonRPCTransport> {
     transport: T,
     interval: Duration,
     scan_guard: Mutex<()>,
 }
 
-impl<T: JsonRPCTransport> Default for BitcoinRPC<T> {
+impl<T: JsonRPCTransport> Default for BitcoindRPC<T> {
     fn default() -> Self {
         Self {
             transport: Default::default(),
             interval: crate::DEFAULT_POLL_INTERVAL,
-            ..Default::default()
+            scan_guard: Mutex::new(()),
         }
     }
 }
 
-impl<T: JsonRPCTransport> From<T> for BitcoinRPC<T> {
+impl<T: JsonRPCTransport> From<T> for BitcoindRPC<T> {
     fn from(transport: T) -> Self {
         Self {
             transport,
-            interval: crate::DEFAULT_POLL_INTERVAL,
             ..Default::default()
         }
     }
 }
 
-impl BitcoinRPC<HttpTransport> {
+impl BitcoindRPC<HttpTransport> {
     /// Instantiate a transport with BasicAuth credentials
     pub fn with_credentials(username: SecretString, password: SecretString) -> Self {
         HttpTransport::with_credentials(username, password).into()
@@ -110,7 +109,7 @@ impl BitcoinRPC<HttpTransport> {
     }
 }
 
-impl<T: JsonRPCTransport> BitcoinRPC<T> {
+impl<T: JsonRPCTransport> BitcoindRPC<T> {
     async fn request<P: Serialize + Send + Sync, R: for<'a> Deserialize<'a>>(
         &self,
         method: &str,
@@ -143,8 +142,8 @@ impl<T: JsonRPCTransport> BitcoinRPC<T> {
 
     /// Send a raw transaction to the network
     pub async fn send_raw_transaction(&self, tx: BitcoinTx) -> Result<TXID, RPCError> {
-        self.request("sendrawtransaction", vec![tx.serialize_hex()])
-            .await
+        let txid_be: String = self.request("sendrawtransaction", vec![tx.serialize_hex()]).await?;
+        Ok(TXID::from_be_hex(&txid_be)?)
     }
 
     /// Start a txout scan. This may take some time, and will be interrupted by future requests.
@@ -164,7 +163,7 @@ impl<T: JsonRPCTransport> BitcoinRPC<T> {
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoinRPC<T> {
+impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
     type Error = RPCError;
 
     async fn tip_hash(&self) -> Result<BlockHash, Self::Error> {
@@ -223,7 +222,7 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoinRPC<T> {
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl<T: JsonRPCTransport + Send + Sync> PollingBTCProvider for BitcoinRPC<T> {
+impl<T: JsonRPCTransport + Send + Sync> PollingBTCProvider for BitcoindRPC<T> {
     fn interval(&self) -> Duration {
         self.interval
     }
@@ -232,3 +231,58 @@ impl<T: JsonRPCTransport + Send + Sync> PollingBTCProvider for BitcoinRPC<T> {
         self.interval = Duration::from_secs(interval as u64);
     }
 }
+//
+// #[cfg(test)]
+// mod test {
+//     use super::*;
+//     use tokio::runtime;
+//
+//     use riemann_core::ser::ByteFormat;
+//
+//     // runs against live API. leave commented
+//     #[test]
+//     #[allow(unused_must_use)]
+//     fn it_prints_headers() {
+//         let fut = async move {
+//             let provider = BitcoindRPC::with_credentials_and_url(
+//                 "x".parse().unwrap(),
+//                 "xxx".parse().unwrap(),
+//                 &"xxxxx",
+//             );
+//
+//
+//             dbg!(provider.tip_hash().await.map(|s| s.serialize_hex()));
+//             dbg!(provider.tip_height().await);
+//             dbg!(
+//                 provider.in_best_chain(
+//                     BlockHash::deserialize_hex(
+//                         &"26dc77c6d3c722e63bcd6de9725663714821cfa410f40a000000000000000000"
+//                     ).unwrap()
+//                 ).await
+//             );
+//             dbg!(
+//                 provider.get_confs(
+//                     TXID::from_be_hex("d0aeac56b3a1f3460e9a79c9aea21a7f81933e66126c6f479b5ca3d75280c515").unwrap()
+//                 ).await
+//             );
+//
+//             let tx = provider.get_tx(
+//                 TXID::from_be_hex("d0aeac56b3a1f3460e9a79c9aea21a7f81933e66126c6f479b5ca3d75280c515").unwrap()
+//             ).await
+//              .unwrap()
+//              .unwrap();
+//
+//             dbg!(&tx.serialize_hex());
+//
+//             dbg!(provider.broadcast(tx).await.unwrap().serialize_hex());
+//             // let mut tips = provider
+//             //     .tips(10)
+//             //     .interval(Duration::from_secs(10));
+//             //
+//             // while let Some(next) = tips.next().await {
+//             //     dbg!(next.serialize_hex());
+//             // }
+//         };
+//         runtime::Runtime::new().unwrap().block_on(fut);
+//     }
+// }

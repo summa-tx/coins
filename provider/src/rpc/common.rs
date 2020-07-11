@@ -51,10 +51,18 @@ impl<'a, T> Request<'a, T> {
     }
 }
 
+// In case the node doesn't conform properly
+static RPC2: &str = "2.0";
+fn rpc_version() -> String {
+    RPC2.to_owned()
+}
+
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 /// A succesful response
 pub struct Response<T> {
     id: u64,
+    #[serde(default = "rpc_version")]
     jsonrpc: String,
     /// The response payload
     #[serde(flatten)]
