@@ -117,7 +117,7 @@ impl<'a, P: BTCProvider> futures_core::stream::Stream for PollingWatcher<'a, P> 
                         let fut = Box::pin(provider.get_outspend(*outpoint));
                         *state = WatcherStates::WaitingSpends(fut);
                         return Poll::Ready(Some((0, None)));
-                    },
+                    }
                     // Spend tx has confs. Check if there are any new ones
                     Ok(Some(confs)) => {
                         // If we're not at our limit, pause for the interval
@@ -134,7 +134,7 @@ impl<'a, P: BTCProvider> futures_core::stream::Stream for PollingWatcher<'a, P> 
                             ctx.waker().wake_by_ref();
                             return Poll::Ready(Some((confs, Some(t))));
                         }
-                    },
+                    }
                     Err(e) => {
                         // Retry network errors
                         if e.is_network() {

@@ -2,6 +2,7 @@ use riemann_core::prelude::*;
 use rmn_btc::prelude::*;
 
 use crate::esplora::*;
+use crate::reqwest_utils;
 
 #[derive(serde::Deserialize, Clone, Debug)]
 pub(crate) struct BlockStatus {
@@ -17,7 +18,7 @@ impl BlockStatus {
         digest: BlockHash,
     ) -> Result<Self, FetchError> {
         let url = format!("{}/block/{}/status", api_root, digest.to_be_hex());
-        Ok(utils::ez_fetch_json(client, &url).await?)
+        Ok(reqwest_utils::ez_fetch_json(client, &url).await?)
     }
 }
 
@@ -37,7 +38,7 @@ impl EsploraTxStatus {
         txid: TXID,
     ) -> Result<Self, FetchError> {
         let url = format!("{}/tx/{}/status", api_root, txid.to_be_hex());
-        Ok(utils::ez_fetch_json(client, &url).await?)
+        Ok(reqwest_utils::ez_fetch_json(client, &url).await?)
     }
 }
 
@@ -54,7 +55,7 @@ impl EsploraTx {
         txid: TXID,
     ) -> Result<Self, FetchError> {
         let url = format!("{}/tx/{}", api_root, txid.to_be_hex());
-        Ok(utils::ez_fetch_json(client, &url).await?)
+        Ok(reqwest_utils::ez_fetch_json(client, &url).await?)
     }
 }
 
@@ -75,7 +76,7 @@ impl EsploraUTXO {
         addr: &Address,
     ) -> Result<Vec<EsploraUTXO>, FetchError> {
         let url = format!("{}/address/{}/utxo", api_root, addr.as_string());
-        Ok(utils::ez_fetch_json(client, &url).await?)
+        Ok(reqwest_utils::ez_fetch_json(client, &url).await?)
     }
 
     pub(crate) fn into_utxo(self, addr: &Address) -> Result<UTXO, EsploraError> {
@@ -129,7 +130,7 @@ impl Outspend {
         idx: u32,
     ) -> Result<Option<Outspend>, FetchError> {
         let url = format!("{}/tx/{}/outspend/{}", api_root, txid_be_hex, idx);
-        let o: Outspend = utils::ez_fetch_json(client, &url).await?;
+        let o: Outspend = reqwest_utils::ez_fetch_json(client, &url).await?;
         if o.txid_be == "" {
             Ok(None)
         } else {

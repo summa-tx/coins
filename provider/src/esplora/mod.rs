@@ -1,8 +1,8 @@
 mod types;
-mod utils;
 
 use types::*;
-use utils::*;
+
+use crate::reqwest_utils::*;
 
 use async_trait::async_trait;
 use futures_util::lock::Mutex;
@@ -66,13 +66,9 @@ impl EsploraProvider {
 /// Enum of errors that can be produced by this updater
 #[derive(Debug, Error)]
 pub enum EsploraError {
-    /// Bubbled up from the Tx Deserializer.
-    #[error(transparent)]
-    TxError(#[from] rmn_btc::types::transactions::TxError),
-
     /// Error in networking
     #[error(transparent)]
-    FetchError(#[from] utils::FetchError),
+    FetchError(#[from] FetchError),
 
     /// Bubbled up from riemann
     #[error(transparent)]
@@ -136,7 +132,7 @@ impl BTCProvider for EsploraProvider {
                 let e: Self::Error = e.into();
                 if e.is_network() {
                     Err(e)
-                } else  {
+                } else {
                     Ok(None)
                 }
             }
@@ -182,7 +178,7 @@ impl BTCProvider for EsploraProvider {
 
     async fn broadcast(&self, tx: BitcoinTx) -> Result<TXID, Self::Error> {
         let url = format!("{}/tx", self.api_root);
-        let response = utils::post_hex(&self.client, &url, tx.serialize_hex()).await?;
+        let response = post_hex(&self.client, &url, tx.serialize_hex()).await?;
         Ok(TXID::deserialize_hex(&response)?)
     }
 }

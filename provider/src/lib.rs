@@ -20,12 +20,20 @@ pub mod watcher;
 /// Chain watcher
 pub mod chain;
 
+#[doc(hidden)]
+#[cfg(any(feature = "rpc", feature = "esplora"))]
+pub mod reqwest_utils;
+
 /// Utils
 pub mod utils;
 
-#[cfg(feature = "esplora")]
 /// EsploraProvider
+#[cfg(feature = "esplora")]
 pub mod esplora;
+
+/// Local (or remote) node RPC
+#[cfg(feature = "rpc")]
+pub mod rpc;
 
 pub use provider::*;
 
@@ -37,9 +45,8 @@ type Encoder = rmn_btc::Encoder;
 
 // Useful alias for the stateful streams
 #[cfg(target_arch = "wasm32")]
-type ProviderFut<'a, T, P> = std::pin::Pin<
-    Box<dyn std::future::Future<Output = Result<T, <P as BTCProvider>::Error>> + 'a>,
->;
+type ProviderFut<'a, T, P> =
+    std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, <P as BTCProvider>::Error>> + 'a>>;
 
 // Useful alias for the stateful streams
 #[cfg(not(target_arch = "wasm32"))]
