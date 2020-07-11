@@ -4,6 +4,25 @@ use rmn_btc::prelude::*;
 use crate::esplora::*;
 use crate::{reqwest_utils, ProviderError};
 
+
+#[derive(serde::Deserialize, Clone, Debug)]
+pub(crate) struct MerkleProof {
+    pub block_height: usize,
+    pub merkle: Vec<String>,
+    pub pos: usize,
+}
+
+impl MerkleProof {
+    pub(crate) async fn fetch_by_txid(
+        client: &reqwest::Client,
+        api_root: &str,
+        txid: TXID,
+    ) -> Result<Self, FetchError> {
+        let url = format!("{}/tx/{}/MerkleProof", api_root, txid.to_be_hex());
+        Ok(reqwest_utils::ez_fetch_json(client, &url).await?)
+    }
+}
+
 #[derive(serde::Deserialize, Clone, Debug)]
 pub(crate) struct BlockStatus {
     pub in_best_chain: bool,
@@ -32,14 +51,14 @@ pub(crate) struct EsploraTxStatus {
 }
 
 impl EsploraTxStatus {
-    pub(crate) async fn fetch_by_txid(
-        client: &reqwest::Client,
-        api_root: &str,
-        txid: TXID,
-    ) -> Result<Self, FetchError> {
-        let url = format!("{}/tx/{}/status", api_root, txid.to_be_hex());
-        Ok(reqwest_utils::ez_fetch_json(client, &url).await?)
-    }
+    // pub(crate) async fn fetch_by_txid(
+    //     client: &reqwest::Client,
+    //     api_root: &str,
+    //     txid: TXID,
+    // ) -> Result<Self, FetchError> {
+    //     let url = format!("{}/tx/{}/status", api_root, txid.to_be_hex());
+    //     Ok(reqwest_utils::ez_fetch_json(client, &url).await?)
+    // }
 }
 
 #[derive(serde::Deserialize, Clone, Debug)]

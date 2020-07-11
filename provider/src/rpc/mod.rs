@@ -188,6 +188,34 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
             "get_utxos_by_address not currently supported without wallet".to_owned(),
         ))
     }
+
+    async fn get_merkle(&self, txid: TXID) -> Result<Option<Vec<TXID>>, ProviderError> {
+        let blockhash = {
+            let tx_res = self.get_raw_transaction(txid).await;
+            match tx_res {
+                Ok(tx) => BlockHash::from_be_hex(&tx.blockhash).expect("no malformed hashes from api"),
+                Err(e) => {
+                    if e.should_retry() {
+                        return Err(e);
+                    } else {
+                        return Ok(None);
+                    }
+                }
+            }
+        };
+
+        let block = self.get_block(blockhash).await?;
+        let txids: Vec<String> = match block.tx {
+            GetBlockTxList::IDs(v) => v,
+            GetBlockTxList::Details(v) => v.into_iter().map(|d| d.txid).collect(),
+        };
+        let txids: Vec<_> = txids
+            .iter()
+            .map(|t| TXID::from_be_hex(t).expect("no malformed hashes from api"))
+            .collect();
+
+        Ok(crate::utils::merkle_from_txid_list(txid, txids))
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]

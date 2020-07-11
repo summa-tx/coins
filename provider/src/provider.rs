@@ -95,6 +95,9 @@ pub trait BTCProvider: Sync {
     /// Note: some providers may not implement this functionality.
     async fn get_utxos_by_address(&self, address: &Address) -> Result<Vec<UTXO>, ProviderError>;
 
+    /// Get the merkle proof for a transaction. This will be `None` if the tx is not confirmed
+    async fn get_merkle(&self, txid: TXID) -> Result<Option<Vec<TXID>>, ProviderError>;
+
     /// Fetch the UTXOs belonging to a script pubkey from the remote API
     ///
     /// Note: some providers may not implement this functionality.

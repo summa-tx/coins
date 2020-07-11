@@ -148,6 +148,23 @@ impl BTCProvider for EsploraProvider {
                 .collect();
         Ok(res?)
     }
+
+    async fn get_merkle(&self, txid: TXID) -> Result<Option<Vec<TXID>>, ProviderError> {
+        let proof_res = MerkleProof::fetch_by_txid(&self.client, &self.api_root, txid).await;
+        match proof_res {
+            Ok(proof) => {
+                let ids = proof
+                    .merkle
+                    .iter()
+                    .map(|s| TXID::from_be_hex(&s)
+                        .expect("No malformed txids in api response")
+                    ).collect();
+                Ok(Some(ids))
+            },
+            Err(FetchError::SerdeError(_)) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]

@@ -1,11 +1,21 @@
 /// The params for getrawtransaction
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, Debug)]
 pub struct GetRawTxParams(pub String, pub usize);
+
+/// Either a list of IDs or a list of detailed objects
+#[derive(serde::Deserialize, Debug)]
+#[serde(untagged)]
+pub enum GetBlockTxList {
+    /// Just IDs
+    IDs(Vec<String>),
+    /// Detailed txns
+    Details(Vec<GetRawTransactionResponse>),
+}
 
 /// The repsonse for the `getblock` command
 ///
 /// https://bitcoincore.org/en/doc/0.20.0/rpc/blockchain/getblock/
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Debug)]
 pub struct GetBlockResponse {
     /// The blockhash
     pub hash: String,
@@ -13,12 +23,14 @@ pub struct GetBlockResponse {
     pub height: usize,
     /// The number of confirmations the block has received. -1 for not main chain.
     pub confirmations: isize,
+    /// The IDs of all Txns. If `details` is set in the req
+    pub tx: GetBlockTxList,
 }
 
 /// Response for the `gettransaction` command
 ///
 /// https://bitcoincore.org/en/doc/0.20.0/rpc/rawtransactions/getrawtransaction/
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Debug)]
 pub struct GetRawTransactionResponse {
     /// The transaction ID in BE format
     pub txid: String,
@@ -32,12 +44,12 @@ pub struct GetRawTransactionResponse {
 }
 
 /// The ScanTxOut paramaters
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, Debug)]
 pub struct ScanTxOutParams(pub String, pub Vec<String>);
 
 /// The RPC UTXO in the `ScanTxOutResponse` struct
 #[allow(non_snake_case)]
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Debug)]
 pub struct RPCUTXO {
     /// the id of the tx that created the utxo
     pub txid: String,
@@ -54,7 +66,7 @@ pub struct RPCUTXO {
 /// The response for `scantxoutset` command
 ///
 /// https://bitcoincore.org/en/doc/0.20.0/rpc/blockchain/scantxoutset/
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, Debug)]
 pub struct ScanTxOutResponse {
     /// Whether the scan was completed
     pub success: bool,

@@ -14,6 +14,8 @@ use futures_util::{
 };
 use std::time::Duration;
 
+use rmn_btc::prelude::TXID;
+
 // Async delay stream
 pub(crate) fn new_interval(duration: Duration) -> impl Stream<Item = ()> + Send + Unpin {
     stream::unfold((), move |_| Delay::new(duration).map(|_| Some(((), ())))).map(drop)
@@ -73,4 +75,10 @@ where
             None => Poll::Ready(Some(item.take().unwrap())),
         }
     }
+}
+
+/// Get a merkle proof from a block txid list.
+pub fn merkle_from_txid_list(txid: TXID, block: Vec<TXID>) -> Option<Vec<TXID>> {
+    // TODO
+    unimplemented!()
 }
