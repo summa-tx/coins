@@ -44,7 +44,6 @@ pub trait BTCProvider: Sized {
 
     /// Broadcast a transaction to the network. Resolves to a TXID when broadcast.
     async fn broadcast(&self, tx: BitcoinTx) -> Result<TXID, Self::Error>;
-
 }
 
 /// Useful extra functionality for wallets
@@ -53,10 +52,16 @@ pub trait BTCProvider: Sized {
 pub trait BTCWalletProvider: BTCProvider {
     /// Fetch the ID of a transaction that spends an outpoint. If no TX known to the remote source
     /// spends that outpoint, the result will be `Ok(None)`.
-    async fn get_outspend(&self, outpoint: BitcoinOutpoint) -> Result<Option<TXID>, <Self as BTCProvider>::Error>;
+    async fn get_outspend(
+        &self,
+        outpoint: BitcoinOutpoint,
+    ) -> Result<Option<TXID>, <Self as BTCProvider>::Error>;
 
     /// Fetch the UTXOs belonging to an address from the remote API
-    async fn get_utxos_by_address(&self, address: &Address) -> Result<Vec<UTXO>, <Self as BTCProvider>::Error>;
+    async fn get_utxos_by_address(
+        &self,
+        address: &Address,
+    ) -> Result<Vec<UTXO>, <Self as BTCProvider>::Error>;
 
     /// Fetch the UTXOs belonging to a script pubkey from the remote API
     async fn get_utxos_by_script(&self, spk: &ScriptPubkey) -> Result<Vec<UTXO>, Self::Error> {

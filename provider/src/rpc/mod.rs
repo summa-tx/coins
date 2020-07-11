@@ -7,12 +7,13 @@ pub mod http;
 /// Bitcoin RPC types
 pub mod rpc_types;
 
-use std::time::Duration;
-use serde::{Serialize, Deserialize};
 use async_trait::async_trait;
+use futures_util::lock::Mutex;
 use rmn_btc::prelude::*;
-use thiserror::Error;
 use secrecy::SecretString;
+use serde::{Deserialize, Serialize};
+use std::time::Duration;
+use thiserror::Error;
 
 use crate::{
     reqwest_utils::FetchError,
@@ -70,6 +71,7 @@ impl ProviderError for RPCError {
 pub struct BitcoinRPC<T: JsonRPCTransport> {
     transport: T,
     interval: Duration,
+    scan_guard: Mutex<()>,
 }
 
 impl<T: JsonRPCTransport> Default for BitcoinRPC<T> {
@@ -77,13 +79,18 @@ impl<T: JsonRPCTransport> Default for BitcoinRPC<T> {
         Self {
             transport: Default::default(),
             interval: crate::DEFAULT_POLL_INTERVAL,
+            ..Default::default()
         }
     }
 }
 
 impl<T: JsonRPCTransport> From<T> for BitcoinRPC<T> {
     fn from(transport: T) -> Self {
-        Self { transport, interval: crate::DEFAULT_POLL_INTERVAL }
+        Self {
+            transport,
+            interval: crate::DEFAULT_POLL_INTERVAL,
+            ..Default::default()
+        }
     }
 }
 
@@ -104,11 +111,6 @@ impl BitcoinRPC<HttpTransport> {
 }
 
 impl<T: JsonRPCTransport> BitcoinRPC<T> {
-    /// Set the polling interval in seconds
-    pub fn set_interval(&mut self, interval: usize) {
-        self.interval = Duration::from_secs(interval as u64);
-    }
-
     async fn request<P: Serialize + Send + Sync, R: for<'a> Deserialize<'a>>(
         &self,
         method: &str,
@@ -131,13 +133,32 @@ impl<T: JsonRPCTransport> BitcoinRPC<T> {
     }
 
     /// Get a TX by its txid
-    pub async fn get_raw_transaction(&self, txid: TXID) -> Result<GetRawTransactionResponse, RPCError> {
-        self.request("getrawtransaction", GetRawTxParams(txid.to_be_hex(), 1)).await
+    pub async fn get_raw_transaction(
+        &self,
+        txid: TXID,
+    ) -> Result<GetRawTransactionResponse, RPCError> {
+        self.request("getrawtransaction", GetRawTxParams(txid.to_be_hex(), 1))
+            .await
     }
 
     /// Send a raw transaction to the network
     pub async fn send_raw_transaction(&self, tx: BitcoinTx) -> Result<TXID, RPCError> {
-        self.request("sendrawtransaction", vec![tx.serialize_hex()]).await
+        self.request("sendrawtransaction", vec![tx.serialize_hex()])
+            .await
+    }
+
+    /// Start a txout scan. This may take some time, and will be interrupted by future requests.
+    /// So we acquire a lock for it
+    pub async fn scan_tx_out_set_for_address_start(
+        &self,
+        addr: Address,
+    ) -> Result<ScanTxOutResponse, RPCError> {
+        let _lock = self.scan_guard.lock().await;
+        self.request(
+            "scantxoutset",
+            ScanTxOutParams("start".to_owned(), vec![addr.to_descriptor()]),
+        )
+        .await
     }
 }
 
@@ -163,8 +184,12 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoinRPC<T> {
         let tx_res = self.get_raw_transaction(txid).await;
         match tx_res {
             Err(e) => {
-                if e.is_network() { Err(e) } else { Ok(None) }
-            },
+                if e.is_network() {
+                    Err(e)
+                } else {
+                    Ok(None)
+                }
+            }
             Ok(tx) => {
                 if tx.confirmations == -1 {
                     Ok(Some(0))
@@ -179,11 +204,15 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoinRPC<T> {
         let tx_res = self.get_raw_transaction(txid).await;
         match tx_res {
             Err(e) => {
-                if e.is_network() { Err(e) } else { Ok(None) }
-            },
-            Ok(tx) => {
-                Ok(Some(BitcoinTx::deserialize_hex(&tx.hex).expect("No invalid tx from RPC")))
+                if e.is_network() {
+                    Err(e)
+                } else {
+                    Ok(None)
+                }
             }
+            Ok(tx) => Ok(Some(
+                BitcoinTx::deserialize_hex(&tx.hex).expect("No invalid tx from RPC"),
+            )),
         }
     }
 
@@ -200,6 +229,6 @@ impl<T: JsonRPCTransport + Send + Sync> PollingBTCProvider for BitcoinRPC<T> {
     }
 
     fn set_interval(&mut self, interval: usize) {
-        self.set_interval(interval)
+        self.interval = Duration::from_secs(interval as u64);
     }
 }

@@ -13,7 +13,9 @@ use thiserror::Error;
 use riemann_core::prelude::*;
 use rmn_btc::prelude::*;
 
-use crate::{BTCProvider, BTCWalletProvider, PollingBTCProvider, PollingBTCWalletProvider, ProviderError};
+use crate::{
+    BTCProvider, BTCWalletProvider, PollingBTCProvider, PollingBTCWalletProvider, ProviderError,
+};
 
 #[cfg(feature = "mainnet")]
 static BLOCKSTREAM: &str = "https://blockstream.info/api";
@@ -45,11 +47,6 @@ impl EsploraProvider {
             cache: Mutex::new(LruCache::new(100)),
             client: Default::default(),
         }
-    }
-
-    /// Set the polling interval in seconds
-    pub fn set_interval(&mut self, interval: usize) {
-        self.interval = std::time::Duration::from_secs(interval as u64);
     }
 
     /// Return true if the cache has the tx in it
@@ -159,7 +156,10 @@ impl BTCProvider for EsploraProvider {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl BTCWalletProvider for EsploraProvider {
-    async fn get_outspend(&self, outpoint: BitcoinOutpoint) -> Result<Option<TXID>, <Self as BTCProvider>::Error> {
+    async fn get_outspend(
+        &self,
+        outpoint: BitcoinOutpoint,
+    ) -> Result<Option<TXID>, <Self as BTCProvider>::Error> {
         let outspend_opt =
             Outspend::fetch_by_outpoint(&self.client, &self.api_root, &outpoint).await?;
 
@@ -176,7 +176,10 @@ impl BTCWalletProvider for EsploraProvider {
         }
     }
 
-    async fn get_utxos_by_address(&self, address: &Address) -> Result<Vec<UTXO>, <Self as BTCProvider>::Error> {
+    async fn get_utxos_by_address(
+        &self,
+        address: &Address,
+    ) -> Result<Vec<UTXO>, <Self as BTCProvider>::Error> {
         let res: Result<Vec<_>, EsploraError> =
             EsploraUTXO::fetch_by_address(&self.client, &self.api_root, address)
                 .await?
@@ -195,7 +198,7 @@ impl PollingBTCProvider for EsploraProvider {
     }
 
     fn set_interval(&mut self, interval: usize) {
-        self.set_interval(interval)
+        self.interval = Duration::from_secs(interval as u64);
     }
 }
 
