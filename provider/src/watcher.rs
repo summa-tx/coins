@@ -11,12 +11,12 @@ use pin_project::pin_project;
 use rmn_btc::prelude::*;
 
 use crate::{
-    provider::{BTCProvider, ProviderError},
+    provider::{BTCWalletProvider, ProviderError},
     utils::{new_interval, StreamLast},
     ProviderFut, DEFAULT_POLL_INTERVAL,
 };
 
-enum WatcherStates<'a, P: BTCProvider> {
+enum WatcherStates<'a, P: BTCWalletProvider> {
     // Waiting for a tx to spend
     WaitingSpends(ProviderFut<'a, Option<TXID>, P>),
     Paused(usize, TXID),
@@ -38,7 +38,7 @@ enum WatcherStates<'a, P: BTCProvider> {
 /// To get a future yielding a single event when the stream ends, use `StreamLast::last()`
 #[pin_project(project = PollingWatcherProj)]
 #[must_use = "streams do nothing unless polled"]
-pub struct PollingWatcher<'a, P: BTCProvider> {
+pub struct PollingWatcher<'a, P: BTCWalletProvider> {
     outpoint: BitcoinOutpoint,
     confirmations: usize,
     state: WatcherStates<'a, P>,
@@ -46,7 +46,7 @@ pub struct PollingWatcher<'a, P: BTCProvider> {
     provider: &'a P,
 }
 
-impl<'a, P: BTCProvider> PollingWatcher<'a, P> {
+impl<'a, P: BTCWalletProvider> PollingWatcher<'a, P> {
     /// Creates a new outspend poller
     pub fn new(outpoint: BitcoinOutpoint, provider: &'a P) -> Self {
         let fut = Box::pin(provider.get_outspend(outpoint));
@@ -72,9 +72,9 @@ impl<'a, P: BTCProvider> PollingWatcher<'a, P> {
     }
 }
 
-impl<P: BTCProvider> StreamLast for PollingWatcher<'_, P> {}
+impl<P: BTCWalletProvider> StreamLast for PollingWatcher<'_, P> {}
 
-impl<'a, P: BTCProvider> futures_core::stream::Stream for PollingWatcher<'a, P> {
+impl<'a, P: BTCWalletProvider> futures_core::stream::Stream for PollingWatcher<'a, P> {
     type Item = (usize, Option<TXID>);
 
     fn poll_next(self: Pin<&mut Self>, ctx: &mut Context) -> Poll<Option<Self::Item>> {

@@ -42,15 +42,21 @@ pub trait BTCProvider: Sized {
     /// `Ok(None)`
     async fn get_tx(&self, txid: TXID) -> Result<Option<BitcoinTx>, Self::Error>;
 
-    /// Fetch the ID of a transaction that spends an outpoint. If no TX known to the remote source
-    /// spends that outpoint, the result will be `Ok(None)`.
-    async fn get_outspend(&self, outpoint: BitcoinOutpoint) -> Result<Option<TXID>, Self::Error>;
-
-    /// Fetch the UTXOs belonging to an address from the remote API
-    async fn get_utxos_by_address(&self, address: &Address) -> Result<Vec<UTXO>, Self::Error>;
-
     /// Broadcast a transaction to the network. Resolves to a TXID when broadcast.
     async fn broadcast(&self, tx: BitcoinTx) -> Result<TXID, Self::Error>;
+
+}
+
+/// Useful extra functionality for wallets
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+pub trait BTCWalletProvider: BTCProvider {
+    /// Fetch the ID of a transaction that spends an outpoint. If no TX known to the remote source
+    /// spends that outpoint, the result will be `Ok(None)`.
+    async fn get_outspend(&self, outpoint: BitcoinOutpoint) -> Result<Option<TXID>, <Self as BTCProvider>::Error>;
+
+    /// Fetch the UTXOs belonging to an address from the remote API
+    async fn get_utxos_by_address(&self, address: &Address) -> Result<Vec<UTXO>, <Self as BTCProvider>::Error>;
 
     /// Fetch the UTXOs belonging to a script pubkey from the remote API
     async fn get_utxos_by_script(&self, spk: &ScriptPubkey) -> Result<Vec<UTXO>, Self::Error> {
@@ -59,7 +65,7 @@ pub trait BTCProvider: Sized {
     }
 }
 
-/// An extension trait that adds polling watchers for
+/// An extension trait that adds polling watchers for a provider
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait PollingBTCProvider: BTCProvider {
@@ -78,19 +84,24 @@ pub trait PollingBTCProvider: BTCProvider {
             .interval(self.interval())
     }
 
-    /// Watch an outpoint, waiting for a tx to spend it. This returns a `PollingWatcher` future.
-    /// The observation will not start until that future is scheduled to run.
-    fn watch(&self, outpoint: BitcoinOutpoint, confirmations: usize) -> PollingWatcher<Self> {
-        PollingWatcher::new(outpoint, self)
-            .confirmations(confirmations)
-            .interval(self.interval())
-    }
-
     /// Watch the chain tip. Get notified of the new `BlockHash` every time it changes.
     ///
     /// Note: A new hash does not necessarily mean the chain height has increased. Reorgs may
     /// result in the height decreasing in rare cases.
     fn tips(&self, limit: usize) -> Tips<Self> {
         Tips::new(limit, self).interval(self.interval())
+    }
+}
+
+/// Extends polling wallet watchers with additional functionality
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+pub trait PollingBTCWalletProvider: BTCWalletProvider + PollingBTCProvider {
+    /// Watch an outpoint, waiting for a tx to spend it. This returns a `PollingWatcher` future.
+    /// The observation will not start until that future is scheduled to run.
+    fn watch(&self, outpoint: BitcoinOutpoint, confirmations: usize) -> PollingWatcher<Self> {
+        PollingWatcher::new(outpoint, self)
+            .confirmations(confirmations)
+            .interval(self.interval())
     }
 }

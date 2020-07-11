@@ -7,6 +7,8 @@ pub mod http;
 /// Bitcoin RPC types
 pub mod rpc_types;
 
+use std::time::Duration;
+use serde::{Serialize, Deserialize};
 use async_trait::async_trait;
 use rmn_btc::prelude::*;
 use thiserror::Error;
@@ -19,7 +21,7 @@ use crate::{
         http::HttpTransport,
         rpc_types::*,
     },
-    BTCProvider, ProviderError,
+    BTCProvider, PollingBTCProvider, ProviderError,
 };
 
 /// Enum of errors that can be produced by this updater
@@ -64,14 +66,24 @@ impl ProviderError for RPCError {
 }
 
 /// A Bitcoin RPC connection
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct BitcoinRPC<T: JsonRPCTransport> {
     transport: T,
+    interval: Duration,
+}
+
+impl<T: JsonRPCTransport> Default for BitcoinRPC<T> {
+    fn default() -> Self {
+        Self {
+            transport: Default::default(),
+            interval: crate::DEFAULT_POLL_INTERVAL,
+        }
+    }
 }
 
 impl<T: JsonRPCTransport> From<T> for BitcoinRPC<T> {
     fn from(transport: T) -> Self {
-        Self { transport }
+        Self { transport, interval: crate::DEFAULT_POLL_INTERVAL }
     }
 }
 
@@ -92,24 +104,40 @@ impl BitcoinRPC<HttpTransport> {
 }
 
 impl<T: JsonRPCTransport> BitcoinRPC<T> {
+    /// Set the polling interval in seconds
+    pub fn set_interval(&mut self, interval: usize) {
+        self.interval = Duration::from_secs(interval as u64);
+    }
+
+    async fn request<P: Serialize + Send + Sync, R: for<'a> Deserialize<'a>>(
+        &self,
+        method: &str,
+        params: P,
+    ) -> Result<R, RPCError> {
+        self.transport
+            .request(method, params)
+            .await
+            .map_err(Into::into)
+    }
+
     /// Get the digest of the best block
     pub async fn get_best_block_hash(&self) -> Result<String, RPCError> {
-        unimplemented!()
+        self.request("getbestblockhash", Vec::<String>::new()).await
     }
 
     /// Get a block by its digest
     pub async fn get_block(&self, block: BlockHash) -> Result<GetBlockResponse, RPCError> {
-        unimplemented!()
+        self.request("getblock", vec![block.to_be_hex()]).await
     }
 
     /// Get a TX by its txid
-    pub async fn get_transaction(&self, txid: TXID) -> Result<GetTransactionResponse, RPCError> {
-        unimplemented!()
+    pub async fn get_raw_transaction(&self, txid: TXID) -> Result<GetRawTransactionResponse, RPCError> {
+        self.request("getrawtransaction", GetRawTxParams(txid.to_be_hex(), 1)).await
     }
 
     /// Send a raw transaction to the network
     pub async fn send_raw_transaction(&self, tx: BitcoinTx) -> Result<TXID, RPCError> {
-        unimplemented!()
+        self.request("sendrawtransaction", vec![tx.serialize_hex()]).await
     }
 }
 
@@ -132,7 +160,7 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoinRPC<T> {
     }
 
     async fn get_confs(&self, txid: TXID) -> Result<Option<usize>, Self::Error> {
-        let tx_res = self.get_transaction(txid).await;
+        let tx_res = self.get_raw_transaction(txid).await;
         match tx_res {
             Err(e) => {
                 if e.is_network() { Err(e) } else { Ok(None) }
@@ -148,7 +176,7 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoinRPC<T> {
     }
 
     async fn get_tx(&self, txid: TXID) -> Result<Option<BitcoinTx>, Self::Error> {
-        let tx_res = self.get_transaction(txid).await;
+        let tx_res = self.get_raw_transaction(txid).await;
         match tx_res {
             Err(e) => {
                 if e.is_network() { Err(e) } else { Ok(None) }
@@ -159,15 +187,19 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoinRPC<T> {
         }
     }
 
-    async fn get_outspend(&self, outpoint: BitcoinOutpoint) -> Result<Option<TXID>, Self::Error> {
-        unimplemented!()
-    }
-
-    async fn get_utxos_by_address(&self, address: &Address) -> Result<Vec<UTXO>, Self::Error> {
-        unimplemented!()
-    }
-
     async fn broadcast(&self, tx: BitcoinTx) -> Result<TXID, Self::Error> {
         self.send_raw_transaction(tx).await
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl<T: JsonRPCTransport + Send + Sync> PollingBTCProvider for BitcoinRPC<T> {
+    fn interval(&self) -> Duration {
+        self.interval
+    }
+
+    fn set_interval(&mut self, interval: usize) {
+        self.set_interval(interval)
     }
 }

@@ -13,7 +13,7 @@ use thiserror::Error;
 use riemann_core::prelude::*;
 use rmn_btc::prelude::*;
 
-use crate::{BTCProvider, PollingBTCProvider, ProviderError};
+use crate::{BTCProvider, BTCWalletProvider, PollingBTCProvider, PollingBTCWalletProvider, ProviderError};
 
 #[cfg(feature = "mainnet")]
 static BLOCKSTREAM: &str = "https://blockstream.info/api";
@@ -24,7 +24,7 @@ static BLOCKSTREAM: &str = "https://blockstream.info/testnet/api";
 /// A Provider that uses the Esplora API and caches some responses
 #[derive(Debug)]
 pub struct EsploraProvider {
-    interval: usize,
+    interval: std::time::Duration,
     api_root: String,
     cache: Mutex<LruCache<TXID, BitcoinTx>>,
     client: reqwest::Client,
@@ -40,16 +40,16 @@ impl EsploraProvider {
     /// Instantiate the API pointing at a specific URL
     pub fn with_api_root(api_root: &str) -> Self {
         Self {
-            interval: 300,
+            interval: crate::DEFAULT_POLL_INTERVAL,
             api_root: api_root.to_owned(),
             cache: Mutex::new(LruCache::new(100)),
             client: Default::default(),
         }
     }
 
-    /// Set the polling interval
+    /// Set the polling interval in seconds
     pub fn set_interval(&mut self, interval: usize) {
-        self.interval = interval;
+        self.interval = std::time::Duration::from_secs(interval as u64);
     }
 
     /// Return true if the cache has the tx in it
@@ -149,7 +149,17 @@ impl BTCProvider for EsploraProvider {
         Ok(self.cache.lock().await.get(&txid).cloned())
     }
 
-    async fn get_outspend(&self, outpoint: BitcoinOutpoint) -> Result<Option<TXID>, Self::Error> {
+    async fn broadcast(&self, tx: BitcoinTx) -> Result<TXID, Self::Error> {
+        let url = format!("{}/tx", self.api_root);
+        let response = post_hex(&self.client, &url, tx.serialize_hex()).await?;
+        Ok(TXID::deserialize_hex(&response)?)
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl BTCWalletProvider for EsploraProvider {
+    async fn get_outspend(&self, outpoint: BitcoinOutpoint) -> Result<Option<TXID>, <Self as BTCProvider>::Error> {
         let outspend_opt =
             Outspend::fetch_by_outpoint(&self.client, &self.api_root, &outpoint).await?;
 
@@ -166,7 +176,7 @@ impl BTCProvider for EsploraProvider {
         }
     }
 
-    async fn get_utxos_by_address(&self, address: &Address) -> Result<Vec<UTXO>, Self::Error> {
+    async fn get_utxos_by_address(&self, address: &Address) -> Result<Vec<UTXO>, <Self as BTCProvider>::Error> {
         let res: Result<Vec<_>, EsploraError> =
             EsploraUTXO::fetch_by_address(&self.client, &self.api_root, address)
                 .await?
@@ -175,25 +185,23 @@ impl BTCProvider for EsploraProvider {
                 .collect();
         Ok(res?)
     }
-
-    async fn broadcast(&self, tx: BitcoinTx) -> Result<TXID, Self::Error> {
-        let url = format!("{}/tx", self.api_root);
-        let response = post_hex(&self.client, &url, tx.serialize_hex()).await?;
-        Ok(TXID::deserialize_hex(&response)?)
-    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 impl PollingBTCProvider for EsploraProvider {
     fn interval(&self) -> Duration {
-        Duration::from_secs(self.interval as u64)
+        self.interval
     }
 
     fn set_interval(&mut self, interval: usize) {
-        self.interval = interval;
+        self.set_interval(interval)
     }
 }
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl PollingBTCWalletProvider for EsploraProvider {}
 
 #[cfg(test)]
 mod test {

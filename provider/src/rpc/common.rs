@@ -90,9 +90,9 @@ impl<R> ResponseData<R> {
 /// A JSON RPC transport
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait JsonRPCTransport {
+pub trait JsonRPCTransport: Default {
     /// The transport's error type
-    type Error: From<rmn_btc::enc::bases::EncodingError> + ProviderError;
+    type Error: From<rmn_btc::enc::bases::EncodingError> + ProviderError + Into<crate::rpc::RPCError>;
 
     /// Return a reference to the underlying AtomicU64 used for creating request IDs
     fn id(&self) -> &AtomicU64;

@@ -1,3 +1,7 @@
+/// The params for getrawtransaction
+#[derive(serde::Serialize)]
+pub struct GetRawTxParams(pub String, pub usize);
+
 /// The repsonse for the `getblock` command
 ///
 /// https://bitcoincore.org/en/doc/0.20.0/rpc/blockchain/getblock/
@@ -13,9 +17,9 @@ pub struct GetBlockResponse {
 
 /// Response for the `gettransaction` command
 ///
-/// https://bitcoincore.org/en/doc/0.20.0/rpc/wallet/gettransaction/
+/// https://bitcoincore.org/en/doc/0.20.0/rpc/rawtransactions/getrawtransaction/
 #[derive(serde::Deserialize)]
-pub struct GetTransactionResponse {
+pub struct GetRawTransactionResponse {
     /// The transaction ID in BE format
     pub txid: String,
     /// The hex-serialized transaction
@@ -25,8 +29,4 @@ pub struct GetTransactionResponse {
     pub blockhash: String,
     /// The number of confirmations the tx has received. -1 for unconfirmed
     pub confirmations: isize,
-
-    /// The index of the tx in the block
-    #[serde(default = "usize::max_value")]
-    pub blockindex: usize,
 }
