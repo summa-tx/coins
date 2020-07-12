@@ -80,6 +80,33 @@ impl BTCProvider for EsploraProvider {
         )
     }
 
+    async fn header_digests(&self, start: usize, headers: usize) -> Result<Vec<BlockHash>, ProviderError> {
+        let mut h = vec![];
+        for i in 0..headers {
+            let url = format!("{}/block-height/{}", self.api_root, start + i);
+            h.push(BlockHash::from_be_hex(&ez_fetch_string(&self.client, &url).await?)?);
+        }
+
+        Ok(h)
+    }
+
+
+    async fn confirmed_height(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {
+        let tx = {
+            let tx_res = EsploraTxStatus::fetch_by_txid(&self.client, &self.api_root, txid).await;
+            if let Err(e) = tx_res {
+                let e: ProviderError = e.into();
+                if e.should_retry() {
+                    return Err(e);
+                } else {
+                    return Ok(None);
+                }
+            }
+            tx_res.unwrap()
+        };
+        Ok(Some(tx.block_height))
+    }
+
     async fn get_confs(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {
         let tx_res = EsploraTx::fetch_by_txid(&self.client, &self.api_root, txid).await;
         match tx_res {

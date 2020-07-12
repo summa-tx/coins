@@ -73,6 +73,12 @@ pub trait BTCProvider: Sync + Send {
     /// Query the backend to determine if the header with `digest` is in the main chain.
     async fn in_best_chain(&self, digest: BlockHash) -> Result<bool, ProviderError>;
 
+    /// Return `headers` blockhashes starting at height `start`
+    async fn header_digests(&self, start: usize, headers: usize) -> Result<Vec<BlockHash>, ProviderError>;
+
+    /// Get confirming height of the tx. Ok(None) if unknown
+    async fn confirmed_height(&self, txid: TXID) -> Result<Option<usize>, ProviderError>;
+
     /// Get the number of confs a tx has. If the TX is unconfirmed this will be `Ok(Some(0))`. If
     /// the TX is unknown to the API, it will be `Ok(None)`.
     async fn get_confs(&self, txid: TXID) -> Result<Option<usize>, ProviderError>;
@@ -104,6 +110,16 @@ pub trait BTCProvider: Sync + Send {
     async fn get_utxos_by_script(&self, spk: &ScriptPubkey) -> Result<Vec<UTXO>, ProviderError> {
         self.get_utxos_by_address(&crate::Encoder::encode_address(spk)?)
             .await
+    }
+
+    /// TODO: make less brittle
+    async fn get_confirming_headers(&self, txid: TXID, confs: usize) -> Result<Vec<BlockHash>, ProviderError> {
+        let height = {
+            let height_opt = self.confirmed_height(txid).await?;
+            if height_opt.is_none() { return Ok(vec![])}
+            height_opt.unwrap()
+        };
+        self.header_digests(height, confs).await
     }
 }
 

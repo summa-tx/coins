@@ -79,6 +79,11 @@ impl<T: JsonRPCTransport> BitcoindRPC<T> {
         self.request("getbestblockhash", Vec::<String>::new()).await
     }
 
+    /// Get the digest of the best block
+    pub async fn get_block_hash(&self, height: usize) -> Result<String, ProviderError> {
+        self.request("getblockhash", vec![height]).await
+    }
+
     /// Get a block by its digest
     pub async fn get_block(&self, block: BlockHash) -> Result<GetBlockResponse, ProviderError> {
         self.request("getblock", vec![block.to_be_hex()]).await
@@ -128,6 +133,40 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
 
     async fn in_best_chain(&self, digest: BlockHash) -> Result<bool, ProviderError> {
         Ok(self.get_block(digest).await?.confirmations != -1)
+    }
+
+    async fn header_digests(&self, start: usize, headers: usize) -> Result<Vec<BlockHash>, ProviderError> {
+        let mut h = vec![];
+        for i in 0..headers {
+            h.push(BlockHash::from_be_hex(&self.get_block_hash(start + i).await?)?);
+        }
+
+        Ok(h)
+    }
+
+    async fn confirmed_height(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {
+        let tx = {
+            let tx_res = self.get_raw_transaction(txid).await;
+            if let Err(e) = tx_res {
+                if e.should_retry() {
+                    return Err(e);
+                } else {
+                    return Ok(None);
+                }
+            };
+            tx_res.unwrap()
+        };
+
+        if tx.confirmations == -1 {
+            Ok(None)
+        } else {
+            let block = self
+                .get_block(
+                    BlockHash::from_be_hex(&tx.blockhash)
+                    .expect("no malformed hashes from api")
+                ).await?;
+            Ok(Some(block.height))
+        }
     }
 
     async fn get_confs(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {

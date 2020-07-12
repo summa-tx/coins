@@ -5,5 +5,7 @@ pub use crate::{
     types::*,
 };
 
+pub use riemann_core::prelude::*;
+
 #[cfg(any(feature = "mainnet", feature = "testnet", feature = "signet"))]
 pub use crate::defaults::*;
