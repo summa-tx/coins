@@ -149,7 +149,7 @@ impl BTCProvider for EsploraProvider {
         Ok(res?)
     }
 
-    async fn get_merkle(&self, txid: TXID) -> Result<Option<Vec<TXID>>, ProviderError> {
+    async fn get_merkle(&self, txid: TXID) -> Result<Option<(usize, Vec<TXID>)>, ProviderError> {
         let proof_res = MerkleProof::fetch_by_txid(&self.client, &self.api_root, txid).await;
         match proof_res {
             Ok(proof) => {
@@ -159,7 +159,7 @@ impl BTCProvider for EsploraProvider {
                     .map(|s| TXID::from_be_hex(&s)
                         .expect("No malformed txids in api response")
                     ).collect();
-                Ok(Some(ids))
+                Ok(Some((proof.pos, ids)))
             },
             Err(FetchError::SerdeError(_)) => Ok(None),
             Err(e) => Err(e.into()),

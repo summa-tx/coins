@@ -63,7 +63,7 @@ impl ProviderError {
 /// A Bitcoin Provider
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait BTCProvider: Sync {
+pub trait BTCProvider: Sync + Send {
     /// Fetch the LE digest of the chain tip
     async fn tip_hash(&self) -> Result<BlockHash, ProviderError>;
 
@@ -96,7 +96,7 @@ pub trait BTCProvider: Sync {
     async fn get_utxos_by_address(&self, address: &Address) -> Result<Vec<UTXO>, ProviderError>;
 
     /// Get the merkle proof for a transaction. This will be `None` if the tx is not confirmed
-    async fn get_merkle(&self, txid: TXID) -> Result<Option<Vec<TXID>>, ProviderError>;
+    async fn get_merkle(&self, txid: TXID) -> Result<Option<(usize, Vec<TXID>)>, ProviderError>;
 
     /// Fetch the UTXOs belonging to a script pubkey from the remote API
     ///

@@ -134,13 +134,13 @@ pub fn create_branch(index: usize, leaves: &[TXID]) -> Vec<TXID> {
 }
 
 /// Get a merkle proof from a block txid list.
-pub fn merkle_from_txid_list(txid: TXID, block: &[TXID]) -> Option<Vec<TXID>> {
+pub fn merkle_from_txid_list(txid: TXID, block: &[TXID]) -> Option<(usize, Vec<TXID>)> {
     let index = block.iter().position(|t| *t == txid);
 
     match index {
         Some(i) => {
             let branch = create_branch(i, block);
-            Some(branch)
+            Some((i, branch))
         },
         None => None
     }
