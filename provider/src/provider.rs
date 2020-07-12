@@ -117,13 +117,23 @@ pub trait BTCProvider: Sync + Send {
     }
 
     /// TODO: make less brittle
-    async fn get_confirming_headers(&self, txid: TXID, confs: usize) -> Result<Vec<BlockHash>, ProviderError> {
+    async fn get_confirming_digests(&self, txid: TXID, confs: usize) -> Result<Vec<BlockHash>, ProviderError> {
         let height = {
             let height_opt = self.confirmed_height(txid).await?;
             if height_opt.is_none() { return Ok(vec![])}
             height_opt.unwrap()
         };
         self.header_digests(height, confs).await
+    }
+
+    /// TODO: make less brittle
+    async fn get_confirming_headers(&self, txid: TXID, confs: usize) -> Result<Vec<RawHeader>, ProviderError> {
+        let height = {
+            let height_opt = self.confirmed_height(txid).await?;
+            if height_opt.is_none() { return Ok(vec![])}
+            height_opt.unwrap()
+        };
+        self.raw_headers(height, confs).await
     }
 }
 
