@@ -80,13 +80,13 @@ where
 }
 
 /// Create a full merkle tree from a txid list.
-pub fn create_tree(leaves: Vec<TXID>) -> Result<Vec<TXID>, std::io::Error> {
+pub fn create_tree(leaves: &[TXID]) -> Vec<TXID> {
     let mut size = leaves.len();
-    let mut nodes = leaves.clone();
+    let mut nodes = leaves.to_vec();
 
     if size == 0 {
         nodes.push(TXID::from([0x00; 32]));
-        Ok(nodes)
+        nodes
     } else {
         let mut i = 0;
 
@@ -97,8 +97,8 @@ pub fn create_tree(leaves: Vec<TXID>) -> Result<Vec<TXID>, std::io::Error> {
                 let right = nodes[i + k];
 
                 let mut ctx = Hash256Writer::default();
-                ctx.write(&left.0)?;
-                ctx.write(&right.0)?;
+                ctx.write_all(&left.0).expect("no error on heap allocation");
+                ctx.write_all(&right.0).expect("no error on heap allocation");
                 let digest = ctx.finish();
                 nodes.push(TXID::from(digest));
             }
@@ -107,14 +107,14 @@ pub fn create_tree(leaves: Vec<TXID>) -> Result<Vec<TXID>, std::io::Error> {
             size = (size + 1) >> 1;
         }
 
-        Ok(nodes)
+        nodes
     }
 }
 
 /// Create a merkle branch from an index and a txid list.
-pub fn create_branch(index: usize, leaves: Vec<TXID>) -> Option<Vec<TXID>> {
+pub fn create_branch(index: usize, leaves: &[TXID]) -> Option<Vec<TXID>> {
     let mut size = leaves.len();
-    let nodes = create_tree(leaves).unwrap();
+    let nodes = create_tree(&leaves);
 
     let mut idx = index;
     let mut branch: Vec<TXID> = vec![];
@@ -125,7 +125,7 @@ pub fn create_branch(index: usize, leaves: Vec<TXID>) -> Option<Vec<TXID>> {
 
         branch.push(nodes[i + j]);
 
-        idx = idx >> 1;
+        idx >>= 1;
         i += size;
         size = (size + 1) >> 1;
     }
@@ -134,15 +134,8 @@ pub fn create_branch(index: usize, leaves: Vec<TXID>) -> Option<Vec<TXID>> {
 }
 
 /// Get a merkle proof from a block txid list.
-pub fn merkle_from_txid_list(txid: TXID, block: Vec<TXID>) -> Option<Vec<TXID>> {
-    let index: Option<usize> = {
-        for (i, tx) in block.iter().enumerate() {
-            if &txid == tx {
-                Some(i);
-            }
-        }
-        None
-    };
+pub fn merkle_from_txid_list(txid: TXID, block: &[TXID]) -> Option<Vec<TXID>> {
+    let index = block.iter().position(|t| *t == txid);
 
     match index {
         Some(i) => {
@@ -175,7 +168,7 @@ mod tests {
         ];
 
         for case in cases.iter() {
-            let result = create_tree(case.0.clone()).unwrap();
+            let result = create_tree(&case.0);
             assert_eq!(result, case.1);
         }
     }
@@ -201,8 +194,8 @@ mod tests {
         ];
 
         for case in cases.iter() {
-            let (index, leaves) = case.0.clone();
-            let result = create_branch(index, leaves).unwrap();
+            let (index, leaves) = &case.0;
+            let result = create_branch(*index, leaves).unwrap();
             assert_eq!(result, case.1);
         }
     }

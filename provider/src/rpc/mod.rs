@@ -214,7 +214,7 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
             .map(|t| TXID::from_be_hex(t).expect("no malformed hashes from api"))
             .collect();
 
-        Ok(crate::utils::merkle_from_txid_list(txid, txids))
+        Ok(crate::utils::merkle_from_txid_list(txid, &txids))
     }
 }
 
