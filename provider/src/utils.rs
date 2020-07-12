@@ -112,7 +112,7 @@ pub fn create_tree(leaves: &[TXID]) -> Vec<TXID> {
 }
 
 /// Create a merkle branch from an index and a txid list.
-pub fn create_branch(index: usize, leaves: &[TXID]) -> Option<Vec<TXID>> {
+pub fn create_branch(index: usize, leaves: &[TXID]) -> Vec<TXID> {
     let mut size = leaves.len();
     let nodes = create_tree(&leaves);
 
@@ -130,7 +130,7 @@ pub fn create_branch(index: usize, leaves: &[TXID]) -> Option<Vec<TXID>> {
         size = (size + 1) >> 1;
     }
 
-    Some(branch)
+    branch
 }
 
 /// Get a merkle proof from a block txid list.
@@ -139,7 +139,7 @@ pub fn merkle_from_txid_list(txid: TXID, block: &[TXID]) -> Option<Vec<TXID>> {
 
     match index {
         Some(i) => {
-            let branch = create_branch(i, block)?;
+            let branch = create_branch(i, block);
             Some(branch)
         },
         None => None
@@ -195,7 +195,7 @@ mod tests {
 
         for case in cases.iter() {
             let (index, leaves) = &case.0;
-            let result = create_branch(*index, leaves).unwrap();
+            let result = create_branch(*index, leaves);
             assert_eq!(result, case.1);
         }
     }
