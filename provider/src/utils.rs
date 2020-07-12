@@ -2,6 +2,7 @@ use std::{
     future::Future,
     pin::Pin,
     task::{Context, Poll},
+    io::Write
 };
 
 use pin_project::pin_project;
@@ -15,6 +16,7 @@ use futures_util::{
 use std::time::Duration;
 
 use rmn_btc::prelude::TXID;
+use riemann_core::hashes::{Hash256Writer, MarkedDigestWriter};
 
 // Async delay stream
 pub(crate) fn new_interval(duration: Duration) -> impl Stream<Item = ()> + Send + Unpin {
@@ -77,8 +79,131 @@ where
     }
 }
 
+/// Create a full merkle tree from a txid list.
+pub fn create_tree(leaves: Vec<TXID>) -> Result<Vec<TXID>, std::io::Error> {
+    let mut size = leaves.len();
+    let mut nodes = leaves.clone();
+
+    if size == 0 {
+        nodes.push(TXID::from([0x00; 32]));
+        Ok(nodes)
+    } else {
+        let mut i = 0;
+
+        while size > 1 {
+            for j in (0..size).step_by(2) {
+                let k = std::cmp::min(j + 1, size - 1);
+                let left = nodes[i + j];
+                let right = nodes[i + k];
+
+                let mut ctx = Hash256Writer::default();
+                ctx.write(&left.0)?;
+                ctx.write(&right.0)?;
+                let digest = ctx.finish();
+                nodes.push(TXID::from(digest));
+            }
+
+            i += size;
+            size = (size + 1) >> 1;
+        }
+
+        Ok(nodes)
+    }
+}
+
+/// Create a merkle branch from an index and a txid list.
+pub fn create_branch(index: usize, leaves: Vec<TXID>) -> Option<Vec<TXID>> {
+    let mut size = leaves.len();
+    let nodes = create_tree(leaves).unwrap();
+
+    let mut idx = index;
+    let mut branch: Vec<TXID> = vec![];
+
+    let mut i = 0;
+    while size > 1 {
+        let j = std::cmp::min(idx ^ 1, size - 1);
+
+        branch.push(nodes[i + j]);
+
+        idx = idx >> 1;
+        i += size;
+        size = (size + 1) >> 1;
+    }
+
+    Some(branch)
+}
+
 /// Get a merkle proof from a block txid list.
 pub fn merkle_from_txid_list(txid: TXID, block: Vec<TXID>) -> Option<Vec<TXID>> {
-    // TODO
-    unimplemented!()
+    let index: Option<usize> = {
+        for (i, tx) in block.iter().enumerate() {
+            if &txid == tx {
+                Some(i);
+            }
+        }
+        None
+    };
+
+    match index {
+        Some(i) => {
+            let branch = create_branch(i, block)?;
+            Some(branch)
+        },
+        None => None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn should_create_tree() {
+        let cases = [
+            (
+                vec![TXID::from([0x00; 32]), TXID::from([0x01; 32])],
+                vec![
+                    TXID::from([0x00; 32]),
+                    TXID::from([0x01; 32]),
+                    TXID::from([0x70, 0x5e, 0xde, 0x9d, 0x42, 0x47, 0x6f, 0xc3,
+                               0xe5, 0xa9, 0x78, 0xb0, 0x42, 0xce, 0x79, 0x0a,
+                               0x19, 0x36, 0x78, 0xf4, 0x6d, 0x19, 0xf4, 0x7e,
+                               0xc4, 0xab, 0x46, 0x53, 0x9c, 0x47, 0xb7, 0x6d]),
+
+                ],
+            )
+        ];
+
+        for case in cases.iter() {
+            let result = create_tree(case.0.clone()).unwrap();
+            assert_eq!(result, case.1);
+        }
+    }
+
+    #[test]
+    fn should_create_branch() {
+        let cases = [
+            (
+                (0, vec![
+                    TXID::from([0x00; 32]),
+                    TXID::from([0x01; 32]),
+                    TXID::from([0x02; 32]),
+                    TXID::from([0x03; 32]),
+                ]),
+                vec![
+                    TXID::from([0x01; 32]),
+                    TXID::from([0x1b, 0x12, 0xc1, 0x42, 0xca, 0x6f, 0xab, 0xe6,
+                               0xcc, 0xcf, 0x4a, 0xa5, 0x2a, 0xff, 0x1f, 0x21,
+                               0x88, 0x2e, 0xc4, 0x9d, 0xa2, 0xdd, 0x4c, 0x1c,
+                               0xf7, 0x0a, 0xbf, 0xfc, 0xc4, 0x5f, 0x59, 0x1b])
+                ]
+            )
+        ];
+
+        for case in cases.iter() {
+            let (index, leaves) = case.0.clone();
+            let result = create_branch(index, leaves).unwrap();
+            assert_eq!(result, case.1);
+        }
+    }
 }
