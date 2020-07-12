@@ -80,6 +80,20 @@ impl BTCProvider for EsploraProvider {
         )
     }
 
+    async fn raw_headers(&self, start: usize, headers: usize) -> Result<Vec<RawHeader>, ProviderError> {
+        let digests = self.header_digests(start, headers).await?;
+        let mut h = vec![];
+        for digest in digests.into_iter() {
+            let url = format!("{}/block/{}/raw", self.api_root, digest.to_be_hex());
+            let raw = ez_fetch_string(&self.client, &url).await?;
+            let raw = hex::decode(&raw).expect("heights already checked. no bad headers from api");
+            let mut header = [0u8; 80];
+            header.copy_from_slice(&raw[..80]);
+            h.push(header);
+        }
+        Ok(h)
+    }
+
     async fn header_digests(&self, start: usize, headers: usize) -> Result<Vec<BlockHash>, ProviderError> {
         let mut h = vec![];
         for i in 0..headers {
@@ -89,7 +103,6 @@ impl BTCProvider for EsploraProvider {
 
         Ok(h)
     }
-
 
     async fn confirmed_height(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {
         let tx = {

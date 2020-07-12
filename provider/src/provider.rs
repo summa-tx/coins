@@ -4,6 +4,7 @@ use thiserror::Error;
 
 use riemann_core::prelude::*;
 use rmn_btc::{
+    prelude::RawHeader,
     enc::Address,
     hashes::{BlockHash, TXID},
     types::*,
@@ -75,6 +76,9 @@ pub trait BTCProvider: Sync + Send {
 
     /// Return `headers` blockhashes starting at height `start`
     async fn header_digests(&self, start: usize, headers: usize) -> Result<Vec<BlockHash>, ProviderError>;
+
+    /// Return `headers` raw headers starting at height `start`
+    async fn raw_headers(&self, start: usize, headers: usize) -> Result<Vec<RawHeader>, ProviderError>;
 
     /// Get confirming height of the tx. Ok(None) if unknown
     async fn confirmed_height(&self, txid: TXID) -> Result<Option<usize>, ProviderError>;

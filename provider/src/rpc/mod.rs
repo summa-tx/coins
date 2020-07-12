@@ -80,6 +80,11 @@ impl<T: JsonRPCTransport> BitcoindRPC<T> {
     }
 
     /// Get the digest of the best block
+    pub async fn get_raw_header(&self, block: BlockHash) -> Result<String, ProviderError> {
+        self.request("getrawheader", vec![block.to_be_hex()]).await
+    }
+
+    /// Get the digest of the best block
     pub async fn get_block_hash(&self, height: usize) -> Result<String, ProviderError> {
         self.request("getblockhash", vec![height]).await
     }
@@ -133,6 +138,21 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
 
     async fn in_best_chain(&self, digest: BlockHash) -> Result<bool, ProviderError> {
         Ok(self.get_block(digest).await?.confirmations != -1)
+    }
+
+    async fn raw_headers(&self, start: usize, headers: usize) -> Result<Vec<RawHeader>, ProviderError> {
+        let digests = self.header_digests(start, headers).await?;
+        let mut h = vec![];
+        for digest in digests.into_iter() {
+            let raw = self.get_raw_header(digest).await?;
+
+            let raw = hex::decode(&raw).expect("heights already checked. no bad headers from api");
+
+            let mut header = [0u8; 80];
+            header.copy_from_slice(&raw[..80]);
+            h.push(header);
+        }
+        Ok(h)
     }
 
     async fn header_digests(&self, start: usize, headers: usize) -> Result<Vec<BlockHash>, ProviderError> {
