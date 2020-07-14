@@ -5,6 +5,7 @@ pub use crate::{
     types::*,
 };
 
+pub use bitcoin_spv::types::Hash256Digest;
 pub use riemann_core::prelude::*;
 
 // TODO:
