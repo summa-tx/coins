@@ -52,7 +52,7 @@ where
         buf.serialize_hex()
     }
 
-    /// Instantiate an outpoint from the Block Explore (big-endian) TXID format and integer index
+    /// Instantiate an outpoint from the Block Explorer (big-endian) TXID format and integer index
     pub fn from_explorer_format(txid_be: M, idx: u32) -> Self {
         Self {
             txid: txid_be.reversed(),

@@ -113,7 +113,7 @@ impl<T: JsonRPCTransport> BitcoindRPC<T> {
     /// So we acquire a lock for it
     pub async fn scan_tx_out_set_for_address_start(
         &self,
-        addr: Address,
+        addr: &Address,
     ) -> Result<ScanTxOutResponse, ProviderError> {
         let _lock = self.scan_guard.lock().await;
         self.request(
@@ -273,13 +273,10 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
         ))
     }
 
-    /// Unsupported
-    ///
-    /// TODO: support using scantxoutset
-    async fn get_utxos_by_address(&self, _address: &Address) -> Result<Vec<UTXO>, ProviderError> {
-        Err(ProviderError::Unsupported(
-            "get_utxos_by_address not currently supported without wallet".to_owned(),
-        ))
+    /// TODO: preflight to make sure scantxoutset is supported
+    async fn get_utxos_by_address(&self, address: &Address) -> Result<Vec<UTXO>, ProviderError> {
+        let resp = self.scan_tx_out_set_for_address_start(address).await?;
+        Ok(resp.unspents.into_iter().map(Into::<UTXO>::into).collect())
     }
 
     async fn get_merkle(

@@ -1,3 +1,5 @@
+use rmn_btc::prelude::*;
+
 /// The params for getrawtransaction
 #[derive(serde::Serialize, Debug)]
 pub struct GetRawTxParams(pub String, pub usize);
@@ -61,6 +63,22 @@ pub struct RPCUTXO {
     pub amount: u64,
     /// the height of the UTXO
     pub height: usize,
+}
+
+impl Into<UTXO> for RPCUTXO {
+    fn into(self) -> UTXO {
+        let script_pubkey = ScriptPubkey::deserialize_hex(&self.scriptPubKey).expect("valid API response");
+        let spend_script = SpendScript::from_script_pubkey(&script_pubkey);
+        UTXO::new(
+            BitcoinOutpoint {
+                txid: TXID::from_be_hex(&self.txid).expect("valid API respopnse"),
+                idx: self.vout,
+            },
+            self.amount,
+            script_pubkey,
+            spend_script,
+        )
+    }
 }
 
 /// The response for `scantxoutset` command

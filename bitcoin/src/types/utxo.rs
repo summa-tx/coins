@@ -50,13 +50,20 @@ pub struct UTXO {
 }
 
 impl UTXO {
-    /// Instantiate a new UTXO with the given arguments
+    /// Instantiate a new UTXO with the given arguments. If spend_script is provided, but the
+    /// script_pubkey does not require a spend script, the spend_script will be discarded.
     pub fn new(
         outpoint: BitcoinOutpoint,
         value: u64,
         script_pubkey: ScriptPubkey,
         spend_script: SpendScript,
     ) -> UTXO {
+        // Forbid nonsensical states, e.g. a p2pkh address with a spend_script
+        let spend_script = match SpendScript::from_script_pubkey(&script_pubkey) {
+            SpendScript::None => SpendScript::None,
+            SpendScript::Missing => spend_script,
+            SpendScript::Known(_) => panic!("unreachable"),
+        };
         UTXO {
             outpoint,
             value,

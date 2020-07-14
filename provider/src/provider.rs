@@ -141,12 +141,16 @@ pub trait BTCProvider: Sync + Send {
 
     /// Fetch the UTXOs belonging to an address from the remote API
     ///
-    /// Note: some providers may not implement this functionality.
+    /// ## Note: some providers may not implement this functionality.
+    ///
+    /// ## Note: when using Bitcoin Core, this may take upwards of 40 second
     async fn get_utxos_by_address(&self, address: &Address) -> Result<Vec<UTXO>, ProviderError>;
 
     /// Fetch the UTXOs belonging to a script pubkey from the remote API
     ///
     /// Note: some providers may not implement this functionality.
+    ///
+    /// ## Note: when using Bitcoin Core, this may take upwards of 40 second
     async fn get_utxos_by_script(&self, spk: &ScriptPubkey) -> Result<Vec<UTXO>, ProviderError> {
         self.get_utxos_by_address(&crate::Encoder::encode_address(spk)?)
             .await
