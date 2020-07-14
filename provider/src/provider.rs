@@ -68,6 +68,9 @@ impl ProviderError {
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait BTCProvider: Sync + Send {
+    /// Explicitly drop the provider, closing connections and freeing resources
+    fn close(self) where Self: Sized {}
+
     /// Fetch the LE digest of the chain tip
     async fn tip_hash(&self) -> Result<BlockHash, ProviderError>;
 
