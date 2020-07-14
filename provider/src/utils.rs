@@ -15,7 +15,7 @@ use futures_util::{
 };
 use std::time::Duration;
 
-use rmn_btc::prelude::TXID;
+use rmn_btc::prelude::{Hash256Digest, MarkedDigest, TXID};
 use riemann_core::hashes::{Hash256Writer, MarkedDigestWriter};
 
 // Async delay stream
@@ -112,18 +112,18 @@ pub fn create_tree(leaves: &[TXID]) -> Vec<TXID> {
 }
 
 /// Create a merkle branch from an index and a txid list.
-pub fn create_branch(index: usize, leaves: &[TXID]) -> Vec<TXID> {
+pub fn create_branch(index: usize, leaves: &[TXID]) -> Vec<Hash256Digest> {
     let mut size = leaves.len();
     let nodes = create_tree(&leaves);
 
     let mut idx = index;
-    let mut branch: Vec<TXID> = vec![];
+    let mut branch: Vec<Hash256Digest> = vec![];
 
     let mut i = 0;
     while size > 1 {
         let j = std::cmp::min(idx ^ 1, size - 1);
 
-        branch.push(nodes[i + j]);
+        branch.push(nodes[i + j].internal());
 
         idx >>= 1;
         i += size;
@@ -134,7 +134,7 @@ pub fn create_branch(index: usize, leaves: &[TXID]) -> Vec<TXID> {
 }
 
 /// Get a merkle proof from a block txid list.
-pub fn merkle_from_txid_list(txid: TXID, block: &[TXID]) -> Option<(usize, Vec<TXID>)> {
+pub fn merkle_from_txid_list(txid: TXID, block: &[TXID]) -> Option<(usize, Vec<Hash256Digest>)> {
     let index = block.iter().position(|t| *t == txid);
 
     match index {

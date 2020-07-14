@@ -5,8 +5,6 @@ use types::*;
 use crate::reqwest_utils::*;
 
 use async_trait::async_trait;
-use futures_util::lock::Mutex;
-use lru::LruCache;
 use std::time::Duration;
 
 use riemann_core::prelude::*;
@@ -25,7 +23,6 @@ static BLOCKSTREAM: &str = "https://blockstream.info/testnet/api";
 pub struct EsploraProvider {
     interval: std::time::Duration,
     api_root: String,
-    cache: Mutex<LruCache<TXID, BitcoinTx>>,
     client: reqwest::Client,
 }
 
@@ -41,19 +38,8 @@ impl EsploraProvider {
         Self {
             interval: crate::DEFAULT_POLL_INTERVAL,
             api_root: api_root.to_owned(),
-            cache: Mutex::new(LruCache::new(100)),
             client: Default::default(),
         }
-    }
-
-    /// Return true if the cache has the tx in it
-    pub async fn has_tx(&self, txid: TXID) -> bool {
-        self.cache.lock().await.contains(&txid)
-    }
-
-    /// Return a reference to the TX, if it's in the cache.
-    pub async fn peek_tx(&self, txid: TXID) -> Option<BitcoinTx> {
-        self.cache.lock().await.peek(&txid).cloned()
     }
 }
 
@@ -147,13 +133,12 @@ impl BTCProvider for EsploraProvider {
     }
 
     async fn get_tx(&self, txid: TXID) -> Result<Option<BitcoinTx>, ProviderError> {
-        if !self.has_tx(txid).await {
-            let tx_hex = fetch_tx_hex_by_id(&self.client, &self.api_root, txid).await?;
-            if let Ok(tx) = BitcoinTx::deserialize_hex(&tx_hex) {
-                self.cache.lock().await.put(txid, tx);
-            }
+        let tx_hex = fetch_tx_hex_by_id(&self.client, &self.api_root, txid).await?;
+        if let Ok(tx) = BitcoinTx::deserialize_hex(&tx_hex) {
+            Ok(Some(tx))
+        } else {
+            Ok(None)
         }
-        Ok(self.cache.lock().await.get(&txid).cloned())
     }
 
     async fn broadcast(&self, tx: BitcoinTx) -> Result<TXID, ProviderError> {
@@ -189,7 +174,7 @@ impl BTCProvider for EsploraProvider {
         Ok(res?)
     }
 
-    async fn get_merkle(&self, txid: TXID) -> Result<Option<(usize, Vec<TXID>)>, ProviderError> {
+    async fn get_merkle(&self, txid: TXID) -> Result<Option<(usize, Vec<Hash256Digest>)>, ProviderError> {
         let proof_res = MerkleProof::fetch_by_txid(&self.client, &self.api_root, txid).await;
         match proof_res {
             Ok(proof) => {
@@ -198,6 +183,7 @@ impl BTCProvider for EsploraProvider {
                     .iter()
                     .map(|s| TXID::from_be_hex(&s)
                         .expect("No malformed txids in api response")
+                        .internal()
                     ).collect();
                 Ok(Some((proof.pos, ids)))
             },

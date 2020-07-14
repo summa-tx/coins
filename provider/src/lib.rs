@@ -40,6 +40,9 @@ pub use provider::*;
 /// The default poll interval, set to 300 seconds (5 minutes)
 pub const DEFAULT_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(180 * 1000);
 
+/// The default number of cache items to keep in a caching provider
+pub const DEFAULT_CACHE_SIZE: usize = 300;
+
 // Alias the default encoder
 type Encoder = rmn_btc::Encoder;
 

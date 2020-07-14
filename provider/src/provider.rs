@@ -9,13 +9,16 @@ use rmn_btc::{
     hashes::{BlockHash, TXID},
     types::*,
 };
+use futures_util::lock::Mutex;
+use lru::LruCache;
 
-use crate::{chain::Tips, pending::PendingTx, watcher::PollingWatcher};
+use crate::{DEFAULT_CACHE_SIZE, chain::Tips, pending::PendingTx, watcher::PollingWatcher};
 
 /// Errors thrown by providers
 #[derive(Debug, Error)]
 pub enum ProviderError {
     /// Serde issue
+    #[cfg(any(feature = "rpc", feature = "esplora"))]
     #[error(transparent)]
     SerdeJSONError(#[from] serde_json::Error),
 
@@ -75,9 +78,13 @@ pub trait BTCProvider: Sync + Send {
     async fn in_best_chain(&self, digest: BlockHash) -> Result<bool, ProviderError>;
 
     /// Return `headers` blockhashes starting at height `start`
+    ///
+    /// TODO: behavior if out of chain range?
     async fn header_digests(&self, start: usize, headers: usize) -> Result<Vec<BlockHash>, ProviderError>;
 
     /// Return `headers` raw headers starting at height `start`
+    ///
+    /// TODO: behavior if out of chain range?
     async fn raw_headers(&self, start: usize, headers: usize) -> Result<Vec<RawHeader>, ProviderError>;
 
     /// Get confirming height of the tx. Ok(None) if unknown
@@ -106,7 +113,7 @@ pub trait BTCProvider: Sync + Send {
     async fn get_utxos_by_address(&self, address: &Address) -> Result<Vec<UTXO>, ProviderError>;
 
     /// Get the merkle proof for a transaction. This will be `None` if the tx is not confirmed
-    async fn get_merkle(&self, txid: TXID) -> Result<Option<(usize, Vec<TXID>)>, ProviderError>;
+    async fn get_merkle(&self, txid: TXID) -> Result<Option<(usize, Vec<Hash256Digest>)>, ProviderError>;
 
     /// Fetch the UTXOs belonging to a script pubkey from the remote API
     ///
@@ -181,5 +188,110 @@ pub trait PollingBTCProvider: BTCProvider {
         PollingWatcher::new(outpoint, self)
             .confirmations(confirmations)
             .interval(self.interval())
+    }
+}
+
+/// A provider that caches API responses whose values will never change.
+pub struct CachingProvider {
+    provider: Box<dyn PollingBTCProvider>,
+    tx_cache: Mutex<LruCache<TXID, BitcoinTx>>,
+    header_cache: Mutex<LruCache<BlockHash, RawHeader>>,
+    height_cache: Mutex<LruCache<BlockHash, usize>>,
+}
+
+impl From<Box<dyn PollingBTCProvider>> for CachingProvider {
+    fn from(provider: Box<dyn PollingBTCProvider>) -> Self {
+        Self {
+            provider,
+            tx_cache: Mutex::new(LruCache::new(DEFAULT_CACHE_SIZE)),
+            header_cache: Mutex::new(LruCache::new(DEFAULT_CACHE_SIZE)),
+            height_cache: Mutex::new(LruCache::new(DEFAULT_CACHE_SIZE)),
+        }
+    }
+}
+
+impl CachingProvider {
+    /// Return a reference to the TX, if it's in the cache.
+    pub async fn peek_tx(&self, txid: TXID) -> Option<BitcoinTx> {
+        self.tx_cache.lock().await.peek(&txid).cloned()
+    }
+
+    /// Return true if the cache has the tx in it
+    pub async fn has_tx(&self, txid: TXID) -> bool {
+        self.tx_cache.lock().await.contains(&txid)
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl BTCProvider for CachingProvider {
+    async fn tip_hash(&self) -> Result<BlockHash, ProviderError> {
+        self.provider.tip_hash().await
+    }
+
+    async fn tip_height(&self) -> Result<usize, ProviderError> {
+        self.provider.tip_height().await
+    }
+
+    async fn in_best_chain(&self, digest: BlockHash) -> Result<bool, ProviderError> {
+        self.provider.in_best_chain(digest).await
+    }
+
+    async fn header_digests(&self, start: usize, headers: usize) -> Result<Vec<BlockHash>, ProviderError> {
+        self.provider.header_digests(start, headers).await
+    }
+
+    async fn raw_headers(&self, start: usize, headers: usize) -> Result<Vec<RawHeader>, ProviderError> {
+        self.provider.raw_headers(start, headers).await
+    }
+
+    async fn confirmed_height(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {
+        self.provider.confirmed_height(txid).await
+    }
+
+    async fn get_confs(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {
+        self.provider.get_confs(txid).await
+    }
+
+    async fn get_tx(&self, txid: TXID) -> Result<Option<BitcoinTx>, ProviderError> {
+        if self.has_tx(txid).await {
+            return Ok(self.tx_cache.lock().await.get(&txid).cloned());
+        }
+
+        let tx_opt = {
+            self.provider.get_tx(txid).await?
+        };
+        if tx_opt.is_none() { return Ok(None); }
+        let tx = tx_opt.unwrap();
+        self.tx_cache.lock().await.put(txid, tx.clone());
+        Ok(Some(tx))
+
+    }
+
+    async fn broadcast(&self, tx: BitcoinTx) -> Result<TXID, ProviderError> {
+        self.provider.broadcast(tx).await
+    }
+
+    async fn get_outspend(&self, outpoint: BitcoinOutpoint) -> Result<Option<TXID>, ProviderError> {
+        self.provider.get_outspend(outpoint).await
+    }
+
+    async fn get_utxos_by_address(&self, address: &Address) -> Result<Vec<UTXO>, ProviderError> {
+        self.provider.get_utxos_by_address(address).await
+    }
+
+    async fn get_merkle(&self, txid: TXID) -> Result<Option<(usize, Vec<Hash256Digest>)>, ProviderError> {
+        self.provider.get_merkle(txid).await
+    }
+}
+
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+impl PollingBTCProvider for CachingProvider {
+    fn interval(&self) -> Duration {
+        self.provider.interval()
+    }
+    fn set_interval(&mut self, interval: usize) {
+        self.provider.set_interval(interval)
     }
 }

@@ -248,7 +248,7 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
         ))
     }
 
-    async fn get_merkle(&self, txid: TXID) -> Result<Option<(usize, Vec<TXID>)>, ProviderError> {
+    async fn get_merkle(&self, txid: TXID) -> Result<Option<(usize, Vec<Hash256Digest>)>, ProviderError> {
         let blockhash = {
             let tx_res = self.get_raw_transaction(txid).await;
             match tx_res {
