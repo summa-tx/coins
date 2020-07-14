@@ -89,6 +89,15 @@ pub(crate) async fn ez_fetch_string(
     let text = res.text().await?;
     Ok(text)
 }
+// 
+// pub(crate) async fn ez_fetch_blob(
+//     client: &reqwest::Client,
+//     url: &str,
+// ) -> Result<bytes::Bytes, FetchError> {
+//     let res = fetch_it(client, url).await?;
+//     let text = res.bytes().await?;
+//     Ok(text)
+// }
 
 pub(crate) async fn post_str(
     client: &reqwest::Client,

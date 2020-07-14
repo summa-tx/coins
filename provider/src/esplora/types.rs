@@ -4,7 +4,6 @@ use rmn_btc::prelude::*;
 use crate::esplora::*;
 use crate::{reqwest_utils, ProviderError};
 
-
 #[derive(serde::Deserialize, Clone, Debug)]
 pub(crate) struct MerkleProof {
     pub block_height: usize,
@@ -156,4 +155,59 @@ impl Outspend {
             Ok(Some(o))
         }
     }
+}
+
+#[derive(serde::Deserialize, Clone, Debug)]
+pub(crate) struct EsploraBlock {
+    pub(crate) id: String,
+    pub(crate) height: usize,
+    pub(crate) version: u32,
+    pub(crate) timestamp: u32,
+    pub(crate) bits: u32,
+    pub(crate) nonce: u32,
+    // difficulty
+    pub(crate) merkle_root: String,
+    pub(crate) tx_count: usize,
+    pub(crate) size: usize,
+    pub(crate) weight: usize,
+    pub(crate) previousblockhash: String,
+}
+
+impl EsploraBlock {
+    pub(crate) fn serialize(&self) -> RawHeader {
+        let mut h = [0u8; 80];
+        h[0..4].copy_from_slice(&self.version.to_le_bytes());
+        h[4..36].copy_from_slice(
+            &BlockHash::from_be_hex(&self.previousblockhash)
+                .expect("no malformed from API")
+                .internal(),
+        );
+        h[36..68].copy_from_slice(
+            &BlockHash::from_be_hex(&self.merkle_root)
+                .expect("no malformed from API")
+                .internal(),
+        );
+        h[68..72].copy_from_slice(&self.timestamp.to_le_bytes());
+        h[72..76].copy_from_slice(&self.bits.to_le_bytes());
+        h[76..80].copy_from_slice(&self.nonce.to_le_bytes());
+        h
+    }
+
+    pub(crate) async fn fetch_by_digest(
+        client: &reqwest::Client,
+        api_root: &str,
+        digest: BlockHash,
+    ) -> Result<Self, FetchError> {
+        let url = format!("{}/block/{}", api_root, digest.to_be_hex());
+        Ok(reqwest_utils::ez_fetch_json(client, &url).await?)
+    }
+
+    // pub(crate) async fn fetch_from_height(
+    //     client: &reqwest::Client,
+    //     api_root: &str,
+    //     height: usize,
+    // ) -> Result<[Self; 10], FetchError> {
+    //     let url = format!("{}/block/{}", api_root, height);
+    //     Ok(reqwest_utils::ez_fetch_json(client, &url).await?)
+    // }
 }

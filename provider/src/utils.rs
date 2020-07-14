@@ -1,8 +1,8 @@
 use std::{
     future::Future,
+    io::Write,
     pin::Pin,
     task::{Context, Poll},
-    io::Write
 };
 
 use pin_project::pin_project;
@@ -15,8 +15,8 @@ use futures_util::{
 };
 use std::time::Duration;
 
-use rmn_btc::prelude::{Hash256Digest, MarkedDigest, TXID};
 use riemann_core::hashes::{Hash256Writer, MarkedDigestWriter};
+use rmn_btc::prelude::{Hash256Digest, MarkedDigest, TXID};
 
 // Async delay stream
 pub(crate) fn new_interval(duration: Duration) -> impl Stream<Item = ()> + Send + Unpin {
@@ -98,7 +98,8 @@ pub fn create_tree(leaves: &[TXID]) -> Vec<TXID> {
 
                 let mut ctx = Hash256Writer::default();
                 ctx.write_all(&left.0).expect("no error on heap allocation");
-                ctx.write_all(&right.0).expect("no error on heap allocation");
+                ctx.write_all(&right.0)
+                    .expect("no error on heap allocation");
                 let digest = ctx.finish();
                 nodes.push(TXID::from(digest));
             }
@@ -141,8 +142,8 @@ pub fn merkle_from_txid_list(txid: TXID, block: &[TXID]) -> Option<(usize, Vec<H
         Some(i) => {
             let branch = create_branch(i, block);
             Some((i, branch))
-        },
-        None => None
+        }
+        None => None,
     }
 }
 
@@ -152,20 +153,18 @@ mod tests {
 
     #[test]
     fn should_create_tree() {
-        let cases = [
-            (
-                vec![TXID::from([0x00; 32]), TXID::from([0x01; 32])],
-                vec![
-                    TXID::from([0x00; 32]),
-                    TXID::from([0x01; 32]),
-                    TXID::from([0x70, 0x5e, 0xde, 0x9d, 0x42, 0x47, 0x6f, 0xc3,
-                               0xe5, 0xa9, 0x78, 0xb0, 0x42, 0xce, 0x79, 0x0a,
-                               0x19, 0x36, 0x78, 0xf4, 0x6d, 0x19, 0xf4, 0x7e,
-                               0xc4, 0xab, 0x46, 0x53, 0x9c, 0x47, 0xb7, 0x6d]),
-
-                ],
-            )
-        ];
+        let cases = [(
+            vec![TXID::from([0x00; 32]), TXID::from([0x01; 32])],
+            vec![
+                TXID::from([0x00; 32]),
+                TXID::from([0x01; 32]),
+                TXID::from([
+                    0x70, 0x5e, 0xde, 0x9d, 0x42, 0x47, 0x6f, 0xc3, 0xe5, 0xa9, 0x78, 0xb0, 0x42,
+                    0xce, 0x79, 0x0a, 0x19, 0x36, 0x78, 0xf4, 0x6d, 0x19, 0xf4, 0x7e, 0xc4, 0xab,
+                    0x46, 0x53, 0x9c, 0x47, 0xb7, 0x6d,
+                ]),
+            ],
+        )];
 
         for case in cases.iter() {
             let result = create_tree(&case.0);
@@ -175,23 +174,26 @@ mod tests {
 
     #[test]
     fn should_create_branch() {
-        let cases = [
+        let cases = [(
             (
-                (0, vec![
+                0,
+                vec![
                     TXID::from([0x00; 32]),
                     TXID::from([0x01; 32]),
                     TXID::from([0x02; 32]),
                     TXID::from([0x03; 32]),
-                ]),
-                vec![
-                    TXID::from([0x01; 32]).internal(),
-                    TXID::from([0x1b, 0x12, 0xc1, 0x42, 0xca, 0x6f, 0xab, 0xe6,
-                               0xcc, 0xcf, 0x4a, 0xa5, 0x2a, 0xff, 0x1f, 0x21,
-                               0x88, 0x2e, 0xc4, 0x9d, 0xa2, 0xdd, 0x4c, 0x1c,
-                               0xf7, 0x0a, 0xbf, 0xfc, 0xc4, 0x5f, 0x59, 0x1b]).internal()
-                ]
-            )
-        ];
+                ],
+            ),
+            vec![
+                TXID::from([0x01; 32]).internal(),
+                TXID::from([
+                    0x1b, 0x12, 0xc1, 0x42, 0xca, 0x6f, 0xab, 0xe6, 0xcc, 0xcf, 0x4a, 0xa5, 0x2a,
+                    0xff, 0x1f, 0x21, 0x88, 0x2e, 0xc4, 0x9d, 0xa2, 0xdd, 0x4c, 0x1c, 0xf7, 0x0a,
+                    0xbf, 0xfc, 0xc4, 0x5f, 0x59, 0x1b,
+                ])
+                .internal(),
+            ],
+        )];
 
         for case in cases.iter() {
             let (index, leaves) = &case.0;

@@ -66,31 +66,75 @@ impl BTCProvider for EsploraProvider {
         )
     }
 
-    async fn raw_headers(&self, start: usize, headers: usize) -> Result<Vec<RawHeader>, ProviderError> {
-        let digests = self.header_digests(start, headers).await?;
+    // TODO: rewrite to not make O(2 * n) requests using the /blocks/ endpoint
+    async fn get_raw_header_range(
+        &self,
+        start: usize,
+        headers: usize,
+    ) -> Result<Vec<RawHeader>, ProviderError> {
+        let digests = self.get_digest_range(start, headers).await?;
         let mut h = vec![];
         for digest in digests.into_iter() {
-            let url = format!("{}/block/{}/raw", self.api_root, digest.to_be_hex());
-            let raw = ez_fetch_string(&self.client, &url).await?;
-            let raw = hex::decode(&raw).expect("heights already checked. no bad headers from api");
-            let mut header = [0u8; 80];
-            header.copy_from_slice(&raw[..80]);
-            h.push(header);
+            if let Some(header) = self.get_raw_header(digest).await? {
+                h.push(header);
+            } else {
+                break;
+            }
         }
         Ok(h)
     }
 
-    async fn header_digests(&self, start: usize, headers: usize) -> Result<Vec<BlockHash>, ProviderError> {
+    // TODO: rewrite to not make O(n) requests using the /blocks/ endpoint
+    async fn get_digest_range(
+        &self,
+        start: usize,
+        headers: usize,
+    ) -> Result<Vec<BlockHash>, ProviderError> {
         let mut h = vec![];
         for i in 0..headers {
             let url = format!("{}/block-height/{}", self.api_root, start + i);
-            h.push(BlockHash::from_be_hex(&ez_fetch_string(&self.client, &url).await?)?);
+            h.push(BlockHash::from_be_hex(
+                &ez_fetch_string(&self.client, &url).await?,
+            )?);
         }
 
         Ok(h)
     }
 
-    async fn confirmed_height(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {
+    async fn get_raw_header(&self, digest: BlockHash) -> Result<Option<RawHeader>, ProviderError> {
+        let header = {
+            let header_res = EsploraBlock::fetch_by_digest(&self.client, &self.api_root, digest).await;
+            if let Err(e) = header_res {
+                let e: ProviderError = e.into();
+                if e.should_retry() {
+                    return Err(e);
+                } else {
+                    return Ok(None);
+                }
+            }
+            header_res.unwrap()
+        };
+        Ok(Some(header.serialize()))
+    }
+
+    async fn get_height_of(&self, digest: BlockHash) -> Result<Option<usize>, ProviderError> {
+        let block = {
+            let block_res =
+                EsploraBlock::fetch_by_digest(&self.client, &self.api_root, digest).await;
+            if let Err(e) = block_res {
+                let e: ProviderError = e.into();
+                if e.should_retry() {
+                    return Err(e);
+                } else {
+                    return Ok(None);
+                }
+            }
+            block_res.unwrap()
+        };
+        Ok(Some(block.height))
+    }
+
+    async fn get_confirmed_height(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {
         let tx = {
             let tx_res = EsploraTxStatus::fetch_by_txid(&self.client, &self.api_root, txid).await;
             if let Err(e) = tx_res {
@@ -174,19 +218,24 @@ impl BTCProvider for EsploraProvider {
         Ok(res?)
     }
 
-    async fn get_merkle(&self, txid: TXID) -> Result<Option<(usize, Vec<Hash256Digest>)>, ProviderError> {
+    async fn get_merkle(
+        &self,
+        txid: TXID,
+    ) -> Result<Option<(usize, Vec<Hash256Digest>)>, ProviderError> {
         let proof_res = MerkleProof::fetch_by_txid(&self.client, &self.api_root, txid).await;
         match proof_res {
             Ok(proof) => {
                 let ids = proof
                     .merkle
                     .iter()
-                    .map(|s| TXID::from_be_hex(&s)
-                        .expect("No malformed txids in api response")
-                        .internal()
-                    ).collect();
+                    .map(|s| {
+                        TXID::from_be_hex(&s)
+                            .expect("No malformed txids in api response")
+                            .internal()
+                    })
+                    .collect();
                 Ok(Some((proof.pos, ids)))
-            },
+            }
             Err(FetchError::SerdeError(_)) => Ok(None),
             Err(e) => Err(e.into()),
         }

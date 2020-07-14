@@ -2,17 +2,17 @@ use async_trait::async_trait;
 use std::time::Duration;
 use thiserror::Error;
 
-use riemann_core::prelude::*;
-use rmn_btc::{
-    prelude::RawHeader,
-    enc::Address,
-    hashes::{BlockHash, TXID},
-    types::*,
-};
 use futures_util::lock::Mutex;
 use lru::LruCache;
+use riemann_core::prelude::*;
+use rmn_btc::{
+    enc::Address,
+    hashes::{BlockHash, TXID},
+    prelude::RawHeader,
+    types::*,
+};
 
-use crate::{DEFAULT_CACHE_SIZE, chain::Tips, pending::PendingTx, watcher::PollingWatcher};
+use crate::{chain::Tips, pending::PendingTx, watcher::PollingWatcher, DEFAULT_CACHE_SIZE};
 
 /// Errors thrown by providers
 #[derive(Debug, Error)]
@@ -34,6 +34,11 @@ pub enum ProviderError {
     #[error("Unsupported action: {0}")]
     Unsupported(String),
 
+    /// RPC Error Response
+    #[cfg(feature = "rpc")]
+    #[error("RPC Error Response: {0}")]
+    RPCErrorResponse(crate::rpc::common::ErrorResponse),
+
     /// Custom provider error. Indicates whether the request should be retried
     #[error("Proivder error {e}")]
     Custom {
@@ -42,14 +47,13 @@ pub enum ProviderError {
         /// The error
         e: Box<dyn std::error::Error>,
     },
-
-    /// RPC Error Response
-    #[cfg(feature = "rpc")]
-    #[error("RPC Error Response: {0}")]
-    RPCErrorResponse(crate::rpc::common::ErrorResponse),
 }
 
 impl ProviderError {
+    /// Shortcut for instantiating a custom error
+    pub fn custom(should_retry: bool, e: Box<dyn std::error::Error>) -> Self {
+        Self::Custom { should_retry, e }
+    }
     /// Returns true if the request should be retried. E.g. it failed due to a network issue.
     ///
     /// This is used to determine if retrying a request is appropriate
@@ -69,7 +73,13 @@ impl ProviderError {
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait BTCProvider: Sync + Send {
     /// Explicitly drop the provider, closing connections and freeing resources
-    fn close(self) where Self: Sized {}
+    fn close(self)
+    where
+        Self: Sized,
+    {
+    }
+
+    // -- CHAIN UTILS -- //
 
     /// Fetch the LE digest of the chain tip
     async fn tip_hash(&self) -> Result<BlockHash, ProviderError>;
@@ -80,18 +90,35 @@ pub trait BTCProvider: Sync + Send {
     /// Query the backend to determine if the header with `digest` is in the main chain.
     async fn in_best_chain(&self, digest: BlockHash) -> Result<bool, ProviderError>;
 
-    /// Return `headers` blockhashes starting at height `start`
-    ///
-    /// TODO: behavior if out of chain range?
-    async fn header_digests(&self, start: usize, headers: usize) -> Result<Vec<BlockHash>, ProviderError>;
+    /// Return `headers` blockhashes starting at height `start`. If the range is longer than the
+    /// chain, it will return as many headers as possible. If the start is above the tip height,
+    /// it will return an empty vector/
+    async fn get_digest_range(
+        &self,
+        start: usize,
+        headers: usize,
+    ) -> Result<Vec<BlockHash>, ProviderError>;
 
-    /// Return `headers` raw headers starting at height `start`
-    ///
-    /// TODO: behavior if out of chain range?
-    async fn raw_headers(&self, start: usize, headers: usize) -> Result<Vec<RawHeader>, ProviderError>;
+    /// Return `headers` raw headers starting at height `start`. If the range is longer than the
+    /// chain, it will return as many headers as possible. If the start is above the tip height,
+    /// it will return an empty vector/
+    async fn get_raw_header_range(
+        &self,
+        start: usize,
+        headers: usize,
+    ) -> Result<Vec<RawHeader>, ProviderError>;
+
+    /// Return the raw header corresponding to a block hash. Returns `None` if the header is
+    /// unknown to the remote API
+    async fn get_raw_header(&self, digest: BlockHash) -> Result<Option<RawHeader>, ProviderError>;
+
+    /// Return the height of a header, or `None` if the header is unknown.
+    async fn get_height_of(&self, digest: BlockHash) -> Result<Option<usize>, ProviderError>;
+
+    // -- TX UTILS -- //
 
     /// Get confirming height of the tx. Ok(None) if unknown
-    async fn confirmed_height(&self, txid: TXID) -> Result<Option<usize>, ProviderError>;
+    async fn get_confirmed_height(&self, txid: TXID) -> Result<Option<usize>, ProviderError>;
 
     /// Get the number of confs a tx has. If the TX is unconfirmed this will be `Ok(Some(0))`. If
     /// the TX is unknown to the API, it will be `Ok(None)`.
@@ -104,6 +131,8 @@ pub trait BTCProvider: Sync + Send {
     /// Broadcast a transaction to the network. Resolves to a TXID when broadcast.
     async fn broadcast(&self, tx: BitcoinTx) -> Result<TXID, ProviderError>;
 
+    // -- SPEND UTILS -- //
+
     /// Fetch the ID of a transaction that spends an outpoint. If no TX known to the remote source
     /// spends that outpoint, the result will be `Ok(None)`.
     ///
@@ -115,9 +144,6 @@ pub trait BTCProvider: Sync + Send {
     /// Note: some providers may not implement this functionality.
     async fn get_utxos_by_address(&self, address: &Address) -> Result<Vec<UTXO>, ProviderError>;
 
-    /// Get the merkle proof for a transaction. This will be `None` if the tx is not confirmed
-    async fn get_merkle(&self, txid: TXID) -> Result<Option<(usize, Vec<Hash256Digest>)>, ProviderError>;
-
     /// Fetch the UTXOs belonging to a script pubkey from the remote API
     ///
     /// Note: some providers may not implement this functionality.
@@ -126,24 +152,44 @@ pub trait BTCProvider: Sync + Send {
             .await
     }
 
+    // -- MERKLE UTILS -- //
+
+    /// Get the merkle proof for a transaction. This will be `None` if the tx is not confirmed
+    async fn get_merkle(
+        &self,
+        txid: TXID,
+    ) -> Result<Option<(usize, Vec<Hash256Digest>)>, ProviderError>;
+
     /// TODO: make less brittle
-    async fn get_confirming_digests(&self, txid: TXID, confs: usize) -> Result<Vec<BlockHash>, ProviderError> {
+    async fn get_confirming_digests(
+        &self,
+        txid: TXID,
+        confs: usize,
+    ) -> Result<Vec<BlockHash>, ProviderError> {
         let height = {
-            let height_opt = self.confirmed_height(txid).await?;
-            if height_opt.is_none() { return Ok(vec![])}
+            let height_opt = self.get_confirmed_height(txid).await?;
+            if height_opt.is_none() {
+                return Ok(vec![]);
+            }
             height_opt.unwrap()
         };
-        self.header_digests(height, confs).await
+        self.get_digest_range(height, confs).await
     }
 
     /// TODO: make less brittle
-    async fn get_confirming_headers(&self, txid: TXID, confs: usize) -> Result<Vec<RawHeader>, ProviderError> {
+    async fn get_confirming_headers(
+        &self,
+        txid: TXID,
+        confs: usize,
+    ) -> Result<Vec<RawHeader>, ProviderError> {
         let height = {
-            let height_opt = self.confirmed_height(txid).await?;
-            if height_opt.is_none() { return Ok(vec![])}
+            let height_opt = self.get_confirmed_height(txid).await?;
+            if height_opt.is_none() {
+                return Ok(vec![]);
+            }
             height_opt.unwrap()
         };
-        self.raw_headers(height, confs).await
+        self.get_raw_header_range(height, confs).await
     }
 }
 
@@ -223,6 +269,16 @@ impl CachingProvider {
     pub async fn has_tx(&self, txid: TXID) -> bool {
         self.tx_cache.lock().await.contains(&txid)
     }
+
+    /// Return true if the cache has the header in it
+    pub async fn has_header(&self, digest: BlockHash) -> bool {
+        self.header_cache.lock().await.contains(&digest)
+    }
+
+    /// Return true if the cache has the height in it
+    pub async fn has_height(&self, digest: BlockHash) -> bool {
+        self.height_cache.lock().await.contains(&digest)
+    }
 }
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -240,16 +296,52 @@ impl BTCProvider for CachingProvider {
         self.provider.in_best_chain(digest).await
     }
 
-    async fn header_digests(&self, start: usize, headers: usize) -> Result<Vec<BlockHash>, ProviderError> {
-        self.provider.header_digests(start, headers).await
+    async fn get_digest_range(
+        &self,
+        start: usize,
+        headers: usize,
+    ) -> Result<Vec<BlockHash>, ProviderError> {
+        self.provider.get_digest_range(start, headers).await
     }
 
-    async fn raw_headers(&self, start: usize, headers: usize) -> Result<Vec<RawHeader>, ProviderError> {
-        self.provider.raw_headers(start, headers).await
+    async fn get_raw_header_range(
+        &self,
+        start: usize,
+        headers: usize,
+    ) -> Result<Vec<RawHeader>, ProviderError> {
+        self.provider.get_raw_header_range(start, headers).await
     }
 
-    async fn confirmed_height(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {
-        self.provider.confirmed_height(txid).await
+    async fn get_raw_header(&self, digest: BlockHash) -> Result<Option<RawHeader>, ProviderError> {
+        if self.has_header(digest).await {
+            return Ok(self.header_cache.lock().await.get(&digest).cloned());
+        }
+
+        let header_opt = { self.provider.get_raw_header(digest).await? };
+        if header_opt.is_none() {
+            return Ok(None);
+        }
+        let header = header_opt.unwrap();
+        self.header_cache.lock().await.put(digest, header);
+        Ok(Some(header))
+    }
+
+    async fn get_height_of(&self, digest: BlockHash) -> Result<Option<usize>, ProviderError> {
+        if self.has_header(digest).await {
+            return Ok(self.height_cache.lock().await.get(&digest).cloned());
+        }
+
+        let height_opt = { self.provider.get_height_of(digest).await? };
+        if height_opt.is_none() {
+            return Ok(None);
+        }
+        let height = height_opt.unwrap();
+        self.height_cache.lock().await.put(digest, height);
+        Ok(Some(height))
+    }
+
+    async fn get_confirmed_height(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {
+        self.provider.get_confirmed_height(txid).await
     }
 
     async fn get_confs(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {
@@ -261,14 +353,13 @@ impl BTCProvider for CachingProvider {
             return Ok(self.tx_cache.lock().await.get(&txid).cloned());
         }
 
-        let tx_opt = {
-            self.provider.get_tx(txid).await?
-        };
-        if tx_opt.is_none() { return Ok(None); }
+        let tx_opt = { self.provider.get_tx(txid).await? };
+        if tx_opt.is_none() {
+            return Ok(None);
+        }
         let tx = tx_opt.unwrap();
         self.tx_cache.lock().await.put(txid, tx.clone());
         Ok(Some(tx))
-
     }
 
     async fn broadcast(&self, tx: BitcoinTx) -> Result<TXID, ProviderError> {
@@ -283,7 +374,10 @@ impl BTCProvider for CachingProvider {
         self.provider.get_utxos_by_address(address).await
     }
 
-    async fn get_merkle(&self, txid: TXID) -> Result<Option<(usize, Vec<Hash256Digest>)>, ProviderError> {
+    async fn get_merkle(
+        &self,
+        txid: TXID,
+    ) -> Result<Option<(usize, Vec<Hash256Digest>)>, ProviderError> {
         self.provider.get_merkle(txid).await
     }
 }

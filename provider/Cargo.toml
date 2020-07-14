@@ -27,7 +27,7 @@ reqwest = { version = "0.10.4", features = ["json"], optional = true }
 hex = { version = "0.4.2", optional = true }
 serde = { version = "1.0.106", features = ["derive"], optional = true }
 serde_json = { version = "1.0.55", optional = true }
-
+bytes = { version = "^0.5", optional = true }
 # building wasm
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 wasm-bindgen = { version = "0.2.62", features = ["serde-serialize"]  }
@@ -37,8 +37,9 @@ tokio = "0.2.21"
 
 [features]
 default = ["mainnet", "esplora", "rpc"]
-esplora = ["reqwest", "hex", "serde", "serde_json"]
-rpc = ["secrecy", "reqwest", "hex", "serde", "serde_json"]
+esplora = ["fetch"]
+rpc = ["secrecy", "fetch"]
+fetch = ["reqwest", "hex", "serde", "serde_json", "bytes"]
 
 # mutually exclusive
 mainnet = ["rmn-btc/mainnet"]

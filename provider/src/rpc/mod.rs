@@ -80,7 +80,7 @@ impl<T: JsonRPCTransport> BitcoindRPC<T> {
     }
 
     /// Get the digest of the best block
-    pub async fn get_raw_header(&self, block: BlockHash) -> Result<String, ProviderError> {
+    pub async fn rpc_get_raw_header(&self, block: BlockHash) -> Result<String, ProviderError> {
         self.request("getrawheader", vec![block.to_be_hex()]).await
     }
 
@@ -140,31 +140,65 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
         Ok(self.get_block(digest).await?.confirmations != -1)
     }
 
-    async fn raw_headers(&self, start: usize, headers: usize) -> Result<Vec<RawHeader>, ProviderError> {
-        let digests = self.header_digests(start, headers).await?;
+    async fn get_raw_header_range(
+        &self,
+        start: usize,
+        headers: usize,
+    ) -> Result<Vec<RawHeader>, ProviderError> {
+        let digests = self.get_digest_range(start, headers).await?;
         let mut h = vec![];
         for digest in digests.into_iter() {
-            let raw = self.get_raw_header(digest).await?;
-
-            let raw = hex::decode(&raw).expect("heights already checked. no bad headers from api");
-
-            let mut header = [0u8; 80];
-            header.copy_from_slice(&raw[..80]);
-            h.push(header);
+            if let Some(header) = self.get_raw_header(digest).await?{
+                h.push(header);
+            } else {
+                break;
+            }
         }
         Ok(h)
     }
 
-    async fn header_digests(&self, start: usize, headers: usize) -> Result<Vec<BlockHash>, ProviderError> {
+    async fn get_digest_range(
+        &self,
+        start: usize,
+        headers: usize,
+    ) -> Result<Vec<BlockHash>, ProviderError> {
         let mut h = vec![];
         for i in 0..headers {
-            h.push(BlockHash::from_be_hex(&self.get_block_hash(start + i).await?)?);
+            h.push(BlockHash::from_be_hex(
+                &self.get_block_hash(start + i).await?,
+            )?);
         }
 
         Ok(h)
     }
 
-    async fn confirmed_height(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {
+    async fn get_raw_header(&self, digest: BlockHash) -> Result<Option<RawHeader>, ProviderError> {
+        let raw = self.rpc_get_raw_header(digest).await?;
+        if let Ok(decoded) = hex::decode(&raw){
+            let mut header = [0u8; 80];
+            header.copy_from_slice(&decoded[..80]);
+            Ok(Some(header))
+        } else {
+            Ok(None)
+        }
+    }
+
+    async fn get_height_of(&self, digest: BlockHash) -> Result<Option<usize>, ProviderError> {
+        let block = {
+            let block_res = self.get_block(digest).await;
+            if let Err(e) = block_res {
+                if e.should_retry() {
+                    return Err(e);
+                } else {
+                    return Ok(None);
+                }
+            };
+            block_res.unwrap()
+        };
+        Ok(Some(block.height))
+    }
+
+    async fn get_confirmed_height(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {
         let tx = {
             let tx_res = self.get_raw_transaction(txid).await;
             if let Err(e) = tx_res {
@@ -182,9 +216,9 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
         } else {
             let block = self
                 .get_block(
-                    BlockHash::from_be_hex(&tx.blockhash)
-                    .expect("no malformed hashes from api")
-                ).await?;
+                    BlockHash::from_be_hex(&tx.blockhash).expect("no malformed hashes from api"),
+                )
+                .await?;
             Ok(Some(block.height))
         }
     }
@@ -248,11 +282,16 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
         ))
     }
 
-    async fn get_merkle(&self, txid: TXID) -> Result<Option<(usize, Vec<Hash256Digest>)>, ProviderError> {
+    async fn get_merkle(
+        &self,
+        txid: TXID,
+    ) -> Result<Option<(usize, Vec<Hash256Digest>)>, ProviderError> {
         let blockhash = {
             let tx_res = self.get_raw_transaction(txid).await;
             match tx_res {
-                Ok(tx) => BlockHash::from_be_hex(&tx.blockhash).expect("no malformed hashes from api"),
+                Ok(tx) => {
+                    BlockHash::from_be_hex(&tx.blockhash).expect("no malformed hashes from api")
+                }
                 Err(e) => {
                     if e.should_retry() {
                         return Err(e);
@@ -288,7 +327,6 @@ impl<T: JsonRPCTransport + Send + Sync> PollingBTCProvider for BitcoindRPC<T> {
         self.interval = Duration::from_secs(interval as u64);
     }
 }
-
 
 // #[cfg(test)]
 // mod test {
