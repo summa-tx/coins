@@ -14,6 +14,8 @@ cargo test --verbose && \
 ### Provider ###
 cd ../provider && \
 cargo --verbose build && \
+cargo --verbose build --no-default-features --features="mainnet" && \
+cargo build --target wasm32-unknown-unknown && \
 
 ### PSBT ###
 cd ../psbt && \
