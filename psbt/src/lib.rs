@@ -36,9 +36,9 @@ use rmn_bip32::{
 use riemann_core::prelude::*;
 
 use rmn_btc::{
-    builder::LegacyBuilder,
+    builder::BitcoinTxBuilder,
     enc::encoder::{BitcoinEncoderMarker, MainnetEncoder, TestnetEncoder},
-    types::{BitcoinTransaction, BitcoinTxIn, LegacyTx, TxOut},
+    types::{BitcoinTransaction, BitcoinTxIn, BitcoinTx, LegacyTx, TxOut},
 };
 
 /// A generic Partially Signed Transaction
@@ -53,7 +53,7 @@ pub trait PST<T: AddressEncoder> {
     type Error: std::error::Error;
 
     /// An associated TxBuildertype, parameterized by the encoder
-    type TxBuilder: TxBuilder<Encoder = T, Transaction = LegacyTx>;
+    type TxBuilder: TxBuilder<Encoder = T, Transaction = BitcoinTx>;
 
     /// An associated Global Map type
     type Global: PSTMap;
@@ -78,7 +78,7 @@ pub trait PST<T: AddressEncoder> {
 
     /// Get a builder from the underlying tx
     fn tx_builder(&self) -> Result<Self::TxBuilder, Self::Error> {
-        Ok(Self::TxBuilder::from_tx(self.tx()?))
+        Ok(Self::TxBuilder::from_tx(self.tx()?.into()))
     }
 
     /// Return a reference to the global attributes
@@ -222,7 +222,7 @@ where
 
     type Bip32Encoder = E;
     type Error = PSBTError;
-    type TxBuilder = LegacyBuilder<T>;
+    type TxBuilder = BitcoinTxBuilder<T>;
     type Global = PSBTGlobal;
     type Input = PSBTInput;
     type Output = PSBTOutput;

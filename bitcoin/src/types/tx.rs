@@ -1,5 +1,5 @@
 //! Bitcoin transaction types and associated sighash arguments.
-use std::io::Error as IOError;
+use std::io::{Read, Write, Error as IOError};
 use thiserror::Error;
 
 use riemann_core::{
@@ -30,6 +30,12 @@ pub enum BitcoinTx {
     Legacy(LegacyTx),
 }
 
+impl Default for BitcoinTx {
+    fn default() -> Self {
+        Self::Legacy(Default::default())
+    }
+}
+
 impl From<WitnessTx> for BitcoinTx {
     fn from(w: WitnessTx) -> Self {
         BitcoinTx::Witness(w)
@@ -43,36 +49,20 @@ impl From<LegacyTx> for BitcoinTx {
 }
 
 impl BitcoinTx {
-    /// Deserialize a hex string. Determine type information from the segwit marker `0001`
-    /// immediately following the version bytes. This produces a `BitcoinTx` enum that must be
-    /// explicitly cast to the desired type via `into_witness` or `into_legacy`.
-    ///
-    /// # Note
-    ///
-    /// Casting directly to legacy may drop witness information if the tx is witness
-    pub fn deserialize_hex(hex: &str) -> Result<BitcoinTx, TxError> {
-        if &hex[8..12] == "0001" {
-            WitnessTx::deserialize_hex(hex).map(BitcoinTx::Witness)
-        } else {
-            LegacyTx::deserialize_hex(hex).map(BitcoinTx::Legacy)
-        }
-    }
-
-    /// Serialize the transaction to a hex string.
-    pub fn serialize_hex(&self) -> String {
-        match self {
-            BitcoinTx::Witness(tx) => tx.serialize_hex(),
-            BitcoinTx::Legacy(tx) => tx.serialize_hex(),
-        }
-    }
-
-    /// Return the TXID of the transaction
-    pub fn txid(&self) -> TXID {
-        match self {
-            BitcoinTx::Witness(tx) => tx.txid(),
-            BitcoinTx::Legacy(tx) => tx.txid(),
-        }
-    }
+    // /// Deserialize a hex string. Determine type information from the segwit marker `0001`
+    // /// immediately following the version bytes. This produces a `BitcoinTx` enum that must be
+    // /// explicitly cast to the desired type via `into_witness` or `into_legacy`.
+    // ///
+    // /// # Note
+    // ///
+    // /// Casting directly to legacy may drop witness information if the tx is witness
+    // pub fn deserialize_hex(hex: &str) -> Result<BitcoinTx, TxError> {
+    //     if &hex[8..12] == "0001" {
+    //         WitnessTx::deserialize_hex(hex).map(BitcoinTx::Witness)
+    //     } else {
+    //         LegacyTx::deserialize_hex(hex).map(BitcoinTx::Legacy)
+    //     }
+    // }
 
     /// True if the wrapped tx is a witness transaction. False otherwise
     pub fn is_witness(&self) -> bool {
@@ -89,34 +79,58 @@ impl BitcoinTx {
             _ => false,
         }
     }
+}
 
-    /// Return a reference to the underlying tx as a legacy TX.
-    pub fn as_legacy(&self) -> &LegacyTx {
+impl ByteFormat for BitcoinTx {
+    type Error = TxError;  // Ser associated error
+
+    /// Returns the byte-length of the serialized data structure.
+    fn serialized_length(&self) -> usize {
         match self {
-            BitcoinTx::Witness(tx) => tx.as_legacy(),
-            BitcoinTx::Legacy(tx) => &tx,
+            BitcoinTx::Witness(tx) => tx.serialized_length(),
+            BitcoinTx::Legacy(tx) => tx.serialized_length(),
         }
     }
 
-    /// Consume the wrapper and convert it to a legacy tx. but `into_witness` should be
-    /// preferred, as it will never drop information.
-    pub fn into_legacy(self) -> LegacyTx {
-        match self {
-            BitcoinTx::Witness(tx) => tx.into_legacy(),
-            BitcoinTx::Legacy(tx) => tx,
+    fn read_from<R>(reader: &mut R, _limit: usize) -> Result<Self, Self::Error>
+    where
+        R: Read,
+        Self: std::marker::Sized
+    {
+        // Read the first 6 bytes, look for the witness tag, then chain them back on the front
+        // of the reader
+        let mut tag = [0u8; 6];
+        reader.read_exact(&mut tag)?;
+        let mut chain = tag.chain(reader);
+        if tag[4..=5] == [0, 1] {
+            Ok(BitcoinTx::Witness(WitnessTx::read_from(&mut chain, 0)?))
+        } else {
+            Ok(BitcoinTx::Legacy(LegacyTx::read_from(&mut chain, 0)?))
         }
     }
 
-    /// Consume the wrapper and convert it to a witness tx.
-    pub fn into_witness(self) -> WitnessTx {
+    fn write_to<W>(&self, writer: &mut W) -> Result<usize, <Self as ByteFormat>::Error>
+    where
+        W: Write
+    {
         match self {
-            BitcoinTx::Witness(tx) => tx,
-            BitcoinTx::Legacy(tx) => tx.into_witness(),
+            BitcoinTx::Witness(tx) => tx.write_to(writer),
+            BitcoinTx::Legacy(tx) => tx.write_to(writer),
         }
     }
+}
+
+impl Transaction for BitcoinTx {
+    type Digest = bitcoin_spv::types::Hash256Digest;
+    type TxError = TxError;
+    type TXID = TXID;
+    type TxOut = TxOut;
+    type TxIn = BitcoinTxIn;
+    type HashWriter = Hash256Writer;
+    type SighashArgs = WitnessSighashArgs;
 
     /// Instantiate a new `BitcoinTx`. This always returns a `BitcoinTx::Legacy`
-    pub fn new<I, O>(version: u32, vin: I, vout: O, locktime: u32) -> Self
+    fn new<I, O>(version: u32, vin: I, vout: O, locktime: u32) -> Self
     where
         I: Into<Vec<BitcoinTxIn>>,
         O: Into<Vec<TxOut>>,
@@ -129,8 +143,16 @@ impl BitcoinTx {
         })
     }
 
+    /// Get the version number from the underlying tx
+    fn version(&self) -> u32 {
+        match self {
+            BitcoinTx::Witness(tx) => tx.version(),
+            BitcoinTx::Legacy(tx) => tx.version(),
+        }
+    }
+
     /// Get the inputs from the underlying tx
-    pub fn inputs(&self) -> &[BitcoinTxIn] {
+    fn inputs(&self) -> &[BitcoinTxIn] {
         match self {
             BitcoinTx::Witness(tx) => tx.inputs(),
             BitcoinTx::Legacy(tx) => tx.inputs(),
@@ -138,34 +160,43 @@ impl BitcoinTx {
     }
 
     /// Get the outputs from the underlying tx
-    pub fn outputs(&self) -> &[TxOut] {
+    fn outputs(&self) -> &[TxOut] {
         match self {
             BitcoinTx::Witness(tx) => tx.outputs(),
             BitcoinTx::Legacy(tx) => tx.outputs(),
         }
     }
 
-    /// Get the version number from the underlying tx
-    pub fn version(&self) -> u32 {
-        match self {
-            BitcoinTx::Witness(tx) => tx.version(),
-            BitcoinTx::Legacy(tx) => tx.version(),
-        }
-    }
 
     /// Get the locktime from the underlying tx
-    pub fn locktime(&self) -> u32 {
+    fn locktime(&self) -> u32 {
         match self {
             BitcoinTx::Witness(tx) => tx.locktime(),
             BitcoinTx::Legacy(tx) => tx.locktime(),
         }
     }
 
-    /// Get the locktime from the underlying tx. Returns a 0-length slice for legacy txns
-    pub fn witnesses(&self) -> &[Witness] {
+    /// Return the TXID of the transaction
+    fn txid(&self) -> TXID {
         match self {
-            BitcoinTx::Witness(tx) => tx.witnesses(),
-            BitcoinTx::Legacy(_) => &[],
+            BitcoinTx::Witness(tx) => tx.txid(),
+            BitcoinTx::Legacy(tx) => tx.txid(),
+        }
+    }
+
+    /// Return the TXID of the transaction
+    fn write_sighash_preimage<W: Write>(
+        &self,
+        writer: &mut W,
+        args: &Self::SighashArgs,
+    ) -> Result<(), Self::TxError> {
+        match self {
+            BitcoinTx::Witness(tx) => {
+                tx.write_sighash_preimage(writer, args)
+            }
+            BitcoinTx::Legacy(tx) => {
+                tx.write_sighash_preimage(writer, &args.into())
+            }
         }
     }
 }
@@ -197,10 +228,11 @@ pub enum TxError {
     /// transaction.
     #[error("Witness flag not as expected. Got {:?}. Expected {:?}.", .0, [0u8, 1u8])]
     BadWitnessFlag([u8; 2]),
-    // /// No inputs in vin
-    // #[error("Vin may not be empty")]
-    // EmptyVin,
-    //
+
+    /// Wrong sighash args passed in to wrapped tx
+    #[error("Sighash args must match the wrapped tx type")]
+    WrongSighashArgs,
+
     // /// No outputs in vout
     // #[error("Vout may not be empty")]
     // EmptyVout
@@ -213,14 +245,14 @@ pub type TxResult<T> = Result<T, TxError>;
 /// Legacy/SegWit tx divide by implementing a small common interface between them.
 pub trait BitcoinTransaction:
     Transaction<
-    Digest = bitcoin_spv::types::Hash256Digest,
-    Error = TxError,  // Ser associated error
-    TxError = TxError,
-    TXID = TXID,
-    TxOut = TxOut,
-    TxIn = BitcoinTxIn,
-    HashWriter = Hash256Writer,
->
+        Digest = bitcoin_spv::types::Hash256Digest,
+        Error = TxError,  // Ser associated error
+        TxError = TxError,
+        TXID = TXID,
+        TxOut = TxOut,
+        TxIn = BitcoinTxIn,
+        HashWriter = Hash256Writer,
+    >
 {
     /// Returns a reference to the tx as a legacy tx.
     fn as_legacy(&self) -> &LegacyTx;
@@ -244,6 +276,36 @@ pub trait BitcoinTransaction:
             Some(&self.outputs()[outpoint.idx as usize])
         } else {
             None
+        }
+    }
+}
+
+impl BitcoinTransaction for BitcoinTx {
+    fn as_legacy(&self) -> &LegacyTx {
+        match self {
+            BitcoinTx::Witness(tx) => tx.as_legacy(),
+            BitcoinTx::Legacy(tx) => &tx,
+        }
+    }
+
+    fn witnesses(&self) -> &[Witness] {
+        match self {
+            BitcoinTx::Witness(tx) => tx.witnesses(),
+            BitcoinTx::Legacy(_) => &[],
+        }
+    }
+
+    fn into_legacy(self) -> LegacyTx {
+        match self {
+            BitcoinTx::Witness(tx) => tx.into_legacy(),
+            BitcoinTx::Legacy(tx) => tx,
+        }
+    }
+
+    fn into_witness(self) -> WitnessTx {
+        match self {
+            BitcoinTx::Witness(tx) => tx,
+            BitcoinTx::Legacy(tx) => tx.into_witness(),
         }
     }
 }

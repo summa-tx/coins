@@ -199,9 +199,7 @@ impl WitnessTx {
             _ => Ok(Hash256Digest::default()),
         }
     }
-}
 
-impl WitnessTx {
     /// Consumes a `LegacyTx` and instantiates a new `WitnessTx` with empty witnesses
     pub fn from_legacy(legacy_tx: LegacyTx) -> Self {
         let witnesses = (0..legacy_tx.inputs().len())

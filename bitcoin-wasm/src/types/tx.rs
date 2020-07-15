@@ -27,6 +27,10 @@ wrap_struct!(
     /// A witness bitcoin transaction object.
     witness::WitnessTx
 );
+wrap_struct!(
+    /// A bitcoin transaction object.
+    tx::BitcoinTx
+);
 
 impl_getter_passthrough!(LegacyTx, version, u32);
 impl_getter_passthrough!(LegacyTx, locktime, u32);
@@ -36,6 +40,11 @@ impl_getter_passthrough!(WitnessTx, version, u32);
 impl_getter_passthrough!(WitnessTx, locktime, u32);
 impl_wrapped_getter_passthrough!(WitnessTx, txid, TXID);
 impl_wrapped_getter_passthrough!(WitnessTx, wtxid, WTXID);
+
+impl_getter_passthrough!(BitcoinTx, version, u32);
+impl_getter_passthrough!(BitcoinTx, locktime, u32);
+impl_wrapped_getter_passthrough!(BitcoinTx, txid, TXID);
+
 
 #[wasm_bindgen]
 impl LegacyTx {

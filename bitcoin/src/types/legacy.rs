@@ -59,6 +59,16 @@ pub struct LegacySighashArgs {
     pub prevout_script: Script,
 }
 
+impl From<&crate::types::witness::WitnessSighashArgs> for LegacySighashArgs {
+    fn from(s: &crate::types::witness::WitnessSighashArgs) -> Self {
+        Self {
+            index: s.index,
+            sighash_flag: s.sighash_flag,
+            prevout_script: s.prevout_script.clone(),
+        }
+    }
+}
+
 /// A Legacy (non-witness) Transaction.
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Eq, PartialEq, Default)]
 pub struct LegacyTx {

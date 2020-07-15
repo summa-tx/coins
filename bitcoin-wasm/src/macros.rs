@@ -218,199 +218,99 @@ macro_rules! impl_prefix_vec_access {
 }
 
 macro_rules! impl_builders {
-    ($leg:ident, $wit:ident, $enc:ident) => {
-        /// LegacyBuilder provides a struct on which we implement `TxBuilder` for legacy Bitcoin
-        /// Transactions. Its associated types are the standard Bitcoin `LegacyTx`, and `WitnessTx`,
-        /// and the WitnessBuilder. It is parameterized with an address encoder, so that the same
-        /// struct and logic can be used on mainnet and testnet.
+    ($builder:ident, $enc:ident) => {
+
+        /// This is a generic builder for Bitcoin transactions. It allows you to easily build legacy and
+        /// witness transactions.
         ///
-        /// It can be explicitly converted to a WitnessBuilder using `as_witness`, or implicitly
-        /// via `extend_witnesses`.
+        /// Note: due to Bitcoin consensus rules, the order of inputs and outputs may be semantically
+        /// meaningful. E.g. when signing a transaction with the `SINGLE` sighash mode.
+        ///
+        /// It is parameterized with an address encoder, so that the same struct and logic can be used on
+        /// mainnet and testnet.
         #[wasm_bindgen(inspectable)]
         #[derive(Debug, Clone)]
-        pub struct $leg(rmn_btc::builder::LegacyBuilder<rmn_btc::enc::$enc>);
+        pub struct $builder(rmn_btc::builder::BitcoinTxBuilder<rmn_btc::enc::$enc>);
 
-        /// WitnessBuilder implements `TxBuilder` and `WitTxBuilder`. The only difference between
-        /// `WitnessBuilder` and `LegacyBuilder` is that `WitnessBuilder` builds Witness transactions.
-        /// This is implemented by having `WitnessBuilder` contain an internal `LegacyBuilder` which all
-        /// non-witness updates are applied to.
-        #[wasm_bindgen(inspectable)]
-        #[derive(Debug, Clone)]
-        pub struct $wit(rmn_btc::builder::WitnessBuilder<rmn_btc::enc::$enc>);
-
-        impl From<rmn_btc::builder::LegacyBuilder<rmn_btc::enc::$enc>> for $leg {
-            fn from(b: rmn_btc::builder::LegacyBuilder<rmn_btc::enc::$enc>) -> $leg {
-                Self(b)
+        impl From<rmn_btc::builder::BitcoinTxBuilder<rmn_btc::enc::$enc>> for $builder {
+            fn from(f: rmn_btc::builder::BitcoinTxBuilder<rmn_btc::enc::$enc>) -> Self {
+                Self(f)
             }
         }
 
-        impl From<rmn_btc::builder::WitnessBuilder<rmn_btc::enc::$enc>> for $wit {
-            fn from(b: rmn_btc::builder::WitnessBuilder<rmn_btc::enc::$enc>) -> $wit {
-                Self(b)
-            }
-        }
-
-        impl Default for $leg {
-            fn default() -> $leg {
-                $leg::new()
-            }
-        }
-
-        impl Default for $wit {
-            fn default() -> $wit {
-                $wit::new()
+        impl Default for $builder {
+            fn default() -> $builder {
+                $builder::new()
             }
         }
 
         #[wasm_bindgen]
-        impl $leg {
+        impl $builder {
             #[wasm_bindgen(constructor)]
             /// Instantiate a new builder
-            pub fn new() -> $leg {
-                rmn_btc::builder::LegacyBuilder::new().into()
+            pub fn new() -> $builder {
+                rmn_btc::builder::BitcoinTxBuilder::new().into()
             }
 
             /// Instantate a builder from a tx
-            pub fn from_tx(tx: &LegacyTx) -> $leg {
-                rmn_btc::builder::LegacyBuilder::from_tx_ref(&tx.inner()).into()
+            pub fn from_tx(tx: &crate::types::tx::BitcoinTx) -> $builder {
+                rmn_btc::builder::BitcoinTxBuilder::from_tx_ref(&tx.inner()).into()
             }
 
             /// Instantate a builder from a hex-encoded tx
-            pub fn from_hex_tx(hex: String) -> Result<$leg, JsValue> {
-                rmn_btc::builder::LegacyBuilder::from_hex_tx(&hex)
+            pub fn from_hex_tx(hex: String) -> Result<$builder, JsValue> {
+                rmn_btc::builder::BitcoinTxBuilder::from_hex_tx(&hex)
                     .map(Into::into)
                     .map_err(crate::types::errors::WasmError::from)
                     .map_err(JsValue::from)
             }
 
             /// Set the builder version
-            pub fn version(self, version: u32) -> $leg {
+            pub fn version(self, version: u32) -> $builder {
                 self.0.version(version).into()
             }
 
             /// Spend an outpoint
-            pub fn spend(self, outpoint: BitcoinOutpoint, sequence: u32) -> $leg {
+            pub fn spend(self, outpoint: BitcoinOutpoint, sequence: u32) -> $builder {
                 self.0.spend(outpoint, sequence).into()
             }
 
             /// Pay an address
-            pub fn pay(self, value: u64, address: &str) -> Result<$leg, JsValue> {
+            pub fn pay(self, value: u64, address: &str) -> Result<$builder, JsValue> {
                 let addr = rmn_btc::enc::$enc::string_to_address(address)
                     .map_err(crate::types::errors::WasmError::from)
                     .map_err(JsValue::from)?;
                 self.0
                     .pay(value, &addr)
-                    .map($leg::from)
+                    .map($builder::from)
                     .map_err(crate::types::errors::WasmError::from)
                     .map_err(JsValue::from)
             }
 
             /// Extend the vin with several inputs
-            pub fn extend_inputs(self, inputs: Vin) -> $leg {
+            pub fn extend_inputs(self, inputs: Vin) -> $builder {
                 self.0.extend_inputs(rmn_btc::types::txin::Vin::from(inputs)).into()
             }
 
             /// Extend the vout with several outputs
-            pub fn extend_outputs(self, outputs: Vout) -> $leg {
+            pub fn extend_outputs(self, outputs: Vout) -> $builder {
                 self.0.extend_outputs(rmn_btc::types::txout::Vout::from(outputs)).into()
             }
 
             /// Set the locktime
-            pub fn locktime(self, locktime: u32) -> $leg {
+            pub fn locktime(self, locktime: u32) -> $builder {
                 self.0.locktime(locktime).into()
             }
 
             /// Add witnesses and implicitly convert to a witness builder.
-            pub fn extend_witnesses(self, witnesses: TxWitness) -> $wit {
+            pub fn extend_witnesses(self, witnesses: TxWitness) -> $builder {
                 self.0
                     .extend_witnesses(Vec::<rmn_btc::types::script::Witness>::from(witnesses))
                     .into()
             }
 
-            /// Explicitly convert to a witness builder
-            #[allow(clippy::wrong_self_convention)]
-            pub fn as_witness(self) -> $wit {
-                self.0.as_witness().into()
-            }
-
             /// Consume the builder and produce a transaction
-            pub fn build(self) -> LegacyTx {
-                self.0.build().into()
-            }
-        }
-
-        #[wasm_bindgen]
-        impl $wit {
-            /// Instantiate a new builder#[wasm_bindgen(constructor)]
-            pub fn new() -> $wit {
-                rmn_btc::builder::WitnessBuilder::new().into()
-            }
-
-            /// Instantate a builder from a tx
-            pub fn from_tx(tx: &WitnessTx) -> $wit {
-                rmn_btc::builder::WitnessBuilder::from_tx_ref(&tx.inner()).into()
-            }
-
-            /// Instantate a builder from a hex-encoded tx
-            pub fn from_hex_tx(hex: String) -> Result<$wit, JsValue> {
-                rmn_btc::builder::WitnessBuilder::from_hex_tx(&hex)
-                    .map(Into::into)
-                    .map_err(crate::types::errors::WasmError::from)
-                    .map_err(JsValue::from)
-            }
-
-            /// Set the builder version
-            pub fn version(self, version: u32) -> $wit {
-                self.0.version(version).into()
-            }
-
-            /// Spend an outpoint
-            pub fn spend(self, outpoint: BitcoinOutpoint, sequence: u32) -> $wit {
-                self.0.spend(outpoint, sequence).into()
-            }
-
-            /// Pay an address
-            pub fn pay(self, value: u64, address: &str) -> Result<$wit, JsValue> {
-                let addr = rmn_btc::enc::$enc::string_to_address(address)
-                    .map_err(crate::types::errors::WasmError::from)
-                    .map_err(JsValue::from)?;
-                self.0
-                    .pay(value, &addr)
-                    .map($wit::from)
-                    .map_err(crate::types::errors::WasmError::from)
-                    .map_err(JsValue::from)
-            }
-
-            /// Extend the vin with several inputs
-            pub fn extend_inputs(self, inputs: Vin) -> $wit {
-                self.0.extend_inputs(rmn_btc::types::txin::Vin::from(inputs)).into()
-            }
-
-            /// Extend the vout with several outputs
-            pub fn extend_outputs(self, outputs: Vout) -> $wit {
-                self.0.extend_outputs(rmn_btc::types::txout::Vout::from(outputs)).into()
-            }
-
-            /// Set the locktime
-            pub fn locktime(self, locktime: u32) -> $wit {
-                self.0.locktime(locktime).into()
-            }
-
-            /// Add witnesses
-            pub fn extend_witnesses(self, witnesses: TxWitness) -> $wit {
-                self.0
-                    .extend_witnesses(Vec::<rmn_btc::types::script::Witness>::from(witnesses))
-                    .into()
-            }
-
-            /// Explicitly convert to a legacy builder
-            #[allow(clippy::wrong_self_convention)]
-            pub fn as_legacy(self) -> $leg {
-                self.0.as_legacy().into()
-            }
-
-            /// Consume the builder and produce a transaction
-            pub fn build(self) -> WitnessTx {
+            pub fn build(self) -> crate::types::tx::BitcoinTx {
                 self.0.build().into()
             }
         }
