@@ -113,6 +113,8 @@ pub trait BTCProvider: Sync + Send {
     async fn get_raw_header(&self, digest: BlockHash) -> Result<Option<RawHeader>, ProviderError>;
 
     /// Return the height of a header, or `None` if the header is unknown.
+    ///
+    /// ## Warning: Having a height does NOT mean that the header is part of the main chain.
     async fn get_height_of(&self, digest: BlockHash) -> Result<Option<usize>, ProviderError>;
 
     // -- TX UTILS -- //
@@ -245,15 +247,15 @@ pub trait PollingBTCProvider: BTCProvider {
 }
 
 /// A provider that caches API responses whose values will never change.
-pub struct CachingProvider {
-    provider: Box<dyn PollingBTCProvider>,
+pub struct CachingProvider<T: BTCProvider> {
+    provider: T,
     tx_cache: Mutex<LruCache<TXID, BitcoinTx>>,
     header_cache: Mutex<LruCache<BlockHash, RawHeader>>,
     height_cache: Mutex<LruCache<BlockHash, usize>>,
 }
 
-impl From<Box<dyn PollingBTCProvider>> for CachingProvider {
-    fn from(provider: Box<dyn PollingBTCProvider>) -> Self {
+impl<T: BTCProvider> From<T> for CachingProvider<T> {
+    fn from(provider: T) -> Self {
         Self {
             provider,
             tx_cache: Mutex::new(LruCache::new(DEFAULT_CACHE_SIZE)),
@@ -263,7 +265,7 @@ impl From<Box<dyn PollingBTCProvider>> for CachingProvider {
     }
 }
 
-impl CachingProvider {
+impl<T: BTCProvider> CachingProvider<T> {
     /// Return a reference to the TX, if it's in the cache.
     pub async fn peek_tx(&self, txid: TXID) -> Option<BitcoinTx> {
         self.tx_cache.lock().await.peek(&txid).cloned()
@@ -287,7 +289,7 @@ impl CachingProvider {
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl BTCProvider for CachingProvider {
+impl<T: BTCProvider> BTCProvider for CachingProvider<T> {
     async fn tip_hash(&self) -> Result<BlockHash, ProviderError> {
         self.provider.tip_hash().await
     }
@@ -388,7 +390,7 @@ impl BTCProvider for CachingProvider {
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl PollingBTCProvider for CachingProvider {
+impl<T: PollingBTCProvider> PollingBTCProvider for CachingProvider<T> {
     fn interval(&self) -> Duration {
         self.provider.interval()
     }
