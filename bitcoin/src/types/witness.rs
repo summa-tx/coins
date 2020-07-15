@@ -17,7 +17,7 @@ use crate::{
     types::{
         legacy::*,
         script::{Script, Witness},
-        transactions::*,
+        tx::*,
         txin::BitcoinTxIn,
         txout::TxOut,
     },

@@ -35,7 +35,7 @@ pub trait Output {
 /// contains its Sighash arguments. This allows others to define custom transaction types with
 /// unique functionality.
 pub trait Transaction: ByteFormat {
-    /// An associated error type, using in Results returned by the Transaction.
+    /// An associated error type, used in Results returned by the Transaction.
     type TxError: From<SerError> + From<<Self as ByteFormat>::Error>;
     /// A Digest type that underlies the associated marked hash, and is returned by `sighash()`.
     type Digest: Digest;

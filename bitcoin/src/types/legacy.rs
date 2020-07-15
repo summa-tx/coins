@@ -8,7 +8,7 @@ use crate::{
     hashes::TXID,
     types::{
         script::{Script, ScriptSig, Witness},
-        transactions::*,
+        tx::*,
         txin::{BitcoinTxIn, Vin},
         txout::{TxOut, Vout},
         witness::*,

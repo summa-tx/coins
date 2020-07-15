@@ -22,7 +22,7 @@ use rmn_btc::{
 
 use crate::types::{
     script::TxWitness,
-    transactions::{LegacyTx, WitnessTx},
+    tx::{LegacyTx, WitnessTx},
     txin::{BitcoinOutpoint, Vin},
     txout::Vout,
 };

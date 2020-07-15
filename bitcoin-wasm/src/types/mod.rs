@@ -2,12 +2,12 @@
 
 pub mod errors;
 pub mod script;
-pub mod transactions;
+pub mod tx;
 pub mod txin;
 pub mod txout;
 
 pub use errors::*;
 pub use script::*;
-pub use transactions::*;
+pub use tx::*;
 pub use txin::*;
 pub use txout::*;

@@ -21,7 +21,7 @@ use crate::{
     types::{
         legacy::LegacyTx,
         script::{ScriptPubkey, ScriptSig, Witness},
-        transactions::BitcoinTransaction,
+        tx::BitcoinTransaction,
         txin::{BitcoinOutpoint, BitcoinTxIn},
         txout::TxOut,
         witness::{WitnessTransaction, WitnessTx},
