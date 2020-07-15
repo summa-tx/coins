@@ -9,6 +9,16 @@ pub type HashFunc = dyn Fn(&[u8]) -> [u8; 32];
 pub trait ScalarSerialize {
     /// Serialize the scalar to an array
     fn privkey_array(&self) -> [u8; 32];
+
+    /// The first four bytes of the hash160 of the private key scalar
+    ///
+    /// TODO: replace this later when underlying libs have safe debugging
+    fn short_id(&self) -> [u8; 4] {
+        let digest = hash160(&self.privkey_array());
+        let mut buf = [0u8; 4];
+        buf.copy_from_slice(&digest[..4]);
+        buf
+    }
 }
 
 /// A deserializable 32-byte scalar

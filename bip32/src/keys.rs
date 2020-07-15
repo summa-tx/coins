@@ -1,5 +1,5 @@
 use crate::{
-    curve::Secp256k1Backend,
+    curve::{ScalarSerialize, Secp256k1Backend},
     model::{CanDerivePubkey, HasBackend, HasPrivkey, HasPubkey, SigningKey, VerifyingKey},
     Bip32Error,
 };
@@ -19,12 +19,21 @@ pub type Privkey = GenericPrivkey<'static, crate::Secp256k1<'static>>;
 pub type Pubkey = GenericPubkey<'static, crate::Secp256k1<'static>>;
 
 /// A Private key with a reference to its associated backend
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, PartialEq)]
 pub struct GenericPrivkey<'a, T: Secp256k1Backend> {
     /// The private key.
     pub key: T::Privkey,
     /// A reference to the backend. Many operations will return errors if this is None.
     pub backend: Option<&'a T>,
+}
+
+impl<T: Secp256k1Backend> std::fmt::Debug for GenericPrivkey<'_, T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Privkey")
+         .field("key identifier", &self.key.short_id())
+         .field("backend", &self.backend)
+         .finish()
+    }
 }
 
 impl<'a, T: Secp256k1Backend> HasPrivkey<'a, T> for GenericPrivkey<'a, T> {
