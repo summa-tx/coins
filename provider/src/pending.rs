@@ -28,7 +28,10 @@ enum PendingTxStates<'a> {
 
 /// A pending transaction. Periodically polls the API to see if it has been confirmed.
 ///
-/// If the transaction is confirmed, the
+/// If the transaction is confirmed, the stream will yield the number of confirmations it has
+/// received. 0 confirmations indicates a tx in the mempool, but not yet confirmed. Due to API
+/// limitations, if the transaction receives a confirmation before the first poll, 0 confirmations
+/// will be reported.
 ///
 /// This struct implements `futures::stream::Stream`.
 ///

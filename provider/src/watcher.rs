@@ -27,7 +27,8 @@ enum WatcherStates<'a> {
 }
 
 /// A stream that monitors a UTXO by its outpoint. Periodically polls the API to see if the UTXO
-/// has been spent.
+/// has been spent. Due to API limitations, if the spending transaction receives a confirmation
+/// before the first poll, 0 confirmations will be reported.
 ///
 /// This struct implements `futures::stream::Stream`.
 ///
