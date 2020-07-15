@@ -7,7 +7,7 @@ use wasm_bindgen::prelude::*;
 use riemann_core::{hashes::marked::MarkedDigest, ser::ByteFormat};
 use rmn_btc::prelude::TXID;
 
-use crate::ProviderError;
+use crate::provider::ProviderError;
 
 #[derive(Debug, Error)]
 pub enum FetchError {
@@ -89,7 +89,7 @@ pub(crate) async fn ez_fetch_string(
     let text = res.text().await?;
     Ok(text)
 }
-// 
+//
 // pub(crate) async fn ez_fetch_blob(
 //     client: &reqwest::Client,
 //     url: &str,

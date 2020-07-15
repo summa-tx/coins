@@ -2,7 +2,7 @@ use riemann_core::prelude::*;
 use rmn_btc::prelude::*;
 
 use crate::esplora::*;
-use crate::{reqwest_utils, ProviderError};
+use crate::{provider::ProviderError, reqwest_utils};
 
 #[derive(serde::Deserialize, Clone, Debug)]
 pub(crate) struct MerkleProof {

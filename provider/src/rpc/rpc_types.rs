@@ -67,7 +67,8 @@ pub struct RPCUTXO {
 
 impl Into<UTXO> for RPCUTXO {
     fn into(self) -> UTXO {
-        let script_pubkey = ScriptPubkey::deserialize_hex(&self.scriptPubKey).expect("valid API response");
+        let script_pubkey =
+            ScriptPubkey::deserialize_hex(&self.scriptPubKey).expect("valid API response");
         let spend_script = SpendScript::from_script_pubkey(&script_pubkey);
         UTXO::new(
             BitcoinOutpoint {

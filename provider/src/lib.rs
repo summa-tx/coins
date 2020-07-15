@@ -35,8 +35,6 @@ pub mod esplora;
 #[cfg(feature = "rpc")]
 pub mod rpc;
 
-pub use provider::*;
-
 /// The default poll interval, set to 300 seconds (5 minutes)
 pub const DEFAULT_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(180 * 1000);
 
@@ -48,10 +46,12 @@ type Encoder = rmn_btc::Encoder;
 
 // Useful alias for the stateful streams
 #[cfg(target_arch = "wasm32")]
-type ProviderFut<'a, T> =
-    std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, ProviderError>> + 'a>>;
+type ProviderFut<'a, T> = std::pin::Pin<
+    Box<dyn std::future::Future<Output = Result<T, crate::provider::ProviderError>> + 'a>,
+>;
 
 // Useful alias for the stateful streams
 #[cfg(not(target_arch = "wasm32"))]
-type ProviderFut<'a, T> =
-    std::pin::Pin<Box<dyn std::future::Future<Output = Result<T, ProviderError>> + 'a + Send>>;
+type ProviderFut<'a, T> = std::pin::Pin<
+    Box<dyn std::future::Future<Output = Result<T, crate::provider::ProviderError>> + 'a + Send>,
+>;

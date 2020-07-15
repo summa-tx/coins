@@ -10,7 +10,7 @@ use std::time::Duration;
 use riemann_core::prelude::*;
 use rmn_btc::prelude::*;
 
-use crate::{BTCProvider, PollingBTCProvider, ProviderError};
+use crate::provider::{BTCProvider, PollingBTCProvider, ProviderError};
 
 #[cfg(feature = "mainnet")]
 static BLOCKSTREAM: &str = "https://blockstream.info/api";
@@ -103,7 +103,8 @@ impl BTCProvider for EsploraProvider {
 
     async fn get_raw_header(&self, digest: BlockHash) -> Result<Option<RawHeader>, ProviderError> {
         let header = {
-            let header_res = EsploraBlock::fetch_by_digest(&self.client, &self.api_root, digest).await;
+            let header_res =
+                EsploraBlock::fetch_by_digest(&self.client, &self.api_root, digest).await;
             if let Err(e) = header_res {
                 let e: ProviderError = e.into();
                 if e.should_retry() {

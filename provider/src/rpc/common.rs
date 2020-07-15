@@ -7,7 +7,7 @@ use std::{
 };
 use thiserror::Error;
 
-use crate::ProviderError;
+use crate::provider::ProviderError;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Error)]
 /// A JSON-RPC 2.0 error

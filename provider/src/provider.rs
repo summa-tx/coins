@@ -224,7 +224,7 @@ pub trait PollingBTCProvider: BTCProvider {
     /// Watch the chain tip. Get notified of the new `BlockHash` every time it changes.
     ///
     /// Note: A new hash does not necessarily mean the chain height has increased. Reorgs may
-    /// result in the height decreasing in rare cases.
+    /// result in the height remaining the same, or decreasing in rare cases.
     fn tips(&self, limit: usize) -> Tips
     where
         Self: Sized,

@@ -148,7 +148,7 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
         let digests = self.get_digest_range(start, headers).await?;
         let mut h = vec![];
         for digest in digests.into_iter() {
-            if let Some(header) = self.get_raw_header(digest).await?{
+            if let Some(header) = self.get_raw_header(digest).await? {
                 h.push(header);
             } else {
                 break;
@@ -174,7 +174,7 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
 
     async fn get_raw_header(&self, digest: BlockHash) -> Result<Option<RawHeader>, ProviderError> {
         let raw = self.rpc_get_raw_header(digest).await?;
-        if let Ok(decoded) = hex::decode(&raw){
+        if let Ok(decoded) = hex::decode(&raw) {
             let mut header = [0u8; 80];
             header.copy_from_slice(&decoded[..80]);
             Ok(Some(header))
