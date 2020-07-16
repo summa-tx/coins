@@ -190,7 +190,7 @@ impl EsploraBlock {
         h[68..72].copy_from_slice(&self.timestamp.to_le_bytes());
         h[72..76].copy_from_slice(&self.bits.to_le_bytes());
         h[76..80].copy_from_slice(&self.nonce.to_le_bytes());
-        h
+        h.into()
     }
 
     pub(crate) async fn fetch_by_digest(
