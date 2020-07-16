@@ -102,22 +102,22 @@ impl BTCProvider for EsploraProvider {
     }
 
     async fn get_raw_header(&self, digest: BlockHash) -> Result<Option<RawHeader>, ProviderError> {
-        let header = if_found!(EsploraBlock::fetch_by_digest(&self.client, &self.api_root, digest).await);
+        let header = esplora_if_found!(EsploraBlock::fetch_by_digest(&self.client, &self.api_root, digest).await);
         Ok(Some(header.serialize()))
     }
 
     async fn get_height_of(&self, digest: BlockHash) -> Result<Option<usize>, ProviderError> {
-        let block = if_found!(EsploraBlock::fetch_by_digest(&self.client, &self.api_root, digest).await);
+        let block = esplora_if_found!(EsploraBlock::fetch_by_digest(&self.client, &self.api_root, digest).await);
         Ok(Some(block.height))
     }
 
     async fn get_confirmed_height(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {
-        let tx = if_found!(EsploraTxStatus::fetch_by_txid(&self.client, &self.api_root, txid).await);
+        let tx = esplora_if_found!(EsploraTxStatus::fetch_by_txid(&self.client, &self.api_root, txid).await);
         Ok(Some(tx.block_height))
     }
 
     async fn get_confs(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {
-        let tx = if_found!(EsploraTx::fetch_by_txid(&self.client, &self.api_root, txid).await);
+        let tx = esplora_if_found!(EsploraTx::fetch_by_txid(&self.client, &self.api_root, txid).await);
 
         if !tx.status.confirmed { return Ok(Some(0)); }
         let digest = BlockHash::from_be_hex(&tx.status.block_hash)

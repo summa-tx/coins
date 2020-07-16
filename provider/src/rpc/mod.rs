@@ -19,6 +19,8 @@ use crate::{
     rpc::{common::*, http::HttpTransport, rpc_types::*},
 };
 
+static ERR_NOT_FOUND: i64 = -1;
+
 /// A Bitcoin RPC connection
 #[derive(Debug)]
 pub struct BitcoindRPC<T: JsonRPCTransport> {
@@ -183,12 +185,12 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
     }
 
     async fn get_height_of(&self, digest: BlockHash) -> Result<Option<usize>, ProviderError> {
-        let block = if_found!(self.get_block(digest).await);
+        let block = rpc_if_found!(self.get_block(digest).await);
         Ok(Some(block.height))
     }
 
     async fn get_confirmed_height(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {
-        let tx = if_found!(self.get_raw_transaction(txid).await);
+        let tx = rpc_if_found!(self.get_raw_transaction(txid).await);
         if tx.confirmations <= 0 { return Ok(None); }
 
         let block = self.get_block(
@@ -199,7 +201,7 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
     }
 
     async fn get_confs(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {
-        let tx = if_found!(self.get_raw_transaction(txid).await);
+        let tx = rpc_if_found!(self.get_raw_transaction(txid).await);
         if tx.confirmations <= 0 {
             Ok(Some(0))
         } else {
@@ -208,7 +210,7 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
     }
 
     async fn get_tx(&self, txid: TXID) -> Result<Option<BitcoinTx>, ProviderError> {
-        let tx = if_found!(self.get_raw_transaction(txid).await);
+        let tx = rpc_if_found!(self.get_raw_transaction(txid).await);
 
         Ok(Some(
             BitcoinTx::deserialize_hex(&tx.hex).expect("No invalid tx from RPC")
@@ -239,7 +241,7 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
         &self,
         txid: TXID,
     ) -> Result<Option<(usize, Vec<Hash256Digest>)>, ProviderError> {
-        let tx = if_found!(self.get_raw_transaction(txid).await);
+        let tx = rpc_if_found!(self.get_raw_transaction(txid).await);
         let blockhash = BlockHash::from_be_hex(&tx.blockhash).expect("no malformed hashes from api");
         let block = self.get_block(blockhash).await?;
         let txids: Vec<String> = match block.tx {
