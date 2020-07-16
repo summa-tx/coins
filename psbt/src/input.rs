@@ -1,9 +1,9 @@
-use coins_core::ser::{self, ByteFormat};
 use coins_bip32::{
     curve::{model::Secp256k1Backend, SigSerialize},
     derived::DerivedPubkey,
     model::HasPubkey,
 };
+use coins_core::ser::{self, ByteFormat};
 use std::collections::{btree_map, BTreeMap};
 
 use bitcoins::types::{LegacyTx, Script, ScriptSig, Sighash, TxOut, Witness, UTXO};

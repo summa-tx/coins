@@ -11,8 +11,8 @@ pub mod finalizer;
 pub mod extractor;
 
 use crate::PST;
-use coins_core::enc::AddressEncoder;
 use bitcoins::types::tx::{BitcoinTx, Sighash};
+use coins_core::enc::AddressEncoder;
 
 pub trait PSTUpdater<A, P>
 where

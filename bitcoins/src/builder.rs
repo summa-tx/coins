@@ -52,7 +52,7 @@ where
     /// Add a set of witnesses to the transaction, and return a witness builder.
     pub fn extend_witnesses<I>(mut self, outputs: I) -> Self
     where
-        I: IntoIterator<Item = Witness>
+        I: IntoIterator<Item = Witness>,
     {
         self.witnesses.extend(outputs);
         self
@@ -75,7 +75,13 @@ where
 
     /// Consume self, produce a witness tx
     pub fn build_witness(self) -> WitnessTx {
-        <WitnessTx as WitnessTransaction>::new(self.version, self.vin, self.vout, self.witnesses, self.locktime)
+        <WitnessTx as WitnessTransaction>::new(
+            self.version,
+            self.vin,
+            self.vout,
+            self.witnesses,
+            self.locktime,
+        )
     }
 
     /// Add an output paying `value` to `script_pubkey`
@@ -194,7 +200,14 @@ where
 
     fn build(self) -> Self::Transaction {
         if self.produce_witness || !self.witnesses.is_empty() {
-            <WitnessTx as WitnessTransaction>::new(self.version, self.vin, self.vout, self.witnesses, self.locktime).into()
+            <WitnessTx as WitnessTransaction>::new(
+                self.version,
+                self.vin,
+                self.vout,
+                self.witnesses,
+                self.locktime,
+            )
+            .into()
         } else {
             LegacyTx::new(self.version, self.vin, self.vout, self.locktime).into()
         }

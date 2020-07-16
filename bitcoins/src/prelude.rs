@@ -1,7 +1,7 @@
 pub use crate::{
     builder::*,
     enc::*,
-    hashes::{TXID, WTXID, BlockHash},
+    hashes::{BlockHash, TXID, WTXID},
     types::*,
 };
 
@@ -41,9 +41,7 @@ impl ByteFormat for RawHeader {
 
 impl std::fmt::Debug for RawHeader {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_tuple("RawHeader")
-         .field(&self.as_ref())
-         .finish()
+        f.debug_tuple("RawHeader").field(&self.as_ref()).finish()
     }
 }
 

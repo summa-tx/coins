@@ -6,13 +6,13 @@ use thiserror::Error;
 
 use futures::executor::block_on;
 
-use coins_core::types::tx::Transaction;
-use coins_bip32 as bip32;
 use bitcoins::{
     enc::encoder::BitcoinEncoderMarker,
     types::transactions::{BitcoinTransaction, Sighash},
 };
 use bitcoins_ledger::{LedgerBTC, SigningInfo};
+use coins_bip32 as bip32;
+use coins_core::types::tx::Transaction;
 
 use crate::{input::PSBTInput, roles::PSTSigner, PSBTError, PSBT, PST};
 

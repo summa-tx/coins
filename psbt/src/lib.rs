@@ -38,7 +38,7 @@ use coins_core::prelude::*;
 use bitcoins::{
     builder::BitcoinTxBuilder,
     enc::encoder::{BitcoinEncoderMarker, MainnetEncoder, TestnetEncoder},
-    types::{BitcoinTransaction, BitcoinTxIn, BitcoinTx, LegacyTx, TxOut},
+    types::{BitcoinTransaction, BitcoinTx, BitcoinTxIn, LegacyTx, TxOut},
 };
 
 /// A generic Partially Signed Transaction

@@ -8,8 +8,8 @@ pub mod http;
 pub mod rpc_types;
 
 use async_trait::async_trait;
-use futures_util::lock::Mutex;
 use bitcoins::prelude::*;
+use futures_util::lock::Mutex;
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -191,13 +191,14 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
 
     async fn get_confirmed_height(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {
         let tx = rpc_if_found!(self.get_raw_transaction(txid).await);
-        if tx.confirmations <= 0 { return Ok(None); }
+        if tx.confirmations <= 0 {
+            return Ok(None);
+        }
 
-        let block = self.get_block(
-            BlockHash::from_be_hex(&tx.blockhash).expect("no malformed hashes from api"),
-        ).await?;
+        let block = self
+            .get_block(BlockHash::from_be_hex(&tx.blockhash).expect("no malformed hashes from api"))
+            .await?;
         Ok(Some(block.height))
-
     }
 
     async fn get_confs(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {
@@ -213,7 +214,7 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
         let tx = rpc_if_found!(self.get_raw_transaction(txid).await);
 
         Ok(Some(
-            BitcoinTx::deserialize_hex(&tx.hex).expect("No invalid tx from RPC")
+            BitcoinTx::deserialize_hex(&tx.hex).expect("No invalid tx from RPC"),
         ))
     }
 
@@ -242,7 +243,8 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
         txid: TXID,
     ) -> Result<Option<(usize, Vec<Hash256Digest>)>, ProviderError> {
         let tx = rpc_if_found!(self.get_raw_transaction(txid).await);
-        let blockhash = BlockHash::from_be_hex(&tx.blockhash).expect("no malformed hashes from api");
+        let blockhash =
+            BlockHash::from_be_hex(&tx.blockhash).expect("no malformed hashes from api");
         let block = self.get_block(blockhash).await?;
         let txids: Vec<String> = match block.tx {
             GetBlockTxList::IDs(v) => v,

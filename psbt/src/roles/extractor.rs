@@ -1,10 +1,7 @@
 use crate::{roles::PSTExtractor, PSBTError, PSBT, PST};
-use coins_core::builder::TxBuilder;
+use bitcoins::{enc::encoder::BitcoinEncoderMarker, types::BitcoinTx};
 use coins_bip32 as bip32;
-use bitcoins::{
-    enc::encoder::BitcoinEncoderMarker,
-    types::BitcoinTx,
-};
+use coins_core::builder::TxBuilder;
 
 /// An extractor
 pub struct PSBTExtractor();

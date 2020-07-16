@@ -1,5 +1,5 @@
 //! Bitcoin transaction types and associated sighash arguments.
-use std::io::{Read, Write, Error as IOError};
+use std::io::{Error as IOError, Read, Write};
 use thiserror::Error;
 
 use coins_core::{
@@ -82,7 +82,7 @@ impl BitcoinTx {
 }
 
 impl ByteFormat for BitcoinTx {
-    type Error = TxError;  // Ser associated error
+    type Error = TxError; // Ser associated error
 
     /// Returns the byte-length of the serialized data structure.
     fn serialized_length(&self) -> usize {
@@ -95,7 +95,7 @@ impl ByteFormat for BitcoinTx {
     fn read_from<R>(reader: &mut R, _limit: usize) -> Result<Self, Self::Error>
     where
         R: Read,
-        Self: std::marker::Sized
+        Self: std::marker::Sized,
     {
         // Read the first 6 bytes, look for the witness tag, then chain them back on the front
         // of the reader
@@ -111,7 +111,7 @@ impl ByteFormat for BitcoinTx {
 
     fn write_to<W>(&self, writer: &mut W) -> Result<usize, <Self as ByteFormat>::Error>
     where
-        W: Write
+        W: Write,
     {
         match self {
             BitcoinTx::Witness(tx) => tx.write_to(writer),
@@ -167,7 +167,6 @@ impl Transaction for BitcoinTx {
         }
     }
 
-
     /// Get the locktime from the underlying tx
     fn locktime(&self) -> u32 {
         match self {
@@ -191,12 +190,8 @@ impl Transaction for BitcoinTx {
         args: &Self::SighashArgs,
     ) -> Result<(), Self::TxError> {
         match self {
-            BitcoinTx::Witness(tx) => {
-                tx.write_sighash_preimage(writer, args)
-            }
-            BitcoinTx::Legacy(tx) => {
-                tx.write_sighash_preimage(writer, &args.into())
-            }
+            BitcoinTx::Witness(tx) => tx.write_sighash_preimage(writer, args),
+            BitcoinTx::Legacy(tx) => tx.write_sighash_preimage(writer, &args.into()),
         }
     }
 }
@@ -232,7 +227,6 @@ pub enum TxError {
     /// Wrong sighash args passed in to wrapped tx
     #[error("Sighash args must match the wrapped tx type")]
     WrongSighashArgs,
-
     // /// No outputs in vout
     // #[error("Vout may not be empty")]
     // EmptyVout

@@ -1,10 +1,10 @@
 use crate::{input::InputKey, roles::PSTFinalizer, PSBTError, PSBTInput, PSTMap, PSBT, PST};
-use coins_core::Transaction;
-use coins_bip32::{self as bip32, curve::SigSerialize, HasPubkey};
 use bitcoins::{
     enc::encoder::BitcoinEncoderMarker,
     types::{BitcoinOutpoint, BitcoinTransaction, ScriptType},
 };
+use coins_bip32::{self as bip32, curve::SigSerialize, HasPubkey};
+use coins_core::Transaction;
 
 /// A finalizer that creates WPKH witnesses
 pub struct PSBTWPKHFinalizer();

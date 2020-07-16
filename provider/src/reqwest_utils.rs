@@ -4,8 +4,8 @@ use thiserror::Error;
 #[cfg(target_arch = "wasm32")]
 use wasm_bindgen::prelude::*;
 
-use coins_core::{hashes::marked::MarkedDigest, ser::ByteFormat};
 use bitcoins::prelude::TXID;
+use coins_core::{hashes::marked::MarkedDigest, ser::ByteFormat};
 
 use crate::provider::ProviderError;
 

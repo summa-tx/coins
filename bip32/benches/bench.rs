@@ -1,5 +1,5 @@
-use criterion::{criterion_group, criterion_main, Criterion};
 use coins_bip32::{curve::model::*, model::*, xkeys::XPriv, Secp256k1};
+use criterion::{criterion_group, criterion_main, Criterion};
 
 fn derive_10_times(key: &XPriv) {
     let path: [u32; 10] = [

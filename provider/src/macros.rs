@@ -15,7 +15,8 @@ macro_rules! rpc_if_found {
         let result = $func.map_err(Into::<crate::provider::ProviderError>::into);
         if let Err(e) = result {
             if let ProviderError::RPCErrorResponse(resp) = &e {
-                if resp.code == crate::rpc::ERR_NOT_FOUND { // RPC not found code
+                if resp.code == crate::rpc::ERR_NOT_FOUND {
+                    // RPC not found code
                     return Ok(None);
                 }
             }

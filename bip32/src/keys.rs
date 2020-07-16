@@ -30,9 +30,9 @@ pub struct GenericPrivkey<'a, T: Secp256k1Backend> {
 impl<T: Secp256k1Backend> std::fmt::Debug for GenericPrivkey<'_, T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Privkey")
-         .field("key identifier", &self.key.short_id())
-         .field("backend", &self.backend)
-         .finish()
+            .field("key identifier", &self.key.short_id())
+            .field("backend", &self.backend)
+            .finish()
     }
 }
 

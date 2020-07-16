@@ -1,10 +1,5 @@
 use thiserror::Error;
 
-use coins_core::types::Transaction;
-use coins_bip32::{
-    self as bip32,
-    model::{DerivedKey, HasPubkey, SigningKey, XSigning},
-};
 use bitcoins::{
     enc::encoder::BitcoinEncoderMarker,
     types::{
@@ -12,6 +7,11 @@ use bitcoins::{
         SpendScript, WitnessTx,
     },
 };
+use coins_bip32::{
+    self as bip32,
+    model::{DerivedKey, HasPubkey, SigningKey, XSigning},
+};
+use coins_core::types::Transaction;
 
 use crate::{input::PSBTInput, roles::PSTSigner, PSBTError, PSBT, PST};
 

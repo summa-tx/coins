@@ -1,5 +1,5 @@
-use coins_core::prelude::*;
 use bitcoins::prelude::*;
+use coins_core::prelude::*;
 
 use crate::esplora::*;
 use crate::{provider::ProviderError, reqwest_utils};

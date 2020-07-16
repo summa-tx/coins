@@ -2,15 +2,15 @@ use async_trait::async_trait;
 use std::time::Duration;
 use thiserror::Error;
 
-use futures_util::lock::Mutex;
-use lru::LruCache;
-use coins_core::prelude::*;
 use bitcoins::{
     enc::Address,
     hashes::{BlockHash, TXID},
     prelude::RawHeader,
     types::*,
 };
+use coins_core::prelude::*;
+use futures_util::lock::Mutex;
+use lru::LruCache;
 
 use crate::{chain::Tips, pending::PendingTx, watcher::PollingWatcher, DEFAULT_CACHE_SIZE};
 

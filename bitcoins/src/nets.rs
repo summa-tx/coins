@@ -28,9 +28,7 @@
 //! ```
 use std::marker::PhantomData;
 
-use coins_core::{
-    enc::AddressEncoder, nets::Network,
-};
+use coins_core::{enc::AddressEncoder, nets::Network};
 
 use crate::{
     builder::BitcoinTxBuilder,
