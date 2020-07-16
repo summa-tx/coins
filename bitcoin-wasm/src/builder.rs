@@ -12,21 +12,16 @@
 use wasm_bindgen::prelude::*;
 
 use riemann_core::{
-    builder::TxBuilder,
     enc::AddressEncoder,
-};
-
-use rmn_btc::{
-    builder::{BitcoinBuilder, WitTxBuilder},
+    builder::TxBuilder,
 };
 
 use crate::types::{
     script::TxWitness,
-    transactions::{LegacyTx, WitnessTx},
     txin::{BitcoinOutpoint, Vin},
     txout::Vout,
 };
 
-impl_builders!(MainnetLegacyBuilder, MainnetWitnessBuilder, MainnetEncoder);
-impl_builders!(TestnetLegacyBuilder, TestnetWitnessBuilder, TestnetEncoder);
-impl_builders!(SignetLegacyBuilder, SignetWitnessBuilder, SignetEncoder);
+impl_builders!(MainnetBuilder, MainnetEncoder);
+impl_builders!(TestnetBuilder, TestnetEncoder);
+impl_builders!(SignetBuilder, SignetEncoder);

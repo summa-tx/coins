@@ -33,16 +33,12 @@ use rmn_bip32::{
     KeyFingerprint, XPub,
 };
 
-use riemann_core::{builder::TxBuilder, enc::AddressEncoder, ser::ByteFormat, tx::Transaction};
+use riemann_core::prelude::*;
 
 use rmn_btc::{
-    builder::LegacyBuilder,
+    builder::BitcoinTxBuilder,
     enc::encoder::{BitcoinEncoderMarker, MainnetEncoder, TestnetEncoder},
-    types::{
-        transactions::{BitcoinTransaction, LegacyTx},
-        txin::BitcoinTxIn,
-        txout::TxOut,
-    },
+    types::{BitcoinTransaction, BitcoinTxIn, BitcoinTx, LegacyTx, TxOut},
 };
 
 /// A generic Partially Signed Transaction
@@ -57,7 +53,7 @@ pub trait PST<T: AddressEncoder> {
     type Error: std::error::Error;
 
     /// An associated TxBuildertype, parameterized by the encoder
-    type TxBuilder: TxBuilder<Encoder = T, Transaction = LegacyTx>;
+    type TxBuilder: TxBuilder<Encoder = T, Transaction = BitcoinTx>;
 
     /// An associated Global Map type
     type Global: PSTMap;
@@ -82,7 +78,7 @@ pub trait PST<T: AddressEncoder> {
 
     /// Get a builder from the underlying tx
     fn tx_builder(&self) -> Result<Self::TxBuilder, Self::Error> {
-        Ok(Self::TxBuilder::from_tx(self.tx()?))
+        Ok(Self::TxBuilder::from_tx(self.tx()?.into()))
     }
 
     /// Return a reference to the global attributes
@@ -121,10 +117,7 @@ impl<T: BitcoinEncoderMarker, E: Bip32Encoder> serde::Serialize for PSBT<T, E> {
     where
         S: serde::Serializer,
     {
-        let s = self
-            .serialize_base64()
-            .map_err(|e| serde::ser::Error::custom(e.to_string()))?;
-        serializer.serialize_str(&s)
+        serializer.serialize_str(&self.serialize_base64())
     }
 }
 
@@ -229,7 +222,7 @@ where
 
     type Bip32Encoder = E;
     type Error = PSBTError;
-    type TxBuilder = LegacyBuilder<T>;
+    type TxBuilder = BitcoinTxBuilder<T>;
     type Global = PSBTGlobal;
     type Input = PSBTInput;
     type Output = PSBTOutput;
@@ -439,7 +432,7 @@ mod test {
             let p = MainnetPSBT::deserialize_hex(case).unwrap();
 
             // Check for non-modification
-            assert_eq!(p.serialize_hex().unwrap(), case.to_owned().to_string());
+            assert_eq!(p.serialize_hex(), case.to_owned().to_string());
             // println!("{:?}", p);
         }
     }

@@ -9,7 +9,13 @@ cargo --verbose build && \
 cargo --verbose build --target wasm32-unknown-unknown && \
 
 # default features covered by workspace-level tests
-cargo test --verbose \
+cargo test --verbose && \
+
+### Provider ###
+cd ../provider && \
+cargo --verbose build && \
+cargo --verbose build --no-default-features --features="mainnet" && \
+cargo build --target wasm32-unknown-unknown && \
 
 ### PSBT ###
 cd ../psbt && \

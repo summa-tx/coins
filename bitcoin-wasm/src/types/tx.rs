@@ -2,9 +2,7 @@
 
 use wasm_bindgen::prelude::*;
 
-use rmn_btc::{
-    types::{script, transactions::{self, BitcoinTransaction, Sighash, WitnessTransaction}},
-};
+use rmn_btc::prelude::*;
 
 use riemann_core::{
     ser::ByteFormat,
@@ -23,11 +21,15 @@ use crate::{
 
 wrap_struct!(
     /// A legacy bitcoin transaction object.
-    transactions::LegacyTx
+    legacy::LegacyTx
 );
 wrap_struct!(
     /// A witness bitcoin transaction object.
-    transactions::WitnessTx
+    witness::WitnessTx
+);
+wrap_struct!(
+    /// A bitcoin transaction object.
+    tx::BitcoinTx
 );
 
 impl_getter_passthrough!(LegacyTx, version, u32);
@@ -39,12 +41,17 @@ impl_getter_passthrough!(WitnessTx, locktime, u32);
 impl_wrapped_getter_passthrough!(WitnessTx, txid, TXID);
 impl_wrapped_getter_passthrough!(WitnessTx, wtxid, WTXID);
 
+impl_getter_passthrough!(BitcoinTx, version, u32);
+impl_getter_passthrough!(BitcoinTx, locktime, u32);
+impl_wrapped_getter_passthrough!(BitcoinTx, txid, TXID);
+
+
 #[wasm_bindgen]
 impl LegacyTx {
     /// Instantiate a new Legacy Tx.
     #[wasm_bindgen(constructor)]
     pub fn new(version: u32, vin: Vin, vout: Vout, locktime: u32) -> Self {
-        transactions::LegacyTx::new(version, vin.inner(), vout.inner(), locktime)
+        legacy::LegacyTx::new(version, vin.inner(), vout.inner(), locktime)
             .into()
     }
 
@@ -83,7 +90,7 @@ impl LegacyTx {
         let sighash_flag = Sighash::from_u8(flag)
             .map_err(WasmError::from)
             .map_err(JsValue::from)?;
-        let args = transactions::LegacySighashArgs {
+        let args = legacy::LegacySighashArgs {
             index,
             sighash_flag,
             prevout_script: script::Script::from(prevout_script),
@@ -102,7 +109,7 @@ impl WitnessTx {
     #[wasm_bindgen(constructor)]
     pub fn new(version: u32, vin: Vin, vout: Vout, witnesses: TxWitness, locktime: u32) -> Self {
         // disambiguate `new`
-        <transactions::WitnessTx as transactions::WitnessTransaction>::new(
+        <witness::WitnessTx as witness::WitnessTransaction>::new(
             version,
             vin.inner(),
             vout.inner(),
@@ -160,7 +167,7 @@ impl WitnessTx {
         let sighash_flag = Sighash::from_u8(flag)
             .map_err(WasmError::from)
             .map_err(JsValue::from)?;
-        let args = transactions::WitnessSighashArgs {
+        let args = witness::WitnessSighashArgs {
             index,
             sighash_flag,
             prevout_script: script::Script::from(prevout_script),

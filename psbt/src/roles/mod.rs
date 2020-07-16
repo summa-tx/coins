@@ -12,7 +12,7 @@ pub mod extractor;
 
 use crate::PST;
 use riemann_core::enc::AddressEncoder;
-use rmn_btc::types::transactions::{BitcoinTx, Sighash};
+use rmn_btc::types::tx::{BitcoinTx, Sighash};
 
 pub trait PSTUpdater<A, P>
 where

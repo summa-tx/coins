@@ -45,6 +45,11 @@ impl Address {
             Address::WSH(s) => s.clone(),
         }
     }
+
+    /// Convert the address to an `addr()` descriptor
+    pub fn to_descriptor(&self) -> String {
+        format!("addr({})", self.as_string())
+    }
 }
 
 /// NetworkParams holds the encoding paramteres for a bitcoin-like network. Currently this is

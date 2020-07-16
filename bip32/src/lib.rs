@@ -77,7 +77,10 @@ extern crate lazy_static;
 
 #[cfg_attr(tarpaulin, skip)]
 #[macro_use]
-pub(crate) mod prelude;
+pub(crate) mod macros;
+
+/// Everything needed for common usage
+pub mod prelude;
 
 /// Low-level types
 pub mod primitives;
@@ -120,7 +123,7 @@ pub use primitives::KeyFingerprint;
 pub use crate::{
     curve::{RecoverableSignature, Secp256k1, Signature},
     derived::{DerivedXPriv, DerivedXPub},
-    enc::{XKeyEncoder},
+    enc::XKeyEncoder,
     keys::{Privkey, Pubkey},
     xkeys::{XPriv, XPub},
 };

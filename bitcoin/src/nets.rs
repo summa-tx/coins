@@ -29,20 +29,18 @@
 use std::marker::PhantomData;
 
 use riemann_core::{
-    builder::TxBuilder, enc::AddressEncoder, nets::Network, types::tx::Transaction,
+    enc::AddressEncoder, nets::Network,
 };
 
 use crate::{
-    builder::{LegacyBuilder, WitnessBuilder},
+    builder::BitcoinTxBuilder,
     enc::{
         bases::EncodingError,
         encoder::{Address, BitcoinEncoderMarker, MainnetEncoder, SignetEncoder, TestnetEncoder},
     },
     types::{
-        script::ScriptPubkey,
-        transactions::{BitcoinTransaction, LegacyTx, WitnessTransaction, WitnessTx},
-        txin::BitcoinTxIn,
-        txout::TxOut,
+        BitcoinTransaction, BitcoinTx, BitcoinTxIn, ScriptPubkey, TxOut, WitnessTransaction,
+        WitnessTx,
     },
 };
 
@@ -51,31 +49,6 @@ use crate::{
 pub trait BitcoinNetwork: Network {
     /// An associated witness transaction type.
     type WTx: WitnessTransaction + BitcoinTransaction;
-
-    /// A builder for the witness transaction type
-    type WitnessBuilder: TxBuilder<Encoder = Self::Encoder, Transaction = Self::WTx>;
-
-    /// Returns a new instance of the associated transaction builder.
-    fn witness_tx_builder() -> Self::WitnessBuilder {
-        Self::WitnessBuilder::new()
-    }
-
-    /// Instantiate a builder from a tx object by taking ownership of it
-    fn witness_builder_from_tx(tx: Self::WTx) -> Self::WitnessBuilder {
-        Self::WitnessBuilder::from_tx(tx)
-    }
-
-    /// Instantiate a builder from a tx object by cloning its properties
-    fn witness_builder_from_tx_ref(tx: &Self::WTx) -> Self::WitnessBuilder {
-        Self::WitnessBuilder::from_tx_ref(tx)
-    }
-
-    /// Instantiate a builder from a hex-serialized transaction
-    fn witness_builder_from_hex(
-        hex_tx: &str,
-    ) -> Result<Self::WitnessBuilder, <Self::WTx as Transaction>::TxError> {
-        Self::WitnessBuilder::from_hex_tx(hex_tx)
-    }
 }
 
 /// A newtype for Bitcoin networks, parameterized by an encoder. We change the encoder to
@@ -93,8 +66,8 @@ where
     type Encoder = T;
     type TxIn = BitcoinTxIn;
     type TxOut = TxOut;
-    type Tx = LegacyTx;
-    type Builder = LegacyBuilder<T>;
+    type Tx = BitcoinTx;
+    type Builder = BitcoinTxBuilder<T>;
 }
 
 impl<T> BitcoinNetwork for Bitcoin<T>
@@ -102,7 +75,6 @@ where
     T: BitcoinEncoderMarker,
 {
     type WTx = WitnessTx;
-    type WitnessBuilder = WitnessBuilder<T>;
 }
 
 /// A fully-parameterized BitcoinMainnet. This is the main interface for accessing the library.
@@ -136,8 +108,7 @@ mod test {
             )
             .unwrap()
             .build()
-            .serialize_hex()
-            .unwrap();
+            .serialize_hex();
         BitcoinMainnet::builder_from_hex(&tx_hex).unwrap();
         // println!("{:?}", b);
     }

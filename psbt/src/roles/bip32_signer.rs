@@ -8,10 +8,8 @@ use rmn_bip32::{
 use rmn_btc::{
     enc::encoder::BitcoinEncoderMarker,
     types::{
-        script::ScriptType,
-        transactions::{BitcoinTransaction, LegacySighashArgs, LegacyTx, Sighash, WitnessTx},
-        txin::BitcoinOutpoint,
-        utxo::SpendScript,
+        BitcoinOutpoint, BitcoinTransaction, LegacySighashArgs, LegacyTx, ScriptType, Sighash,
+        SpendScript, WitnessTx,
     },
 };
 

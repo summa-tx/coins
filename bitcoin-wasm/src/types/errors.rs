@@ -3,7 +3,7 @@
 use wasm_bindgen::prelude::*;
 
 use riemann_core::ser::SerError;
-use rmn_btc::{enc::bases::EncodingError, types::transactions::TxError};
+use rmn_btc::{enc::bases::EncodingError, types::tx::TxError};
 
 use thiserror::Error;
 

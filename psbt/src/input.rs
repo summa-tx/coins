@@ -6,12 +6,7 @@ use rmn_bip32::{
 };
 use std::collections::{btree_map, BTreeMap};
 
-use rmn_btc::types::{
-    script::{Script, ScriptSig, Witness},
-    transactions::{LegacyTx, Sighash},
-    utxo::UTXO,
-    TxOut,
-};
+use rmn_btc::types::{LegacyTx, Script, ScriptSig, Sighash, TxOut, Witness, UTXO};
 
 use crate::{
     common::{PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},

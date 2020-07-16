@@ -49,10 +49,10 @@ where
     pub fn txid_be_hex(&self) -> String {
         let mut buf = self.txid.bytes();
         buf.reverse();
-        buf.serialize_hex().expect("no IO errors")
+        buf.serialize_hex()
     }
 
-    /// Instantiate an outpoint from the Block Explore (big-endian) TXID format and integer index
+    /// Instantiate an outpoint from the Block Explorer (big-endian) TXID format and integer index
     pub fn from_explorer_format(txid_be: M, idx: u32) -> Self {
         Self {
             txid: txid_be.reversed(),
@@ -224,7 +224,7 @@ mod test {
         ];
         for case in cases.iter() {
             assert_eq!(case.0.serialized_length(), case.1.len() / 2);
-            assert_eq!(case.0.serialize_hex().unwrap(), case.1);
+            assert_eq!(case.0.serialize_hex(), case.1);
             assert_eq!(Outpoint::<TXID>::deserialize_hex(&case.1).unwrap(), case.0);
         }
     }
@@ -248,7 +248,7 @@ mod test {
 
         for case in cases.iter() {
             assert_eq!(case.0.serialized_length(), case.1.len() / 2);
-            assert_eq!(case.0.serialize_hex().unwrap(), case.1);
+            assert_eq!(case.0.serialize_hex(), case.1);
             assert_eq!(BitcoinTxIn::deserialize_hex(&case.1).unwrap(), case.0);
         }
     }
