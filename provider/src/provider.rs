@@ -4,8 +4,8 @@ use thiserror::Error;
 
 use futures_util::lock::Mutex;
 use lru::LruCache;
-use riemann_core::prelude::*;
-use rmn_btc::{
+use coins_core::prelude::*;
+use bitcoins::{
     enc::Address,
     hashes::{BlockHash, TXID},
     prelude::RawHeader,
@@ -22,13 +22,13 @@ pub enum ProviderError {
     #[error(transparent)]
     SerdeJSONError(#[from] serde_json::Error),
 
-    /// Bubbled up from riemann
+    /// Bubbled up from bitcoins
     #[error(transparent)]
-    EncoderError(#[from] rmn_btc::enc::bases::EncodingError),
+    EncoderError(#[from] bitcoins::enc::bases::EncodingError),
 
-    /// Bubbled up from Riemann
+    /// Bubbled up from core
     #[error(transparent)]
-    RmnSerError(#[from] riemann_core::ser::SerError),
+    CoinsSerError(#[from] coins_core::ser::SerError),
 
     /// Unsupported action. Provider should give a string describing the action and reason
     #[error("Unsupported action: {0}")]
@@ -68,7 +68,7 @@ impl ProviderError {
                 e: _,
             } => true,
             ProviderError::SerdeJSONError(_) => true,
-            ProviderError::RmnSerError(_) => true,
+            ProviderError::CoinsSerError(_) => true,
             ProviderError::EncoderError(_) => true,
             _ => false,
         }
@@ -86,7 +86,7 @@ impl ProviderError {
                 from_parsing: true,
                 e: _,
             } => true,
-            ProviderError::RmnSerError(_) => true,
+            ProviderError::CoinsSerError(_) => true,
             ProviderError::EncoderError(_) => true,
             _ => false,
         }

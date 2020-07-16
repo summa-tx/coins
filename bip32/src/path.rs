@@ -5,7 +5,7 @@ use std::{
     str::FromStr,
 };
 
-use riemann_core::ser::{ByteFormat, SerError};
+use coins_core::ser::{ByteFormat, SerError};
 
 use crate::{primitives::KeyFingerprint, Bip32Error, BIP32_HARDEN};
 

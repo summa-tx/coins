@@ -1,4 +1,4 @@
-# rmn-bip32
+# coins-bip32
 
 This is an implementation of
 [BIP32](https://github.com/bitcoin/bips/blob/master/bip-0032.mediawiki). It

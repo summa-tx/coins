@@ -1,10 +1,10 @@
 [package]
-name = "riemann-core"
+name = "coins-core"
 version = "0.1.0-rc.1"
 authors = ["James Prestwich <james@prestwi.ch>"]
 edition = "2018"
 description = "Abstract UTXO transactions to enable code reuse across chains"
-repository = "https://github.com/summa-tx/riemann-rs"
+repository = "https://github.com/summa-tx/bitcoins-rs"
 license = "LGPL-3.0-or-later"
 
 [dependencies]

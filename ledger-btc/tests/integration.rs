@@ -1,12 +1,12 @@
 use futures::executor::block_on;
-use riemann_core::ser::ByteFormat;
-use rmn_bip32::{
+use coins_core::ser::ByteFormat;
+use coins_bip32::{
     Secp256k1,
     enc::Encoder,
     path::KeyDerivation,
 };
-use rmn_btc::types::{BitcoinTxIn, Script, ScriptPubkey, SpendScript, WitnessTx, UTXO};
-use rmn_ledger_btc::*;
+use bitcoins::types::{BitcoinTxIn, Script, ScriptPubkey, SpendScript, WitnessTx, UTXO};
+use bitcoins_ledger::*;
 
 use serial_test::serial;
 
@@ -19,7 +19,7 @@ fn it_retrieves_key_info() {
     println!("{:?}", &result);
     println!(
         "{:?}",
-        rmn_bip32::MainnetEncoder::xpub_to_base58(&result.xpub).unwrap()
+        coins_bip32::MainnetEncoder::xpub_to_base58(&result.xpub).unwrap()
     );
 }
 

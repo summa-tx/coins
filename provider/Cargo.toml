@@ -1,8 +1,9 @@
 [package]
-name = "rmn-btc-provider"
+name = "bitcoins-provider"
 version = "0.1.0-alpha"
 authors = ["James Prestwich <james@prestwi.ch>"]
 edition = "2018"
+repository = "https://github.com/summa-tx/bitcoins-rs"
 
 [dependencies]
 # core utilities
@@ -14,8 +15,8 @@ pin-project = { version = "0.4.20", default-features = false }
 lru = { version = "0.5.2" }
 
 # other projects in this workspace
-riemann-core = { path = "../core" }
-rmn-btc = { path = "../bitcoin", default-features = false }
+coins-core = { path = "../core" }
+bitcoins = { path = "../bitcoins", default-features = false }
 
 # RPC only
 secrecy = { version = "0.7.0", optional = true }
@@ -42,5 +43,5 @@ rpc = ["secrecy", "fetch"]
 fetch = ["reqwest", "hex", "serde", "serde_json", "bytes"]
 
 # mutually exclusive
-mainnet = ["rmn-btc/mainnet"]
-testnet = ["rmn-btc/testnet"]
+mainnet = ["bitcoins/mainnet"]
+testnet = ["bitcoins/testnet"]

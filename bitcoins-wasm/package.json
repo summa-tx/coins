@@ -1,0 +1,22 @@
+{
+  "name": "@summa-tx/bitcoins",
+  "collaborators": [
+    "James Prestwich <james@prestwi.ch>"
+  ],
+  "description": "Bitcoin transaction construction in JS using wasm-bindgen",
+  "version": "0.1.0-alpha",
+  "license": "LGPL-3.0-or-later",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/summa-tx/riemann-rs"
+  },
+  "files": [
+    "bitcoins_bg.wasm",
+    "bitcoins_bg.js",
+    "bitcoins.js",
+    "bitcoins.d.ts"
+  ],
+  "module": "bitcoins.js",
+  "types": "bitcoins.d.ts",
+  "sideEffects": false
+}

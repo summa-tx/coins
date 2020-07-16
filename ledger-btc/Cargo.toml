@@ -1,10 +1,11 @@
 [package]
-name = "rmn-ledger-btc"
+name = "bitcoins-ledger"
 version = "0.1.0"
 authors = ["James Prestwich <james@prestwi.ch>"]
 edition = "2018"
 categories  = ["authentication", "cryptography"]
 keywords = ["ledger", "nano", "bitcoin"]
+repository = "https://github.com/summa-tx/bitcoins-rs"
 license = "LGPL-3.0-or-later"
 
 [lib]
@@ -16,18 +17,18 @@ serial_test = "0.3.2"
 
 [dependencies]
 thiserror = "1.0.10"
-riemann-core = { path = "../core" }
+coins-core = { path = "../core" }
 futures = "0.3.5"
 
-[dependencies.rmn-btc]
-path = "../bitcoin"
+[dependencies.bitcoins]
+path = "../bitcoins"
 default-features = false
 
-[dependencies.rmn-ledger]
+[dependencies.coins-ledger]
 path = "../ledger"
 default-features = false
 
-[dependencies.rmn-bip32]
+[dependencies.coins-bip32]
 path = "../bip32"
 default-features = false
 
@@ -40,5 +41,5 @@ js-sys = "0.3.37"
 [features]
 default = ["native"]
 native = []
-browser = ["rmn-ledger/browser"]
-node = ["rmn-ledger/node"]
+browser = ["coins-ledger/browser"]
+node = ["coins-ledger/node"]

@@ -11,7 +11,7 @@ use crate::hashes::marked::MarkedDigestWriter;
 /// ```
 /// # use std::io::{Result};
 /// use std::io::Write;
-/// use riemann_core::hashes::{Hash256Writer, MarkedDigestWriter};
+/// use coins_core::hashes::{Hash256Writer, MarkedDigestWriter};
 ///
 /// # fn main() -> Result<()> {
 /// let mut w = Hash256Writer::default();

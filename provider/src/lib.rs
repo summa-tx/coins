@@ -42,7 +42,7 @@ pub const DEFAULT_POLL_INTERVAL: std::time::Duration = std::time::Duration::from
 pub const DEFAULT_CACHE_SIZE: usize = 300;
 
 // Alias the default encoder
-type Encoder = rmn_btc::Encoder;
+type Encoder = bitcoins::Encoder;
 
 // Useful alias for the stateful streams
 #[cfg(target_arch = "wasm32")]

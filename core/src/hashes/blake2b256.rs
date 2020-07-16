@@ -10,7 +10,7 @@ pub type Blake2b256Digest = [u8; 32];
 /// ```
 /// # use std::io::{Result};
 /// use std::io::Write;
-/// use riemann_core::hashes::{Blake2b256Writer, MarkedDigestWriter};
+/// use coins_core::hashes::{Blake2b256Writer, MarkedDigestWriter};
 ///
 /// # fn main() -> Result<()> {
 /// let mut w = Blake2b256Writer::default();

@@ -1,33 +1,34 @@
 [package]
-name = "rmn-psbt"
+name = "bitcoins-psbt"
 version = "0.1.0-alpha.0"
 authors = ["James Prestwich <james@prestwi.ch>"]
 edition = "2018"
 license = "LGPL-3.0-or-later"
+repository = "https://github.com/summa-tx/bitcoins-rs"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-riemann-core = { path = "../core" }
+coins-core = { path = "../core" }
 bitcoin-spv = "2.0.0"
 thiserror = "1.0"
 serde = "1.0.105"
 futures = { version = "0.3.5", optional = true }
-rmn-ledger-btc = { path = "../ledger-btc", optional = true }
+bitcoins-ledger = { path = "../ledger-btc", optional = true }
 
-[dependencies.rmn-btc]
-path = "../bitcoin"
+[dependencies.bitcoins]
+path = "../bitcoins"
 default-features = false
 
-[dependencies.rmn-bip32]
+[dependencies.coins-bip32]
 path = "../bip32"
 default-features = false
 
 [features]
 default = ["mainnet"]
-browser = ["ledger", "rmn-ledger-btc/browser"]
-node = ["ledger", "rmn-ledger-btc/node"]
-ledger = ["futures", "rmn-ledger-btc"]
-mainnet = ["rmn-btc/mainnet", "rmn-bip32/mainnet"]
-testnet = ["rmn-btc/testnet", "rmn-bip32/testnet"]
+browser = ["ledger", "bitcoins-ledger/browser"]
+node = ["ledger", "bitcoins-ledger/node"]
+ledger = ["futures", "bitcoins-ledger"]
+mainnet = ["bitcoins/mainnet", "coins-bip32/mainnet"]
+testnet = ["bitcoins/testnet", "coins-bip32/testnet"]

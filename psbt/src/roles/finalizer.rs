@@ -1,7 +1,7 @@
 use crate::{input::InputKey, roles::PSTFinalizer, PSBTError, PSBTInput, PSTMap, PSBT, PST};
-use riemann_core::Transaction;
-use rmn_bip32::{self as bip32, curve::SigSerialize, HasPubkey};
-use rmn_btc::{
+use coins_core::Transaction;
+use coins_bip32::{self as bip32, curve::SigSerialize, HasPubkey};
+use bitcoins::{
     enc::encoder::BitcoinEncoderMarker,
     types::{BitcoinOutpoint, BitcoinTransaction, ScriptType},
 };
@@ -55,7 +55,7 @@ fn finalize_input(outpoint: &BitcoinOutpoint, input_map: &mut PSBTInput) -> Resu
         .iter()
         .find(|(pubkey, _, _)| pkh == pubkey.pubkey_hash160())
     {
-        let mut witness = rmn_btc::types::Witness::default();
+        let mut witness = bitcoins::types::Witness::default();
         let mut sig_bytes = vec![];
         sig_bytes.extend(partial_sig.to_der());
         sig_bytes.extend(&[sighash.to_u8()]);

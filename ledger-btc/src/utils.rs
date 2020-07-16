@@ -1,15 +1,15 @@
-use riemann_core::{
+use coins_core::{
     ser::{self, ByteFormat},
 };
-use rmn_bip32::{
+use coins_bip32::{
     curve::model::{PointDeserialize, SigSerialize},
     derived::DerivedXPub,
     keys::Pubkey,
     primitives::ChainCode,
     path::{DerivationPath},
 };
-use rmn_btc::types::{BitcoinTxIn, TxOut, UTXO, ScriptType, SpendScript};
-use rmn_ledger::{
+use bitcoins::types::{BitcoinTxIn, TxOut, UTXO, ScriptType, SpendScript};
+use coins_ledger::{
     common::{APDUAnswer, APDUCommand, APDUData},
 };
 
@@ -39,9 +39,9 @@ pub(crate) fn parse_pubkey_response(deriv: &DerivationPath, data: &[u8]) -> Inte
     let mut pk = [0u8; 65];
     pk.copy_from_slice(&data[1..66]);
     InternalKeyInfo {
-        pubkey: rmn_bip32::keys::Pubkey {
+        pubkey: coins_bip32::keys::Pubkey {
             key: PointDeserialize::from_pubkey_array_uncompressed(pk).unwrap(),
-            backend: Some(rmn_bip32::Secp256k1::static_ref()),
+            backend: Some(coins_bip32::Secp256k1::static_ref()),
         },
         path: deriv.clone(),
         chain_code: chain_code.into(),
@@ -160,14 +160,14 @@ pub(crate) fn modify_tx_start_packet(command: &APDUCommand) -> APDUCommand {
     c
 }
 
-pub(crate) fn parse_sig(answer: &APDUAnswer) -> Result<rmn_bip32::Signature, LedgerBTCError> {
+pub(crate) fn parse_sig(answer: &APDUAnswer) -> Result<coins_bip32::Signature, LedgerBTCError> {
     let mut sig = answer
         .data()
         .ok_or(LedgerBTCError::UnexpectedNullResponse)?
         .to_vec();
     sig[0] &= 0xfe;
-    Ok(rmn_bip32::Signature::try_from_der(&sig[..sig.len() - 1])
-        .map_err(rmn_bip32::Bip32Error::from)?)
+    Ok(coins_bip32::Signature::try_from_der(&sig[..sig.len() - 1])
+        .map_err(coins_bip32::Bip32Error::from)?)
 }
 
 pub(crate) fn should_sign(xpub: &DerivedXPub, signing_info: &[crate::app::SigningInfo]) -> bool {

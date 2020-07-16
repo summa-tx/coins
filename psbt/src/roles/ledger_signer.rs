@@ -6,13 +6,13 @@ use thiserror::Error;
 
 use futures::executor::block_on;
 
-use riemann_core::types::tx::Transaction;
-use rmn_bip32 as bip32;
-use rmn_btc::{
+use coins_core::types::tx::Transaction;
+use coins_bip32 as bip32;
+use bitcoins::{
     enc::encoder::BitcoinEncoderMarker,
     types::transactions::{BitcoinTransaction, Sighash},
 };
-use rmn_ledger_btc::{LedgerBTC, SigningInfo};
+use bitcoins_ledger::{LedgerBTC, SigningInfo};
 
 use crate::{input::PSBTInput, roles::PSTSigner, PSBTError, PSBT, PST};
 
@@ -20,7 +20,7 @@ use crate::{input::PSBTInput, roles::PSTSigner, PSBTError, PSBT, PST};
 pub enum LedgerSignerError {
     /// LedgerBTCError bubbled up
     #[error(transparent)]
-    LedgerBTCError(#[from] rmn_ledger_btc::LedgerBTCError),
+    LedgerBTCError(#[from] bitcoins_ledger::LedgerBTCError),
 
     /// PSBTError bubbled up
     #[error(transparent)]
@@ -116,7 +116,7 @@ where
 }
 
 fn extract_signing_info(
-    tx: &rmn_btc::types::LegacyTx,
+    tx: &bitcoins::types::LegacyTx,
     idx: usize,
     input_map: &PSBTInput,
 ) -> Result<Vec<SigningInfo>, PSBTError> {

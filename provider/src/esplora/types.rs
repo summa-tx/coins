@@ -1,5 +1,5 @@
-use riemann_core::prelude::*;
-use rmn_btc::prelude::*;
+use coins_core::prelude::*;
+use bitcoins::prelude::*;
 
 use crate::esplora::*;
 use crate::{provider::ProviderError, reqwest_utils};
@@ -98,7 +98,7 @@ impl EsploraUTXO {
     }
 
     pub(crate) fn into_utxo(self, addr: &Address) -> Result<UTXO, ProviderError> {
-        let script_pubkey = rmn_btc::Network::decode_address(addr)?;
+        let script_pubkey = bitcoins::Network::decode_address(addr)?;
         let outpoint = BitcoinOutpoint::from_explorer_format(
             TXID::deserialize_hex(&self.txid)?,
             self.vout as u32,

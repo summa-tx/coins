@@ -52,7 +52,7 @@ macro_rules! psbt_map {
             }
         }
 
-        impl riemann_core::ser::ByteFormat for $name {
+        impl coins_core::ser::ByteFormat for $name {
             type Error = PSBTError;
 
             fn serialized_length(&self) -> usize {

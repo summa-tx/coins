@@ -110,7 +110,7 @@ impl JsonRPCTransport for HttpTransport {
 //     use tokio::runtime;
 //     use futures_util::stream::StreamExt;
 //
-//     use riemann_core::ser::ByteFormat;
+//     use coins_core::ser::ByteFormat;
 //
 //     // runs against live API. leave commented
 //     #[test]

@@ -1,12 +1,12 @@
-use riemann_core::ser::{self, ByteFormat};
-use rmn_bip32::{
+use coins_core::ser::{self, ByteFormat};
+use coins_bip32::{
     curve::{model::Secp256k1Backend, SigSerialize},
     derived::DerivedPubkey,
     model::HasPubkey,
 };
 use std::collections::{btree_map, BTreeMap};
 
-use rmn_btc::types::{LegacyTx, Script, ScriptSig, Sighash, TxOut, Witness, UTXO};
+use bitcoins::types::{LegacyTx, Script, ScriptSig, Sighash, TxOut, Witness, UTXO};
 
 use crate::{
     common::{PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},
@@ -165,7 +165,7 @@ impl PSBTInput {
     }
 
     /// Get the prevout details and return a UTXO object
-    pub fn as_utxo(&self, outpoint: &rmn_btc::types::BitcoinOutpoint) -> Result<UTXO, PSBTError> {
+    pub fn as_utxo(&self, outpoint: &bitcoins::types::BitcoinOutpoint) -> Result<UTXO, PSBTError> {
         if let Ok(tx_out) = self.witness_utxo() {
             // Witness UTXO.
             let mut utxo = UTXO::from_output_and_outpoint(&tx_out, outpoint);
@@ -192,7 +192,7 @@ impl PSBTInput {
     }
 
     /// Returns an iterator over Pubkey/Signature pairs
-    pub fn partial_sigs(&self) -> Vec<(rmn_bip32::Pubkey, rmn_bip32::Signature, Sighash)> {
+    pub fn partial_sigs(&self) -> Vec<(coins_bip32::Pubkey, coins_bip32::Signature, Sighash)> {
         self.raw_partial_sigs()
             .filter_map(|(k, v)| schema::try_kv_pair_as_pubkey_and_sig(k, v).ok())
             .collect::<Vec<_>>()

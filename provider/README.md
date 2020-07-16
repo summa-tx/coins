@@ -1,4 +1,4 @@
-# rmn-btc-provider
+# bitcoins-provider
 
 This crate provides a generic chain-data API for Bitcoin apps. It aims to give
 a simple consistent interface to chain data, so that wallets can easily support
@@ -18,7 +18,7 @@ confirmations, and a UTXO watcher that streams spend notifications.
 use futures_core::stream::StreamExt;
 use tokio::runtime;
 
-use rmn_btc_provider::{
+use bitcoins_provider::{
   BTCProvider,
   PollingBTCProvider,
   esplora::EsploraProvider

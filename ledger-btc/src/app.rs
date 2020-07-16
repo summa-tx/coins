@@ -1,15 +1,15 @@
 use futures::lock::Mutex;
-use riemann_core::{
+use coins_core::{
     tx::Transaction,
 };
-use rmn_bip32::{
+use coins_bip32::{
     derived::DerivedXPub,
     model::HasPubkey,
     path::{DerivationPath, KeyDerivation},
     primitives::XKeyInfo,
 };
-use rmn_btc::types::{BitcoinTxIn, WitnessTx, UTXO};
-use rmn_ledger::{
+use bitcoins::types::{BitcoinTxIn, WitnessTx, UTXO};
+use coins_ledger::{
     common::{APDUAnswer, APDUCommand},
     transports::{Ledger, LedgerAsync},
 };
@@ -33,7 +33,7 @@ pub struct SigInfo {
     /// the input of the signed index
     pub input_idx: usize,
     /// The signature
-    pub sig: rmn_bip32::Signature,
+    pub sig: coins_bip32::Signature,
     /// The derivation of the key that signed it
     pub deriv: KeyDerivation,
 }
@@ -112,14 +112,14 @@ impl LedgerBTC {
                     root: master.pubkey.fingerprint(),
                     path: deriv.clone(),
                 },
-                xpub: rmn_bip32::XPub {
+                xpub: coins_bip32::XPub {
                     pubkey: child.pubkey,
                     info: XKeyInfo {
                         depth: deriv.len() as u8,
                         parent: parent.pubkey.fingerprint(),
                         index: *deriv.last().unwrap(),
                         chain_code: child.chain_code,
-                        hint: rmn_bip32::primitives::Hint::SegWit,
+                        hint: coins_bip32::primitives::Hint::SegWit,
                     },
                 },
             })
@@ -129,14 +129,14 @@ impl LedgerBTC {
                     root: child.pubkey.fingerprint(),
                     path: child.path,
                 },
-                xpub: rmn_bip32::XPub {
+                xpub: coins_bip32::XPub {
                     pubkey: child.pubkey,
                     info: XKeyInfo {
                         depth: 0,
-                        parent: rmn_bip32::primitives::KeyFingerprint([0u8; 4]),
+                        parent: coins_bip32::primitives::KeyFingerprint([0u8; 4]),
                         index: 0,
                         chain_code: child.chain_code,
-                        hint: rmn_bip32::primitives::Hint::SegWit,
+                        hint: coins_bip32::primitives::Hint::SegWit,
                     },
                 },
             })
@@ -179,7 +179,7 @@ impl LedgerBTC {
         utxo: &UTXO,
         txin: &BitcoinTxIn,
         deriv: &DerivationPath,
-    ) -> Result<rmn_bip32::Signature, LedgerBTCError> {
+    ) -> Result<coins_bip32::Signature, LedgerBTCError> {
         parse_sig(
             &self
                 .signature_exchange(transport, first_packet, locktime, utxo, txin, deriv)

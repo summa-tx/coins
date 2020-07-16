@@ -2,9 +2,9 @@ use std::{collections::btree_map, io::Error as IOError, ops::RangeBounds};
 
 use thiserror::Error;
 
-use riemann_core::ser::SerError;
+use coins_core::ser::SerError;
 
-use rmn_btc::{
+use bitcoins::{
     impl_hex_serde,
     types::{ScriptType, TxError},
     wrap_prefixed_byte_vector,
@@ -29,7 +29,7 @@ pub enum PSBTError {
 
     /// Bubbled up from the BIP32 library
     #[error(transparent)]
-    Bip32Error(#[from] rmn_bip32::Bip32Error),
+    Bip32Error(#[from] coins_bip32::Bip32Error),
 
     /// Returned by convenience functions that attempt to read a non-existant key
     #[error("Attempted to get missing singleton key {0}")]

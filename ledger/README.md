@@ -1,4 +1,4 @@
-# rmn-ledger
+# bitcoins-ledger
 
 Communication library between Rust and Ledger Nano S/X devices
 

@@ -1,11 +1,11 @@
 use thiserror::Error;
 
-use riemann_core::types::Transaction;
-use rmn_bip32::{
+use coins_core::types::Transaction;
+use coins_bip32::{
     self as bip32,
     model::{DerivedKey, HasPubkey, SigningKey, XSigning},
 };
-use rmn_btc::{
+use bitcoins::{
     enc::encoder::BitcoinEncoderMarker,
     types::{
         BitcoinOutpoint, BitcoinTransaction, LegacySighashArgs, LegacyTx, ScriptType, Sighash,
@@ -19,7 +19,7 @@ use crate::{input::PSBTInput, roles::PSTSigner, PSBTError, PSBT, PST};
 pub enum Bip32SignerError {
     /// Bubbled up from the BIP32 library
     #[error(transparent)]
-    Bip32Error(#[from] rmn_bip32::Bip32Error),
+    Bip32Error(#[from] coins_bip32::Bip32Error),
 
     /// PSBTError bubbled up
     #[error(transparent)]

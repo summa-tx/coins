@@ -2,14 +2,14 @@
 members = [
     "core",
     "bip32",
-    "bitcoin",
-    "litecoin",
+    "bitcoins",
+    "litecoins",
     "psbt",
     "provider",
 ]
 
 exclude = [
-  "bitcoin-wasm",  # Exluded so we can specify optimizer flags
+  "bitcoins-wasm",  # Exluded so we can specify optimizer flags
   "ledger",  # Excluded until we can figure out how to build hidapi on travis
   "ledger-btc", # Excluded until we can figure out how to build hidapi on travis
 ]

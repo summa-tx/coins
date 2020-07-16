@@ -9,7 +9,7 @@ pub mod rpc_types;
 
 use async_trait::async_trait;
 use futures_util::lock::Mutex;
-use rmn_btc::prelude::*;
+use bitcoins::prelude::*;
 use secrecy::SecretString;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
@@ -272,7 +272,7 @@ impl<T: JsonRPCTransport + Send + Sync> PollingBTCProvider for BitcoindRPC<T> {
 //     use super::*;
 //     use tokio::runtime;
 //
-//     use riemann_core::ser::ByteFormat;
+//     use coins_core::ser::ByteFormat;
 //
 //     // runs against live API. leave commented
 //     #[test]
