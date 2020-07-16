@@ -1,4 +1,4 @@
-# rmn-ledger-btc
+# bitcoins-ledger
 
 Ledger Bitcoin App abstraction.
 

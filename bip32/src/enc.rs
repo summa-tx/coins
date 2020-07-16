@@ -187,10 +187,10 @@ pub trait XKeyEncoder {
     /// # Note
     ///
     /// If passing in None, you must hint the return type. This can be the convenience type alias
-    /// (e.g. XPub) or the full type `GenericXPub<rmn_bip32::backends::curve::Secp256k1>`
+    /// (e.g. XPub) or the full type `GenericXPub<coins_bip32::backends::curve::Secp256k1>`
     ///
     /// ```
-    /// use rmn_bip32::{Bip32Error, XPriv, enc::{XKeyEncoder, MainnetEncoder}};
+    /// use coins_bip32::{Bip32Error, XPriv, enc::{XKeyEncoder, MainnetEncoder}};
     /// # fn main() -> Result<(), Bip32Error> {
     /// let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
     ///
@@ -262,10 +262,10 @@ pub trait XKeyEncoder {
     /// # Note
     ///
     /// If passing in None, you must hint the return type. This can be the convenience type alias
-    /// (e.g. XPub) or the full type `GenericXPub<rmn_bip32::backends::curve::Secp256k1>`
+    /// (e.g. XPub) or the full type `GenericXPub<coins_bip32::backends::curve::Secp256k1>`
     ///
     /// ```
-    /// use rmn_bip32::{Bip32Error, XPub, enc::{XKeyEncoder, MainnetEncoder}};
+    /// use coins_bip32::{Bip32Error, XPub, enc::{XKeyEncoder, MainnetEncoder}};
     /// # fn main() -> Result<(), Bip32Error> {
     /// let xpub_str = "xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y".to_owned();
     ///
@@ -309,10 +309,10 @@ pub trait XKeyEncoder {
     /// # Note
     ///
     /// If passing in None, you must hint the return type. This can be the convenience type alias
-    /// (e.g. XPub) or the full type `GenericXPub<rmn_bip32::backends::curve::Secp256k1>`
+    /// (e.g. XPub) or the full type `GenericXPub<coins_bip32::backends::curve::Secp256k1>`
     ///
     /// ```
-    /// use rmn_bip32::{Bip32Error, XPriv, enc::{XKeyEncoder, MainnetEncoder}};
+    /// use coins_bip32::{Bip32Error, XPriv, enc::{XKeyEncoder, MainnetEncoder}};
     /// # fn main() -> Result<(), Bip32Error> {
     /// let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
     ///
@@ -339,10 +339,10 @@ pub trait XKeyEncoder {
     /// # Note
     ///
     /// If passing in None, you must hint the return type. This can be the convenience type alias
-    /// (e.g. XPub) or the full type `GenericXPub<rmn_bip32::backends::curve::Secp256k1>`
+    /// (e.g. XPub) or the full type `GenericXPub<coins_bip32::backends::curve::Secp256k1>`
     ///
     /// ```
-    /// use rmn_bip32::{Bip32Error, XPub, enc::{XKeyEncoder, MainnetEncoder}};
+    /// use coins_bip32::{Bip32Error, XPub, enc::{XKeyEncoder, MainnetEncoder}};
     /// # fn main() -> Result<(), Bip32Error> {
     /// let xpub_str = "xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y".to_owned();
     ///

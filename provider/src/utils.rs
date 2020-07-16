@@ -15,8 +15,8 @@ use futures_util::{
 };
 use std::time::Duration;
 
-use riemann_core::hashes::{Hash256Writer, MarkedDigestWriter};
-use rmn_btc::prelude::{Hash256Digest, MarkedDigest, TXID};
+use coins_core::hashes::{Hash256Writer, MarkedDigestWriter};
+use bitcoins::prelude::{Hash256Digest, MarkedDigest, TXID};
 
 // Async delay stream
 pub(crate) fn new_interval(duration: Duration) -> impl Stream<Item = ()> + Send + Unpin {

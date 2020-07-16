@@ -22,7 +22,7 @@
 //! you want (e.g. signing, verifying, key derivation) will fail at runtime. Simple usage:
 //!
 //! ```
-//! use rmn_bip32::{
+//! use coins_bip32::{
 //!     Bip32Error, Secp256k1, XPub, XPriv,
 //!     enc::{XKeyEncoder, MainnetEncoder},
 //!     model::*,
@@ -156,7 +156,7 @@ pub enum Bip32Error {
 
     /// Error bubbled up froom Ser
     #[error(transparent)]
-    SerError(#[from] riemann_core::ser::SerError),
+    SerError(#[from] coins_core::ser::SerError),
 
     /// Master key seed generation received <16 bytes
     #[error("Master key seed generation received <16 bytes")]

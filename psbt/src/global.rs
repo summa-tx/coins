@@ -1,8 +1,8 @@
 use std::collections::{btree_map, BTreeMap};
 
-use riemann_core::{ser::ByteFormat, types::tx::Transaction};
-use rmn_bip32::{enc::XKeyEncoder as Bip32Encoder, model::DerivedKey, DerivedXPub};
-use rmn_btc::types::{BitcoinTxIn, LegacyTx};
+use coins_core::{ser::ByteFormat, types::tx::Transaction};
+use coins_bip32::{enc::XKeyEncoder as Bip32Encoder, model::DerivedKey, DerivedXPub};
+use bitcoins::types::{BitcoinTxIn, LegacyTx};
 
 use crate::{
     common::{PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},

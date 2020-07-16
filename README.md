@@ -24,21 +24,21 @@ Specificallly:
 
 ## Project Architecture
 
-The project is built around the `riemann-core` crate which defines high-level
+The project is built around the `coins-core` crate which defines high-level
 traits and interfaces. Chain-specific libraries use these traits to provide
 a consistent developer experience across chains.
 
-We have provided a `rmn-btc` crate with a Bitcoin-targeted implementation. See
+We have provided a `bitcoins` crate with a Bitcoin-targeted implementation. See
 its documentation for usage instruction and details. We have also provided wasm
-bindings to `rmn-btc` via `wasm-bindgen`.
+bindings to `bitcoins` via `wasm-bindgen`.
 
-`rmn-bip32` provides tooling for BIP32 HDKey derivation, and `rmn-psbt`
-implements the BIP174 partially-signed transaction format.
+`bitcoins-bip32` provides tooling for BIP32 HDKey derivation, and
+`bitcoins-psbt` implements the BIP174 partially-signed transaction format.
 
 ## Getting started
 
-If building a Rust app, use `rmn-btc` in the `./bitcoin/` directory. If
-building for a browser, use `rmn-btc-wasm` in the `./bitcoin-wasm/` directory.
+If building a Rust app, use `bitcoins` in the `./bitcoin/` directory. If
+building for a browser, use `bitcoins-wasm` in the `./bitcoin-wasm/` directory.
 
 Once there, you can build and view the documentation using
 `$ cargo rustdoc --open`.
@@ -59,12 +59,12 @@ An input consumes some TXO referenced by its ID.
 
 1. Select or create a struct to be your `TXOIdentifier`
   1. This is the unique in-protocol identifier for a TXO.
-  1. In Bitcoin this is `rmn_btc::types::txin::BitcoinOutpoint`.
+  1. In Bitcoin this is `bitcoins::types::txin::BitcoinOutpoint`.
   1. Add the marker trait: `impl riemann_core::types::tx::TXOIdentifier`
 1. Implement a type to be your `Input`
   1. This represents the input TXOs consumed by a transaction.
   1. This could be the same as `TXOIdentifier`, depending on your protocol.
-  1. In Bitcoin this is `rmn_btc::types::txin::BitcoinInput`.
+  1. In Bitcoin this is `bitcoins::types::txin::BitcoinInput`.
   1. Add the marker trait: `impl riemann_core::types::tx::Input`
   1. Associate your `TXOIdentifier` type
 
@@ -73,7 +73,7 @@ An output creates a new TXO with some value owned by some payee.
 
 1. Select or create a struct to be your `RecipientIdentifier`
   1. This is used to identify payees in-protocol.
-  1. In Bitcoin this is `rmn_btc::types::script::ScriptPubkey`
+  1. In Bitcoin this is `bitcoins::types::script::ScriptPubkey`
   1. `impl riemann_core::types::tx::RecipientIdentifier` on your struct
 1. Select or create a type to be your `Value`
   1. This type represents how the in-protocol value of a TXO.
@@ -82,7 +82,7 @@ An output creates a new TXO with some value owned by some payee.
   1. `impl riemann_core::types::tx::Value` on your struct.
 1. Implement a type to be your `Output`
   1. This represents the output TXOs created by a transaction.
-  1. In Bitcoin this is `rmn_btc::types::txout::BitcoinInput`.
+  1. In Bitcoin this is `bitcoins::types::txout::BitcoinInput`.
   1. Add the trait: `impl riemann_core::types::tx::Output`
   1. Associate your `Value` and `RecipientIdentifier` types.
 
@@ -104,7 +104,7 @@ its properties, as well as calculate its signature hash.
 1. Define an `Error` type to handle your errors.
   1. This should contain any errors that can occur while interacting with your
     transaction.
-  1. See `rmn_btc::types::transactions::TxError` for an example.
+  1. See `bitcoins::types::transactions::TxError` for an example.
 1. Define a `SighashArgs` type for your transaction.
   1. This struct should carry all the information needed to calculate the hash
     of your transaction that is signed.
@@ -164,5 +164,5 @@ it guarantees that your `Encoder`, `Builder`, and `TxOut` use the same
 
 # License Notes
 
-Some work in the `ledger` crate is reproduced under the APACHE 2.0 license. See 
+Some work in the `ledger` crate is reproduced under the APACHE 2.0 license. See
 the readme for documentation

@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use riemann_core::ser::{self, ByteFormat};
+use coins_core::ser::{self, ByteFormat};
 
-use rmn_bip32::{
+use coins_bip32::{
     self as bip32,
     curve::{PointDeserialize, Secp256k1Backend, SigSerialize, Signature},
     derived::DerivedPubkey,
@@ -12,7 +12,7 @@ use rmn_bip32::{
     Bip32Error, Secp256k1, XPub,
 };
 
-use rmn_btc::types::{LegacyTx, ScriptType, Sighash, TxError, TxOut, Witness};
+use bitcoins::types::{LegacyTx, ScriptType, Sighash, TxError, TxOut, Witness};
 
 use crate::common::{PSBTError, PSBTKey, PSBTValue};
 

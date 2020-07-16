@@ -28,14 +28,14 @@ use std::{
     marker::PhantomData,
 };
 
-use rmn_bip32::{
+use coins_bip32::{
     self as bip32, enc::XKeyEncoder as Bip32Encoder, model::DerivedKey, DerivedXPub,
     KeyFingerprint, XPub,
 };
 
-use riemann_core::prelude::*;
+use coins_core::prelude::*;
 
-use rmn_btc::{
+use bitcoins::{
     builder::BitcoinTxBuilder,
     enc::encoder::{BitcoinEncoderMarker, MainnetEncoder, TestnetEncoder},
     types::{BitcoinTransaction, BitcoinTxIn, BitcoinTx, LegacyTx, TxOut},
@@ -46,7 +46,7 @@ pub trait PST<T: AddressEncoder> {
     /// A 4-byte prefix used to identify partially signed transactions. May vary by network.
     const MAGIC_BYTES: [u8; 4];
 
-    /// The `rmn_btc::Encoder` to be used for xpubs in this psbt
+    /// The `bitcoins::Encoder` to be used for xpubs in this psbt
     type Bip32Encoder: Bip32Encoder;
 
     /// An associated Error type
@@ -403,7 +403,7 @@ pub type TestnetPSBT = PSBT<TestnetEncoder, bip32::enc::TestnetEncoder>;
 #[cfg(test)]
 mod test {
     use super::*;
-    use rmn_btc::types::WitnessTx;
+    use bitcoins::types::WitnessTx;
 
     macro_rules! assert_err {
         ($hex:literal, $err:pat) => {

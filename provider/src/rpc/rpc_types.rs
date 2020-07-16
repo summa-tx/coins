@@ -1,4 +1,4 @@
-use rmn_btc::prelude::*;
+use bitcoins::prelude::*;
 
 /// The params for getrawtransaction
 #[derive(serde::Serialize, Debug)]

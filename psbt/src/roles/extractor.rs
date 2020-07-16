@@ -1,7 +1,7 @@
 use crate::{roles::PSTExtractor, PSBTError, PSBT, PST};
-use riemann_core::builder::TxBuilder;
-use rmn_bip32 as bip32;
-use rmn_btc::{
+use coins_core::builder::TxBuilder;
+use coins_bip32 as bip32;
+use bitcoins::{
     enc::encoder::BitcoinEncoderMarker,
     types::BitcoinTx,
 };

@@ -7,8 +7,8 @@ use crate::reqwest_utils::*;
 use async_trait::async_trait;
 use std::time::Duration;
 
-use riemann_core::prelude::*;
-use rmn_btc::prelude::*;
+use coins_core::prelude::*;
+use bitcoins::prelude::*;
 
 use crate::provider::{BTCProvider, PollingBTCProvider, ProviderError};
 

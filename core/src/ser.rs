@@ -220,7 +220,7 @@ pub trait ByteFormat {
     ///
     /// ```
     /// use std::io::Read;
-    /// use riemann_core::ser::*;
+    /// use coins_core::ser::*;
     /// use bitcoin_spv::types::Hash256Digest;
     ///
     /// let mut a = [0u8; 32];
@@ -263,7 +263,7 @@ pub trait ByteFormat {
     ///
     /// ```
     /// use std::io::Write;
-    /// use riemann_core::ser::*;
+    /// use coins_core::ser::*;
     /// use bitcoin_spv::types::Hash256Digest;
     ///
     /// let mut buf: Vec<u8> = vec![];

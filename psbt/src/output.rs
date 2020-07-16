@@ -1,8 +1,8 @@
 use std::collections::{btree_map, BTreeMap};
 
-use rmn_bip32::derived::DerivedPubkey;
+use coins_bip32::derived::DerivedPubkey;
 
-use rmn_btc::types::script::Script;
+use bitcoins::types::script::Script;
 
 use crate::{
     common::{PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},

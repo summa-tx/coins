@@ -1,5 +1,5 @@
-//! `riemann-core` is an abstract description of UTXO transactions. It provides a collection of
-//! traits that provide consistent interfaces to UTXO transaction construction. Riemann's traits
+//! `coins-core` is an abstract description of UTXO transactions. It provides a collection of
+//! traits that provide consistent interfaces to UTXO transaction construction. Coins's traits
 //! ensure that types are consistent across all steps in the tx construction process, and allow
 //! for code reuse when building transactions on multiple chains (e.g. Bitcoin Mainnet and Bitcoin
 //! Testnet).
@@ -11,7 +11,7 @@
 //!
 //! Support for other chains may be added by implementing these traits. We have provided an
 //! implementation suitable for Bitcoin chains (mainnet, testnet, and signet) in the
-//! `riemann_bitcoin` crate.
+//! `bitcoins` crate.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]

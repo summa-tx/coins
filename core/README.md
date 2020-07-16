@@ -1,8 +1,8 @@
-# Riemann Core
+# Coins Core
 
-`riemann-core` is an abstract description of UTXO transactions. It provides a
+`coins-core` is an abstract description of UTXO transactions. It provides a
 collection of traits that provide consistent interfaces to UTXO transaction
-construction. Riemann's traits ensure that types are consistent across all
+construction. Coins's traits ensure that types are consistent across all
 steps in the tx construction process, and allow for code reuse when building
 transactions on multiple chains (e.g. Bitcoin Mainnet and Bitcoin Testnet).
 
@@ -15,7 +15,7 @@ has an associated `TXOIdentfier`.
 Support for other chains may be added by implementing these traits, and
 extending the implementations with network-specific functionality. We have
 provided an implementation suitable for Bitcoin chains (mainnet, testnet, and
-signet) in the `riemann_bitcoin` crate.
+signet) in the `bitcoins` crate.
 
 ## Type Layout
 

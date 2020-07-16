@@ -8,7 +8,7 @@ use futures_core::stream::Stream;
 use futures_util::stream::StreamExt;
 use pin_project::pin_project;
 
-use rmn_btc::prelude::*;
+use bitcoins::prelude::*;
 
 use crate::{
     provider::BTCProvider,

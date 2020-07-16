@@ -1,8 +1,8 @@
 //! Ledger Bitcoin Application
 //!
 //! This application handles getting XPubs and signatures from the ledger device, and relies
-//! heavily on the `rmn_bip32` and `rmn_btc` crates. Please see those crates for documentation of
-//! their respective types.
+//! heavily on the `coins_bip32` and `bitcoins` crates. Please see those crates for documentation
+//! of their respective types.
 //!
 //!
 //!
@@ -26,7 +26,7 @@ use thiserror::Error;
 pub enum LedgerBTCError {
     /// Bip32 Error
     #[error(transparent)]
-    Bip32Error(#[from] rmn_bip32::Bip32Error),
+    Bip32Error(#[from] coins_bip32::Bip32Error),
 
     /// Derivation path too long for ledger
     #[error("Derivation Path is too long. Only 10 derivations allowed.")]
@@ -34,7 +34,7 @@ pub enum LedgerBTCError {
 
     /// Underlying ledger transport error
     #[error(transparent)]
-    LedgerError(#[from] rmn_ledger::errors::LedgerError),
+    LedgerError(#[from] coins_ledger::errors::LedgerError),
 
     /// Device response was unexpectedly none
     #[error("Received unexpected response from device. Expected data in response, found none.")]
