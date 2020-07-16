@@ -8,7 +8,6 @@ use async_trait::async_trait;
 use std::time::Duration;
 
 use bitcoins::prelude::*;
-use coins_core::prelude::*;
 
 use crate::provider::{BTCProvider, PollingBTCProvider, ProviderError};
 
