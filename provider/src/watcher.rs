@@ -137,7 +137,7 @@ impl<'a> futures_core::stream::Stream for PollingWatcher<'a> {
                         }
                     }
                     Err(e) => {
-                        if e.should_retry() {
+                        if !e.from_parsing() {
                             *state = WatcherStates::Paused(*previous_confs, *txid);
                             return Poll::Pending;
                         }

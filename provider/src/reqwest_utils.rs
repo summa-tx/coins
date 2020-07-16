@@ -26,12 +26,12 @@ pub enum FetchError {
 
 impl From<FetchError> for ProviderError {
     fn from(e: FetchError) -> ProviderError {
-        let should_retry = match e {
-            FetchError::SerdeError(_) => false,
-            _ => true,
+        let from_parsing = match e {
+            FetchError::SerdeError(_) => true,
+            _ => false,
         };
         ProviderError::Custom {
-            should_retry,
+            from_parsing,
             e: Box::new(e),
         }
     }

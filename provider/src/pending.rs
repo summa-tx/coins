@@ -134,7 +134,7 @@ impl<'a> futures_core::stream::Stream for PendingTx<'a> {
                         return Poll::Ready(Some(Err(tx.clone())));
                     }
                     Err(e) => {
-                        if e.should_retry() {
+                        if !e.from_parsing() {
                             *state = PendingTxStates::Paused;
                             return Poll::Pending;
                         }

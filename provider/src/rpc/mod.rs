@@ -148,6 +148,7 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
         let digests = self.get_digest_range(start, headers).await?;
         let mut h = vec![];
         for digest in digests.into_iter() {
+            // Stop building the vec as soon as we hit an error
             if let Some(header) = self.get_raw_header(digest).await? {
                 h.push(header);
             } else {
@@ -182,79 +183,36 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
     }
 
     async fn get_height_of(&self, digest: BlockHash) -> Result<Option<usize>, ProviderError> {
-        let block = {
-            let block_res = self.get_block(digest).await;
-            if let Err(e) = block_res {
-                if e.should_retry() {
-                    return Err(e);
-                } else {
-                    return Ok(None);
-                }
-            };
-            block_res.unwrap()
-        };
+        let block = none_if_unparsable!(self.get_block(digest).await);
         Ok(Some(block.height))
     }
 
     async fn get_confirmed_height(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {
-        let tx = {
-            let tx_res = self.get_raw_transaction(txid).await;
-            if let Err(e) = tx_res {
-                if e.should_retry() {
-                    return Err(e);
-                } else {
-                    return Ok(None);
-                }
-            };
-            tx_res.unwrap()
-        };
+        let tx = none_if_unparsable!(self.get_raw_transaction(txid).await);
+        if tx.confirmations <= 0 { return Ok(None); }
 
-        if tx.confirmations == -1 {
-            Ok(None)
-        } else {
-            let block = self
-                .get_block(
-                    BlockHash::from_be_hex(&tx.blockhash).expect("no malformed hashes from api"),
-                )
-                .await?;
-            Ok(Some(block.height))
-        }
+        let block = self.get_block(
+            BlockHash::from_be_hex(&tx.blockhash).expect("no malformed hashes from api"),
+        ).await?;
+        Ok(Some(block.height))
+
     }
 
     async fn get_confs(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {
-        let tx_res = self.get_raw_transaction(txid).await;
-        match tx_res {
-            Err(e) => {
-                if e.should_retry() {
-                    Err(e)
-                } else {
-                    Ok(None)
-                }
-            }
-            Ok(tx) => {
-                if tx.confirmations == -1 {
-                    Ok(Some(0))
-                } else {
-                    Ok(Some(tx.confirmations as usize))
-                }
-            }
+        let tx = none_if_unparsable!(self.get_raw_transaction(txid).await);
+        if tx.confirmations <= 0 {
+            Ok(Some(0))
+        } else {
+            Ok(Some(tx.confirmations as usize))
         }
     }
 
     async fn get_tx(&self, txid: TXID) -> Result<Option<BitcoinTx>, ProviderError> {
-        let tx_res = self.get_raw_transaction(txid).await;
-        match tx_res {
-            Err(e) => {
-                if e.should_retry() {
-                    Err(e)
-                } else {
-                    Ok(None)
-                }
-            }
-            Ok(tx) => Ok(Some(
-                BitcoinTx::deserialize_hex(&tx.hex).expect("No invalid tx from RPC"),
-            )),
-        }
+        let tx = none_if_unparsable!(self.get_raw_transaction(txid).await);
+
+        Ok(Some(
+            BitcoinTx::deserialize_hex(&tx.hex).expect("No invalid tx from RPC")
+        ))
     }
 
     async fn broadcast(&self, tx: BitcoinTx) -> Result<TXID, ProviderError> {
@@ -281,22 +239,8 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
         &self,
         txid: TXID,
     ) -> Result<Option<(usize, Vec<Hash256Digest>)>, ProviderError> {
-        let blockhash = {
-            let tx_res = self.get_raw_transaction(txid).await;
-            match tx_res {
-                Ok(tx) => {
-                    BlockHash::from_be_hex(&tx.blockhash).expect("no malformed hashes from api")
-                }
-                Err(e) => {
-                    if e.should_retry() {
-                        return Err(e);
-                    } else {
-                        return Ok(None);
-                    }
-                }
-            }
-        };
-
+        let tx = none_if_unparsable!(self.get_raw_transaction(txid).await);
+        let blockhash = BlockHash::from_be_hex(&tx.blockhash).expect("no malformed hashes from api");
         let block = self.get_block(blockhash).await?;
         let txids: Vec<String> = match block.tx {
             GetBlockTxList::IDs(v) => v,

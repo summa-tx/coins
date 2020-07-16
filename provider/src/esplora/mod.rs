@@ -102,79 +102,30 @@ impl BTCProvider for EsploraProvider {
     }
 
     async fn get_raw_header(&self, digest: BlockHash) -> Result<Option<RawHeader>, ProviderError> {
-        let header = {
-            let header_res =
-                EsploraBlock::fetch_by_digest(&self.client, &self.api_root, digest).await;
-            if let Err(e) = header_res {
-                let e: ProviderError = e.into();
-                if e.should_retry() {
-                    return Err(e);
-                } else {
-                    return Ok(None);
-                }
-            }
-            header_res.unwrap()
-        };
+        let header = none_if_unparsable!(EsploraBlock::fetch_by_digest(&self.client, &self.api_root, digest).await);
         Ok(Some(header.serialize()))
     }
 
     async fn get_height_of(&self, digest: BlockHash) -> Result<Option<usize>, ProviderError> {
-        let block = {
-            let block_res =
-                EsploraBlock::fetch_by_digest(&self.client, &self.api_root, digest).await;
-            if let Err(e) = block_res {
-                let e: ProviderError = e.into();
-                if e.should_retry() {
-                    return Err(e);
-                } else {
-                    return Ok(None);
-                }
-            }
-            block_res.unwrap()
-        };
+        let block = none_if_unparsable!(EsploraBlock::fetch_by_digest(&self.client, &self.api_root, digest).await);
         Ok(Some(block.height))
     }
 
     async fn get_confirmed_height(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {
-        let tx = {
-            let tx_res = EsploraTxStatus::fetch_by_txid(&self.client, &self.api_root, txid).await;
-            if let Err(e) = tx_res {
-                let e: ProviderError = e.into();
-                if e.should_retry() {
-                    return Err(e);
-                } else {
-                    return Ok(None);
-                }
-            }
-            tx_res.unwrap()
-        };
+        let tx = none_if_unparsable!(EsploraTxStatus::fetch_by_txid(&self.client, &self.api_root, txid).await);
         Ok(Some(tx.block_height))
     }
 
     async fn get_confs(&self, txid: TXID) -> Result<Option<usize>, ProviderError> {
-        let tx_res = EsploraTx::fetch_by_txid(&self.client, &self.api_root, txid).await;
-        match tx_res {
-            Ok(tx) => {
-                if !tx.status.confirmed {
-                    return Ok(Some(0));
-                }
-                let digest = BlockHash::from_be_hex(&tx.status.block_hash)
-                    .expect("No bad hex in API response");
-                if !self.in_best_chain(digest).await? {
-                    return Ok(Some(0));
-                }
-                let height = self.tip_height().await?;
-                Ok(Some(height - tx.status.block_height + 1))
-            }
-            Err(e) => {
-                let e: ProviderError = e.into();
-                if e.should_retry() {
-                    Err(e)
-                } else {
-                    Ok(None)
-                }
-            }
-        }
+        let tx = none_if_unparsable!(EsploraTx::fetch_by_txid(&self.client, &self.api_root, txid).await);
+
+        if !tx.status.confirmed { return Ok(Some(0)); }
+        let digest = BlockHash::from_be_hex(&tx.status.block_hash)
+            .expect("No bad hex in API response");
+        if !self.in_best_chain(digest).await? { return Ok(Some(0)); }
+        let height = self.tip_height().await?;
+        Ok(Some(height - tx.status.block_height + 1))
+
     }
 
     async fn get_tx(&self, txid: TXID) -> Result<Option<BitcoinTx>, ProviderError> {

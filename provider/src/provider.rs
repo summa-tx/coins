@@ -43,7 +43,7 @@ pub enum ProviderError {
     #[error("Proivder error {e}")]
     Custom {
         /// Whether the Custom error suggests that the request be retried
-        should_retry: bool,
+        from_parsing: bool,
         /// The error
         e: Box<dyn std::error::Error>,
     },
@@ -51,18 +51,24 @@ pub enum ProviderError {
 
 impl ProviderError {
     /// Shortcut for instantiating a custom error
-    pub fn custom(should_retry: bool, e: Box<dyn std::error::Error>) -> Self {
-        Self::Custom { should_retry, e }
+    pub fn custom(from_parsing: bool, e: Box<dyn std::error::Error>) -> Self {
+        Self::Custom { from_parsing, e }
     }
-    /// Returns true if the request should be retried. E.g. it failed due to a network issue.
+    /// Returns true if the request failed due to a local parsing error.
     ///
-    /// This is used to determine if retrying a request is appropriate
-    pub fn should_retry(&self) -> bool {
+    /// ## Note:
+    ///
+    /// This usually indicates that a requested object was not found. It is common for Bitcoin
+    /// APIs to violate JSON RPC conventions, and return raw strings in this case.
+    pub fn from_parsing(&self) -> bool {
         match self {
             ProviderError::Custom {
-                should_retry: true,
+                from_parsing: true,
                 e: _,
             } => true,
+            ProviderError::SerdeJSONError(_) => true,
+            ProviderError::RmnSerError(_) => true,
+            ProviderError::EncoderError(_) => true,
             _ => false,
         }
     }
