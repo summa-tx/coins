@@ -102,6 +102,7 @@ impl<'a> futures_core::stream::Stream for PendingTx<'a> {
                 if futures_util::ready!(fut.as_mut().poll(ctx)).is_ok() {
                     let fut = Box::pin(provider.get_confs(*txid));
                     *state = PendingTxStates::WaitingConfFut(fut);
+                    ctx.waker().wake_by_ref();
                     return Poll::Ready(Some(Ok((0, *txid))));
                 }
             }
