@@ -60,6 +60,7 @@ impl ProviderError {
     ///
     /// This usually indicates that a requested object was not found. It is common for Bitcoin
     /// APIs to violate JSON RPC conventions, and return raw strings in this case.
+    #[cfg(any(feature = "rpc", feature = "esplora"))]
     pub fn from_parsing(&self) -> bool {
         match self {
             ProviderError::Custom {
@@ -67,6 +68,24 @@ impl ProviderError {
                 e: _,
             } => true,
             ProviderError::SerdeJSONError(_) => true,
+            ProviderError::RmnSerError(_) => true,
+            ProviderError::EncoderError(_) => true,
+            _ => false,
+        }
+    }
+    /// Returns true if the request failed due to a local parsing error.
+    ///
+    /// ## Note:
+    ///
+    /// This usually indicates that a requested object was not found. It is common for Bitcoin
+    /// APIs to violate JSON RPC conventions, and return raw strings in this case.
+    #[cfg(not(any(feature = "rpc", feature = "esplora")))]
+    pub fn from_parsing(&self) -> bool {
+        match self {
+            ProviderError::Custom {
+                from_parsing: true,
+                e: _,
+            } => true,
             ProviderError::RmnSerError(_) => true,
             ProviderError::EncoderError(_) => true,
             _ => false,
