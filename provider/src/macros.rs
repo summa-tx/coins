@@ -11,7 +11,7 @@ macro_rules! unpause {
 // Used to make shortcutting to none responses easier.
 // It's common for Bitcoin APIs to return a string instead of JSON when a TX is unknown
 // The string is unparsable as JSON, so generates an error.
-macro_rules! none_if_unparsable {
+macro_rules! if_found {
     ($func:expr) => {{
         let result = $func.map_err(Into::<crate::provider::ProviderError>::into);
         if let Err(e) = result {
