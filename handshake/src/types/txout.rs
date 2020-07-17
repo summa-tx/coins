@@ -5,7 +5,7 @@ use crate::types::{
     LockingScript, LockingScriptType,
     WitnessProgram, Covenant
 };
-use riemann_core::{
+use coins_core::{
     ser::{ByteFormat, SerError, SerResult},
     types::tx::Output
 };
@@ -127,7 +127,7 @@ impl ByteFormat for TxOut {
 #[cfg(test)]
 mod test {
     use super::*;
-    use riemann_core::ser::ByteFormat;
+    use coins_core::ser::ByteFormat;
 
     #[test]
     fn it_creates_null_output() {

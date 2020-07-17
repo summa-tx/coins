@@ -2,7 +2,7 @@
 
 use std::io::{Read, Write};
 
-use riemann_core::{
+use coins_core::{
     ser::ByteFormat,
     types::tx::RecipientIdentifier
 };
@@ -70,8 +70,8 @@ impl LockingScript {
     }
 }
 
-impl riemann_core::ser::ByteFormat for LockingScript {
-    type Error = riemann_core::ser::SerError;
+impl coins_core::ser::ByteFormat for LockingScript {
+    type Error = coins_core::ser::SerError;
 
     fn serialized_length(&self) -> usize {
         let mut length = 1;
@@ -115,6 +115,7 @@ impl From<Vec<u8>> for LockingScript {
     }
 }
 
+
 impl RecipientIdentifier for LockingScript {}
 
 // need to implement RecipientIdentifier
@@ -137,8 +138,8 @@ impl LockingScript {
     /// Instantiate a standard p2wpkh script pubkey from a pubkey.
     pub fn p2wpkh<'a, T, B>(key: &T) -> Self
     where
-        B: rmn_bip32::curve::Secp256k1Backend<'a>,
-        T: rmn_bip32::model::HasPubkey<'a, B>,
+        B: coins_bip32::curve::Secp256k1Backend,
+        T: coins_bip32::model::HasPubkey<'a, B>,
     {
         let mut v: Vec<u8> = vec![];
         v.extend(&key.pubkey_blake2b160());
@@ -201,7 +202,7 @@ impl LockingScript {
 #[cfg(test)]
 mod test {
     use super::*;
-    use riemann_core::ser::ByteFormat;
+    use coins_core::ser::ByteFormat;
 
     #[test]
     fn it_creates_null_locking_script() {
@@ -220,7 +221,7 @@ mod test {
             witness_program: hash.into()
         };
 
-        let hex = script.serialize_hex().unwrap();
+        let hex = script.serialize_hex();
         // version, size of witness program, witness program
         assert_eq!(hex, "0014ae42d6793bd518239c1788ff28e7ed0c9ed06e56");
     }

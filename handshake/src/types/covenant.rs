@@ -1,7 +1,7 @@
 //! Handshake Covenant Types
 
 use std::io::{Read, Write};
-use riemann_core::{
+use coins_core::{
     ser::{ByteFormat, SerError, SerResult, write_compact_int, prefix_byte_len}
 };
 
@@ -195,7 +195,7 @@ impl From<u8> for CovenantType {
 #[cfg(test)]
 mod test {
     use super::*;
-    use riemann_core::ser::ByteFormat;
+    use coins_core::ser::ByteFormat;
 
     #[test]
     fn it_creates_null_covenant() {
@@ -204,7 +204,7 @@ mod test {
         assert_eq!(covenant.covenant_type, CovenantType::NONE);
         assert_eq!(covenant.covenant_data, CovenantData::null());
 
-        let hex = covenant.serialize_hex().unwrap();
+        let hex = covenant.serialize_hex();
         assert_eq!(hex, "0000");
     }
 
@@ -222,7 +222,7 @@ mod test {
                 covenant_data: CovenantData(case.1.clone())
             };
 
-            let hex = covenant.serialize_hex().unwrap();
+            let hex = covenant.serialize_hex();
             assert_eq!(hex, case.2);
         }
     }

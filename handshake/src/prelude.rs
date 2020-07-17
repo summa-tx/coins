@@ -9,8 +9,7 @@ macro_rules! impl_hex_serde {
             where
                 S: serde::Serializer,
             {
-                let s = riemann_core::ser::ByteFormat::serialize_hex(self)
-                    .map_err(|e| serde::ser::Error::custom(e.to_string()))?;
+                let s = coins_core::ser::ByteFormat::serialize_hex(self);
                 serializer.serialize_str(&s)
             }
         }
@@ -21,7 +20,7 @@ macro_rules! impl_hex_serde {
                 D: serde::Deserializer<'de>,
             {
                 let s: &str = serde::Deserialize::deserialize(deserializer)?;
-                <$item as riemann_core::ser::ByteFormat>::deserialize_hex(s)
+                <$item as coins_core::ser::ByteFormat>::deserialize_hex(s)
                     .map_err(|e| serde::de::Error::custom(e.to_string()))
             }
         }
@@ -40,8 +39,8 @@ macro_rules! wrap_prefixed_byte_vector {
         #[derive(Clone, Debug, Eq, PartialEq, Default, Ord, PartialOrd)]
         pub struct $wrapper_name(Vec<u8>);
 
-        impl riemann_core::ser::ByteFormat for $wrapper_name {
-            type Error = riemann_core::ser::SerError;
+        impl coins_core::ser::ByteFormat for $wrapper_name {
+            type Error = coins_core::ser::SerError;
 
             fn serialized_length(&self) -> usize {
                 let mut length = self.len();
@@ -110,7 +109,7 @@ macro_rules! wrap_prefixed_byte_vector {
 
             /// Determine the byte-length of the vector length prefix
             pub fn len_prefix(&self) -> u8 {
-                riemann_core::ser::prefix_byte_len(self.len() as u64)
+                coins_core::ser::prefix_byte_len(self.len() as u64)
             }
 
             /// Insert an item at the specified index.

@@ -1,13 +1,13 @@
 
 use std::io::{Read, Write};
 
-use riemann_core::{
+use coins_core::{
     hashes::marked::MarkedDigest,
     ser::{ByteFormat, SerError, SerResult},
     types::tx::{Input, TXOIdentifier},
 };
 
-use rmn_btc::{hashes::TXID, types::txin::{Outpoint}};
+use bitcoins::{hashes::TXID, types::txin::{Outpoint}};
 
 /// A simple type alias for an outpoint type that will be repeated throught the `bitcoin` module.
 pub type HandshakeOutpoint = Outpoint<TXID>;
@@ -97,7 +97,7 @@ pub type HandshakeTxIn = TxInput<TXID>;
 #[cfg(test)]
 mod test {
     use super::*;
-    use riemann_core::ser::ByteFormat;
+    use coins_core::ser::ByteFormat;
 
     static NULL_OUTPOINT: &str =
         "0000000000000000000000000000000000000000000000000000000000000000ffffffff";
@@ -116,7 +116,7 @@ mod test {
         ];
         for case in cases.iter() {
             assert_eq!(case.0.serialized_length(), case.1.len() / 2);
-            assert_eq!(case.0.serialize_hex().unwrap(), case.1);
+            assert_eq!(case.0.serialize_hex(), case.1);
             assert_eq!(Outpoint::<TXID>::deserialize_hex(&case.1).unwrap(), case.0);
         }
     }
@@ -139,7 +139,7 @@ mod test {
 
         for case in cases.iter() {
             assert_eq!(case.0.serialized_length(), case.1.len() / 2);
-            assert_eq!(case.0.serialize_hex().unwrap(), case.1);
+            assert_eq!(case.0.serialize_hex(), case.1);
             assert_eq!(HandshakeTxIn::deserialize_hex(&case.1).unwrap(), case.0);
         }
     }

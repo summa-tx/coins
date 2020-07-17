@@ -1,5 +1,5 @@
 [package]
-name = "rmn-hns"
+name = "handshakes"
 version = "0.1.0-rc.1"
 authors = ["Mark Tyneway <mark.tyneway@gmail.com>"]
 edition = "2018"
@@ -15,7 +15,6 @@ thiserror = "1.0"
 sha2 = "0.8.1"
 sha3 = "0.8.2"
 serde = "1.0.105"
-riemann-core = { path = "../core" }
-rmn-bip32 = { path = "../bip32" }
-rmn-btc = { path = "../bitcoin" }
-
+coins-core = { path = "../core" }
+coins-bip32 = { path = "../bip32" }
+bitcoins = { path = "../bitcoins" }
