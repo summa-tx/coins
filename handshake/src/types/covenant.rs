@@ -175,19 +175,19 @@ pub enum CovenantType {
 impl From<u8> for CovenantType {
     fn from(u: u8) -> Self {
         match u {
-            0x00 => return CovenantType::NONE,
-            0x01 => return CovenantType::CLAIM,
-            0x02 => return CovenantType::OPEN,
-            0x03 => return CovenantType::BID,
-            0x04 => return CovenantType::REVEAL,
-            0x05 => return CovenantType::REDEEM,
-            0x06 => return CovenantType::REGISTER,
-            0x07 => return CovenantType::UPDATE,
-            0x08 => return CovenantType::RENEW,
-            0x09 => return CovenantType::TRANSFER,
-            0x10 => return CovenantType::FINALIZE,
-            0x11 => return CovenantType::REVOKE,
-            _ => return CovenantType::UNKNOWN
+            0x00 => CovenantType::NONE,
+            0x01 => CovenantType::CLAIM,
+            0x02 => CovenantType::OPEN,
+            0x03 => CovenantType::BID,
+            0x04 => CovenantType::REVEAL,
+            0x05 => CovenantType::REDEEM,
+            0x06 => CovenantType::REGISTER,
+            0x07 => CovenantType::UPDATE,
+            0x08 => CovenantType::RENEW,
+            0x09 => CovenantType::TRANSFER,
+            0x10 => CovenantType::FINALIZE,
+            0x11 => CovenantType::REVOKE,
+            _ => CovenantType::UNKNOWN
         }
     }
 }

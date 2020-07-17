@@ -109,7 +109,7 @@ impl From<Vec<u8>> for LockingScript {
         let witness_program = raw.split_off(1);
 
         LockingScript {
-            version: version,
+            version,
             witness_program: WitnessProgram::from(witness_program)
         }
     }

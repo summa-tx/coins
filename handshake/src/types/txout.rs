@@ -72,7 +72,7 @@ impl TxOut {
 
         TxOut {
             value: 0,
-            locking_script: locking_script,
+            locking_script,
             covenant: Covenant::null()
         }
     }
