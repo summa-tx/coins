@@ -86,17 +86,29 @@ mod test {
 
     #[test]
     fn it_should_encode_and_decode_bech32() {
-        let hrp = "bc";
+        let hrp = "hs";
         let addrs = [
-            "bc1q233q49ve8ysdsztqh9ue57m6227627j8ztscl9",
-            "bc1qaqm8wh8sr6gfx49mdpz3w70z48xdh0pzlf5kgr",
-            "bc1qjl8uwezzlech723lpnyuza0h2cdkvxvh54v3dn",
-            "bc1qn0q63kkp3rj5wyap5fzymlvat28cu2s87tgzu6",
-            "bc1qnsupj8eqya02nm8v6tmk93zslu2e2z8chlmcej",
-            "bc1qmcwrdlcqrwcfs6654m8zvmzdmtpuvcxuzn9ahy",
-            "bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy",
-            "bc1qza7dfgl2q83cf68fqkkdd754qx546h4u9vd9tg",
-            "bc1qwqdg6squsna38e46795at95yu9atm8azzmyvckulcc7kytlcckxswvvzej",
+            // p2wpkh
+            "hs1qz3wfydjg89swsmjpa5k3mpq0ktkk46vn6lx2a3",
+            "hs1qc08ydvkntcnln5kahpa5xtc5r0uyt9ertmkfnn",
+            "hs1q4uahu74wey3vewhv9x2t5chkn8lskhrpxpg6x5",
+            "hs1q4k44fs86asnz6qd7jn5cyf9rnvqy997lm34wc9",
+            "hs1qc93zk2nknfz84xd8r5chv2exttxauv8dlqs45e",
+            "hs1q706h0gh54zs602tll53zvj6wjjg79vxkxwzqym",
+            "hs1qrq7qkl3p4lvdhkeks3za344d8a2yzllzgjdmzk",
+            "hs1qdd0pgffjze70uas5vudsds9w36nys3saqme8ye",
+            // p2wsh
+            "hs1q4fx5udfmzls9z5gvvndqu22m66njapqgkdcfxnryusgaxemru4ws0swpcd",
+            "hs1qg5eeg43trcd7xgl8mv8yyu8jygeqddaeyglqdryycr7g56yuajhq5g6eye",
+            "hs1qlyfz43he0n5qmu5c98dwt70fc4ruvhjdkns5suedtu5tdj75tv3quk9qv9",
+            "hs1qjwflnutemp0afjy0tlhqeg3edmczlm0avpefpx239kpctk482lqqafq2xm",
+            "hs1qv2r3ld83e3mz0sa3uud9duyy0k9qzm7wz2dr7zux8hp80aql9wzqxgjlj6",
+            // opreturn
+            "hs1l38uu5j094yl52qk0f5putqlltyh3ylghlnu3j98xaa6zw2eztretj2rvtc5rm6dk57r0mg",
+            "hs1l9dqwypjc5f8pht9sxguz2gz85v8qmmhgvl8n2tau43quyhlf476e4q25zdxdvs85qn543a",
+            "hs1lyshr2p9x6xncngq8w2xkjakcy2rnja799dz4faz2k7jty4wsc3c223zxl2cj7e09gmnlxw",
+            "hs1lw5rthtzvnyfgjmdvmwptcy8yx2rfdresyegeua2v74zyy474jhf0wlp3jjjjewt5mzjult",
+            "hs1l8axd3n4esdkn6v68k9a2suuhw204ef0sgsctj4l4yw0z6x8n38an64fzp8wym5w4zr36un"
         ];
         for addr in addrs.iter() {
             let s = decode_bech32(&hrp, addr).unwrap();
@@ -105,10 +117,9 @@ mod test {
         }
     }
 
-    /*
     #[test]
     fn it_should_error_on_wrong_version_and_hrp_and_invalid_addrs() {
-        match decode_bech32("tb", "bc1q233q49ve8ysdsztqh9ue57m6227627j8ztscl9") {
+        match decode_bech32("ts", "hs1qrq7qkl3p4lvdhkeks3za344d8a2yzllzgjdmzk") {
             Ok(_) => assert!(false, "expected an error"),
             Err(EncodingError::WrongHRP {
                 got: _,
@@ -116,24 +127,10 @@ mod test {
             }) => {}
             _ => assert!(false, "Got the wrong error {:?}"),
         }
-        match decode_base58(1, "3HXNFmJpxjgTVFN35Y9f6Waje5YFsLEQZ2") {
-            Ok(_) => assert!(false, "expected an error"),
-            Err(EncodingError::WrongVersion {
-                got: _,
-                expected: _,
-            }) => {}
-            _ => assert!(false, "Got the wrong error"),
-        }
-        match decode_bech32("bc", "bc1qqh9ue57m6227627j8ztscl9") {
+        match decode_bech32("hs", "hs1qrq7qkl3p4lvdhkeks3za34") {
             Ok(_) => assert!(false, "expected an error"),
             Err(EncodingError::BechError(_)) => {}
             _ => assert!(false, "Got the wrong error"),
         }
-        match decode_base58(5, "3HXNf6Waje5YFsLEQZ2") {
-            Ok(_) => assert!(false, "expected an error"),
-            Err(EncodingError::B58Error(_)) => {}
-            _ => assert!(false, "Got the wrong error"),
-        }
     }
-    */
 }
