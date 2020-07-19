@@ -246,6 +246,18 @@ pub trait PollingBTCProvider: BTCProvider {
             .interval(self.interval())
     }
 
+    /// Track a txid that may or may not already be in the mempool. Returns `None` if the txid is
+    /// not known to the remote node.
+    async fn track(&self, txid: TXID, confirmations: usize) -> Option<PendingTx<'_>>
+    where
+        Self: Sized,
+    {
+        let tx = self.get_tx(txid).await.ok().flatten()?;
+        Some(PendingTx::new(tx, self)
+            .confirmations(confirmations)
+            .interval(self.interval()))
+    }
+
     /// Watch the chain tip. Get notified of the new `BlockHash` every time it changes.
     ///
     /// Note: A new hash does not necessarily mean the chain height has increased. Reorgs may
