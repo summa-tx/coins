@@ -2,7 +2,7 @@
 
 use std::io::{Read, Write};
 use coins_core::{
-    ser::{ByteFormat, SerError, SerResult, write_compact_int, prefix_byte_len}
+    ser::{ByteFormat, SerError, SerResult, prefix_byte_len}
 };
 
 wrap_prefixed_byte_vector!(
@@ -26,16 +26,15 @@ impl ByteFormat for CovenantData {
 
     fn serialized_length(&self) -> usize {
         let mut size: usize = 0;
-        size += prefix_byte_len(self.0.len() as u64) as usize;
+        size += self::prefix_byte_len(self.0.len() as u64) as usize;
 
-        for item in self.0.clone() {
+        for item in self.0.iter() {
             size += item.serialized_length();
         }
 
         size
     }
 
-    // TODO: fix this
     fn read_from<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
     where
         R: Read,
@@ -45,7 +44,7 @@ impl ByteFormat for CovenantData {
 
       let mut items = vec![];
       for _ in 0..count {
-          // TODO: sane limit argument?
+          // TODO(mark): sane limit argument?
           let item = CovenantItem::read_from(reader, 256)?;
           items.push(item);
       }
@@ -58,10 +57,7 @@ impl ByteFormat for CovenantData {
         W: Write,
     {
         let mut total: usize = 0;
-
-        // TODO: ByteFormat::write_compact_int
-        // gives compile error for necessary type annotation?
-        total += write_compact_int(writer, self.0.len() as u64)?;
+        total += Self::write_compact_int(writer, self.0.len() as u64)?;
 
         for covenant_data in self.0.clone() {
             total += covenant_data.write_to(writer)?;
@@ -100,8 +96,7 @@ impl ByteFormat for Covenant {
     type Error = SerError;
 
     fn serialized_length(&self) -> usize {
-        let mut size: usize = 1;
-        size += prefix_byte_len(self.covenant_data.0.len() as u64) as usize;
+        let mut size: usize = 1;  // covenant_type
         size += self.covenant_data.serialized_length();
         size
     }
@@ -115,7 +110,7 @@ impl ByteFormat for Covenant {
         let mut buf = [0u8; 1];
         reader.read_exact(&mut buf)?;
         let covenant_type = u8::from_le_bytes(buf);
-        // Sane max?
+        // TODO(mark): sane max?
         let covenant_data = CovenantData::read_from(reader, 1024)?;
 
         Ok(Self {
@@ -128,9 +123,7 @@ impl ByteFormat for Covenant {
     where
         W: Write,
     {
-        // TODO: write var bytes
         let mut total: usize = 0;
-
         let covenant_type: u8 = self.covenant_type.clone() as u8;
         total += writer.write(&[covenant_type])?;
         total += &self.covenant_data.write_to(writer)?;
@@ -185,8 +178,8 @@ impl From<u8> for CovenantType {
             0x07 => CovenantType::UPDATE,
             0x08 => CovenantType::RENEW,
             0x09 => CovenantType::TRANSFER,
-            0x10 => CovenantType::FINALIZE,
-            0x11 => CovenantType::REVOKE,
+            0x0a => CovenantType::FINALIZE,
+            0x0b => CovenantType::REVOKE,
             _ => CovenantType::UNKNOWN
         }
     }
@@ -228,7 +221,52 @@ mod test {
     }
 
     #[test]
-    fn it_deserialized_covenant() {
-        //let covenant = Covenant::deserialize_hex("0000");
+    fn it_serialized_and_deserialized_covenant() {
+        let cases = [
+            "030420c322c0bbf17b761284357008a67ee3bdd894ee476aba6d9ff1312e6d0d90b27a04885e000007726564726f636b2035102638ebab552b657fc4a956ed5e682b4ac62253742ffe40d031ba3d359b57",
+            "0000",
+            "0604206b231c0805edfb826cfab8589e97c9951104073854ff0e047abe7d3ffb6141e90425410000130002036e73310465637070002ce706b701c0022000000000000000e4eadc42be16685f63402a073cfec8575840fb7e40a3f73e68",
+            "0203208eaabab5a5c4af6b1d950a1da5d1c4155cd3e209bce6c0b7c7321ebdb17352b504000000000d66756e6e656c736167656e6379",
+            "030420f2e78cd64e4b7aadfe8101b7254be0c3df29a4e5a74d03722ebc17f2a627964e04154a000003717977208c8bdaea55c4fe233e002d647a59254010df7cc90b0ab1465661c0a622e8d6ca",
+            "040320b4ce9cfd8b761d1b3e8f3faa80f2cfa80ad4880f88fe8a1808fd0844a184d1cd042f470000201bb9fe8681ac53b3f08151965ab25c19b8a0a0cc5f583a4622679bb87bd0b2b9",
+            "050220ecdf3fe7154b363f41d4effb0fe32aa94de65d3ba9cbb81934ced890fb84e72404a9410000",
+            "0803205f8eeb37f99ed63ced719c320f4f7501a38a37919b6fb3a00f8bd6384649570204183a000020000000000000027f29e85ccfaa70cacfafff106a06fcfa94cbc1f30a8ac6877f",
+            "070320ce67c9bf503707595adedb0ad48248cfb932bf43a39ab87f979673d4bc9aaa34041e400000200002036e733103333138002ce706b701c00202036e7332c006b9afcb2d01c013",
+            "010620f3c2b29889c638a0951f35ee7ce238962ad86b49cf10c846bbd0f2374b5ba89404354b00000c73747265616d626561636f6e0101200000000000a5e40e8ba291bd7e8649747fa7fb8a7af39f5bacdb7433cd2f59710401000000",
+            "0904206b539eb5aacc3c76ebce2821e533e48cb63a41a079a166b448b3206bf727ea7c04214400000100145c1df758ac031995d4bf3b7b474ab1f97d14b025",
+            "0a0720c89aefd198561e0b68c4bcaa3246dd0ea3955235e5e46f369a8b4831ddf37dd704bf3d00000e786e2d2d312d3773626c6c6535620100040000000004000000002000000000000003a6bd0e1db842fb76b243b5aee1c82fe4378e74e13d97871b91"
+        ];
+
+        for expected in cases.iter() {
+            let covenant = Covenant::deserialize_hex(expected).unwrap();
+            let result = covenant.serialize_hex();
+
+            let len = covenant.serialized_length();
+            let hex = hex::decode(expected).unwrap();
+            println!("length: {:?}, hex: {:?}", len, hex.len());
+
+            assert_eq!(*expected, result);
+        }
+    }
+
+    #[test]
+    fn it_computes_serialized_length_covenant() {
+        let cases = [
+            "0000",
+            "05022036ece7a5ce73a3f81758695f12fe800f26eb5372b39808518ae8f646969535d004d2390000",
+            "04032089f5c2073ed53430ae1ad6c3c3996fabd5b82698ce5296a03a344c188548441f045e3f0000209aa0bdda3972e42c51b0beed726c33e116e180751f698cfb9c92130ae159110a",
+            "06042036ece7a5ce73a3f81758695f12fe800f26eb5372b39808518ae8f646969535d004d23900001f0002036e73311068616c6c736f667265736964656e6365002ce706b701c00220000000000000013bbf8684e74d3f07e90502e992f539cd589be58b392ab0c99f",
+            "030420bd6441d7875def27472793950ad5f4fe96b90e1f356ba29592292511168a65ae04773f00000a6f70656e6d696e64656420f8266cfcee6746db5ee918b05cff72b847c945ecb02a03eb21016752a511980a",
+            "0203203fddad9f6246d35fa90490df727f2dd151ee5313d454d5ade8c68c14e1a25f43040000000008676f6e616c766573",
+            "070320a29215ec0656c9e29482831090d059ddb18fdd07fe2f3edce98378c5b45311ac0425370000210001036e73310e6e65776e616d657365727665727303636f6d0001036e7332c006",
+            "0a0720d961dcb58511997dd253661a1b4de22be1bd92071a507152194f742ff008ffbf04a6330000186d616e6f735f5f7468655f68616e64735f6f665f666174650100040000000004020000002000000000000000e32502495ef20a3f485aa5786c9637766df60bfee9ce487c2f"
+        ];
+
+        for expected in cases.iter() {
+            let covenant = Covenant::deserialize_hex(expected).unwrap();
+            let len = covenant.serialized_length();
+            let hex = hex::decode(expected).unwrap();
+            assert_eq!(len, hex.len());
+        }
     }
 }

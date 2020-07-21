@@ -1,11 +1,19 @@
 //! Handshake LockingScript and WitnessProgram
 
 use std::io::{Read, Write};
-
+use thiserror::Error;
 use coins_core::{
     ser::ByteFormat,
     types::tx::RecipientIdentifier
 };
+
+/// Errors associated with WitnessProgram
+#[derive(Debug, Error)]
+pub enum LockingScriptError {
+    /// Indicates a WitnessProgram with an invalid size.
+    #[error("Invalid size of WitnessProgram")]
+    InvalidWitnessProgramSizeError,
+}
 
 wrap_prefixed_byte_vector!(
     /// A WitnessProgram represents the data field of a LockingScript.
@@ -16,11 +24,28 @@ wrap_prefixed_byte_vector!(
     WitnessProgram
 );
 
+impl WitnessProgram {
+    /// Split the WitnessProgram into a tuple with of version,
+    /// length and data.
+    pub fn split(&self) -> (u8, Vec<u8>) {
+        let length = self.0.len();
+
+        let mut data = Vec::with_capacity(length);
+        data.clone_from_slice(&self.0[..]);
+
+        (length as u8, data)
+    }
+}
+
 impl From<[u8; 20]> for WitnessProgram {
     fn from(v: [u8; 20]) -> Self {
-        let mut hash = vec![0x14];
-        hash.append(&mut v.to_vec());
-        WitnessProgram::new(hash)
+        Self::new(v.to_vec())
+    }
+}
+
+impl From<[u8; 32]> for WitnessProgram {
+    fn from(v: [u8; 32]) -> Self {
+        Self::new(v.to_vec())
     }
 }
 
@@ -40,10 +65,9 @@ impl From<WitnessProgram> for [u8; 32] {
     }
 }
 
-// TODO: test this
 impl From<WitnessProgram> for Vec<u8> {
     fn from(w: WitnessProgram) -> Vec<u8> {
-        w.0[1..].to_vec()
+        w.0[..].to_vec()
     }
 }
 
@@ -70,14 +94,19 @@ impl LockingScript {
     }
 
     /// Create a new LockingScript
-    pub fn new(v: Vec<u8>) -> Self {
+    pub fn new(v: Vec<u8>) -> Result<Self, LockingScriptError> {
         let (version_and_size, data) = v.split_at(2);
-        assert_eq!(version_and_size[1], data.len() as u8);
+        let version = version_and_size[0];
+        let size = version_and_size[1];
 
-        Self {
-            version: version_and_size[0],
-            witness_program: WitnessProgram::from(data)
+        if size != data.len() as u8 {
+            return Err(LockingScriptError::InvalidWitnessProgramSizeError)
         }
+
+        Ok(Self {
+            version,
+            witness_program: WitnessProgram::from(data)
+        })
     }
 }
 
@@ -117,10 +146,7 @@ impl coins_core::ser::ByteFormat for LockingScript {
 impl From<Vec<u8>> for LockingScript {
     fn from(mut raw: Vec<u8>) -> Self {
         let version = raw[0];
-        let size = raw[1];
         let witness_program = raw.split_off(2);
-
-        assert_eq!(size, witness_program.len() as u8);
 
         LockingScript {
             version,
@@ -244,20 +270,123 @@ mod test {
         assert_eq!(hex, "0014ae42d6793bd518239c1788ff28e7ed0c9ed06e56");
     }
 
-    /*
+    #[test]
+    fn it_creates_witness_program_from_slice_u8_20() {
+        let witness_program = WitnessProgram::from([
+            0x62, 0xf4, 0x40, 0xc8, 0xea, 0x82, 0x6c, 0x59, 0x6a, 0x6f,
+            0x89, 0x39, 0x42, 0x43, 0x59, 0x90, 0x30, 0xd3, 0xb2, 0x21
+        ]);
+
+        assert_eq!(hex::encode(witness_program.0.clone()), "62f440c8ea826c596a6f89394243599030d3b221");
+
+        let mut prefix_actual = vec![];
+        witness_program.write_to(&mut prefix_actual).unwrap();
+
+        assert_eq!(hex::encode(prefix_actual), "1462f440c8ea826c596a6f89394243599030d3b221");
+    }
+
+    #[test]
+    fn it_creates_witness_program_from_slice_u8_32() {
+        let witness_program = WitnessProgram::from([
+            0xe3, 0xcd, 0x22, 0x5e, 0xdd, 0xa8, 0x5b, 0x9b,
+            0xda, 0x94, 0x7a, 0x5c, 0x4c, 0xe0, 0x8e, 0x9d,
+            0x4d, 0x1e, 0x11, 0x90, 0xc2, 0x47, 0x03, 0xf7,
+            0x56, 0x8e, 0x8e, 0x83, 0x37, 0xfc, 0x7e, 0x34
+        ]);
+
+        assert_eq!(hex::encode(witness_program.0.clone()), "e3cd225edda85b9bda947a5c4ce08e9d4d1e1190c24703f7568e8e8337fc7e34");
+
+        let mut prefix_actual = vec![];
+        witness_program.write_to(&mut prefix_actual).unwrap();
+
+        assert_eq!(hex::encode(prefix_actual), "20e3cd225edda85b9bda947a5c4ce08e9d4d1e1190c24703f7568e8e8337fc7e34");
+    }
+
+    #[test]
+    fn it_creates_slice_u8_20_from_witness_program() {
+        let expected = [
+            0x62, 0xf4, 0x40, 0xc8, 0xea, 0x82, 0x6c, 0x59, 0x6a, 0x6f,
+            0x89, 0x39, 0x42, 0x43, 0x59, 0x90, 0x30, 0xd3, 0xb2, 0x21
+        ];
+
+        let witness_program = WitnessProgram::from(expected);
+        let actual: [u8; 20] = witness_program.into();
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn it_creates_slice_u8_32_from_witness_program() {
+        let expected = [
+            0xe3, 0xcd, 0x22, 0x5e, 0xdd, 0xa8, 0x5b, 0x9b,
+            0xda, 0x94, 0x7a, 0x5c, 0x4c, 0xe0, 0x8e, 0x9d,
+            0x4d, 0x1e, 0x11, 0x90, 0xc2, 0x47, 0x03, 0xf7,
+            0x56, 0x8e, 0x8e, 0x83, 0x37, 0xfc, 0x7e, 0x34
+        ];
+
+        let witness_program = WitnessProgram::from(expected);
+        let actual: [u8; 32] = witness_program.into();
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn it_creates_vec_u8_20_from_witness_program() {
+        let expected = vec![
+            0x62, 0xf4, 0x40, 0xc8, 0xea, 0x82, 0x6c, 0x59, 0x6a, 0x6f,
+            0x89, 0x39, 0x42, 0x43, 0x59, 0x90, 0x30, 0xd3, 0xb2, 0x21
+        ];
+
+        let witness_program = WitnessProgram::from(expected.clone());
+        let actual: Vec<u8> = witness_program.into();
+
+        assert_eq!(expected, actual);
+    }
+
+    #[test]
+    fn it_creates_vec_u8_32_from_witness_program() {
+        let expected = vec![
+            0xe3, 0xcd, 0x22, 0x5e, 0xdd, 0xa8, 0x5b, 0x9b,
+            0xda, 0x94, 0x7a, 0x5c, 0x4c, 0xe0, 0x8e, 0x9d,
+            0x4d, 0x1e, 0x11, 0x90, 0xc2, 0x47, 0x03, 0xf7,
+            0x56, 0x8e, 0x8e, 0x83, 0x37, 0xfc, 0x7e, 0x34
+        ];
+
+        let witness_program = WitnessProgram::from(expected.clone());
+        let actual: Vec<u8> = witness_program.into();
+
+        assert_eq!(expected, actual);
+    }
+
     #[test]
     fn it_creates_locking_script_from_vec_u8() {
-        let raw_locking_script: Vec<u8> = [];
-        let raw_witness_program: Vec<u8> = [];
+        let version = 0x00;
+        let raw_witness_program = vec![
+            0xe3, 0xcd, 0x22, 0x5e, 0xdd, 0xa8, 0x5b, 0x9b,
+            0xda, 0x94, 0x7a, 0x5c, 0x4c, 0xe0, 0x8e, 0x9d,
+            0x4d, 0x1e, 0x11, 0x90, 0xc2, 0x47, 0x03, 0xf7,
+            0x56, 0x8e, 0x8e, 0x83, 0x37, 0xfc, 0x7e, 0x34
+        ];
+
+        let raw_locking_script = vec![
+            0x00, 0x20,
+            0xe3, 0xcd, 0x22, 0x5e, 0xdd, 0xa8, 0x5b, 0x9b,
+            0xda, 0x94, 0x7a, 0x5c, 0x4c, 0xe0, 0x8e, 0x9d,
+            0x4d, 0x1e, 0x11, 0x90, 0xc2, 0x47, 0x03, 0xf7,
+            0x56, 0x8e, 0x8e, 0x83, 0x37, 0xfc, 0x7e, 0x34
+        ];
 
         let expected = LockingScript {
-            version: 0,
-            witness_program: WitnessProgram::from()
+            version,
+            witness_program: WitnessProgram::from(raw_witness_program.clone())
         };
 
-        let actual = LockingScript::from(bytes);
-
+        let actual = LockingScript::from(raw_locking_script);
         assert_eq!(actual, expected);
     }
-    */
+
+    #[test]
+    fn itfoo() {
+
+    }
 }

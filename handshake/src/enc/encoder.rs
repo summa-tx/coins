@@ -199,37 +199,37 @@ mod test {
             (
                 LockingScript::new(
                     hex::decode("0014847453b9831cdb3a873fb4b4084d94bc86f1c374").unwrap(),
-                ),
+                ).unwrap(),
                 Address::WPKH("hs1qs3698wvrrndn4pelkj6qsnv5hjr0rsm5fhvcez".to_owned()),
             ),
             (
                 LockingScript::new(
                     hex::decode("0014ed32831a50e012539fe8dfb25b1494c66b1c365e").unwrap(),
-                ),
+                ).unwrap(),
                 Address::WPKH("hs1qa5egxxjsuqf988lgm7e9k9y5ce43cdj74n38kc".to_owned()),
             ),
             (
                 LockingScript::new(
                     hex::decode("0020630cfd3dac0228390daa7564c02005fbac05e43531e91918ac5b1350fb322db8").unwrap(),
-                ),
+                ).unwrap(),
                 Address::WSH("hs1qvvx060dvqg5rjrd2w4jvqgq9lwkqtep4x853jx9vtvf4p7ej9kuqlwkutw".to_owned()),
             ),
             (
                 LockingScript::new(
                     hex::decode("002037789b4c88d9941afc9f9e5057b7bfee01ea3b92789484d8d95fabd6d1460721").unwrap(),
-                ),
+                ).unwrap(),
                 Address::WSH("hs1qxaufknygmx2p4lylneg90dalacq75wuj0z2gfkxet74ad52xquss6xlsqp".to_owned()),
             ),
             (
                 LockingScript::new(
                     hex::decode("1f283692ea54f1a4a1b2d62e7764dad69a2f4d3621e69e89f0ff61ac3e5703a478b42c2ad21618b49541").unwrap(),
-                ),
+                ).unwrap(),
                 Address::OP_RETURN("hs1lx6fw54835jsm943wwajd44569axnvg0xn6ylplmp4sl9wqay0z6zc2kjzcvtf92p76v9e0".to_owned()),
             ),
             (
                 LockingScript::new(
                     hex::decode("1f2849f6d14cdd3ac95baefa5f3ab65990caaf2b2eca73527f2e7aa788403a6c3d73f5cd0a623b918703").unwrap(),
-                ),
+                ).unwrap(),
                 Address::OP_RETURN("hs1lf8mdznxa8ty4hth6tuatvkvse2hjktk2wdf87tn657yyqwnv84eltng2vgaerpcr54ad4t".to_owned()),
             ),
         ];
@@ -241,11 +241,11 @@ mod test {
     #[test]
     fn it_encodes_addresses_errors() {
         let errors = [
-            LockingScript::new(hex::decode("ff14ed32831a50e012539fe8dfb25b1494c66b1c365e").unwrap()), // wrong witness program version
+            LockingScript::new(hex::decode("ff14ed32831a50e012539fe8dfb25b1494c66b1c365e").unwrap()).unwrap(), // wrong witness program version
         ];
 
         for case in errors.iter() {
-            match MainnetEncoder::encode_address(case) {
+            match MainnetEncoder::encode_address(&case) {
                 Err(EncodingError::UnknownScriptType) => {}
                 _ => assert!(false, "expected err UnknownScriptType"),
             }

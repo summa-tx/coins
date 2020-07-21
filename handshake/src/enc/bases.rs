@@ -7,7 +7,7 @@ use bech32::{
 
 use thiserror::Error;
 
-/// Errors that can be returned by the Bitcoin `AddressEncoder`.
+/// Errors that can be returned by the Handshake `AddressEncoder`.
 #[derive(Debug, Error)]
 pub enum EncodingError {
     /// Returned when ScriptPubkey type is unknown. May be non-standard or newer than lib version.

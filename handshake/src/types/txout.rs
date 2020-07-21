@@ -39,15 +39,15 @@ impl Default for TxOut {
 
 impl TxOut {
     /// Instantiate a new TxOut.
-    pub fn new<T, I>(value: u64, LockingScript: T, Covenant: I) -> Self
+    pub fn new<T, I>(value: u64, locking_script: T, covenant: I) -> Self
     where
         T: Into<LockingScript>,
         I: Into<Covenant>
     {
         TxOut {
             value,
-            locking_script: LockingScript.into(),
-            covenant: Covenant.into()
+            locking_script: locking_script.into(),
+            covenant: covenant.into()
         }
     }
 
@@ -94,6 +94,7 @@ impl ByteFormat for TxOut {
     fn serialized_length(&self) -> usize {
         let mut len = 8; // value
         len += self.locking_script.serialized_length();
+        len += self.covenant.serialized_length();
         len
     }
 
