@@ -19,6 +19,7 @@ pub enum Address {
     /// Witness Pay to Scripthash
     WSH(String),
     /// Provably Unspendable OP_RETURN
+    #[allow(non_camel_case_types)]
     OP_RETURN(String),
 }
 
@@ -72,8 +73,8 @@ impl<P: NetworkParams> AddressEncoder for HandshakeEncoder<P> {
     type RecipientIdentifier = LockingScript;
 
     fn encode_address(s: &LockingScript) -> EncodingResult<Address> {
-        let mut data = vec![];
-        (*s).write_to(&mut data);
+        let mut data = Vec::with_capacity(s.serialized_length());
+        s.write_to(&mut data).unwrap();
 
         match s.standard_type() {
             LockingScriptType::WSH(_) => Ok(Address::WSH(encode_bech32(P::HRP, &data)?)),
@@ -93,15 +94,23 @@ impl<P: NetworkParams> AddressEncoder for HandshakeEncoder<P> {
         let s = string.to_owned();
         let result = decode_bech32(P::HRP, &s)?;
 
-        if result[0] == 31 {
+        let (version_and_len, data) = result.split_at(2);
+        let version = version_and_len[0];
+        let len = version_and_len[1];
+
+        if version == 31 {
             return Ok(Address::OP_RETURN(s))
         }
 
+        if len as usize != data.len() {
+            return Err(EncodingError::InvalidSizeError)
+        }
+
         // Only segwit version 0 is currently defined.
-        if result[0] == 0 {
-            match result.len() {
-                22 => return Ok(Address::WPKH(s)),
-                34 => return Ok(Address::WSH(s)),
+        if version == 0 {
+            match len {
+                20 => return Ok(Address::WPKH(s)),
+                32 => return Ok(Address::WSH(s)),
                 _ => return Err(EncodingError::UnknownScriptType),
             }
         }
@@ -184,55 +193,57 @@ mod test {
         }
     }
 
-    // TODO(mark): test encoding addresses
-    /*
     #[test]
     fn it_encodes_addresses() {
         let cases = [
             (
-                ScriptPubkey::new(
-                    hex::decode("a914e88869b88866281ab166541ad8aafba8f8aba47a87").unwrap(),
+                LockingScript::new(
+                    hex::decode("0014847453b9831cdb3a873fb4b4084d94bc86f1c374").unwrap(),
                 ),
-                Address::SH("3NtY7BrF3xrcb31JXXaYCKVcz1cH3Azo5y".to_owned()),
+                Address::WPKH("hs1qs3698wvrrndn4pelkj6qsnv5hjr0rsm5fhvcez".to_owned()),
             ),
             (
-                ScriptPubkey::new(
-                    hex::decode("76a9140e5c3c8d420c7f11e88d76f7b860d471e6517a4488ac").unwrap(),
+                LockingScript::new(
+                    hex::decode("0014ed32831a50e012539fe8dfb25b1494c66b1c365e").unwrap(),
                 ),
-                Address::PKH("12JvxPk4mT4PKMVHuHc1aQGBZpotQWQwF6".to_owned()),
+                Address::WPKH("hs1qa5egxxjsuqf988lgm7e9k9y5ce43cdj74n38kc".to_owned()),
             ),
             (
-                ScriptPubkey::new(
-                    hex::decode(
-                        "00201bf8a1831db5443b42a44f30a121d1b616d011ab15df62b588722a845864cc99",
-                    )
-                    .unwrap(),
+                LockingScript::new(
+                    hex::decode("0020630cfd3dac0228390daa7564c02005fbac05e43531e91918ac5b1350fb322db8").unwrap(),
                 ),
-                Address::WSH(
-                    "bc1qr0u2rqcak4zrks4yfuc2zgw3kctdqydtzh0k9dvgwg4ggkryejvsy49jvz".to_owned(),
-                ),
+                Address::WSH("hs1qvvx060dvqg5rjrd2w4jvqgq9lwkqtep4x853jx9vtvf4p7ej9kuqlwkutw".to_owned()),
             ),
             (
-                ScriptPubkey::new(
-                    hex::decode("00141bf8a1831db5443b42a44f30a121d1b616d011ab").unwrap(),
+                LockingScript::new(
+                    hex::decode("002037789b4c88d9941afc9f9e5057b7bfee01ea3b92789484d8d95fabd6d1460721").unwrap(),
                 ),
-                Address::WPKH("bc1qr0u2rqcak4zrks4yfuc2zgw3kctdqydt3wy5yh".to_owned()),
+                Address::WSH("hs1qxaufknygmx2p4lylneg90dalacq75wuj0z2gfkxet74ad52xquss6xlsqp".to_owned()),
+            ),
+            (
+                LockingScript::new(
+                    hex::decode("1f283692ea54f1a4a1b2d62e7764dad69a2f4d3621e69e89f0ff61ac3e5703a478b42c2ad21618b49541").unwrap(),
+                ),
+                Address::OP_RETURN("hs1lx6fw54835jsm943wwajd44569axnvg0xn6ylplmp4sl9wqay0z6zc2kjzcvtf92p76v9e0".to_owned()),
+            ),
+            (
+                LockingScript::new(
+                    hex::decode("1f2849f6d14cdd3ac95baefa5f3ab65990caaf2b2eca73527f2e7aa788403a6c3d73f5cd0a623b918703").unwrap(),
+                ),
+                Address::OP_RETURN("hs1lf8mdznxa8ty4hth6tuatvkvse2hjktk2wdf87tn657yyqwnv84eltng2vgaerpcr54ad4t".to_owned()),
             ),
         ];
         for case in cases.iter() {
             assert_eq!(MainnetEncoder::encode_address(&case.0).unwrap(), case.1);
         }
+    }
+
+    #[test]
+    fn it_encodes_addresses_errors() {
         let errors = [
-            (ScriptPubkey::new(hex::decode("01201bf8a1831db5443b42a44f30a121d1b616d011ab15df62b588722a845864cc99").unwrap())), // wrong witness program version
-            (ScriptPubkey::new(hex::decode("a914e88869b88866281ab166541ad8aafba8f8aba47a89").unwrap())), // wrong last byte
-            (ScriptPubkey::new(hex::decode("aa14e88869b88866281ab166541ad8aafba8f8aba47a87").unwrap())), // wrong first byte
-            (ScriptPubkey::new(hex::decode("76a9140e5c3c8d420c7f11e88d76f7b860d471e6517a4488ad").unwrap())), // wrong last byte
-            (ScriptPubkey::new(hex::decode("77a9140e5c3c8d420c7f11e88d76f7b860d471e6517a4488ac").unwrap())), // wrong first byte
-            (ScriptPubkey::new(hex::decode("01141bf8a1831db5443b42a44f30a121d1b616d011ab").unwrap())), // wrong witness program version
-            (ScriptPubkey::new(hex::decode("0011223344").unwrap())), // junk
-            (ScriptPubkey::new(hex::decode("deadbeefdeadbeefdeadbeefdeadbeef").unwrap())), // junk
-            (ScriptPubkey::new(hex::decode("02031bf8a1831db5443b42a44f30a121d1b616d011ab15df62b588722a845864cc99041bf8a1831db5443b42a44f30a121d1b616d011ab15df62b588722a845864cc9902af").unwrap())), // Raw msig
+            LockingScript::new(hex::decode("ff14ed32831a50e012539fe8dfb25b1494c66b1c365e").unwrap()), // wrong witness program version
         ];
+
         for case in errors.iter() {
             match MainnetEncoder::encode_address(case) {
                 Err(EncodingError::UnknownScriptType) => {}
@@ -240,7 +251,6 @@ mod test {
             }
         }
     }
-    */
 
     #[test]
     fn it_allows_you_to_unwrap_strings_from_addresses() {

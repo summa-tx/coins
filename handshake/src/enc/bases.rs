@@ -30,6 +30,10 @@ pub enum EncodingError {
     /// Bubbled up error from bech32 library
     #[error("BechError: {:?}", .0)]
     BechError(#[from] BechError),
+
+    /// Incorrect address size
+    #[error("InvalidSizeError")]
+    InvalidSizeError,
 }
 
 /// A simple result type alias

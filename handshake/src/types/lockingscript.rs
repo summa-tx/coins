@@ -40,7 +40,7 @@ impl From<WitnessProgram> for [u8; 32] {
     }
 }
 
-// TODO: Should this be starting at index 1 or 0?
+// TODO: test this
 impl From<WitnessProgram> for Vec<u8> {
     fn from(w: WitnessProgram) -> Vec<u8> {
         w.0[1..].to_vec()
@@ -63,9 +63,20 @@ pub struct LockingScript {
 impl LockingScript {
     /// Returns a null LockingScript
     pub fn null() -> Self {
-        LockingScript {
+        Self {
             version: 0,
-            witness_program: WitnessProgram(vec![00, 20])
+            witness_program: WitnessProgram(vec![0x00, 20])
+        }
+    }
+
+    /// Create a new LockingScript
+    pub fn new(v: Vec<u8>) -> Self {
+        let (version_and_size, data) = v.split_at(2);
+        assert_eq!(version_and_size[1], data.len() as u8);
+
+        Self {
+            version: version_and_size[0],
+            witness_program: WitnessProgram::from(data)
         }
     }
 }
@@ -74,7 +85,7 @@ impl coins_core::ser::ByteFormat for LockingScript {
     type Error = coins_core::ser::SerError;
 
     fn serialized_length(&self) -> usize {
-        let mut length = 1;
+        let mut length = 2; // version and length
         length += self.witness_program.len() as usize;
         length
     }
@@ -106,7 +117,10 @@ impl coins_core::ser::ByteFormat for LockingScript {
 impl From<Vec<u8>> for LockingScript {
     fn from(mut raw: Vec<u8>) -> Self {
         let version = raw[0];
-        let witness_program = raw.split_off(1);
+        let size = raw[1];
+        let witness_program = raw.split_off(2);
+
+        assert_eq!(size, witness_program.len() as u8);
 
         LockingScript {
             version,
@@ -181,14 +195,18 @@ impl LockingScript {
         if self.version == 0 {
             match self.witness_program.len() {
                 20 => {
-                    return LockingScriptType::WPKH(self.witness_program.clone().into());
+                    let mut wpkh = [0x00; 20];
+                    wpkh.copy_from_slice(self.witness_program.items());
+                    return LockingScriptType::WPKH(wpkh);
                 }
 
                 32 => {
-                    return LockingScriptType::WSH(self.witness_program.clone().into());
+                    let mut wsh = [0x00; 32];
+                    wsh.copy_from_slice(self.witness_program.items());
+                    return LockingScriptType::WSH(wsh);
                 }
                 _ => {
-                    // TODO: this should be an error
+                    // TODO(mark): this is an invalid locking script
                     return LockingScriptType::NonStandard;
                 }
             }
@@ -225,4 +243,21 @@ mod test {
         // version, size of witness program, witness program
         assert_eq!(hex, "0014ae42d6793bd518239c1788ff28e7ed0c9ed06e56");
     }
+
+    /*
+    #[test]
+    fn it_creates_locking_script_from_vec_u8() {
+        let raw_locking_script: Vec<u8> = [];
+        let raw_witness_program: Vec<u8> = [];
+
+        let expected = LockingScript {
+            version: 0,
+            witness_program: WitnessProgram::from()
+        };
+
+        let actual = LockingScript::from(bytes);
+
+        assert_eq!(actual, expected);
+    }
+    */
 }
