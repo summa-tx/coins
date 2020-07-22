@@ -240,11 +240,6 @@ mod test {
         for expected in cases.iter() {
             let covenant = Covenant::deserialize_hex(expected).unwrap();
             let result = covenant.serialize_hex();
-
-            let len = covenant.serialized_length();
-            let hex = hex::decode(expected).unwrap();
-            println!("length: {:?}, hex: {:?}", len, hex.len());
-
             assert_eq!(*expected, result);
         }
     }

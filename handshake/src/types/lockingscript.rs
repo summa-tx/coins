@@ -89,7 +89,7 @@ impl LockingScript {
     pub fn null() -> Self {
         Self {
             version: 0,
-            witness_program: WitnessProgram(vec![0x00, 20])
+            witness_program: WitnessProgram(vec![0x00; 20])
         }
     }
 
@@ -253,7 +253,7 @@ mod test {
         let script = LockingScript::null();
 
         assert_eq!(script.version, 0);
-        assert_eq!(script.witness_program, WitnessProgram(vec![00, 20]));
+        assert_eq!(script.witness_program, WitnessProgram(vec![00; 20]));
     }
 
     #[test]
@@ -383,10 +383,5 @@ mod test {
 
         let actual = LockingScript::from(raw_locking_script);
         assert_eq!(actual, expected);
-    }
-
-    #[test]
-    fn itfoo() {
-
     }
 }
