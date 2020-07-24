@@ -25,4 +25,5 @@ pub mod prelude;
 pub mod ser;
 pub mod types;
 
+pub use enc::*;
 pub use prelude::*;

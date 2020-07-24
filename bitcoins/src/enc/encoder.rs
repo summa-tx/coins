@@ -2,11 +2,14 @@
 
 use std::marker::PhantomData;
 
-use coins_core::enc::AddressEncoder;
+use coins_core::{
+    bases::{encode_base58, decode_base58},
+    enc::{AddressEncoder, EncodingError, EncodingResult}
+};
 
 use crate::{
     enc::bases::{
-        decode_base58, decode_bech32, encode_base58, encode_bech32, EncodingError, EncodingResult,
+        bitcoin_decode_bech32, bitcoin_encode_bech32,
     },
     types::script::{ScriptPubkey, ScriptType},
 };
@@ -90,8 +93,8 @@ impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
                 // s.items contains the op codes. we want only the sh
                 Ok(Address::SH(encode_base58(P::SH_VERSION, &payload)))
             }
-            ScriptType::WSH(_) => Ok(Address::WSH(encode_bech32(P::HRP, &s.items())?)),
-            ScriptType::WPKH(_) => Ok(Address::WPKH(encode_bech32(P::HRP, &s.items())?)),
+            ScriptType::WSH(_) => Ok(Address::WSH(bitcoin_encode_bech32(P::HRP, &s.items())?)),
+            ScriptType::WPKH(_) => Ok(Address::WPKH(bitcoin_encode_bech32(P::HRP, &s.items())?)),
             ScriptType::OP_RETURN(_) => Err(EncodingError::NullDataScript),
             ScriptType::NonStandard => Err(EncodingError::UnknownScriptType),
         }
@@ -101,14 +104,14 @@ impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
         match &addr {
             Address::PKH(s) => decode_base58(P::PKH_VERSION, s).map(|v| v.into()),
             Address::SH(s) => decode_base58(P::SH_VERSION, s).map(|v| v.into()),
-            Address::WPKH(s) | Address::WSH(s) => decode_bech32(P::HRP, &s).map(|v| v.into()),
+            Address::WPKH(s) | Address::WSH(s) => bitcoin_decode_bech32(P::HRP, &s).map(|v| v.into()),
         }
     }
 
     fn string_to_address(string: &str) -> EncodingResult<Address> {
         let s = string.to_owned();
         if s.starts_with(P::HRP) {
-            let result = decode_bech32(P::HRP, &s)?;
+            let result = bitcoin_decode_bech32(P::HRP, &s)?;
             match result.len() {
                 22 => Ok(Address::WPKH(s)),
                 34 => Ok(Address::WSH(s)),

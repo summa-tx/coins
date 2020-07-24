@@ -9,11 +9,14 @@
 
 use std::marker::PhantomData;
 
-use coins_core::{builder::TxBuilder, enc::AddressEncoder, types::tx::Transaction};
+use coins_core::{
+    builder::TxBuilder,
+    enc::{AddressEncoder, EncodingResult},
+    types::tx::Transaction
+};
 
 use crate::{
     enc::{
-        bases::EncodingResult,
         encoder::{Address, BitcoinEncoderMarker},
     },
     types::{
