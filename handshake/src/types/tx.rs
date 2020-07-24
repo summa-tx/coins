@@ -312,32 +312,6 @@ impl Transaction for HandshakeTx {
 
         let input = &self.vin[args.index];
 
-        /*
-        let mut prevouts = vec![];
-        self.hash_prevouts(args.sighash_flag)?.write_to(&mut prevouts)?;
-        let mut sequence = vec![];
-        self.hash_sequence(args.sighash_flag)?.write_to(&mut sequence)?;
-        let mut outpoint = vec![];
-        input.outpoint.write_to(&mut outpoint)?;
-        let mut script = vec![];
-        args.prevout_script.write_to(&mut script)?;
-        let mut outputs = vec![];
-        self.hash_outputs(args.index, args.sighash_flag)?
-            .write_to(&mut outputs)?;
-
-        println!("version: {}", self.version);
-        println!("prevouts: {}", hex::encode(prevouts));
-        println!("sequence: {}", hex::encode(sequence));
-        println!("outpoint: {}", hex::encode(outpoint));
-        println!("script : {}", hex::encode(script));
-        println!("value: {}", args.prevout_value);
-        println!("sequence: {}", input.sequence);
-        println!("outputs: {}", hex::encode(outputs));
-        println!("locktime: {}", self.locktime);
-        println!("flag: {}", args.sighash_flag as u32);
-        */
-
-
         Self::write_u32_le(writer, self.version)?;
         self.hash_prevouts(args.sighash_flag)?.write_to(writer)?;
         self.hash_sequence(args.sighash_flag)?.write_to(writer)?;
