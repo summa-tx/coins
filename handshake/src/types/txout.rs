@@ -125,6 +125,10 @@ impl ByteFormat for TxOut {
     }
 }
 
+/// Vout is a type alias for `Vec<TxOut>`. A transaction's Vout is the Vector of
+/// OUTputs, with a length prefix.
+pub type Vout = Vec<TxOut>;
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -177,6 +181,5 @@ mod test {
             let hex = hex::decode(expected).unwrap();
             assert_eq!(len, hex.len());
         }
-
     }
 }

@@ -4,13 +4,10 @@ use std::io::{Read, Write};
 use coins_core::{
     hashes::marked::MarkedDigest,
     ser::{ByteFormat, SerError, SerResult},
-    types::tx::{Input, TXOIdentifier},
+    types::tx::Input,
 };
 
 use bitcoins::{hashes::TXID, types::txin::{Outpoint}};
-
-/// A simple type alias for an outpoint type that will be repeated throught the `bitcoin` module.
-pub type HandshakeOutpoint = Outpoint<TXID>;
 
 // TODO: I need to change one public function on Outpoint
 // from_explorer_format should not swap the endianness,
@@ -90,9 +87,15 @@ where
     }
 }
 
-
 /// A simple type alias for an input type that will be repeated throughout the `handshake` module.
 pub type HandshakeTxIn = TxInput<TXID>;
+
+/// A simple type alias for an outpoint type that will be repeated throught the `handshake` module.
+pub type HandshakeOutpoint = Outpoint<TXID>;
+
+/// Vin is a type alias for `Vec<TxInput>`. A transaction's Vin is the Vector of
+/// INputs, with a length prefix.
+pub type Vin = Vec<HandshakeTxIn>;
 
 #[cfg(test)]
 mod test {

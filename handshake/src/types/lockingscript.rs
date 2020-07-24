@@ -7,6 +7,24 @@ use coins_core::{
     types::tx::RecipientIdentifier
 };
 
+wrap_prefixed_byte_vector!(
+    /// A WitnessStackItem is a marked `Vec<u8>` intended for use in witnesses. Each
+    /// Witness is a `PrefixVec<WitnessStackItem>`. The Transactions `witnesses` is a non-prefixed
+    /// `Vec<Witness>.`
+    ///
+    /// `WitnessStackItem::null()` and `WitnessStackItem::default()` return the empty byte vector
+    /// with a 0 prefix, which represents numerical 0, or null bytestring.
+    ///
+    WitnessStackItem
+);
+
+/// A Witness is a `PrefixVec` of `WitnessStackItem`s. This witness corresponds to a single input.
+///
+/// # Note
+///
+/// The transaction's witness is composed of many of these `Witness`es in an UNPREFIXED vector.
+pub type Witness = Vec<WitnessStackItem>;
+
 /// Errors associated with WitnessProgram
 #[derive(Debug, Error)]
 pub enum LockingScriptError {
