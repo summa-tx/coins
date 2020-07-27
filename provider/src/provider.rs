@@ -24,7 +24,7 @@ pub enum ProviderError {
 
     /// Bubbled up from bitcoins
     #[error(transparent)]
-    EncoderError(#[from] bitcoins::enc::bases::EncodingError),
+    EncoderError(#[from] coins_core::enc::bases::EncodingError),
 
     /// Bubbled up from core
     #[error(transparent)]
