@@ -106,24 +106,23 @@ mod test {
     use super::*;
 
     #[test]
-    fn it_should_encode_and_decode_bech32() {
-        let hrp = "bc";
-        let addrs = [
-            "bc1q233q49ve8ysdsztqh9ue57m6227627j8ztscl9",
-            "bc1qaqm8wh8sr6gfx49mdpz3w70z48xdh0pzlf5kgr",
-            "bc1qjl8uwezzlech723lpnyuza0h2cdkvxvh54v3dn",
-            "bc1qn0q63kkp3rj5wyap5fzymlvat28cu2s87tgzu6",
-            "bc1qnsupj8eqya02nm8v6tmk93zslu2e2z8chlmcej",
-            "bc1qmcwrdlcqrwcfs6654m8zvmzdmtpuvcxuzn9ahy",
-            "bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy",
-            "bc1qza7dfgl2q83cf68fqkkdd754qx546h4u9vd9tg",
-            "bc1qwqdg6squsna38e46795at95yu9atm8azzmyvckulcc7kytlcckxswvvzej",
-            "lnbc20m1pvjluezpp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypqhp58yjmdan79s6qqdhdzgynm4zwqd5d7xmw5fk98klysy043l2ahrqscc6gd6ql3jrc5yzme8v4ntcewwz5cnw92tz0pc8qcuufvq7khhr8wpald05e92xw006sq94mg8v2ndf4sefvf9sygkshp5zfem29trqq2yxxz7"
+    fn it_should_encode_and_decode_arbitrary_bech32() {
+        let cases = [
+            // Lightning invoice
+            ("lnbc20m", "lnbc20m1pvjluezpp5qqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqqqsyqcyq5rqwzqfqypqhp58yjmdan79s6qqdhdzgynm4zwqd5d7xmw5fk98klysy043l2ahrqscc6gd6ql3jrc5yzme8v4ntcewwz5cnw92tz0pc8qcuufvq7khhr8wpald05e92xw006sq94mg8v2ndf4sefvf9sygkshp5zfem29trqq2yxxz7"),
+            // Namecoin address
+            ("nc", "nc1qanwztr5zvd309vjf9ks9c2c3hyw3sqpppwkuut"),
+            // Handshake address
+            ("hs", "hs1q8vn02tnktq3tmztny8nysel6vtkuuy9k0whtty"),
+            // Random data
+            ("ab", "ab1qm7dpnrqefvf4ee67"),
+            ("lol", "lol1yrtmpa4p98nerppeu3h00my48ejmmyj629aeyqhur7wfrzfwqj99v875saeetusxtphs3q2"),
         ];
-        for addr in addrs.iter() {
-            let s = decode_bech32(&hrp, addr).unwrap();
-            let reencoded = encode_bech32(&hrp, &s).unwrap();
-            assert_eq!(*addr, reencoded);
+
+        for case in cases.iter() {
+            let (version, data) = decode_bech32(&case.0, case.1).unwrap();
+            let reencoded = encode_bech32(&case.0, version, &data).unwrap();
+            assert_eq!(case.1, reencoded);
         }
     }
 
