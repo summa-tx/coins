@@ -11,7 +11,7 @@ use bech32::{
 /// Encode a byte vector to bech32. This function expects `v` to be a witness program, and will
 /// return an `UnknownScriptType` if it does not meet the witness program format.
 pub fn bitcoin_encode_bech32(hrp: &str, v: &[u8]) -> EncodingResult<String> {
-    if v.len() < 2 {
+    if v.len() < 2 || v.len() > 40 {
         return Err(BechError::InvalidLength.into());
     }
 
