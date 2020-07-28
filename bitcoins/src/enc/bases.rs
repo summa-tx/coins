@@ -1,11 +1,10 @@
 //! Contains simplified access to `bech32` and `base58check` encoder/decoder for Bitcoin
 //! addresses. Also defines common encoder errors.
 
+use bech32::Error as BechError;
 use coins_core::enc::{
-    EncodingError, EncodingResult, encode_bech32 as core_encode_bech32, decode_bech32 as core_decode_bech32
-};
-use bech32::{
-    Error as BechError,
+    decode_bech32 as core_decode_bech32, encode_bech32 as core_encode_bech32, EncodingError,
+    EncodingResult,
 };
 
 /// Encode a byte vector to bech32. This function expects `v` to be a witness program, and will

@@ -30,14 +30,12 @@ use std::marker::PhantomData;
 
 use coins_core::{
     enc::{AddressEncoder, EncodingError},
-    nets::Network
+    nets::Network,
 };
 
 use crate::{
     builder::BitcoinTxBuilder,
-    enc::{
-        encoder::{Address, BitcoinEncoderMarker, MainnetEncoder, SignetEncoder, TestnetEncoder},
-    },
+    enc::encoder::{Address, BitcoinEncoderMarker, MainnetEncoder, SignetEncoder, TestnetEncoder},
     types::{
         BitcoinTransaction, BitcoinTx, BitcoinTxIn, ScriptPubkey, TxOut, WitnessTransaction,
         WitnessTx,

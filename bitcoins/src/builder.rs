@@ -12,13 +12,11 @@ use std::marker::PhantomData;
 use coins_core::{
     builder::TxBuilder,
     enc::{AddressEncoder, EncodingResult},
-    types::tx::Transaction
+    types::tx::Transaction,
 };
 
 use crate::{
-    enc::{
-        encoder::{Address, BitcoinEncoderMarker},
-    },
+    enc::encoder::{Address, BitcoinEncoderMarker},
     types::{
         legacy::LegacyTx,
         script::{ScriptPubkey, ScriptSig, Witness},

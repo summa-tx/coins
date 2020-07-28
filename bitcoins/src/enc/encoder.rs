@@ -3,14 +3,12 @@
 use std::marker::PhantomData;
 
 use coins_core::{
-    bases::{encode_base58, decode_base58},
-    enc::{AddressEncoder, EncodingError, EncodingResult}
+    bases::{decode_base58, encode_base58},
+    enc::{AddressEncoder, EncodingError, EncodingResult},
 };
 
 use crate::{
-    enc::bases::{
-        decode_bech32, encode_bech32,
-    },
+    enc::bases::{decode_bech32, encode_bech32},
     types::script::{ScriptPubkey, ScriptType},
 };
 
