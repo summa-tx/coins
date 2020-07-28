@@ -2,7 +2,7 @@
 //! addresses. Also defines common encoder errors.
 
 use coins_core::enc::{
-    EncodingError, EncodingResult, encode_bech32, decode_bech32
+    EncodingError, EncodingResult, encode_bech32 as core_encode_bech32, decode_bech32 as core_decode_bech32
 };
 use bech32::{
     Error as BechError,
@@ -10,7 +10,7 @@ use bech32::{
 
 /// Encode a byte vector to bech32. This function expects `v` to be a witness program, and will
 /// return an `UnknownScriptType` if it does not meet the witness program format.
-pub fn bitcoin_encode_bech32(hrp: &str, v: &[u8]) -> EncodingResult<String> {
+pub fn encode_bech32(hrp: &str, v: &[u8]) -> EncodingResult<String> {
     if v.len() < 2 || v.len() > 40 {
         return Err(BechError::InvalidLength.into());
     }
@@ -20,13 +20,13 @@ pub fn bitcoin_encode_bech32(hrp: &str, v: &[u8]) -> EncodingResult<String> {
         return Err(EncodingError::UnknownScriptType);
     };
 
-    encode_bech32(hrp, version_and_len[0], &payload)
+    core_encode_bech32(hrp, version_and_len[0], &payload)
 }
 
 /// Decode a witness program from a bech32 string. Caller specifies an expected HRP. If a
 /// different HRP is found, returns `WrongHRP`.
-pub fn bitcoin_decode_bech32(expected_hrp: &str, s: &str) -> EncodingResult<Vec<u8>> {
-    let (version, data) = decode_bech32(expected_hrp, s)?;
+pub fn decode_bech32(expected_hrp: &str, s: &str) -> EncodingResult<Vec<u8>> {
+    let (version, data) = core_decode_bech32(expected_hrp, s)?;
 
     // Encode as witness program: witness version 0, then len(payload), then payload.
     let mut s: Vec<u8> = vec![version, data.len() as u8];
@@ -54,8 +54,8 @@ mod test {
             "bc1qwqdg6squsna38e46795at95yu9atm8azzmyvckulcc7kytlcckxswvvzej",
         ];
         for addr in addrs.iter() {
-            let s = bitcoin_decode_bech32(&hrp, addr).unwrap();
-            let reencoded = bitcoin_encode_bech32(&hrp, &s).unwrap();
+            let s = decode_bech32(&hrp, addr).unwrap();
+            let reencoded = encode_bech32(&hrp, &s).unwrap();
             assert_eq!(*addr, reencoded);
         }
     }
