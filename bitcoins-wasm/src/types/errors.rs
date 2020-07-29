@@ -2,8 +2,8 @@
 
 use wasm_bindgen::prelude::*;
 
-use coins_core::ser::SerError;
-use bitcoins::{enc::bases::EncodingError, types::tx::TxError};
+use coins_core::{ser::SerError, enc::bases::EncodingError};
+use bitcoins::types::tx::TxError;
 
 use thiserror::Error;
 

@@ -24,7 +24,7 @@ pub enum ProviderError {
 
     /// Bubbled up from bitcoins
     #[error(transparent)]
-    EncoderError(#[from] bitcoins::enc::bases::EncodingError),
+    EncoderError(#[from] coins_core::enc::bases::EncodingError),
 
     /// Bubbled up from core
     #[error(transparent)]
@@ -253,9 +253,11 @@ pub trait PollingBTCProvider: BTCProvider {
         Self: Sized,
     {
         let tx = self.get_tx(txid).await.ok().flatten()?;
-        Some(PendingTx::new(tx, self)
-            .confirmations(confirmations)
-            .interval(self.interval()))
+        Some(
+            PendingTx::new(tx, self)
+                .confirmations(confirmations)
+                .interval(self.interval()),
+        )
     }
 
     /// Watch the chain tip. Get notified of the new `BlockHash` every time it changes.
