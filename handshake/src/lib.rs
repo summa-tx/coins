@@ -10,10 +10,10 @@
 #[cfg_attr(tarpaulin, skip)]
 pub mod prelude;
 
-//pub mod builder;
+pub mod builder;
 pub mod enc;
 pub mod hashes;
-//pub mod nets;
+pub mod nets;
 pub mod types;
 
-//pub use nets::*;
+pub use nets::*;
