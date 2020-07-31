@@ -1,9 +1,7 @@
 //! Handshake Covenant Types
 
+use coins_core::ser::{prefix_byte_len, ByteFormat, SerError, SerResult};
 use std::io::{Read, Write};
-use coins_core::{
-    ser::{ByteFormat, SerError, SerResult, prefix_byte_len}
-};
 
 wrap_prefixed_byte_vector!(
     /// Represents an item in the covenant data field
@@ -40,16 +38,16 @@ impl ByteFormat for CovenantData {
         R: Read,
         Self: std::marker::Sized,
     {
-      let count = Self::read_compact_int(reader)?;
+        let count = Self::read_compact_int(reader)?;
 
-      let mut items = vec![];
-      for _ in 0..count {
-          // TODO(mark): sane limit argument?
-          let item = CovenantItem::read_from(reader, 256)?;
-          items.push(item);
-      }
+        let mut items = vec![];
+        for _ in 0..count {
+            // TODO(mark): sane limit argument?
+            let item = CovenantItem::read_from(reader, 256)?;
+            items.push(item);
+        }
 
-      Ok(Self(items))
+        Ok(Self(items))
     }
 
     fn write_to<W>(&self, writer: &mut W) -> SerResult<usize>
@@ -79,7 +77,7 @@ pub struct Covenant {
     /// The CovenantData represents Covenant specific data that is attached to
     /// the UTXO. This data must be updated correctly as the UTXO is spent from
     /// one CovenantType to the next CovenantType.
-    pub covenant_data: CovenantData
+    pub covenant_data: CovenantData,
 }
 
 impl Covenant {
@@ -87,7 +85,7 @@ impl Covenant {
     pub fn null() -> Self {
         Self {
             covenant_type: CovenantType::NONE,
-            covenant_data: CovenantData::null()
+            covenant_data: CovenantData::null(),
         }
     }
 }
@@ -96,7 +94,7 @@ impl ByteFormat for Covenant {
     type Error = SerError;
 
     fn serialized_length(&self) -> usize {
-        let mut size: usize = 1;  // covenant_type
+        let mut size: usize = 1; // covenant_type
         size += self.covenant_data.serialized_length();
         size
     }
@@ -106,7 +104,6 @@ impl ByteFormat for Covenant {
         R: Read,
         Self: std::marker::Sized,
     {
-
         let mut buf = [0u8; 1];
         reader.read_exact(&mut buf)?;
         let covenant_type = u8::from_le_bytes(buf);
@@ -115,7 +112,7 @@ impl ByteFormat for Covenant {
 
         Ok(Self {
             covenant_type: covenant_type.into(),
-            covenant_data
+            covenant_data,
         })
     }
 
@@ -131,7 +128,6 @@ impl ByteFormat for Covenant {
         Ok(total)
     }
 }
-
 
 /// Covenant types
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Eq, PartialEq)]
@@ -162,7 +158,7 @@ pub enum CovenantType {
     /// Burn Name When Key is Compromised
     REVOKE = 11,
     /// Unknown Type
-    UNKNOWN = 255
+    UNKNOWN = 255,
 }
 
 impl From<u8> for CovenantType {
@@ -180,7 +176,7 @@ impl From<u8> for CovenantType {
             0x09 => CovenantType::TRANSFER,
             0x0a => CovenantType::FINALIZE,
             0x0b => CovenantType::REVOKE,
-            _ => CovenantType::UNKNOWN
+            _ => CovenantType::UNKNOWN,
         }
     }
 }
@@ -206,13 +202,13 @@ mod test {
         // type, data, expect
         let cases = [
             (CovenantType::NONE, vec![], "0000"),
-            (CovenantType::CLAIM, vec![], "0100")
+            (CovenantType::CLAIM, vec![], "0100"),
         ];
 
         for case in cases.iter() {
             let covenant = Covenant {
                 covenant_type: case.0.clone(),
-                covenant_data: CovenantData(case.1.clone())
+                covenant_data: CovenantData(case.1.clone()),
             };
 
             let hex = covenant.serialize_hex();

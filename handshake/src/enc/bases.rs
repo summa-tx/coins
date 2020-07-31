@@ -1,9 +1,9 @@
 //! Contains simplified access to `bech32` encoder/decoder for Handshake
 //! addresses. Also defines common encoder errors.
 
-use bech32::{Error as BechError};
+use bech32::Error as BechError;
 use coins_core::enc::bases::{
-    EncodingError, EncodingResult, encode_bech32 as b32_encode, decode_bech32 as b32_decode
+    decode_bech32 as b32_decode, encode_bech32 as b32_encode, EncodingError, EncodingResult,
 };
 
 /// Encode a byte vector to bech32. This function expects `v` to be a witness program, and will
@@ -68,7 +68,7 @@ mod test {
             "hs1l9dqwypjc5f8pht9sxguz2gz85v8qmmhgvl8n2tau43quyhlf476e4q25zdxdvs85qn543a",
             "hs1lyshr2p9x6xncngq8w2xkjakcy2rnja799dz4faz2k7jty4wsc3c223zxl2cj7e09gmnlxw",
             "hs1lw5rthtzvnyfgjmdvmwptcy8yx2rfdresyegeua2v74zyy474jhf0wlp3jjjjewt5mzjult",
-            "hs1l8axd3n4esdkn6v68k9a2suuhw204ef0sgsctj4l4yw0z6x8n38an64fzp8wym5w4zr36un"
+            "hs1l8axd3n4esdkn6v68k9a2suuhw204ef0sgsctj4l4yw0z6x8n38an64fzp8wym5w4zr36un",
         ];
         for addr in addrs.iter() {
             let s = decode_bech32(&hrp, addr).unwrap();

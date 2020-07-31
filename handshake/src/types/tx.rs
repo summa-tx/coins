@@ -2,27 +2,23 @@
 use std::io::{Error as IOError, Read, Write};
 use thiserror::Error;
 
-use crate::{
-    hashes::{TXID, WTXID},
-};
+use crate::hashes::{TXID, WTXID};
 
 use coins_core::{
     hashes::{
         blake2b256::{Blake2b256Digest, Blake2b256Writer},
-        marked::{MarkedDigest, MarkedDigestWriter}
+        marked::{MarkedDigest, MarkedDigestWriter},
     },
     ser::{ByteFormat, SerError},
     types::tx::Transaction,
 };
 
-use crate::{
-    types::{
-        Witness,
-        LockingScript,
-        txin::{HandshakeOutpoint, HandshakeTxIn, Vin},
-        txout::{TxOut, Vout},
-        //witness::*,
-    },
+use crate::types::{
+    txin::{HandshakeOutpoint, HandshakeTxIn, Vin},
+    txout::{TxOut, Vout},
+    //witness::*,
+    LockingScript,
+    Witness,
 };
 
 /// Trait that describes a Handshake Transaction
@@ -44,10 +40,7 @@ pub trait HandshakeTransaction: Transaction {
 
     /// Calculates the BIP143 sighash given the sighash args. See the
     /// `WitnessSighashArgsSigh` documentation for more in-depth discussion of sighash.
-    fn signature_hash(
-        &self,
-        args: &Self::SighashArgs,
-    ) -> Result<Self::Digest, Self::TxError> {
+    fn signature_hash(&self, args: &Self::SighashArgs) -> Result<Self::Digest, Self::TxError> {
         let mut w = Self::HashWriter::default();
         self.write_sighash_preimage(&mut w, args)?;
         Ok(w.finish())
@@ -66,17 +59,17 @@ pub struct HandshakeTx {
     /// The nLocktime field.
     pub(crate) locktime: u32,
     /// The vector of witnesses.
-    pub(crate) witnesses: Vec<Witness>
+    pub(crate) witnesses: Vec<Witness>,
 }
 
 impl Default for HandshakeTx {
     fn default() -> Self {
-        Self{
+        Self {
             version: 0,
             vin: vec![],
             vout: vec![],
             locktime: 0,
-            witnesses: vec![]
+            witnesses: vec![],
         }
     }
 }
@@ -118,7 +111,7 @@ impl ByteFormat for HandshakeTx {
             vin,
             vout,
             locktime,
-            witnesses
+            witnesses,
         })
     }
 
@@ -157,7 +150,7 @@ impl HandshakeTransaction for HandshakeTx {
             vin: vin.into(),
             vout: vout.into(),
             locktime,
-            witnesses: vec![]
+            witnesses: vec![],
         }
     }
 
@@ -205,9 +198,10 @@ impl HandshakeTx {
     fn hash_sequence(&self, sighash_flag: Sighash) -> TxResult<Blake2b256Digest> {
         let flag = sighash_flag as u8;
         if (flag & Sighash::ACP as u8) == Sighash::ACP as u8
-                || (flag & 0x1f) == Sighash::Single as u8
-                || (flag & 0x1f) == Sighash::SingleReverse as u8
-                || (flag & 0x1f) == Sighash::None as u8 {
+            || (flag & 0x1f) == Sighash::Single as u8
+            || (flag & 0x1f) == Sighash::SingleReverse as u8
+            || (flag & 0x1f) == Sighash::None as u8
+        {
             Ok(Blake2b256Digest::default())
         } else {
             let mut w = Blake2b256Writer::default();
@@ -234,7 +228,10 @@ impl HandshakeTx {
                 }
                 Ok(w.finish())
             }
-            Sighash::Single | Sighash::SingleACP | Sighash::SingleNoInput | Sighash::SingleNoInputACP => {
+            Sighash::Single
+            | Sighash::SingleACP
+            | Sighash::SingleNoInput
+            | Sighash::SingleNoInputACP => {
                 if index < self.vout.len() {
                     let mut w = Blake2b256Writer::default();
                     self.vout[index].write_to(&mut w)?;
@@ -243,7 +240,10 @@ impl HandshakeTx {
                     Ok(Blake2b256Digest::default())
                 }
             }
-            Sighash::SingleReverse | Sighash::SingleReverseACP | Sighash::SingleReverseNoInput | Sighash::SingleReverseNoInputACP => {
+            Sighash::SingleReverse
+            | Sighash::SingleReverseACP
+            | Sighash::SingleReverseNoInput
+            | Sighash::SingleReverseNoInputACP => {
                 if index < self.vout.len() {
                     let mut w = Blake2b256Writer::default();
                     self.vout[self.vout.len() - 1 - index].write_to(&mut w)?;
@@ -266,7 +266,6 @@ impl Transaction for HandshakeTx {
     type HashWriter = Blake2b256Writer;
     type SighashArgs = SighashArgs;
 
-
     /// Instantiate a new `BitcoinTx`. This always returns a `BitcoinTx::Legacy`
     fn new<I, O>(version: u32, vin: I, vout: O, locktime: u32) -> Self
     where
@@ -278,7 +277,7 @@ impl Transaction for HandshakeTx {
             vin: vin.into(),
             vout: vout.into(),
             locktime,
-            witnesses: vec![]
+            witnesses: vec![],
         }
     }
 
@@ -316,7 +315,6 @@ impl Transaction for HandshakeTx {
         writer: &mut W,
         args: &Self::SighashArgs,
     ) -> Result<(), Self::TxError> {
-
         let input = {
             let noinput = Sighash::NoInput as u8;
             if (args.sighash_flag as u8 & noinput) == noinput {
@@ -397,7 +395,6 @@ pub struct SighashArgs {
     pub prevout_value: u64,
 }
 
-
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 /// All possible Sighash modes
@@ -437,7 +434,7 @@ pub enum Sighash {
     /// Sign NO inputs and ONE output
     SingleNoInputACP = 0xc3,
     /// Sign NO inputs and ONE output (opposite index)
-    SingleReverseNoInputACP = 0xc4
+    SingleReverseNoInputACP = 0xc4,
 }
 
 impl Sighash {
@@ -495,11 +492,11 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c0146d7428ea0c83eee3a74edc53a1f9a7f26ca5d5c988ac").unwrap(),
+            prevout_script: hex::decode("1976c0146d7428ea0c83eee3a74edc53a1f9a7f26ca5d5c988ac")
+                .unwrap(),
             sighash_flag: Sighash::All,
-            prevout_value: 503306619
+            prevout_value: 503306619,
         };
-
 
         let expected = "c4f226db5b21a0948f43c856f6441f1776c3c38d4530c25006fa0bdd48e5af7e";
         let signature_hash = tx.signature_hash(&args).unwrap();
@@ -513,9 +510,10 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c0149329051e96615297625c4458b7409f2159a5a3a888ac").unwrap(),
+            prevout_script: hex::decode("1976c0149329051e96615297625c4458b7409f2159a5a3a888ac")
+                .unwrap(),
             sighash_flag: Sighash::None,
-            prevout_value: 503385487
+            prevout_value: 503385487,
         };
 
         let expected = "cc28298ea955eaff411b0ac41f1501fd5686373d1c0d364d9ed70a6cde83e081";
@@ -530,9 +528,10 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c0149ef33fdf7c4a2e6b37bf462c55de2dc945b5bedd88ac").unwrap(),
+            prevout_script: hex::decode("1976c0149ef33fdf7c4a2e6b37bf462c55de2dc945b5bedd88ac")
+                .unwrap(),
             sighash_flag: Sighash::Single,
-            prevout_value: 4312704038
+            prevout_value: 4312704038,
         };
 
         let expected = "c286ea11df23aebbede3dbc06daf9a93c348f2e4182d047a47f73d503e1d7d91";
@@ -547,9 +546,10 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c014dcf0d847d82f44a99617c9874dbee61be407f77b88ac").unwrap(),
+            prevout_script: hex::decode("1976c014dcf0d847d82f44a99617c9874dbee61be407f77b88ac")
+                .unwrap(),
             sighash_flag: Sighash::SingleReverse,
-            prevout_value: 1500000
+            prevout_value: 1500000,
         };
 
         let expected = "9f4320c7874118ffbbc1ae8af9d57e98a3c04aa1bdecbefd52f077047f5da861";
@@ -564,9 +564,10 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c01498c8297a67eb81ec36253828b5621a601ba2328a88ac").unwrap(),
+            prevout_script: hex::decode("1976c01498c8297a67eb81ec36253828b5621a601ba2328a88ac")
+                .unwrap(),
             sighash_flag: Sighash::AllNoInput,
-            prevout_value: 2005260900
+            prevout_value: 2005260900,
         };
 
         let expected = "3eb4a929e0283c7e3d6757637ebd58c5524cc74a787a2b66a798c0462e2b14d4";
@@ -581,9 +582,10 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c0142d355655e690be3f4aadbbff13622dc0226f991f88ac").unwrap(),
+            prevout_script: hex::decode("1976c0142d355655e690be3f4aadbbff13622dc0226f991f88ac")
+                .unwrap(),
             sighash_flag: Sighash::NoneNoInput,
-            prevout_value: 10000
+            prevout_value: 10000,
         };
 
         let expected = "18799a272c12589cd703967ee94c73d1be97649c0d1340391fa09795f50d549b";
@@ -598,9 +600,10 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c014c0113093a59a0eb6f4854d92ed3c8e0477d5bdea88ac").unwrap(),
+            prevout_script: hex::decode("1976c014c0113093a59a0eb6f4854d92ed3c8e0477d5bdea88ac")
+                .unwrap(),
             sighash_flag: Sighash::SingleNoInput,
-            prevout_value: 5004999
+            prevout_value: 5004999,
         };
 
         let expected = "e759858e74d5e69fb1703348fa21eeb6be1531784990ffc0a3e905fadaed5134";
@@ -615,9 +618,10 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c014a646dd759b001e4f1d443d698892dfe33e8a59bf88ac").unwrap(),
+            prevout_script: hex::decode("1976c014a646dd759b001e4f1d443d698892dfe33e8a59bf88ac")
+                .unwrap(),
             sighash_flag: Sighash::SingleReverseNoInput,
-            prevout_value: 5004999
+            prevout_value: 5004999,
         };
 
         let expected = "a2722b88db66fae11494e1d4b113908736f68755c763e15e3bd51ededc16851a";
@@ -632,9 +636,10 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c01431437ee12898865eeb61505a16516b78f821e19b88ac").unwrap(),
+            prevout_script: hex::decode("1976c01431437ee12898865eeb61505a16516b78f821e19b88ac")
+                .unwrap(),
             sighash_flag: Sighash::AllACP,
-            prevout_value: 10000000
+            prevout_value: 10000000,
         };
 
         let expected = "c650b5a5329f39d065845adb407dcca151dc7ceed1a1f2932f4c2f77704dc6b8";
@@ -649,9 +654,10 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c014ca26dec0d3001bf16679c57af6c4fe0382b66dd188ac").unwrap(),
+            prevout_script: hex::decode("1976c014ca26dec0d3001bf16679c57af6c4fe0382b66dd188ac")
+                .unwrap(),
             sighash_flag: Sighash::NoneACP,
-            prevout_value: 68426400
+            prevout_value: 68426400,
         };
 
         let expected = "7b188afac059d4e00652563b3404fcc17f6d50efddc13197b9b462afba809fb7";
@@ -666,9 +672,10 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c0148c1b0a949896e1521d01e2386629047bd898dd8588ac").unwrap(),
+            prevout_script: hex::decode("1976c0148c1b0a949896e1521d01e2386629047bd898dd8588ac")
+                .unwrap(),
             sighash_flag: Sighash::SingleACP,
-            prevout_value: 5799600
+            prevout_value: 5799600,
         };
 
         let expected = "4cd708a5bbc4a9f27aaf18ec99e5efb7b80cb162a409ffb69f360165348a34d3";
@@ -683,9 +690,10 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c014282fa7c6a30266295f9d050284af57578dac4f3388ac").unwrap(),
+            prevout_script: hex::decode("1976c014282fa7c6a30266295f9d050284af57578dac4f3388ac")
+                .unwrap(),
             sighash_flag: Sighash::SingleReverseACP,
-            prevout_value: 5358600
+            prevout_value: 5358600,
         };
 
         let expected = "6db11c454b3185143739a1110cbbbdaacd689290cc84fc4ff53ab1cf7754bec2";
@@ -700,9 +708,10 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c014aabc402d54f4b5455614ee56e0eb6c6b4e4374cd88ac").unwrap(),
+            prevout_script: hex::decode("1976c014aabc402d54f4b5455614ee56e0eb6c6b4e4374cd88ac")
+                .unwrap(),
             sighash_flag: Sighash::AllNoInputACP,
-            prevout_value: 410000
+            prevout_value: 410000,
         };
 
         let expected = "c84c24aca3c207d5021bff5d81e98c61b5d1810f2a4ea2f077dcaa5af98a3979";
@@ -717,9 +726,10 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c0144f9747117b3992c7dc0a09ae427c7b78efc731dc88ac").unwrap(),
+            prevout_script: hex::decode("1976c0144f9747117b3992c7dc0a09ae427c7b78efc731dc88ac")
+                .unwrap(),
             sighash_flag: Sighash::NoneNoInputACP,
-            prevout_value: 20004999
+            prevout_value: 20004999,
         };
 
         let expected = "23cb231e1bd7206b4a33cb4cb1f6871637d3423daac07731d1f7bfe4e8b5bc7d";
@@ -734,9 +744,10 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c0143dd4ac1cb78168168c95bed0f615e00b24bd079088ac").unwrap(),
+            prevout_script: hex::decode("1976c0143dd4ac1cb78168168c95bed0f615e00b24bd079088ac")
+                .unwrap(),
             sighash_flag: Sighash::SingleNoInputACP,
-            prevout_value: 500000
+            prevout_value: 500000,
         };
 
         let expected = "4e496c67237a7caf3678326b20e3dbb982418c44bf83cbdcc5efe8e53414831f";
@@ -751,9 +762,10 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c014cb884746bae24846a6139160b2abc34d256c5e9788ac").unwrap(),
+            prevout_script: hex::decode("1976c014cb884746bae24846a6139160b2abc34d256c5e9788ac")
+                .unwrap(),
             sighash_flag: Sighash::SingleReverseNoInputACP,
-            prevout_value: 1250000000
+            prevout_value: 1250000000,
         };
 
         let expected = "943a86b8657a2dd9d533a69baeebb6ee2cbed40116b57e8157914d8b8d9ebff2";

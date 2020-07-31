@@ -1,4 +1,3 @@
-
 use std::io::{Read, Write};
 
 use coins_core::{
@@ -119,10 +118,7 @@ where
 {
     /// Instantiate a new TxInput
     pub fn new(outpoint: Outpoint<M>, sequence: u32) -> Self {
-        TxInput {
-            outpoint,
-            sequence,
-        }
+        TxInput { outpoint, sequence }
     }
 }
 
@@ -133,10 +129,9 @@ where
     fn default() -> Self {
         Self {
             outpoint: Outpoint::default(),
-            sequence: 0xffffffff
+            sequence: 0xffffffff,
         }
     }
-
 }
 
 impl<M> ByteFormat for TxInput<M>

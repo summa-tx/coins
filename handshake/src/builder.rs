@@ -14,10 +14,10 @@ use crate::{
     enc::encoder::{Address, HandshakeEncoderMarker},
     types::{
         covenant::Covenant,
+        lockingscript::{LockingScript, Witness},
         tx::{HandshakeTransaction, HandshakeTx},
         txin::{HandshakeOutpoint, HandshakeTxIn},
         txout::TxOut,
-        lockingscript::{Witness, LockingScript},
     },
 };
 
@@ -82,9 +82,14 @@ where
 
 impl<T> HandshakeTxBuilder<T>
 where
-T: HandshakeEncoderMarker,
+    T: HandshakeEncoderMarker,
 {
-    fn pay_covenant(mut self, value: u64, address: &Address, covenant: Covenant) -> EncodingResult<Self> {
+    fn pay_covenant(
+        mut self,
+        value: u64,
+        address: &Address,
+        covenant: Covenant,
+    ) -> EncodingResult<Self> {
         let locking_script = T::decode_address(&address)?;
         let output = TxOut::new(value, locking_script, covenant);
         self.vout.push(output);
@@ -141,10 +146,7 @@ where
     where
         I: Into<HandshakeOutpoint>,
     {
-        self.vin.push(HandshakeTxIn::new(
-            prevout.into(),
-            sequence,
-        ));
+        self.vin.push(HandshakeTxIn::new(prevout.into(), sequence));
         self
     }
 
@@ -201,6 +203,7 @@ where
             self.vout,
             self.witnesses,
             self.locktime,
-        ).into()
+        )
+        .into()
     }
 }

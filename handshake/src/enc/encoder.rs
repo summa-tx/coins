@@ -4,17 +4,15 @@ use std::marker::PhantomData;
 
 use coins_core::{
     enc::{
+        bases::{EncodingError, EncodingResult},
         AddressEncoder,
-        bases::{EncodingError, EncodingResult}
     },
-    ser::ByteFormat
+    ser::ByteFormat,
 };
 
 use crate::{
-    enc::bases::{
-        decode_bech32, encode_bech32
-    },
-    types::{LockingScript, LockingScriptType}
+    enc::bases::{decode_bech32, encode_bech32},
+    types::{LockingScript, LockingScriptType},
 };
 
 /// The available Bitcoin Address types, implemented as a type enum around strings.
@@ -85,14 +83,18 @@ impl<P: NetworkParams> AddressEncoder for HandshakeEncoder<P> {
         match s.standard_type() {
             LockingScriptType::WSH(_) => Ok(Address::WSH(encode_bech32(P::HRP, &data)?)),
             LockingScriptType::WPKH(_) => Ok(Address::WPKH(encode_bech32(P::HRP, &data)?)),
-            LockingScriptType::OP_RETURN(_) => Ok(Address::OP_RETURN(encode_bech32(P::HRP, &data)?)),
+            LockingScriptType::OP_RETURN(_) => {
+                Ok(Address::OP_RETURN(encode_bech32(P::HRP, &data)?))
+            }
             LockingScriptType::NonStandard => Err(EncodingError::UnknownScriptType),
         }
     }
 
     fn decode_address(addr: &Address) -> EncodingResult<LockingScript> {
         match &addr {
-            Address::WPKH(s) | Address::WSH(s) | Address::OP_RETURN(s) => decode_bech32(P::HRP, &s).map(|v| v.into()),
+            Address::WPKH(s) | Address::WSH(s) | Address::OP_RETURN(s) => {
+                decode_bech32(P::HRP, &s).map(|v| v.into())
+            }
         }
     }
 
@@ -105,11 +107,11 @@ impl<P: NetworkParams> AddressEncoder for HandshakeEncoder<P> {
         let len = version_and_len[1];
 
         if version == 31 {
-            return Ok(Address::OP_RETURN(s))
+            return Ok(Address::OP_RETURN(s));
         }
 
         if len as usize != data.len() {
-            return Err(EncodingError::InvalidSizeError)
+            return Err(EncodingError::InvalidSizeError);
         }
 
         // Only segwit version 0 is currently defined.
@@ -184,8 +186,8 @@ mod test {
 
         // TODO(mark): more specific error testing
         let errors = [
-            "hello", // Err(BechError(InvalidLength))
-            "this isn't a real address", // Err(BechError(MissingSeparator))
+            "hello",                        // Err(BechError(InvalidLength))
+            "this isn't a real address",    // Err(BechError(MissingSeparator))
             "bc10pu8s7rc0pu8s7rc0putt44am", // Err(WrongHRP{})
             "hs10pu8s7rc0pu8s7rc0putt44am", // Err(BechError(InvalidChecksum)
         ];
@@ -247,7 +249,10 @@ mod test {
     #[test]
     fn it_encodes_addresses_errors() {
         let errors = [
-            LockingScript::new(hex::decode("ff14ed32831a50e012539fe8dfb25b1494c66b1c365e").unwrap()).unwrap(), // wrong witness program version
+            LockingScript::new(
+                hex::decode("ff14ed32831a50e012539fe8dfb25b1494c66b1c365e").unwrap(),
+            )
+            .unwrap(), // wrong witness program version
         ];
 
         for case in errors.iter() {

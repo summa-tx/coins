@@ -1,14 +1,11 @@
 //! Handshake TxOut and Vout types.
 
-use std::io::{Read, Write};
-use crate::types::{
-    LockingScript, LockingScriptType,
-    WitnessProgram, Covenant
-};
+use crate::types::{Covenant, LockingScript, LockingScriptType, WitnessProgram};
 use coins_core::{
     ser::{ByteFormat, SerError, SerResult},
-    types::tx::Output
+    types::tx::Output,
 };
+use std::io::{Read, Write};
 
 /// An Output. This describes a new UTXO to be created. The value is encoded as an LE u64.
 /// The LockingScript encodes spending constraints.
@@ -23,7 +20,7 @@ pub struct TxOut {
     /// The `LockingScript` which locks the UTXO.
     pub locking_script: LockingScript,
     /// The `Covenant` which locks the way the UTXO can be spent.
-    pub covenant: Covenant
+    pub covenant: Covenant,
 }
 
 impl Output for TxOut {
@@ -42,12 +39,12 @@ impl TxOut {
     pub fn new<T, I>(value: u64, locking_script: T, covenant: I) -> Self
     where
         T: Into<LockingScript>,
-        I: Into<Covenant>
+        I: Into<Covenant>,
     {
         TxOut {
             value,
             locking_script: locking_script.into(),
-            covenant: covenant.into()
+            covenant: covenant.into(),
         }
     }
 
@@ -56,7 +53,7 @@ impl TxOut {
         TxOut {
             value: 0x00,
             locking_script: LockingScript::null(),
-            covenant: Covenant::null()
+            covenant: Covenant::null(),
         }
     }
 
@@ -67,13 +64,13 @@ impl TxOut {
 
         let locking_script = LockingScript {
             version: 31,
-            witness_program: WitnessProgram::from(data)
+            witness_program: WitnessProgram::from(data),
         };
 
         TxOut {
             value: 0,
             locking_script,
-            covenant: Covenant::null()
+            covenant: Covenant::null(),
         }
     }
 
@@ -110,7 +107,7 @@ impl ByteFormat for TxOut {
         Ok(Self {
             value,
             locking_script,
-            covenant
+            covenant,
         })
     }
 

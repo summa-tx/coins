@@ -35,10 +35,10 @@ use coins_core::{
 
 use crate::{
     builder::HandshakeTxBuilder,
-    enc::encoder::{Address, HandshakeEncoderMarker, MainnetEncoder, RegtestEncoder, TestnetEncoder},
-    types::{
-        HandshakeTransaction, HandshakeTx, HandshakeTxIn, LockingScript, TxOut,
+    enc::encoder::{
+        Address, HandshakeEncoderMarker, MainnetEncoder, RegtestEncoder, TestnetEncoder,
     },
+    types::{HandshakeTransaction, HandshakeTx, HandshakeTxIn, LockingScript, TxOut},
 };
 
 /// A newtype for Bitcoin networks, parameterized by an encoder. We change the encoder to
@@ -110,4 +110,3 @@ mod test {
         assert_eq!(&address, &HandshakeMainnet::encode_address(&u).unwrap())
     }
 }
-
