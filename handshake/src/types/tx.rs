@@ -174,6 +174,11 @@ impl HandshakeTransaction for HandshakeTx {
 }
 
 impl HandshakeTx {
+    /// Get the witnesses from the underlying tx
+    pub fn witnesses(&self) -> &[Witness] {
+        &self.witnesses
+    }
+
     /// Calculates `hash_prevouts` according to BIP143 semantics.`
     ///
     /// For BIP143 (Witness and Compatibility sighash) documentation, see here:
@@ -271,7 +276,6 @@ impl Transaction for HandshakeTx {
         I: Into<Vec<HandshakeTxIn>>,
         O: Into<Vec<TxOut>>,
     {
-        // TODO: implement
         Self {
             version,
             vin: vin.into(),
