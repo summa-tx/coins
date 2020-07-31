@@ -158,7 +158,7 @@ pub enum CovenantType {
     /// Burn Name When Key is Compromised
     REVOKE = 11,
     /// Unknown Type
-    UNKNOWN = 255,
+    UNKNOWN
 }
 
 impl From<u8> for CovenantType {
