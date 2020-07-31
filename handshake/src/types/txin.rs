@@ -18,7 +18,7 @@ use bitcoins::{hashes::TXID, types::txin::{Outpoint}};
 ///
 /// Sequence encoding is complex and the field also encodes information about locktimes and RBF.
 /// See [James' blogpost on the subject](https://prestwi.ch/bitcoin-time-locks/).
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Eq, PartialEq, Default)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct TxInput<M>
 where
     M: MarkedDigest,
@@ -48,10 +48,24 @@ where
         }
     }
 
+    // TODO: remove this
     /// Copy the input, stripping the scriptsig information.
     pub fn unsigned(&self) -> TxInput<M> {
         Self::new(self.outpoint, self.sequence)
     }
+}
+
+impl<M> Default for TxInput<M>
+where
+    M: MarkedDigest,
+{
+    fn default() -> Self {
+        Self {
+            outpoint: Outpoint::default(),
+            sequence: 0xffffffff
+        }
+    }
+
 }
 
 impl<M> ByteFormat for TxInput<M>
