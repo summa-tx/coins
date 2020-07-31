@@ -5,7 +5,7 @@
 //! This gives the user immediate access to the full bitcoin toolchain via a single import.
 //!
 //! ```
-//! use handshakes::{HandshakeMainnet, enc::Address, types::Outpoint};
+//! use handshakes::{HandshakeMainnet, enc::Address, types::txin::Outpoint};
 //! use coins_core::{
 //!     nets::Network,
 //!     builder::TxBuilder,

@@ -4,14 +4,91 @@ use std::io::{Read, Write};
 use coins_core::{
     hashes::marked::MarkedDigest,
     ser::{ByteFormat, SerError, SerResult},
-    types::tx::Input,
+    types::tx::{Input, TXOIdentifier},
 };
 
-use bitcoins::{hashes::TXID, types::txin::{Outpoint}};
+use crate::hashes::TXID;
 
-// TODO: I need to change one public function on Outpoint
-// from_explorer_format should not swap the endianness,
-// because logic makes sense.
+/// An Outpoint. This is a unique identifier for a UTXO, and is composed of a transaction ID (in
+/// Bitcoin-style LE format), and the index of the output being spent within that transactions
+/// output vectour (vout).
+///
+/// `Outpoint::null()` and `Outpoint::default()` return the null Outpoint, which references a txid
+/// of all 0, and a index 0xffff_ffff. This null outpoint is used in every coinbase transaction.
+#[derive(serde::Serialize, serde::Deserialize, Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub struct Outpoint<M>
+where
+    M: MarkedDigest,
+{
+    /// The txid that created the UTXO being pointed to.
+    pub txid: M,
+    /// The index of that UTXO in the transaction's output vector.
+    pub idx: u32,
+}
+
+impl<M> TXOIdentifier for Outpoint<M> where M: MarkedDigest {}
+
+impl<M> Outpoint<M>
+where
+    M: MarkedDigest,
+{
+    /// Returns a new Outpoint from a digest and index
+    pub fn new(txid: M, idx: u32) -> Self {
+        Self { txid, idx }
+    }
+
+    /// Returns the `default`, or `null` Outpoint. This is used in the coinbase input.
+    pub fn null() -> Self {
+        Outpoint {
+            txid: M::default(),
+            idx: 0xffff_ffff,
+        }
+    }
+}
+
+impl<M> Default for Outpoint<M>
+where
+    M: MarkedDigest,
+{
+    fn default() -> Self {
+        Outpoint::null()
+    }
+}
+
+impl<M> ByteFormat for Outpoint<M>
+where
+    M: MarkedDigest + ByteFormat,
+{
+    type Error = SerError;
+
+    fn serialized_length(&self) -> usize {
+        36
+    }
+
+    fn read_from<T>(reader: &mut T, _limit: usize) -> SerResult<Self>
+    where
+        T: Read,
+        Self: std::marker::Sized,
+    {
+        Ok(Outpoint {
+            txid: M::read_from(reader, 0)
+                .map_err(|e| SerError::ComponentError(format!("{}", e)))?,
+            idx: Self::read_u32_le(reader)?,
+        })
+    }
+
+    fn write_to<T>(&self, writer: &mut T) -> SerResult<usize>
+    where
+        T: Write,
+    {
+        let mut len = self
+            .txid
+            .write_to(writer)
+            .map_err(|e| SerError::ComponentError(format!("{}", e)))?;
+        len += Self::write_u32_le(writer, self.idx)?;
+        Ok(len)
+    }
+}
 
 /// An TxInput. This data structure contains an outpoint referencing an existing UTXO,
 /// a sequence number which may encode relative locktim semantics in version 2+ transactions.
@@ -46,12 +123,6 @@ where
             outpoint,
             sequence,
         }
-    }
-
-    // TODO: remove this
-    /// Copy the input, stripping the scriptsig information.
-    pub fn unsigned(&self) -> TxInput<M> {
-        Self::new(self.outpoint, self.sequence)
     }
 }
 

@@ -25,6 +25,7 @@ use crate::{
     },
 };
 
+/// Trait that describes a Handshake Transaction
 pub trait HandshakeTransaction: Transaction {
     /// The MarkedDigest type for the Transaction's Witness TXID
     type WTXID: MarkedDigest<Digest = Self::Digest>;
@@ -53,9 +54,7 @@ pub trait HandshakeTransaction: Transaction {
     }
 }
 
-/// Wrapper enum for returning values that may be EITHER a Witness OR a Legacy tx and the type is
-/// not known in advance. While a few transaction methods have been implemented for convenience,
-/// This wrapper must be explicitly unwrapped before the tx object can be signed.
+/// A struct that represents a Handshake Transaction
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct HandshakeTx {
     /// The version number. Usually 1 or 2.
@@ -66,9 +65,8 @@ pub struct HandshakeTx {
     pub(crate) vout: Vout,
     /// The nLocktime field.
     pub(crate) locktime: u32,
-    ///
-    pub(crate) witnesses: Vec<Witness>,
-
+    /// The vector of witnesses.
+    pub(crate) witnesses: Vec<Witness>
 }
 
 impl Default for HandshakeTx {
@@ -88,7 +86,6 @@ impl ByteFormat for HandshakeTx {
 
     fn serialized_length(&self) -> usize {
         let mut len = 4; // version
-        len += 2; // Segwit Flag
         len += coins_core::ser::prefix_byte_len(self.vin.len() as u64) as usize;
         len += self.vin.serialized_length();
         len += coins_core::ser::prefix_byte_len(self.vout.len() as u64) as usize;
