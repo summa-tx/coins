@@ -168,3 +168,79 @@ macro_rules! wrap_prefixed_byte_vector {
         }
     }
 }
+
+/// Make a new marked hash of length 32.
+#[macro_export]
+macro_rules! mark_hash256 {
+    (
+        $(#[$outer:meta])*
+        $hash_name:ident
+    ) => {
+        $(#[$outer])*
+        #[derive(Hash, serde::Serialize, serde::Deserialize, Copy, Clone, Default, Debug, Eq, PartialEq, PartialOrd, Ord)]
+        pub struct $hash_name(pub Blake2b256Digest);
+
+        impl $hash_name {
+            /// Deserialize to BE hex
+            pub fn from_be_hex(be: &str) -> coins_core::ser::SerResult<Self> {
+                Ok(<Self as coins_core::ser::ByteFormat>::deserialize_hex(be)?.reversed())
+            }
+
+            /// Convert to BE hex
+            pub fn to_be_hex(&self) -> String {
+                coins_core::ser::ByteFormat::serialize_hex(&self.reversed())
+            }
+        }
+
+        impl coins_core::ser::ByteFormat for $hash_name {
+            type Error = coins_core::ser::SerError;
+
+            fn serialized_length(&self) -> usize {
+                32
+            }
+
+            fn read_from<R>(reader: &mut R, _limit: usize) -> coins_core::ser::SerResult<Self>
+            where
+                R: std::io::Read,
+                Self: std::marker::Sized
+            {
+                let mut buf = <Blake2b256Digest>::default();
+                reader.read_exact(&mut buf)?;
+                Ok(Self(buf))
+            }
+
+            fn write_to<W>(&self, writer: &mut W) -> coins_core::ser::SerResult<usize>
+            where
+                W: std::io::Write
+            {
+                Ok(writer.write(&self.0)?)
+            }
+        }
+
+        impl coins_core::hashes::MarkedDigest for $hash_name {
+            type Digest = Blake2b256Digest;
+            fn new(hash: Blake2b256Digest) -> Self {
+                Self(hash)
+            }
+
+            fn internal(&self) -> Blake2b256Digest {
+                self.0
+            }
+
+            fn bytes(&self) -> Vec<u8> {
+                self.0.to_vec()
+            }
+        }
+
+        impl From<Blake2b256Digest> for $hash_name {
+            fn from(h: Blake2b256Digest) -> Self {
+                Self::new(h)
+            }
+        }
+        impl Into<Blake2b256Digest> for $hash_name {
+            fn into(self) -> Blake2b256Digest {
+                self.internal()
+            }
+        }
+    }
+}

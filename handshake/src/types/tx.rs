@@ -2,10 +2,8 @@
 use std::io::{Error as IOError, Read, Write};
 use thiserror::Error;
 
-// TODO: move this to coins_core
-use bitcoins::{
+use crate::{
     hashes::{TXID, WTXID},
-    types::WitnessTransaction
 };
 
 use coins_core::{

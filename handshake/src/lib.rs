@@ -12,7 +12,7 @@ pub mod prelude;
 
 //pub mod builder;
 pub mod enc;
-//pub mod hashes;
+pub mod hashes;
 //pub mod nets;
 pub mod types;
 
