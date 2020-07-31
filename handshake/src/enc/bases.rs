@@ -1,43 +1,10 @@
 //! Contains simplified access to `bech32` encoder/decoder for Handshake
 //! addresses. Also defines common encoder errors.
 
-use bech32::{
-    decode as b32_decode, encode as b32_encode, u5, Error as BechError, FromBase32, ToBase32,
+use bech32::{Error as BechError};
+use coins_core::enc::bases::{
+    EncodingError, EncodingResult, encode_bech32 as b32_encode, decode_bech32 as b32_decode
 };
-
-use thiserror::Error;
-
-/// Errors that can be returned by the Handshake `AddressEncoder`.
-#[derive(Debug, Error)]
-pub enum EncodingError {
-    /// Returned when ScriptPubkey type is unknown. May be non-standard or newer than lib version.
-    #[error("Non-standard LockingScript type")]
-    UnknownScriptType,
-
-    /// Bech32 HRP does not match the current network.
-    #[error("Bech32 HRP does not match. \nGot {:?} expected {:?} Hint: Is this address for another network?", got, expected)]
-    WrongHRP {
-        /// The actual HRP.
-        got: String,
-        /// The expected HRP.
-        expected: String,
-    },
-
-    /// Invalid Segwit Version
-    #[error("SegwitVersionError: {:?}", .0)]
-    SegwitVersionError(u8),
-
-    /// Bubbled up error from bech32 library
-    #[error("BechError: {:?}", .0)]
-    BechError(#[from] BechError),
-
-    /// Incorrect address size
-    #[error("InvalidSizeError")]
-    InvalidSizeError,
-}
-
-/// A simple result type alias
-pub type EncodingResult<T> = Result<T, EncodingError>;
 
 /// Encode a byte vector to bech32. This function expects `v` to be a witness program, and will
 /// return an `UnknownScriptType` if it does not meet the witness program format.
@@ -48,38 +15,27 @@ pub fn encode_bech32(hrp: &str, v: &[u8]) -> EncodingResult<String> {
 
     let (version_and_len, payload) = v.split_at(2);
 
-    if version_and_len[0] > 31 {
+    let version = version_and_len[0];
+    let len = version_and_len[1];
+
+    if version > 31 {
         return Err(EncodingError::SegwitVersionError(version_and_len[0]));
     }
 
-    if version_and_len[1] as usize != payload.len() {
+    if len as usize != payload.len() {
         return Err(EncodingError::UnknownScriptType);
     };
 
-    let mut v = vec![u5::try_from_u8(version_and_len[0])?];
-    v.extend(&payload.to_base32());
-    b32_encode(hrp, &v).map_err(|v| v.into())
+    b32_encode(hrp, version, payload)
 }
 
 /// Decode a witness program from a bech32 string. Caller specifies an expected HRP. If a
 /// different HRP is found, returns `WrongHRP`.
 pub fn decode_bech32(expected_hrp: &str, s: &str) -> EncodingResult<Vec<u8>> {
+    let (version, data) = b32_decode(expected_hrp, &s)?;
 
-    let (hrp, data) = b32_decode(&s)?;
-    if hrp != expected_hrp {
-        return Err(EncodingError::WrongHRP {
-            got: hrp,
-            expected: expected_hrp.to_owned(),
-        });
-    }
-
-    // Extract the witness version and payload
-    let (v, p) = data.split_at(1);
-    let payload = Vec::from_base32(&p)?;
-
-    // Encode as witness program: witness version 0, then len(payload), then payload.
-    let mut s: Vec<u8> = vec![v[0].to_u8(), payload.len() as u8];
-    s.extend(&payload);
+    let mut s: Vec<u8> = vec![version, data.len() as u8];
+    s.extend(&data);
 
     Ok(s)
 }

@@ -2,11 +2,17 @@
 
 use std::marker::PhantomData;
 
-use coins_core::{enc::AddressEncoder, ser::ByteFormat};
+use coins_core::{
+    enc::{
+        AddressEncoder,
+        bases::{EncodingError, EncodingResult}
+    },
+    ser::ByteFormat
+};
 
 use crate::{
     enc::bases::{
-        decode_bech32, encode_bech32, EncodingError, EncodingResult,
+        decode_bech32, encode_bech32
     },
     types::{LockingScript, LockingScriptType}
 };
