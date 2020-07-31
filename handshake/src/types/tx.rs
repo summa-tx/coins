@@ -14,10 +14,8 @@ use coins_core::{
 };
 
 use crate::types::{
-    txin::{HandshakeOutpoint, HandshakeTxIn, Vin},
+    txin::{HandshakeTxIn, Vin},
     txout::{TxOut, Vout},
-    //witness::*,
-    LockingScript,
     Witness,
 };
 
@@ -144,13 +142,12 @@ impl HandshakeTransaction for HandshakeTx {
         O: Into<Vec<Self::TxOut>>,
         W: Into<Vec<Self::Witness>>,
     {
-        // TODO: implement
         Self {
             version,
             vin: vin.into(),
             vout: vout.into(),
             locktime,
-            witnesses: vec![],
+            witnesses: witnesses.into(),
         }
     }
 
