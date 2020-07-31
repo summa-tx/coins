@@ -184,7 +184,7 @@ impl HandshakeTx {
     ///
     /// TODO: memoize
     fn hash_prevouts(&self, sighash_flag: Sighash) -> TxResult<Blake2b256Digest> {
-        if sighash_flag as u8 & 0x80 == 0x80 {
+        if (sighash_flag as u8 & Sighash::ACP as u8) == Sighash::ACP as u8 {
             Ok(Blake2b256Digest::default())
         } else {
             let mut w = Blake2b256Writer::default();
@@ -203,20 +203,11 @@ impl HandshakeTx {
     ///
     /// TODO: memoize
     fn hash_sequence(&self, sighash_flag: Sighash) -> TxResult<Blake2b256Digest> {
-        if sighash_flag == Sighash::Single
-                || sighash_flag == Sighash::None
-                || sighash_flag == Sighash::SingleReverse
-                || sighash_flag  == Sighash::NoneNoInput
-                || sighash_flag  == Sighash::NoneNoInputACP
-                || sighash_flag == Sighash::SingleNoInput
-                || sighash_flag == Sighash::SingleReverseNoInput
-                || sighash_flag == Sighash::AllACP
-                || sighash_flag == Sighash::NoneACP
-                || sighash_flag == Sighash::SingleACP
-                || sighash_flag == Sighash::SingleReverseACP
-                || sighash_flag == Sighash::SingleReverseNoInputACP
-                || sighash_flag == Sighash::AllNoInputACP
-                || sighash_flag == Sighash::SingleNoInputACP {
+        let flag = sighash_flag as u8;
+        if (flag & Sighash::ACP as u8) == Sighash::ACP as u8
+                || (flag & 0x1f) == Sighash::Single as u8
+                || (flag & 0x1f) == Sighash::SingleReverse as u8
+                || (flag & 0x1f) == Sighash::None as u8 {
             Ok(Blake2b256Digest::default())
         } else {
             let mut w = Blake2b256Writer::default();
@@ -244,16 +235,22 @@ impl HandshakeTx {
                 Ok(w.finish())
             }
             Sighash::Single | Sighash::SingleACP | Sighash::SingleNoInput | Sighash::SingleNoInputACP => {
-                // TODO: protect out of bounds panic
-                let mut w = Blake2b256Writer::default();
-                self.vout[index].write_to(&mut w)?;
-                Ok(w.finish())
+                if index < self.vout.len() {
+                    let mut w = Blake2b256Writer::default();
+                    self.vout[index].write_to(&mut w)?;
+                    Ok(w.finish())
+                } else {
+                    Ok(Blake2b256Digest::default())
+                }
             }
             Sighash::SingleReverse | Sighash::SingleReverseACP | Sighash::SingleReverseNoInput | Sighash::SingleReverseNoInputACP => {
-                // TODO: protect out of bounds panic
-                let mut w = Blake2b256Writer::default();
-                self.vout[self.vout.len() - 1 - index].write_to(&mut w)?;
-                Ok(w.finish())
+                if index < self.vout.len() {
+                    let mut w = Blake2b256Writer::default();
+                    self.vout[self.vout.len() - 1 - index].write_to(&mut w)?;
+                    Ok(w.finish())
+                } else {
+                    Ok(Blake2b256Digest::default())
+                }
             }
             _ => Ok(Blake2b256Digest::default()),
         }
@@ -322,14 +319,8 @@ impl Transaction for HandshakeTx {
     ) -> Result<(), Self::TxError> {
 
         let input = {
-            if args.sighash_flag == Sighash::AllNoInput
-                    || args.sighash_flag == Sighash::NoneNoInput
-                    || args.sighash_flag == Sighash::SingleNoInput
-                    || args.sighash_flag == Sighash::SingleReverseNoInput
-                    || args.sighash_flag == Sighash::SingleReverseNoInputACP
-                    || args.sighash_flag == Sighash::AllNoInputACP
-                    || args.sighash_flag == Sighash::NoneNoInputACP
-                    || args.sighash_flag == Sighash::SingleNoInputACP {
+            let noinput = Sighash::NoInput as u8;
+            if (args.sighash_flag as u8 & noinput) == noinput {
                 Self::TxIn::default()
             } else {
                 self.vin[args.index].clone()
@@ -420,6 +411,8 @@ pub enum Sighash {
     Single = 0x03,
     /// Sign ALL inputs and ONE output (opposite index)
     SingleReverse = 0x04,
+    /// Modifier: Don't commit to the input
+    NoInput = 0x40,
     /// Sign ALL inputs and ALL outputs
     AllNoInput = 0x41,
     /// Sign ALL inputs and NO outputs
@@ -428,6 +421,8 @@ pub enum Sighash {
     SingleNoInput = 0x43,
     /// Sign ALL inputs and ONE output (opposite index)
     SingleReverseNoInput = 0x44,
+    /// Modifier: Only commit to to a single input
+    ACP = 0x80,
     /// Sign ONE input and ALL outputs
     AllACP = 0x81,
     /// Sign ONE input and NO outputs
@@ -625,10 +620,6 @@ mod tests {
             sighash_flag: Sighash::SingleReverseNoInput,
             prevout_value: 5004999
         };
-
-        let mut preimage = vec![];
-        tx.write_sighash_preimage(&mut preimage, &args).unwrap();
-        println!("{:?}", hex::encode(preimage));
 
         let expected = "a2722b88db66fae11494e1d4b113908736f68755c763e15e3bd51ededc16851a";
         let signature_hash = tx.signature_hash(&args).unwrap();
