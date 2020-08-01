@@ -38,7 +38,7 @@ use crate::{
     enc::encoder::{
         Address, HandshakeEncoderMarker, MainnetEncoder, RegtestEncoder, TestnetEncoder,
     },
-    types::{HandshakeTransaction, HandshakeTx, HandshakeTxIn, LockingScript, TxOut},
+    types::{HandshakeTx, HandshakeTxIn, LockingScript, TxOut},
 };
 
 /// A newtype for Bitcoin networks, parameterized by an encoder. We change the encoder to
