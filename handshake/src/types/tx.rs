@@ -43,6 +43,12 @@ pub trait HandshakeTransaction: Transaction {
         self.write_sighash_preimage(&mut w, args)?;
         Ok(w.finish())
     }
+
+    /// Computes the txid preimage.
+    fn write_txid_preimage<W: Write>(&self, writer: &mut W) -> Result<usize, Self::Error>;
+
+    /// Computes the wtxid preimage.
+    fn write_wtxid_preimage<W: Write>(&self, writer: &mut W) -> Result<usize, Self::Error>;
 }
 
 /// A struct that represents a Handshake Transaction
@@ -151,12 +157,37 @@ impl HandshakeTransaction for HandshakeTx {
         }
     }
 
-    // TODO: double check this
     fn wtxid(&self) -> WTXID {
         let mut w = Self::HashWriter::default();
-        self.write_to(&mut w)
+        self.write_wtxid_preimage(&mut w)
             .expect("No IOError from hash functions");
         w.finish_marked()
+    }
+
+    fn write_txid_preimage<W: Write>(&self, writer: &mut W) -> Result<usize, Self::Error> {
+        let mut len = Self::write_u32_le(writer, self.version())?;
+
+        len += Self::write_prefix_vec(writer, &self.vin)?;
+        len += Self::write_prefix_vec(writer, &self.vout)?;
+        len += Self::write_u32_le(writer, self.locktime())?;
+
+        Ok(len)
+    }
+
+    fn write_wtxid_preimage<W: Write>(&self, writer: &mut W) -> Result<usize, Self::Error> {
+        let mut witness_hash = Blake2b256Writer::default();
+
+        for wit in self.witnesses.iter() {
+            Self::write_prefix_vec(&mut witness_hash, &wit)?;
+        }
+
+        let hash: Blake2b256Digest = witness_hash.finish();
+        let txid = self.txid();
+
+        let mut len = writer.write(&txid.0)?;
+        len += writer.write(&hash)?;
+
+        Ok(len)
     }
 }
 
@@ -301,12 +332,12 @@ impl Transaction for HandshakeTx {
     /// Return the TXID of the transaction
     fn txid(&self) -> TXID {
         let mut w = Self::HashWriter::default();
-        self.write_to(&mut w)
+        self.write_txid_preimage(&mut w)
             .expect("No IOError from hash functions");
         w.finish_marked()
     }
 
-    /// Return the TXID of the transaction
+    /// Return the signature digest preimage
     fn write_sighash_preimage<W: Write>(
         &self,
         writer: &mut W,
@@ -348,29 +379,9 @@ pub enum TxError {
     #[error(transparent)]
     IOError(#[from] IOError),
 
-    /// Sighash NONE is unsupported
-    #[error("SIGHASH_NONE is unsupported")]
-    NoneUnsupported,
-
-    /// Satoshi's sighash single bug. Throws an error here.
-    #[error("SIGHASH_SINGLE bug is unsupported")]
-    SighashSingleBug,
-
     /// Caller provided an unknown sighash type to `Sighash::from_u8`
     #[error("Unknown Sighash: {}", .0)]
     UnknownSighash(u8),
-
-    /// Got an unknown flag where we expected a witness flag. May indicate a non-witness
-    /// transaction.
-    #[error("Witness flag not as expected. Got {:?}. Expected {:?}.", .0, [0u8, 1u8])]
-    BadWitnessFlag([u8; 2]),
-
-    /// Wrong sighash args passed in to wrapped tx
-    #[error("Sighash args must match the wrapped tx type")]
-    WrongSighashArgs,
-    // /// No outputs in vout
-    // #[error("Vout may not be empty")]
-    // EmptyVout
 }
 
 /// Type alias for result with TxError
@@ -394,7 +405,7 @@ pub struct SighashArgs {
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
-/// All possible Sighash modes
+/// All possible Sighash modes including flags.
 pub enum Sighash {
     /// Sign ALL inputs and ALL outputs
     All = 0x01,
@@ -435,7 +446,7 @@ pub enum Sighash {
 }
 
 impl Sighash {
-    ///
+    /// Covert a Sighash flag into a u8.
     pub fn to_u8(self) -> u8 {
         self as u8
     }
@@ -447,10 +458,12 @@ impl Sighash {
             0x02 => Ok(Sighash::None),
             0x03 => Ok(Sighash::Single),
             0x04 => Ok(Sighash::SingleReverse),
+            0x40 => Ok(Sighash::NoInput),
             0x41 => Ok(Sighash::AllNoInput),
             0x42 => Ok(Sighash::NoneNoInput),
             0x43 => Ok(Sighash::SingleNoInput),
             0x44 => Ok(Sighash::SingleReverseNoInput),
+            0x80 => Ok(Sighash::ACP),
             0x81 => Ok(Sighash::AllACP),
             0x82 => Ok(Sighash::NoneACP),
             0x83 => Ok(Sighash::SingleACP),
@@ -467,7 +480,6 @@ impl Sighash {
 #[cfg(test)]
 mod tests {
     use super::*;
-    //use crate::prelude::*;
 
     #[test]
     fn it_serialized_and_deserialized_tx() {
@@ -480,6 +492,18 @@ mod tests {
             let hex = tx.serialize_hex();
             assert_eq!(hex, *expected);
         }
+    }
+
+    #[test]
+    fn it_computes_txid_and_wtxid() {
+        let hex = "0000000001c20eb4c0e10f2d4bad4240968df43c2a3b2563a331f42ab2841d17d373bd2e6c00000000ffffffff0200093d0000000000001400e749452f8e6734811180df5c6119baddbae2e80000d3cff5301000000000141989e94966116f96a0ed862f49e114c456878fee00000000000002411a5c86ccab5a1d6fbbb72b254002def32429af6cd18948a0ec1038c820a7a7f2716f26980261b6ef63d5234528be7dbe802e3e0cc7c81e2f050471b0adf232d4012103d9e518a74e89eb42b24fc6806dd14ad6309433667de7a7e4dfc1039ad4938384";
+
+        let tx = HandshakeTx::deserialize_hex(hex).unwrap();
+        let txid = tx.txid();
+        let wtxid = tx.wtxid();
+
+        assert_eq!(hex::encode(txid.0), "6de399beeec5c2e9993f2c58351c57535025a991d5f1242c15f1cc18d1358981");
+        assert_eq!(hex::encode(wtxid.0), "911f4ad0616acad31f8a36313d02b746835b39f3910a32eeb37a99a55181430c");
     }
 
     #[test]
