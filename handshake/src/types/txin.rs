@@ -1,3 +1,6 @@
+//! This module holds transaction inputs for Handshake transactions. Since
+//! Handshake is a UTXO based blockchain, the transaction inputs point to a
+//! UTXO by the transaction id and output index.
 use std::io::{Read, Write};
 
 use coins_core::{

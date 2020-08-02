@@ -1,5 +1,6 @@
 //! This module holds `MarkedDigest` types used by Handshake transactions. Currently we represent
 //! only `TXID`s and `WTXID`s. In the future we may also represent sighash digests this way.
+//! It also holds a blake2b160 wrapper function.
 
 use blake2_rfc::blake2b::Blake2b;
 use coins_core::hashes::marked::MarkedDigest;

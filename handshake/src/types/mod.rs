@@ -2,15 +2,14 @@
 
 pub mod covenant;
 pub mod lockingscript;
+pub mod script;
 pub mod tx;
-/// TODO:
 pub mod txin;
 pub mod txout;
-// pub mod utxo;
 
 pub use covenant::*;
 pub use lockingscript::*;
+pub use script::*;
 pub use tx::*;
 pub use txin::*;
 pub use txout::*;
-// pub use utxo::*;
