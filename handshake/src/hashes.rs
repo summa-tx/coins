@@ -21,8 +21,10 @@ mark_hash256!(
     BlockHash
 );
 
+/// A Handshake Blake2b160Digest
 pub type Blake2b160Digest = [u8; 20];
 
+/// Hash data with blake2b160
 pub fn blake2b160(preimage: &[u8]) -> Blake2b160Digest {
     let mut ctx = Blake2b::new(20);
     ctx.update(preimage);
