@@ -8,7 +8,6 @@ repository = "https://github.com/summa-tx/bitcoins-rs"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-blake2-rfc = "0.2.18"
 thiserror = "1.0"
 hmac = "0.7.1"
 sha2 = "0.8.0"

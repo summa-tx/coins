@@ -3,7 +3,7 @@ use bitcoin_spv::{
     types::{Hash160Digest, Hash256Digest},
 };
 
-use crate::{primitives::KeyFingerprint, Bip32Error, hashes::blake2b160};
+use crate::{primitives::KeyFingerprint, Bip32Error};
 
 /// A simple hash function type signature
 pub type HashFunc = dyn Fn(&[u8]) -> Hash256Digest;
@@ -58,10 +58,6 @@ pub trait PointSerialize {
     /// pubkeyhash outputs in bitcoin-like chains, and has been provided here as a convenience.
     fn hash160(&self) -> Hash160Digest {
         hash160(&self.pubkey_array())
-    }
-
-    fn blake2b160(&self) -> [u8; 20] {
-        blake2b160(&self.pubkey_array())
     }
 }
 
