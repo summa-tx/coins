@@ -445,6 +445,7 @@ pub enum Sighash {
     SingleReverseNoInputACP = 0xc4,
 }
 
+/// Methods for the Sighash flags/modifiers.
 impl Sighash {
     /// Covert a Sighash flag into a u8.
     pub fn to_u8(self) -> u8 {
@@ -504,6 +505,16 @@ mod tests {
 
         assert_eq!(hex::encode(txid.0), "6de399beeec5c2e9993f2c58351c57535025a991d5f1242c15f1cc18d1358981");
         assert_eq!(hex::encode(wtxid.0), "911f4ad0616acad31f8a36313d02b746835b39f3910a32eeb37a99a55181430c");
+    }
+
+    #[test]
+    fn it_computes_tx_serialized_length() {
+        let hex = "0000000001540a3351ba0ba4fcc41c59e0403d722e3d7b122dc0c85db640137fd3c9742bd601000000ffffffff02c0cf6a000000000000142128655de4b7bccb7f445b267bea2dcb7f4ef419030420cabb19a9afecfa05b7c5e662c9902f9a73edc024876b8e4297825f48745ebad10413650000086661757374756e6f20f2479e48358e692b20af91f6140daf18b52328046674c5035d04feb93ca484795c358002000000000014613dfb072400ef78c39d61d835dbd189fce3c966000000000000024180faf07597460da0c22ad3471fe425bcc10c053cbb42704a6843ad1fdbd60c885a7b43f7d675a2539a54f8fc26e28a9355715e8591780ad0080a80729a9b2a42012102e3aeda586bf35e7afc3687c91a332cc8bbf28d18ceba5c2e76962338b9087a54";
+
+        let tx = HandshakeTx::deserialize_hex(hex).unwrap();
+        let size = tx.serialized_length();
+
+        assert_eq!(size, hex::decode(hex).unwrap().len());
     }
 
     #[test]
