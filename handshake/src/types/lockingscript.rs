@@ -1,6 +1,7 @@
 //! Handshake LockingScript and WitnessProgram
 
-use coins_core::{ser::ByteFormat, types::tx::RecipientIdentifier};
+use coins_core::{ser::ByteFormat, types::tx::RecipientIdentifier, hashes::{Sha3_256Writer, MarkedDigestWriter}};
+use crate::hashes::blake2b160;
 use std::io::{Read, Write};
 use thiserror::Error;
 
@@ -39,6 +40,8 @@ wrap_prefixed_byte_vector!(
     WitnessProgram
 );
 
+/// The WitnessProgram is a 20 or 32 byte hash. When network serialized,
+/// it is a prefixed length byte vector.
 impl WitnessProgram {
     /// Split the WitnessProgram into a tuple with of version,
     /// length and data.
@@ -195,17 +198,24 @@ impl LockingScript {
         B: coins_bip32::curve::Secp256k1Backend,
         T: coins_bip32::model::HasPubkey<'a, B>,
     {
-        let mut v: Vec<u8> = vec![];
-        v.extend(&key.pubkey_blake2b160());
-        v.into()
+        // TODO: use a blake2b160 function here instead of on the pubkey
+        Self {
+            version: 0,
+            witness_program: key.pubkey_blake2b160().into()
+        }
     }
 
     /// Instantiate a standard p2wsh script pubkey from a script.
-    pub fn p2wsh(script: &WitnessProgram) -> Self {
-        let mut v: Vec<u8> = vec![];
-        // TODO: will this work?
-        v.extend(<sha3::Sha3_256 as sha3::Digest>::digest(script.as_ref()));
-        v.into()
+    // TODO: create a Script class to use here instead of the Vec<u8>
+    pub fn p2wsh(script: &Vec<u8>) -> Self {
+        let mut w = Sha3_256Writer::default();
+        w.write(script).expect("No i/o error");
+        let digest = w.finish();
+
+        Self {
+            version: 0,
+            witness_program: digest.into(),
+        }
     }
 
     /// Extract data from an op_return output. In Handshake, the version must be
@@ -227,6 +237,7 @@ impl LockingScript {
 
     /// Get the type of the LockingScript based on its version and the size of
     /// the WitnessProgram.
+    // TODO: Return a Result here to account for the error
     pub fn standard_type(&self) -> LockingScriptType {
         if self.version == 31 {
             return LockingScriptType::OP_RETURN(self.witness_program.clone().into());
@@ -261,6 +272,7 @@ impl LockingScript {
 mod test {
     use super::*;
     use coins_core::ser::ByteFormat;
+    use coins_bip32::{XPriv, model::*, curve::model::*};
 
     #[test]
     fn it_creates_null_locking_script() {
@@ -268,6 +280,39 @@ mod test {
 
         assert_eq!(script.version, 0);
         assert_eq!(script.witness_program, WitnessProgram(vec![00; 20]));
+    }
+
+    #[test]
+    fn it_generates_p2wpkh_locking_script() {
+        let xpriv_str = "xprv9s21ZrQH143K24iSk4AuKHKkRzWQBqPHV3bB7n1fFxQxitybVXAixpB72Um9DhrNumiR9YAmmXvPCdqM8s1XMM2inRiCvgND9cy7uHs1FCa";
+        let xpriv: XPriv = xpriv_str.parse().unwrap();
+        let xpub = xpriv.derive_verifying_key().unwrap();
+
+        let pubkey = xpriv.derive_pubkey().unwrap();
+        let mut vec = Vec::new();
+        vec.extend(pubkey.pubkey_array().iter());
+        assert_eq!("026180c26fb38078b5d5c717cd70e4b774f4ef56b8ae994599764a9156909aa437", hex::encode(vec));
+
+        let p2wpkh = LockingScript::p2wpkh(&xpub);
+        assert_eq!("c5b0e4d623918b128716e588781cc277b003cda2", hex::encode(p2wpkh.clone().witness_program));
+
+        let expected = LockingScript {
+            version: 0,
+            witness_program: hex::decode("c5b0e4d623918b128716e588781cc277b003cda2").unwrap().into()
+        };
+
+        assert_eq!(expected, p2wpkh);
+    }
+
+    #[test]
+    fn it_generates_p2wsh_locking_script() {
+        // very simple Script bytecode
+        let script = hex::decode("0087635168").unwrap();
+        let locking_script = LockingScript::p2wsh(&script);
+
+        // sha3 of the script bytecode
+        let expect = "fdeefecb572acb4b4a86f568deb19bf8c872cce555d4e234e3a36235de2588d7";
+        assert_eq!(expect, hex::encode(locking_script.witness_program));
     }
 
     #[test]
