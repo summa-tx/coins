@@ -503,8 +503,14 @@ mod tests {
         let txid = tx.txid();
         let wtxid = tx.wtxid();
 
-        assert_eq!(hex::encode(txid.0), "6de399beeec5c2e9993f2c58351c57535025a991d5f1242c15f1cc18d1358981");
-        assert_eq!(hex::encode(wtxid.0), "911f4ad0616acad31f8a36313d02b746835b39f3910a32eeb37a99a55181430c");
+        assert_eq!(
+            hex::encode(txid.0),
+            "6de399beeec5c2e9993f2c58351c57535025a991d5f1242c15f1cc18d1358981"
+        );
+        assert_eq!(
+            hex::encode(wtxid.0),
+            "911f4ad0616acad31f8a36313d02b746835b39f3910a32eeb37a99a55181430c"
+        );
     }
 
     #[test]

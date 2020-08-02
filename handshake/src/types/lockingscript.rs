@@ -1,7 +1,11 @@
 //! Handshake LockingScript and WitnessProgram
 
-use coins_core::{ser::ByteFormat, types::tx::RecipientIdentifier, hashes::{Sha3_256Writer, MarkedDigestWriter}};
 use crate::hashes::blake2b160;
+use coins_core::{
+    hashes::{MarkedDigestWriter, Sha3_256Writer},
+    ser::ByteFormat,
+    types::tx::RecipientIdentifier,
+};
 use std::io::{Read, Write};
 use thiserror::Error;
 
@@ -200,7 +204,7 @@ impl LockingScript {
     {
         Self {
             version: 0,
-            witness_program: blake2b160(&key.pubkey_bytes()).into()
+            witness_program: blake2b160(&key.pubkey_bytes()).into(),
         }
     }
 
@@ -270,8 +274,8 @@ impl LockingScript {
 #[cfg(test)]
 mod test {
     use super::*;
+    use coins_bip32::{curve::model::*, model::*, XPriv};
     use coins_core::ser::ByteFormat;
-    use coins_bip32::{XPriv, model::*, curve::model::*};
 
     #[test]
     fn it_creates_null_locking_script() {
@@ -290,14 +294,22 @@ mod test {
         let pubkey = xpriv.derive_pubkey().unwrap();
         let mut vec = Vec::new();
         vec.extend(pubkey.pubkey_array().iter());
-        assert_eq!("026180c26fb38078b5d5c717cd70e4b774f4ef56b8ae994599764a9156909aa437", hex::encode(vec));
+        assert_eq!(
+            "026180c26fb38078b5d5c717cd70e4b774f4ef56b8ae994599764a9156909aa437",
+            hex::encode(vec)
+        );
 
         let p2wpkh = LockingScript::p2wpkh(&xpub);
-        assert_eq!("c5b0e4d623918b128716e588781cc277b003cda2", hex::encode(p2wpkh.clone().witness_program));
+        assert_eq!(
+            "c5b0e4d623918b128716e588781cc277b003cda2",
+            hex::encode(p2wpkh.clone().witness_program)
+        );
 
         let expected = LockingScript {
             version: 0,
-            witness_program: hex::decode("c5b0e4d623918b128716e588781cc277b003cda2").unwrap().into()
+            witness_program: hex::decode("c5b0e4d623918b128716e588781cc277b003cda2")
+                .unwrap()
+                .into(),
         };
 
         assert_eq!(expected, p2wpkh);
