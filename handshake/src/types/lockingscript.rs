@@ -198,10 +198,9 @@ impl LockingScript {
         B: coins_bip32::curve::Secp256k1Backend,
         T: coins_bip32::model::HasPubkey<'a, B>,
     {
-        // TODO: use a blake2b160 function here instead of on the pubkey
         Self {
             version: 0,
-            witness_program: key.pubkey_blake2b160().into()
+            witness_program: blake2b160(&key.pubkey_bytes()).into()
         }
     }
 

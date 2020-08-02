@@ -1,6 +1,7 @@
 //! This module holds `MarkedDigest` types used by Handshake transactions. Currently we represent
 //! only `TXID`s and `WTXID`s. In the future we may also represent sighash digests this way.
 
+use blake2_rfc::blake2b::Blake2b;
 use coins_core::hashes::marked::MarkedDigest;
 
 /// A Handshake Blake2b256 digest
@@ -19,6 +20,18 @@ mark_hash256!(
     /// A marked Blake2b256Digest representing witness transaction IDs
     BlockHash
 );
+
+pub type Blake2b160Digest = [u8; 20];
+
+pub fn blake2b160(preimage: &[u8]) -> Blake2b160Digest {
+    let mut ctx = Blake2b::new(20);
+    ctx.update(preimage);
+    let digest = ctx.finalize();
+
+    let mut result = Blake2b160Digest::default();
+    result[..].copy_from_slice(digest.as_bytes());
+    result
+}
 
 #[cfg(test)]
 mod test {
