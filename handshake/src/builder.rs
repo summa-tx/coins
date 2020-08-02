@@ -204,6 +204,5 @@ where
             self.witnesses,
             self.locktime,
         )
-        .into()
     }
 }
