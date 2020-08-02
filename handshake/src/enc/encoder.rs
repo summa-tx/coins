@@ -80,7 +80,7 @@ impl<P: NetworkParams> AddressEncoder for HandshakeEncoder<P> {
         let mut data = Vec::with_capacity(s.serialized_length());
         s.write_to(&mut data).unwrap();
 
-        match s.standard_type() {
+        match s.standard_type().unwrap_or(LockingScriptType::NonStandard) {
             LockingScriptType::WSH(_) => Ok(Address::WSH(encode_bech32(P::HRP, &data)?)),
             LockingScriptType::WPKH(_) => Ok(Address::WPKH(encode_bech32(P::HRP, &data)?)),
             LockingScriptType::OP_RETURN(_) => {

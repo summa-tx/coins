@@ -76,7 +76,7 @@ impl TxOut {
 
     /// Inspect the TxOut's script pubkey to determine its type.
     pub fn standard_type(&self) -> LockingScriptType {
-        self.locking_script.standard_type()
+        self.locking_script.standard_type().unwrap_or(LockingScriptType::NonStandard)
     }
 
     /// Extract the op return payload. None if not an op return.

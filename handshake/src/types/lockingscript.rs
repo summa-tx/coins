@@ -240,10 +240,9 @@ impl LockingScript {
 
     /// Get the type of the LockingScript based on its version and the size of
     /// the WitnessProgram.
-    // TODO: Return a Result here to account for the error
-    pub fn standard_type(&self) -> LockingScriptType {
+    pub fn standard_type(&self) -> Result<LockingScriptType, LockingScriptError> {
         if self.version == 31 {
-            return LockingScriptType::OP_RETURN(self.witness_program.clone().into());
+            return Ok(LockingScriptType::OP_RETURN(self.witness_program.clone().into()))
         }
 
         if self.version == 0 {
@@ -251,23 +250,22 @@ impl LockingScript {
                 20 => {
                     let mut wpkh = [0x00; 20];
                     wpkh.copy_from_slice(self.witness_program.items());
-                    return LockingScriptType::WPKH(wpkh);
+                    return Ok(LockingScriptType::WPKH(wpkh))
                 }
 
                 32 => {
                     let mut wsh = [0x00; 32];
                     wsh.copy_from_slice(self.witness_program.items());
-                    return LockingScriptType::WSH(wsh);
+                    return Ok(LockingScriptType::WSH(wsh))
                 }
                 _ => {
-                    // TODO(mark): this is an invalid locking script
-                    return LockingScriptType::NonStandard;
+                    return Err(LockingScriptError::InvalidWitnessProgramSizeError)
                 }
             }
         }
 
         // fallthrough
-        LockingScriptType::NonStandard
+        Ok(LockingScriptType::NonStandard)
     }
 }
 
