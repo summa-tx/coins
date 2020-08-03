@@ -23,7 +23,7 @@ use crate::{
     },
 };
 
-/// Basic functionality for a Witness Transacti'on
+/// Basic functionality for a Witness Transaction
 ///
 /// This trait has been generalized to support transactions from Non-Bitcoin networks. The
 /// transaction specificies which types it considers to be inputs and outputs, and a struct that
