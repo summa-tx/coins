@@ -450,17 +450,13 @@ mod test {
         let vin = vec![BitcoinTxIn::default()];
         let vout = vec![TxOut::default()];
 
-        let expected_witness = vec![WitnessStackItem::new(vec![1,2,3,4])];
+        let expected_witness = vec![WitnessStackItem::new(vec![1, 2, 3, 4])];
 
-        let witnesses = vec![
-            expected_witness.clone(),
-            Witness::default()
-        ];
+        let witnesses = vec![expected_witness.clone(), Witness::default()];
 
         let expected_size = vin.len();
         let tx = <WitnessTx as WitnessTransaction>::new(2, vin, vout, witnesses, 0);
         assert_eq!(tx.witnesses.len(), expected_size);
-
         assert_eq!(expected_witness, tx.witnesses[0]);
     }
 }
