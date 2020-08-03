@@ -10,7 +10,7 @@ pub type Sha3_256Digest = [u8; 32];
 /// ```
 /// # use std::io::{Result};
 /// use std::io::Write;
-/// use riemann_core::hashes::{Sha3_256Writer, MarkedDigestWriter};
+/// use coins_core::hashes::{Sha3_256Writer, MarkedDigestWriter};
 ///
 /// # fn main() -> Result<()> {
 /// let mut w = Sha3_256Writer::default();
