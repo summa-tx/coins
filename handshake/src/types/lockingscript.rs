@@ -1,6 +1,6 @@
 //! Handshake LockingScript and WitnessProgram
 
-use crate::hashes::blake2b160;
+use crate::{hashes::blake2b160, types::Script};
 use coins_core::{
     hashes::{MarkedDigestWriter, Sha3_256Writer},
     ser::ByteFormat,
@@ -179,8 +179,6 @@ impl From<Vec<u8>> for LockingScript {
 
 impl RecipientIdentifier for LockingScript {}
 
-// need to implement RecipientIdentifier
-
 /// Standard script types, and a non-standard type for all other scripts.
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum LockingScriptType {
@@ -209,10 +207,9 @@ impl LockingScript {
     }
 
     /// Instantiate a standard p2wsh script pubkey from a script.
-    // TODO: create a Script class to use here instead of the Vec<u8>
-    pub fn p2wsh(script: &Vec<u8>) -> Self {
+    pub fn p2wsh(script: &Script) -> Self {
         let mut w = Sha3_256Writer::default();
-        w.write(script).expect("No i/o error");
+        w.write(script.items()).expect("No i/o error");
         let digest = w.finish();
 
         Self {
@@ -317,7 +314,7 @@ mod test {
     fn it_generates_p2wsh_locking_script() {
         // very simple Script bytecode
         let script = hex::decode("0087635168").unwrap();
-        let locking_script = LockingScript::p2wsh(&script);
+        let locking_script = LockingScript::p2wsh(&script.into());
 
         // sha3 of the script bytecode
         let expect = "fdeefecb572acb4b4a86f568deb19bf8c872cce555d4e234e3a36235de2588d7";

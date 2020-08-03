@@ -17,3 +17,10 @@ wrap_prefixed_byte_vector!(
 );
 
 impl HandshakeScript for Script {}
+
+impl From<&str> for Script {
+    fn from(s: &str) -> Self {
+        let bytes = hex::decode(s).unwrap();
+        bytes.into()
+    }
+}

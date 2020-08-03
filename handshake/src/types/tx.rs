@@ -17,6 +17,7 @@ use crate::types::{
     txin::{HandshakeTxIn, Vin},
     txout::{TxOut, Vout},
     Witness,
+    Script,
 };
 
 /// Trait that describes a Handshake Transaction
@@ -397,8 +398,7 @@ pub struct SighashArgs {
     /// The script used in the prevout, which must be signed. In complex cases involving
     /// `OP_CODESEPARATOR` this must be the subset of the script containing the `OP_CHECKSIG`
     /// currently being executed.
-    /// TODO: create a script type
-    pub prevout_script: Vec<u8>,
+    pub prevout_script: Script,
     /// The value of the prevout.
     pub prevout_value: u64,
 }
@@ -530,8 +530,7 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c0146d7428ea0c83eee3a74edc53a1f9a7f26ca5d5c988ac")
-                .unwrap(),
+            prevout_script: Script::from("76c0146d7428ea0c83eee3a74edc53a1f9a7f26ca5d5c988ac"),
             sighash_flag: Sighash::All,
             prevout_value: 503306619,
         };
@@ -548,8 +547,7 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c0149329051e96615297625c4458b7409f2159a5a3a888ac")
-                .unwrap(),
+            prevout_script: Script::from("76c0149329051e96615297625c4458b7409f2159a5a3a888ac"),
             sighash_flag: Sighash::None,
             prevout_value: 503385487,
         };
@@ -566,8 +564,7 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c0149ef33fdf7c4a2e6b37bf462c55de2dc945b5bedd88ac")
-                .unwrap(),
+            prevout_script: Script::from("76c0149ef33fdf7c4a2e6b37bf462c55de2dc945b5bedd88ac"),
             sighash_flag: Sighash::Single,
             prevout_value: 4312704038,
         };
@@ -584,8 +581,7 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c014dcf0d847d82f44a99617c9874dbee61be407f77b88ac")
-                .unwrap(),
+            prevout_script: Script::from("76c014dcf0d847d82f44a99617c9874dbee61be407f77b88ac"),
             sighash_flag: Sighash::SingleReverse,
             prevout_value: 1500000,
         };
@@ -602,8 +598,7 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c01498c8297a67eb81ec36253828b5621a601ba2328a88ac")
-                .unwrap(),
+            prevout_script: Script::from("76c01498c8297a67eb81ec36253828b5621a601ba2328a88ac"),
             sighash_flag: Sighash::AllNoInput,
             prevout_value: 2005260900,
         };
@@ -620,8 +615,7 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c0142d355655e690be3f4aadbbff13622dc0226f991f88ac")
-                .unwrap(),
+            prevout_script: Script::from("76c0142d355655e690be3f4aadbbff13622dc0226f991f88ac"),
             sighash_flag: Sighash::NoneNoInput,
             prevout_value: 10000,
         };
@@ -638,8 +632,7 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c014c0113093a59a0eb6f4854d92ed3c8e0477d5bdea88ac")
-                .unwrap(),
+            prevout_script: Script::from("76c014c0113093a59a0eb6f4854d92ed3c8e0477d5bdea88ac"),
             sighash_flag: Sighash::SingleNoInput,
             prevout_value: 5004999,
         };
@@ -656,8 +649,7 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c014a646dd759b001e4f1d443d698892dfe33e8a59bf88ac")
-                .unwrap(),
+            prevout_script: Script::from("76c014a646dd759b001e4f1d443d698892dfe33e8a59bf88ac"),
             sighash_flag: Sighash::SingleReverseNoInput,
             prevout_value: 5004999,
         };
@@ -674,8 +666,7 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c01431437ee12898865eeb61505a16516b78f821e19b88ac")
-                .unwrap(),
+            prevout_script: Script::from("76c01431437ee12898865eeb61505a16516b78f821e19b88ac"),
             sighash_flag: Sighash::AllACP,
             prevout_value: 10000000,
         };
@@ -692,8 +683,7 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c014ca26dec0d3001bf16679c57af6c4fe0382b66dd188ac")
-                .unwrap(),
+            prevout_script: Script::from("76c014ca26dec0d3001bf16679c57af6c4fe0382b66dd188ac"),
             sighash_flag: Sighash::NoneACP,
             prevout_value: 68426400,
         };
@@ -710,8 +700,7 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c0148c1b0a949896e1521d01e2386629047bd898dd8588ac")
-                .unwrap(),
+            prevout_script: Script::from("76c0148c1b0a949896e1521d01e2386629047bd898dd8588ac"),
             sighash_flag: Sighash::SingleACP,
             prevout_value: 5799600,
         };
@@ -728,8 +717,7 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c014282fa7c6a30266295f9d050284af57578dac4f3388ac")
-                .unwrap(),
+            prevout_script: Script::from("76c014282fa7c6a30266295f9d050284af57578dac4f3388ac"),
             sighash_flag: Sighash::SingleReverseACP,
             prevout_value: 5358600,
         };
@@ -746,8 +734,7 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c014aabc402d54f4b5455614ee56e0eb6c6b4e4374cd88ac")
-                .unwrap(),
+            prevout_script: Script::from("76c014aabc402d54f4b5455614ee56e0eb6c6b4e4374cd88ac"),
             sighash_flag: Sighash::AllNoInputACP,
             prevout_value: 410000,
         };
@@ -764,8 +751,7 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c0144f9747117b3992c7dc0a09ae427c7b78efc731dc88ac")
-                .unwrap(),
+            prevout_script: Script::from("76c0144f9747117b3992c7dc0a09ae427c7b78efc731dc88ac"),
             sighash_flag: Sighash::NoneNoInputACP,
             prevout_value: 20004999,
         };
@@ -782,8 +768,7 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c0143dd4ac1cb78168168c95bed0f615e00b24bd079088ac")
-                .unwrap(),
+            prevout_script: Script::from("76c0143dd4ac1cb78168168c95bed0f615e00b24bd079088ac"),
             sighash_flag: Sighash::SingleNoInputACP,
             prevout_value: 500000,
         };
@@ -800,8 +785,7 @@ mod tests {
         let tx = HandshakeTx::deserialize_hex(hex).unwrap();
         let args = SighashArgs {
             index: 0,
-            prevout_script: hex::decode("1976c014cb884746bae24846a6139160b2abc34d256c5e9788ac")
-                .unwrap(),
+            prevout_script: Script::from("76c014cb884746bae24846a6139160b2abc34d256c5e9788ac"),
             sighash_flag: Sighash::SingleReverseNoInputACP,
             prevout_value: 1250000000,
         };
