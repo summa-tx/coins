@@ -209,7 +209,7 @@ impl LockingScript {
     /// Instantiate a standard p2wsh script pubkey from a script.
     pub fn p2wsh(script: &Script) -> Self {
         let mut w = Sha3_256Writer::default();
-        w.write(script.items()).expect("No i/o error");
+        w.write_all(script.items()).expect("No i/o error");
         let digest = w.finish();
 
         Self {
