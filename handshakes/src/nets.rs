@@ -75,28 +75,30 @@ mod test {
     use crate::types::{txin::HandshakeOutpoint, HandshakeTx};
     use coins_core::{builder::TxBuilder, ser::ByteFormat};
 
-    // TODO: this test breaks if things are commented out below.
     #[test]
     fn it_has_sensible_syntax() {
         let tx_hex = HandshakeMainnet::tx_builder()
             .version(2)
             .spend(HandshakeOutpoint::default(), 0xaabbccdd)
             .pay(
-                0x8888_8888_8888_8888,
+                0x0000_0000_8888_8888,
                 &Address::WPKH("hs1qjhgt8dwvhwapf2a5v9865nmrrqhhqlz38w3zze".to_owned()),
             )
             .unwrap()
             .pay(
-                0x7777_7777_7777_7777,
-                &Address::WSH("hs1qjhgt8dwvhwapf2a5v9865nmrrqhhqlz38w3zze".to_owned()),
+                0x0000_0000_7777_7777,
+                &Address::WPKH("hs1qjhgt8dwvhwapf2a5v9865nmrrqhhqlz38w3zze".to_owned()),
             )
             .unwrap()
             .build()
             .serialize_hex();
 
-        //HandshakeMainnet::builder_from_hex(&tx_hex).unwrap();
-        //let tx = HandshakeTx::deserialize_hex(&tx_hex);
-        println!("{:?}", tx_hex);
+
+        let _ = HandshakeMainnet::builder_from_hex(&tx_hex).unwrap();
+
+        let tx = HandshakeTx::deserialize_hex(&tx_hex).unwrap();
+        let got = tx.serialize_hex();
+        assert_eq!(tx_hex, got);
     }
 
     #[test]

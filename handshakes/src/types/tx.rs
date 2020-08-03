@@ -89,10 +89,22 @@ impl ByteFormat for HandshakeTx {
         len += coins_core::ser::prefix_byte_len(self.vout.len() as u64) as usize;
         len += self.vout.serialized_length();
         len += 4; // locktime
-        for witness in self.witnesses.iter() {
-            len += coins_core::ser::prefix_byte_len(self.witnesses.len() as u64) as usize;
-            len += witness.serialized_length();
+
+        for i in 0..self.vin.len() {
+            let witness = self.witnesses.get(i);
+
+            match witness {
+                Some(w) => {
+                    len += coins_core::ser::prefix_byte_len(self.witnesses.len() as u64) as usize;
+                    len += w.serialized_length();
+                }
+                None => {
+                    len += 1;
+                }
+            }
+
         }
+
         len
     }
 
@@ -104,9 +116,9 @@ impl ByteFormat for HandshakeTx {
         let version = Self::read_u32_le(reader)?;
         let vin = Self::read_prefix_vec(reader)?;
         let vout = Self::read_prefix_vec(reader)?;
-        let mut witnesses = vec![];
         let locktime = Self::read_u32_le(reader)?;
 
+        let mut witnesses = vec![];
         for _ in vin.iter() {
             witnesses.push(Self::read_prefix_vec(reader)?);
         }
@@ -130,8 +142,18 @@ impl ByteFormat for HandshakeTx {
         len += Self::write_prefix_vec(writer, &self.vout)?;
         len += Self::write_u32_le(writer, self.locktime())?;
 
-        for wit in self.witnesses.iter() {
-            len += Self::write_prefix_vec(writer, &wit)?;
+        for i in 0..self.vin.len() {
+            let witness = self.witnesses.get(i);
+
+            match witness {
+                Some(wit) => {
+                    len += Self::write_prefix_vec(writer, &wit)?;
+                }
+                None => {
+                    let wit = Witness::default();
+                    len += Self::write_prefix_vec(writer, &wit)?;
+                }
+            }
         }
 
         Ok(len)
@@ -521,6 +543,18 @@ mod tests {
         let size = tx.serialized_length();
 
         assert_eq!(size, hex::decode(hex).unwrap().len());
+    }
+
+    #[test]
+    fn it_serializes_and_deserializes_when_no_witness() {
+        let hex = "0000000001000000000000000000000000000000000000000000000000000000000000000000000000ffffffff0100000000000000000014000000000000000000000000000000000000000000000000000000";
+
+        let tx = HandshakeTx::deserialize_hex(hex).unwrap();
+
+        let size = tx.serialized_length();
+        assert_eq!(size, hex::decode(hex).unwrap().len());
+
+        assert_eq!(hex, tx.serialize_hex());
     }
 
     #[test]
