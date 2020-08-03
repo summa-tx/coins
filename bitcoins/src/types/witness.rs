@@ -299,8 +299,8 @@ impl WitnessTransaction for WitnessTx {
         O: Into<Vec<Self::TxOut>>,
         W: Into<Vec<Self::Witness>>,
     {
-        let vins = vin.into().clone();
-        let mut wits = witnesses.into().clone();
+        let vins = vin.into();
+        let mut wits = witnesses.into();
         if wits.len() != vins.len() {
             wits.resize(vins.len(), Witness::default());
         }
@@ -309,7 +309,7 @@ impl WitnessTransaction for WitnessTx {
 
         Self {
             legacy_tx,
-            witnesses: wits.into(),
+            witnesses: wits,
         }
     }
 
