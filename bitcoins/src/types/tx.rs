@@ -227,9 +227,6 @@ pub enum TxError {
     /// Wrong sighash args passed in to wrapped tx
     #[error("Sighash args must match the wrapped tx type")]
     WrongSighashArgs,
-    // /// No outputs in vout
-    // #[error("Vout may not be empty")]
-    // EmptyVout
 }
 
 /// Type alias for result with TxError
