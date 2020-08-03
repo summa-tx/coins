@@ -2,7 +2,7 @@
 //! for accessing the library.
 //!
 //! Expected user flow is to import the network and access the transaction builder through it.
-//! This gives the user immediate access to the full bitcoin toolchain via a single import.
+//! This gives the user immediate access to the full Handshake toolchain via a single import.
 //!
 //! ```
 //! use handshakes::{HandshakeMainnet, enc::Address, types::txin::Outpoint};
@@ -41,7 +41,7 @@ use crate::{
     types::{HandshakeTx, HandshakeTxIn, LockingScript, TxOut},
 };
 
-/// A newtype for Bitcoin networks, parameterized by an encoder. We change the encoder to
+/// A newtype for Handshake networks, parameterized by an encoder. We change the encoder to
 /// differentiate between main, test, and signet.
 #[derive(Debug)]
 pub struct Handshake<T: AddressEncoder>(PhantomData<fn(T) -> T>);
@@ -60,21 +60,22 @@ where
     type Builder = HandshakeTxBuilder<T>;
 }
 
-/// A fully-parameterized BitcoinMainnet. This is the main interface for accessing the library.
+/// A fully-parameterized HandshakeMainnet. This is the main interface for accessing the library.
 pub type HandshakeMainnet = Handshake<MainnetEncoder>;
 
-/// A fully-parameterized BitcoinTestnet. This is the main interface for accessing the library.
+/// A fully-parameterized HandshakeTestnet. This is the main interface for accessing the library.
 pub type HandshakeTestnet = Handshake<TestnetEncoder>;
 
-/// A fully-parameterized BitcoinSignet. This is the main interface for accessing the library.
+/// A fully-parameterized HandshakeSignet. This is the main interface for accessing the library.
 pub type HandshakeRegtest = Handshake<RegtestEncoder>;
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::types::txin::HandshakeOutpoint;
+    use crate::types::{txin::HandshakeOutpoint, HandshakeTx};
     use coins_core::{builder::TxBuilder, ser::ByteFormat};
 
+    // TODO: this test breaks if things are commented out below.
     #[test]
     fn it_has_sensible_syntax() {
         let tx_hex = HandshakeMainnet::tx_builder()
@@ -94,7 +95,7 @@ mod test {
             .serialize_hex();
 
         //HandshakeMainnet::builder_from_hex(&tx_hex).unwrap();
-
+        //let tx = HandshakeTx::deserialize_hex(&tx_hex);
         println!("{:?}", tx_hex);
     }
 
