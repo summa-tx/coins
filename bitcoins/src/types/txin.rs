@@ -198,8 +198,8 @@ pub type BitcoinOutpoint = Outpoint<TXID>;
 /// A simple type alias for an input type that will be repeated throughout the `bitcoin` module.
 pub type BitcoinTxIn = TxInput<TXID>;
 
-/// Vin is a type alias for `Vec<TxInput>`. A transaction's Vin is the Vector of
-/// INputs, with a length prefix.
+/// Vin is a type alias for `Vec<TxInput>`. A transaction's Vin is the Vector of INputs, with a
+/// length prefix.
 pub type Vin = Vec<BitcoinTxIn>;
 
 #[cfg(test)]
