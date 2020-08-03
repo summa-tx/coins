@@ -93,7 +93,6 @@ mod test {
             .build()
             .serialize_hex();
 
-
         let _ = HandshakeMainnet::builder_from_hex(&tx_hex).unwrap();
 
         let tx = HandshakeTx::deserialize_hex(&tx_hex).unwrap();

@@ -16,8 +16,7 @@ use coins_core::{
 use crate::types::{
     txin::{HandshakeTxIn, Vin},
     txout::{TxOut, Vout},
-    Witness,
-    Script,
+    Script, Witness,
 };
 
 /// Trait that describes a Handshake Transaction
@@ -102,7 +101,6 @@ impl ByteFormat for HandshakeTx {
                     len += 1;
                 }
             }
-
         }
 
         len
