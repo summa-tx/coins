@@ -200,5 +200,5 @@ pub trait Secp256k1Backend: Clone + std::fmt::Debug + PartialEq {
         &self,
         digest: [u8; 32],
         sig: &Self::RecoverableSignature,
-    ) -> Result<Self::Pubkey, Bip32Error>;
+    ) -> Result<Self::Pubkey, Self::Error>;
 }

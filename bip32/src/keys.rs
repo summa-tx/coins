@@ -82,7 +82,7 @@ impl<'a, T: Secp256k1Backend> GenericPubkey<'a, T> {
         sig: &T::RecoverableSignature,
     ) -> Result<Self, Bip32Error> {
         Ok(Self {
-            key: backend.recover_pubkey(digest, sig)?,
+            key: backend.recover_pubkey(digest, sig).map_err(Into::into)?,
             backend: Some(backend),
         })
     }
