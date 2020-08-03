@@ -289,16 +289,27 @@ impl WitnessTransaction for WitnessTx {
     type WitnessSighashArgs = WitnessSighashArgs;
     type Witness = Witness;
 
+    /// Create a new WitnessTx. Since witnesses correspond to inputs,
+    /// ensure that there are the same number of witnesses as inputs.
+    /// The number of witnesses will be trimmed if there are too many
+    /// and will be filled with empty witnesses if too few.
     fn new<I, O, W>(version: u32, vin: I, vout: O, witnesses: W, locktime: u32) -> Self
     where
         I: Into<Vec<Self::TxIn>>,
         O: Into<Vec<Self::TxOut>>,
         W: Into<Vec<Self::Witness>>,
     {
-        let legacy_tx = LegacyTx::new(version, vin, vout, locktime);
+        let vins = vin.into().clone();
+        let mut wits = witnesses.into().clone();
+        if wits.len() != vins.len() {
+            wits.resize(vins.len(), Witness::default());
+        }
+
+        let legacy_tx = LegacyTx::new(version, vins, vout, locktime);
+
         Self {
             legacy_tx,
-            witnesses: witnesses.into(),
+            witnesses: wits.into(),
         }
     }
 
@@ -415,5 +426,41 @@ impl ByteFormat for WitnessTx {
         }
         len += Self::write_u32_le(writer, self.locktime())?;
         Ok(len)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use crate::types::{BitcoinTxIn, TxOut, Witness, WitnessStackItem};
+
+    #[test]
+    fn it_should_ensure_correct_amount_of_witnesses_addition() {
+        let vin = vec![BitcoinTxIn::default(), BitcoinTxIn::default()];
+        let vout = vec![TxOut::default()];
+        let witnesses = vec![];
+
+        let expect = vin.len();
+        let tx = <WitnessTx as WitnessTransaction>::new(2, vin, vout, witnesses, 0);
+        assert_eq!(tx.witnesses.len(), expect);
+    }
+
+    #[test]
+    fn it_should_ensure_correct_amount_of_witnesses_subtraction() {
+        let vin = vec![BitcoinTxIn::default()];
+        let vout = vec![TxOut::default()];
+
+        let expected_witness = vec![WitnessStackItem::new(vec![1,2,3,4])];
+
+        let witnesses = vec![
+            expected_witness.clone(),
+            Witness::default()
+        ];
+
+        let expected_size = vin.len();
+        let tx = <WitnessTx as WitnessTransaction>::new(2, vin, vout, witnesses, 0);
+        assert_eq!(tx.witnesses.len(), expected_size);
+
+        assert_eq!(expected_witness, tx.witnesses[0]);
     }
 }
