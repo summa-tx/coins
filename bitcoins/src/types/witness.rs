@@ -451,7 +451,6 @@ mod test {
         let vout = vec![TxOut::default()];
 
         let expected_witness = vec![WitnessStackItem::new(vec![1, 2, 3, 4])];
-
         let witnesses = vec![expected_witness.clone(), Witness::default()];
 
         let expected_size = vin.len();
