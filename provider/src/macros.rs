@@ -10,6 +10,7 @@ macro_rules! unpause {
 
 /// Used to make shortcutting to None responses easier.
 /// Bitcoin node APIs use the ERR_NOT_FOUND code to indicate that a block or header is not present
+#[cfg(feature = "rpc")]
 macro_rules! rpc_if_found {
     ($func:expr) => {{
         let result = $func.map_err(Into::<crate::provider::ProviderError>::into);
@@ -29,6 +30,7 @@ macro_rules! rpc_if_found {
 // Used to make shortcutting to none responses easier.
 // It's common for Bitcoin APIs to return a string instead of JSON when a TX is unknown
 // The string is unparsable as JSON, so generates an error.
+#[cfg(feature = "esplora")]
 macro_rules! esplora_if_found {
     ($func:expr) => {{
         let result = $func.map_err(Into::<crate::provider::ProviderError>::into);
