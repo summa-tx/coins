@@ -133,6 +133,12 @@ pub trait BTCProvider: Sync + Send {
         headers: usize,
     ) -> Result<Vec<RawHeader>, ProviderError>;
 
+    /// Get the header at `height` in the remote data source's best known chain. If no header is
+    /// known at that height, return `None`.
+    async fn get_header_at_height(&self, height: usize) -> Result<Option<RawHeader>, ProviderError> {
+        Ok(self.get_raw_header_range(height, 1).await?.first().copied())
+    }
+
     /// Return the raw header corresponding to a block hash. Returns `None` if the header is
     /// unknown to the remote API
     async fn get_raw_header(&self, digest: BlockHash) -> Result<Option<RawHeader>, ProviderError>;
