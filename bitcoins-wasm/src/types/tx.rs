@@ -97,7 +97,7 @@ impl LegacyTx {
         };
         self.0
             .sighash(&args)
-            .map(|v| js_sys::Uint8Array::from(&v[..]))
+            .map(|v| js_sys::Uint8Array::from(&v.as_ref()[..]))
             .map_err(WasmError::from)
             .map_err(JsValue::from)
     }
@@ -175,7 +175,7 @@ impl WitnessTx {
         };
         self.0
             .sighash(&args)
-            .map(|v| js_sys::Uint8Array::from(&v[..]))
+            .map(|v| js_sys::Uint8Array::from(&v.as_ref()[..]))
             .map_err(WasmError::from)
             .map_err(JsValue::from)
     }

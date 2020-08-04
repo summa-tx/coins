@@ -1,6 +1,7 @@
 use crate::{input::InputKey, roles::PSTFinalizer, PSBTError, PSBTInput, PSTMap, PSBT, PST};
 use bitcoins::{
     enc::encoder::BitcoinEncoderMarker,
+    prelude::Hash160Digest,
     types::{BitcoinOutpoint, BitcoinTransaction, ScriptType},
 };
 use coins_bip32::{self as bip32, curve::SigSerialize, HasPubkey};
@@ -44,7 +45,7 @@ fn finalize_input(outpoint: &BitcoinOutpoint, input_map: &mut PSBTInput) -> Resu
         other => {
             return Err(PSBTError::WrongPrevoutScriptType {
                 got: other,
-                expected: vec![ScriptType::WPKH([0u8; 20])],
+                expected: vec![ScriptType::WPKH(Hash160Digest::default())],
             })
         }
     };

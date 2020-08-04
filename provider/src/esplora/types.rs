@@ -177,14 +177,16 @@ impl EsploraBlock {
         let mut h = [0u8; 80];
         h[0..4].copy_from_slice(&self.version.to_le_bytes());
         h[4..36].copy_from_slice(
-            &BlockHash::from_be_hex(&self.previousblockhash)
+            BlockHash::from_be_hex(&self.previousblockhash)
                 .expect("no malformed from API")
-                .internal(),
+                .internal()
+                .as_ref(),
         );
         h[36..68].copy_from_slice(
-            &BlockHash::from_be_hex(&self.merkle_root)
+            BlockHash::from_be_hex(&self.merkle_root)
                 .expect("no malformed from API")
-                .internal(),
+                .internal()
+                .as_ref(),
         );
         h[68..72].copy_from_slice(&self.timestamp.to_le_bytes());
         h[72..76].copy_from_slice(&self.bits.to_le_bytes());

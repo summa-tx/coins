@@ -1,12 +1,6 @@
 use thiserror::Error;
 
-use bitcoins::{
-    enc::encoder::BitcoinEncoderMarker,
-    types::{
-        BitcoinOutpoint, BitcoinTransaction, LegacySighashArgs, LegacyTx, ScriptType, Sighash,
-        SpendScript, WitnessTx,
-    },
-};
+use bitcoins::prelude::*;
 use coins_bip32::{
     self as bip32,
     model::{DerivedKey, HasPubkey, SigningKey, XSigning},
@@ -53,8 +47,8 @@ impl Bip32Signer {
                 return Err(PSBTError::WrongPrevoutScriptType {
                     got: prevout.script_pubkey.standard_type(),
                     expected: vec![
-                        ScriptType::SH([0u8; 20]),
-                        ScriptType::PKH([0u8; 20]),
+                        ScriptType::SH(Hash160Digest::default()),
+                        ScriptType::PKH(Hash160Digest::default()),
                         ScriptType::NonStandard,
                     ],
                 });
@@ -84,7 +78,7 @@ impl Bip32Signer {
             _ => {
                 return Err(PSBTError::WrongPrevoutScriptType {
                     got: prevout.script_pubkey.standard_type(),
-                    expected: vec![ScriptType::WSH([0u8; 32]), ScriptType::WPKH([0u8; 20])],
+                    expected: vec![ScriptType::WSH(Hash256Digest::default()), ScriptType::WPKH(Hash160Digest::default())],
                 })
             }
         }

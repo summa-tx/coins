@@ -1,9 +1,39 @@
-use sha2::{Digest, Sha256};
-use std::io::{Result as IOResult, Write};
+use sha2::{Digest as Sha2Digest, Sha256};
+use std::io::{Read, Result as IOResult, Write};
 
 use bitcoin_spv::types::Hash256Digest;
 
-use crate::hashes::marked::MarkedDigestWriter;
+use crate::{
+    hashes::marked::{Digest, MarkedDigestWriter},
+    ser::{ByteFormat, SerError, SerResult},
+};
+
+impl Digest for Hash256Digest {}
+
+impl ByteFormat for Hash256Digest {
+    type Error = SerError;
+
+    fn serialized_length(&self) -> usize {
+        32
+    }
+
+    fn read_from<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
+    where
+        R: Read,
+        Self: std::marker::Sized,
+    {
+        let mut buf = Hash256Digest::default();
+        reader.read_exact(buf.as_mut())?;
+        Ok(buf)
+    }
+
+    fn write_to<W>(&self, writer: &mut W) -> SerResult<usize>
+    where
+        W: Write,
+    {
+        Ok(writer.write(self.as_ref())?)
+    }
+}
 
 /// A struct that exposes a Bitcoin-style Hash256 `Write` interface by wrapping an internal SHA2
 /// instance.
@@ -44,7 +74,7 @@ impl MarkedDigestWriter<Hash256Digest> for Hash256Writer {
         let first = self.internal.result();
         let second = Sha256::digest(&first);
         let mut digest = Hash256Digest::default();
-        digest[..].copy_from_slice(&second[..]);
+        digest.as_mut().copy_from_slice(&second[..]);
         digest
     }
 }

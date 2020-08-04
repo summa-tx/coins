@@ -41,12 +41,12 @@
 //! let xpriv: XPriv = xpriv_str.parse().unwrap();
 //!
 //! let child_xpriv = xpriv.derive_private_child(33)?;
-//! let sig = child_xpriv.sign_digest(digest)?;
+//! let sig = child_xpriv.sign_digest(digest.into())?;
 //!
 //! // Signing key types are associated with verifying key types. You can always derive a pubkey
 //! // from a privkey using `derive_verifying_key()`.
 //! let child_xpub = child_xpriv.derive_verifying_key()?;
-//! child_xpub.verify_digest(digest, &sig);
+//! child_xpub.verify_digest(digest.into(), &sig);
 //!
 //! sig.to_der(); // serialize to der-encoded byte-array
 //! MainnetEncoder::xpub_to_base58(&child_xpub)?;

@@ -36,7 +36,7 @@ macro_rules! wrap_prefixed_byte_vector {
         $wrapper_name:ident
     ) => {
         $(#[$outer])*
-        #[derive(Clone, Debug, Eq, PartialEq, Default, Hash, Ord, PartialOrd)]
+        #[derive(Clone, Debug, Eq, PartialEq, Default, Hash, PartialOrd, Ord)]
         pub struct $wrapper_name(Vec<u8>);
 
         impl coins_core::ser::ByteFormat for $wrapper_name {
@@ -193,7 +193,7 @@ macro_rules! mark_hash256 {
         $hash_name:ident
     ) => {
         $(#[$outer])*
-        #[derive(Hash, serde::Serialize, serde::Deserialize, Copy, Clone, Default, Debug, Eq, PartialEq, PartialOrd, Ord)]
+        #[derive(Hash, serde::Serialize, serde::Deserialize, Copy, Clone, Default, Debug, Eq, PartialEq)]
         pub struct $hash_name(pub Hash256Digest);
 
         impl $hash_name {
@@ -205,6 +205,18 @@ macro_rules! mark_hash256 {
             /// Convert to BE hex
             pub fn to_be_hex(&self) -> String {
                 coins_core::ser::ByteFormat::serialize_hex(&self.reversed())
+            }
+        }
+
+        impl From<[u8; 32]> for $hash_name {
+            fn from(bytes: [u8; 32]) -> Self {
+                Self(bytes.into())
+            }
+        }
+
+        impl AsRef<[u8; 32]> for $hash_name {
+            fn as_ref(&self) -> &[u8; 32] {
+                self.0.as_ref()
             }
         }
 
@@ -221,7 +233,7 @@ macro_rules! mark_hash256 {
                 Self: std::marker::Sized
             {
                 let mut buf = <Hash256Digest>::default();
-                reader.read_exact(&mut buf)?;
+                reader.read_exact(buf.as_mut())?;
                 Ok(Self(buf))
             }
 
@@ -229,7 +241,7 @@ macro_rules! mark_hash256 {
             where
                 W: std::io::Write
             {
-                Ok(writer.write(&self.0)?)
+                Ok(writer.write(self.0.as_ref())?)
             }
         }
 
@@ -244,7 +256,7 @@ macro_rules! mark_hash256 {
             }
 
             fn bytes(&self) -> Vec<u8> {
-                self.0.to_vec()
+                self.0.as_ref().to_vec()
             }
         }
 

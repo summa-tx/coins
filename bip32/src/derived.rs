@@ -238,6 +238,7 @@ mod test {
         primitives::*,
         BIP32_HARDEN,
     };
+    use bitcoin_spv::types::Hash256Digest;
 
     use hex;
 
@@ -362,8 +363,8 @@ mod test {
 
     #[test]
     fn it_can_sign_and_verify() {
-        let digest = [1u8; 32];
-        let wrong_digest = [2u8; 32];
+        let digest: Hash256Digest = [1u8; 32].into();
+        let wrong_digest: Hash256Digest = [2u8; 32].into();
         let backend = Secp256k1::static_ref();
 
         let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
@@ -403,14 +404,14 @@ mod test {
         let hash_func = |digest: &[u8]| {
             let mut buf = [0u8; 32];
             buf[..5].copy_from_slice(&digest[..5]);
-            buf
+            Hash256Digest::from(buf)
         };
-        let sig = key.sign_with_hash(&digest[..], &hash_func).unwrap();
+        let sig = key.sign_with_hash(&digest.as_ref()[..], &hash_func).unwrap();
         key_pub
-            .verify_with_hash(&digest[..], &hash_func, &sig)
+            .verify_with_hash(&digest.as_ref()[..], &hash_func, &sig)
             .unwrap();
 
-        let err_bad_sig = key_pub.verify_with_hash(&wrong_digest[..], &hash_func, &sig);
+        let err_bad_sig = key_pub.verify_with_hash(&wrong_digest.as_ref()[..], &hash_func, &sig);
         match err_bad_sig {
             Err(Bip32Error::BackendError(_)) => {}
             _ => assert!(false, "expected signature validation error"),
@@ -420,36 +421,36 @@ mod test {
         let hash_func = |digest: &[u8]| {
             let mut buf = [0u8; 32];
             buf[..5].copy_from_slice(&digest[..5]);
-            buf
+            Hash256Digest::from(buf)
         };
         let sig = key
-            .sign_recoverable_with_hash(&digest[..], &hash_func)
+            .sign_recoverable_with_hash(&digest.as_ref()[..], &hash_func)
             .unwrap();
         key_pub
-            .verify_recoverable_with_hash(&digest[..], &hash_func, &sig)
+            .verify_recoverable_with_hash(&digest.as_ref()[..], &hash_func, &sig)
             .unwrap();
 
-        let err_bad_sig = key_pub.verify_recoverable_with_hash(&wrong_digest[..], &hash_func, &sig);
+        let err_bad_sig = key_pub.verify_recoverable_with_hash(&wrong_digest.as_ref()[..], &hash_func, &sig);
         match err_bad_sig {
             Err(Bip32Error::BackendError(_)) => {}
             _ => assert!(false, "expected signature validation error"),
         }
 
         // sign + verify
-        let sig = key.sign(&digest[..]).unwrap();
-        key_pub.verify(&digest[..], &sig).unwrap();
+        let sig = key.sign(&digest.as_ref()[..]).unwrap();
+        key_pub.verify(&digest.as_ref()[..], &sig).unwrap();
 
-        let err_bad_sig = key_pub.verify(&wrong_digest[..], &sig);
+        let err_bad_sig = key_pub.verify(&wrong_digest.as_ref()[..], &sig);
         match err_bad_sig {
             Err(Bip32Error::BackendError(_)) => {}
             _ => assert!(false, "expected signature validation error"),
         }
 
         // sign_recoverable + verify_recoverable
-        let sig = key.sign_recoverable(&digest[..]).unwrap();
-        key_pub.verify_recoverable(&digest[..], &sig).unwrap();
+        let sig = key.sign_recoverable(&digest.as_ref()[..]).unwrap();
+        key_pub.verify_recoverable(&digest.as_ref()[..], &sig).unwrap();
 
-        let err_bad_sig = key_pub.verify_recoverable(&wrong_digest[..], &sig);
+        let err_bad_sig = key_pub.verify_recoverable(&wrong_digest.as_ref()[..], &sig);
         match err_bad_sig {
             Err(Bip32Error::BackendError(_)) => {}
             _ => assert!(false, "expected signature validation error"),
@@ -458,8 +459,8 @@ mod test {
 
     #[test]
     fn it_can_descendant_sign_and_verify() {
-        let digest = [1u8; 32];
-        let wrong_digest = [2u8; 32];
+        let digest: Hash256Digest = [1u8; 32].into();
+        let wrong_digest: Hash256Digest = [2u8; 32].into();
         let backend = Secp256k1::static_ref();
 
         let path = vec![0u32, 1, 2];
@@ -508,17 +509,17 @@ mod test {
         let hash_func = |digest: &[u8]| {
             let mut buf = [0u8; 32];
             buf[..5].copy_from_slice(&digest[..5]);
-            buf
+            Hash256Digest::from(buf)
         };
         let sig = key
-            .descendant_sign_with_hash(&path, &digest[..], &hash_func)
+            .descendant_sign_with_hash(&path, &digest.as_ref()[..], &hash_func)
             .unwrap();
         key_pub
-            .descendant_verify_with_hash(&path, &digest[..], &hash_func, &sig)
+            .descendant_verify_with_hash(&path, &digest.as_ref()[..], &hash_func, &sig)
             .unwrap();
 
         let err_bad_sig =
-            key_pub.descendant_verify_with_hash(&path, &wrong_digest[..], &hash_func, &sig);
+            key_pub.descendant_verify_with_hash(&path, &wrong_digest.as_ref()[..], &hash_func, &sig);
         match err_bad_sig {
             Err(Bip32Error::BackendError(_)) => {}
             _ => assert!(false, "expected signature validation error"),
@@ -528,18 +529,18 @@ mod test {
         let hash_func = |digest: &[u8]| {
             let mut buf = [0u8; 32];
             buf[..5].copy_from_slice(&digest[..5]);
-            buf
+            Hash256Digest::from(buf)
         };
         let sig = key
-            .descendant_sign_recoverable_with_hash(&path, &digest[..], &hash_func)
+            .descendant_sign_recoverable_with_hash(&path, &digest.as_ref()[..], &hash_func)
             .unwrap();
         key_pub
-            .descendant_verify_recoverable_with_hash(&path, &digest[..], &hash_func, &sig)
+            .descendant_verify_recoverable_with_hash(&path, &digest.as_ref()[..], &hash_func, &sig)
             .unwrap();
 
         let err_bad_sig = key_pub.descendant_verify_recoverable_with_hash(
             &path,
-            &wrong_digest[..],
+            &wrong_digest.as_ref()[..],
             &hash_func,
             &sig,
         );
@@ -549,22 +550,22 @@ mod test {
         }
 
         // sign + verify
-        let sig = key.descendant_sign(&path, &digest[..]).unwrap();
-        key_pub.descendant_verify(&path, &digest[..], &sig).unwrap();
+        let sig = key.descendant_sign(&path, &digest.as_ref()[..]).unwrap();
+        key_pub.descendant_verify(&path, &digest.as_ref()[..], &sig).unwrap();
 
-        let err_bad_sig = key_pub.descendant_verify(&path, &wrong_digest[..], &sig);
+        let err_bad_sig = key_pub.descendant_verify(&path, &wrong_digest.as_ref()[..], &sig);
         match err_bad_sig {
             Err(Bip32Error::BackendError(_)) => {}
             _ => assert!(false, "expected signature validation error"),
         }
 
         // sign_recoverable + verify_recoverable
-        let sig = key.descendant_sign_recoverable(&path, &digest[..]).unwrap();
+        let sig = key.descendant_sign_recoverable(&path, &digest.as_ref()[..]).unwrap();
         key_pub
-            .descendant_verify_recoverable(&path, &digest[..], &sig)
+            .descendant_verify_recoverable(&path, &digest.as_ref()[..], &sig)
             .unwrap();
 
-        let err_bad_sig = key_pub.descendant_verify_recoverable(&path, &wrong_digest[..], &sig);
+        let err_bad_sig = key_pub.descendant_verify_recoverable(&path, &wrong_digest.as_ref()[..], &sig);
         match err_bad_sig {
             Err(Bip32Error::BackendError(_)) => {}
             _ => assert!(false, "expected signature validation error"),

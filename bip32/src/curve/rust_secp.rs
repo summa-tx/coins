@@ -1,6 +1,8 @@
 // Parity's secp
 use libsecp256k1 as secp256k1;
 
+use bitcoin_spv::types::Hash256Digest;
+
 use crate::{curve::model::*, Bip32Error};
 
 pub(crate) type Error = libsecp256k1_core::Error;
@@ -213,16 +215,16 @@ impl<'a> Secp256k1Backend for Secp256k1<'a> {
         Ok(key.into())
     }
 
-    fn sign_digest(&self, k: &Self::Privkey, digest: [u8; 32]) -> Self::Signature {
+    fn sign_digest(&self, k: &Self::Privkey, digest: Hash256Digest) -> Self::Signature {
         self.sign_digest_recoverable(k, digest).sig
     }
 
     fn sign_digest_recoverable(
         &self,
         k: &Self::Privkey,
-        digest: [u8; 32],
+        digest: Hash256Digest,
     ) -> Self::RecoverableSignature {
-        let m = secp256k1::Message::parse(&digest);
+        let m = secp256k1::Message::parse(digest.as_ref());
 
         let sig = secp256k1::sign_with_context(&m, &k.0, self.1);
         RecoverableSignature {
@@ -233,10 +235,10 @@ impl<'a> Secp256k1Backend for Secp256k1<'a> {
     fn verify_digest(
         &self,
         k: &Self::Pubkey,
-        digest: [u8; 32],
+        digest: Hash256Digest,
         sig: &Self::Signature,
     ) -> Result<(), Bip32Error> {
-        let m = secp256k1::Message::parse(&digest);
+        let m = secp256k1::Message::parse(digest.as_ref());
         let result = secp256k1::verify_with_context(&m, sig, &k.0, self.0);
         if result {
             Ok(())
@@ -248,10 +250,10 @@ impl<'a> Secp256k1Backend for Secp256k1<'a> {
     fn verify_digest_recoverable(
         &self,
         k: &Self::Pubkey,
-        digest: [u8; 32],
+        digest: Hash256Digest,
         sig: &Self::RecoverableSignature,
     ) -> Result<(), Bip32Error> {
-        let m = secp256k1::Message::parse(&digest);
+        let m = secp256k1::Message::parse(digest.as_ref());
         let result = secp256k1::verify_with_context(&m, &sig.sig, &k.0, self.0);
         if result {
             Ok(())
@@ -262,10 +264,10 @@ impl<'a> Secp256k1Backend for Secp256k1<'a> {
 
     fn recover_pubkey(
         &self,
-        digest: [u8; 32],
+        digest: Hash256Digest,
         sig: &Self::RecoverableSignature,
     ) -> Result<Self::Pubkey, Bip32Error> {
-        let m = secp256k1::Message::parse(&digest);
+        let m = secp256k1::Message::parse(digest.as_ref());
         Ok(secp256k1::recover_with_context(&m, &sig.sig, &sig.recovery_id, self.0)?.into())
     }
 }

@@ -1,4 +1,6 @@
 // Wuille's secp
+use bitcoin_spv::types::Hash256Digest;
+
 use crate::{curve::model::*, Bip32Error};
 
 pub(crate) type Error = secp256k1::Error;
@@ -170,46 +172,46 @@ impl<'a> Secp256k1Backend for Secp256k1<'a> {
         Ok(key.into())
     }
 
-    fn sign_digest(&self, k: &Self::Privkey, digest: [u8; 32]) -> Self::Signature {
-        let m = secp256k1::Message::from_slice(&digest).expect("digest is 32 bytes");
+    fn sign_digest(&self, k: &Self::Privkey, digest: Hash256Digest) -> Self::Signature {
+        let m = secp256k1::Message::from_slice(digest.as_ref()).expect("digest is 32 bytes");
         self.0.sign(&m, &k.0)
     }
 
     fn sign_digest_recoverable(
         &self,
         k: &Self::Privkey,
-        digest: [u8; 32],
+        digest: Hash256Digest,
     ) -> Self::RecoverableSignature {
-        let m = secp256k1::Message::from_slice(&digest).expect("digest is 32 bytes");
+        let m = secp256k1::Message::from_slice(digest.as_ref()).expect("digest is 32 bytes");
         self.0.sign_recoverable(&m, &k.0)
     }
 
     fn verify_digest(
         &self,
         k: &Self::Pubkey,
-        digest: [u8; 32],
+        digest: Hash256Digest,
         sig: &Self::Signature,
     ) -> Result<(), Bip32Error> {
-        let m = secp256k1::Message::from_slice(&digest).expect("digest is 32 bytes");
+        let m = secp256k1::Message::from_slice(digest.as_ref()).expect("digest is 32 bytes");
         Ok(self.0.verify(&m, sig, &k.0)?)
     }
 
     fn verify_digest_recoverable(
         &self,
         k: &Self::Pubkey,
-        digest: [u8; 32],
+        digest: Hash256Digest,
         sig: &Self::RecoverableSignature,
     ) -> Result<(), Bip32Error> {
-        let m = secp256k1::Message::from_slice(&digest).expect("digest is 32 bytes");
+        let m = secp256k1::Message::from_slice(digest.as_ref()).expect("digest is 32 bytes");
         Ok(self.0.verify(&m, &sig.to_standard(), &k.0)?)
     }
 
     fn recover_pubkey(
         &self,
-        digest: [u8; 32],
+        digest: Hash256Digest,
         sig: &Self::RecoverableSignature,
     ) -> Result<Self::Pubkey, Bip32Error> {
-        let m = secp256k1::Message::from_slice(&digest).expect("digest is 32 bytes");
+        let m = secp256k1::Message::from_slice(digest.as_ref()).expect("digest is 32 bytes");
         Ok(self.0.recover(&m, sig)?.into())
     }
 }

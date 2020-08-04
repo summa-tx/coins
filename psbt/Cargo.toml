@@ -11,7 +11,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 coins-core = { path = "../core" }
-bitcoin-spv = "2.0.0"
+bitcoin-spv = "4.0.1"
 thiserror = "1.0"
 serde = "1.0.105"
 futures = { version = "0.3.5", optional = true }

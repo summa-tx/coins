@@ -1,6 +1,9 @@
 use std::convert::TryInto;
 
-use bitcoin_spv::btcspv::hash256;
+use bitcoin_spv::{
+    btcspv::hash256,
+    types::{Hash160Digest, Hash256Digest},
+};
 
 use crate::{
     curve::model::{
@@ -50,7 +53,7 @@ pub trait HasPubkey<'a, T: Secp256k1Backend> {
 
     /// Calculate the hash160 of the associated public key. This is commonly used to consturct
     /// pubkeyhash outputs in bitcoin-like chains, and has been provided here as a convenience.
-    fn pubkey_hash160(&self) -> [u8; 20] {
+    fn pubkey_hash160(&self) -> Hash160Digest {
         self.pubkey().hash160()
     }
 }
@@ -98,14 +101,14 @@ pub trait SigningKey<'a, T: 'a + Secp256k1Backend>:
     fn derive_verifying_key(&self) -> Result<Self::VerifyingKey, Bip32Error>;
 
     /// Sign a digest
-    fn sign_digest(&self, digest: [u8; 32]) -> Result<T::Signature, Bip32Error> {
+    fn sign_digest(&self, digest: Hash256Digest) -> Result<T::Signature, Bip32Error> {
         Ok(self.backend()?.sign_digest(&self.privkey(), digest))
     }
 
     /// Sign a digest and produce a recovery ID
     fn sign_digest_recoverable(
         &self,
-        digest: [u8; 32],
+        digest: Hash256Digest,
     ) -> Result<T::RecoverableSignature, Bip32Error> {
         Ok(self
             .backend()?
@@ -150,7 +153,7 @@ pub trait VerifyingKey<'a, T: 'a + Secp256k1Backend>:
     }
 
     /// Verify a signature on a digest
-    fn verify_digest(&self, digest: [u8; 32], sig: &T::Signature) -> Result<(), Bip32Error> {
+    fn verify_digest(&self, digest: Hash256Digest, sig: &T::Signature) -> Result<(), Bip32Error> {
         self.backend()?
             .verify_digest(&self.pubkey(), digest, sig)
             .map_err(Into::into)
@@ -159,7 +162,7 @@ pub trait VerifyingKey<'a, T: 'a + Secp256k1Backend>:
     /// Verify a recoverable signature on a digest.
     fn verify_digest_recoverable(
         &self,
-        digest: [u8; 32],
+        digest: Hash256Digest,
         sig: &T::RecoverableSignature,
     ) -> Result<(), Bip32Error> {
         self.backend()?
@@ -312,7 +315,7 @@ pub trait XSigning<'a, T: 'a + Secp256k1Backend>:
     fn descendant_sign_digest<E, P>(
         &self,
         path: P,
-        digest: [u8; 32],
+        digest: Hash256Digest,
     ) -> Result<T::Signature, Bip32Error>
     where
         E: Into<Bip32Error>,
@@ -325,7 +328,7 @@ pub trait XSigning<'a, T: 'a + Secp256k1Backend>:
     fn descendant_sign_digest_recoverable<E, P>(
         &self,
         path: P,
-        digest: [u8; 32],
+        digest: Hash256Digest,
     ) -> Result<T::RecoverableSignature, Bip32Error>
     where
         E: Into<Bip32Error>,
@@ -396,7 +399,7 @@ pub trait XVerifying<'a, T: 'a + Secp256k1Backend>:
     fn descendant_verify_digest<P, E>(
         &self,
         path: P,
-        digest: [u8; 32],
+        digest: Hash256Digest,
         sig: &T::Signature,
     ) -> Result<(), Bip32Error>
     where
@@ -410,7 +413,7 @@ pub trait XVerifying<'a, T: 'a + Secp256k1Backend>:
     fn descendant_verify_digest_recoverable<P, E>(
         &self,
         path: P,
-        digest: [u8; 32],
+        digest: Hash256Digest,
         sig: &T::RecoverableSignature,
     ) -> Result<(), Bip32Error>
     where

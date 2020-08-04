@@ -5,7 +5,7 @@ pub use crate::{
     types::*,
 };
 
-pub use bitcoin_spv::types::Hash256Digest;
+pub use bitcoin_spv::types::{Hash160Digest, Hash256Digest};
 pub use coins_core::prelude::*;
 
 // TODO: break into own module

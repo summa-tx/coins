@@ -85,11 +85,11 @@ impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
         match s.standard_type() {
             ScriptType::PKH(payload) => {
                 // s.items contains the op codes. we want only the pkh
-                Ok(Address::PKH(encode_base58(P::PKH_VERSION, &payload)))
+                Ok(Address::PKH(encode_base58(P::PKH_VERSION, payload.as_ref())))
             }
             ScriptType::SH(payload) => {
                 // s.items contains the op codes. we want only the sh
-                Ok(Address::SH(encode_base58(P::SH_VERSION, &payload)))
+                Ok(Address::SH(encode_base58(P::SH_VERSION, payload.as_ref())))
             }
             ScriptType::WSH(_) => Ok(Address::WSH(encode_bech32(P::HRP, &s.items())?)),
             ScriptType::WPKH(_) => Ok(Address::WPKH(encode_bech32(P::HRP, &s.items())?)),

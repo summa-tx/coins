@@ -135,7 +135,10 @@ pub trait BTCProvider: Sync + Send {
 
     /// Get the header at `height` in the remote data source's best known chain. If no header is
     /// known at that height, return `None`.
-    async fn get_header_at_height(&self, height: usize) -> Result<Option<RawHeader>, ProviderError> {
+    async fn get_header_at_height(
+        &self,
+        height: usize,
+    ) -> Result<Option<RawHeader>, ProviderError> {
         Ok(self.get_raw_header_range(height, 1).await?.first().copied())
     }
 

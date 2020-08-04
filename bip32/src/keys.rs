@@ -1,3 +1,5 @@
+use bitcoin_spv::types::Hash256Digest;
+
 use crate::{
     curve::{ScalarSerialize, Secp256k1Backend},
     model::{CanDerivePubkey, HasBackend, HasPrivkey, HasPubkey, SigningKey, VerifyingKey},
@@ -78,7 +80,7 @@ impl<'a, T: Secp256k1Backend> GenericPubkey<'a, T> {
     /// Recover a public key from a signed digest
     pub fn recover_from_signed_digest(
         backend: &'a T,
-        digest: [u8; 32],
+        digest: Hash256Digest,
         sig: &T::RecoverableSignature,
     ) -> Result<Self, Bip32Error> {
         Ok(Self {

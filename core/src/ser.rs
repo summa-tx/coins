@@ -1,7 +1,6 @@
 //! A simple trait for binary (de)Serialization using std `Read` and `Write` traits.
 
 use base64::DecodeError;
-use bitcoin_spv::types::Hash256Digest;
 use hex::FromHexError;
 use std::{
     fmt::Debug,
@@ -321,31 +320,6 @@ where
         W: Write,
     {
         Ok(self.iter().map(|v| v.write_to(writer).unwrap()).sum())
-    }
-}
-
-impl ByteFormat for Hash256Digest {
-    type Error = SerError;
-
-    fn serialized_length(&self) -> usize {
-        32
-    }
-
-    fn read_from<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
-    where
-        R: Read,
-        Self: std::marker::Sized,
-    {
-        let mut buf = Hash256Digest::default();
-        reader.read_exact(&mut buf)?;
-        Ok(buf)
-    }
-
-    fn write_to<W>(&self, writer: &mut W) -> SerResult<usize>
-    where
-        W: Write,
-    {
-        Ok(writer.write(self)?)
     }
 }
 

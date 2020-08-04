@@ -258,6 +258,7 @@ mod test {
         keys::Pubkey,
         primitives::*,
     };
+    use bitcoin_spv::types::Hash256Digest;
 
     use hex;
 
@@ -440,7 +441,7 @@ mod test {
 
     #[test]
     fn it_can_sign_and_verify() {
-        let digest = [1u8; 32];
+        let digest: Hash256Digest = [1u8; 32].into();
         let backend = Secp256k1::static_ref();
         let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
         let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, Some(backend)).unwrap();
@@ -454,7 +455,7 @@ mod test {
 
     #[test]
     fn it_can_verify_and_recover_from_signatures() {
-        let digest = [1u8; 32];
+        let digest: Hash256Digest = [1u8; 32].into();
         let backend = Secp256k1::static_ref();
         let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
         let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str, Some(backend)).unwrap();

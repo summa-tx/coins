@@ -117,7 +117,7 @@ impl UTXO {
                     // TODO: break this out into a function
                     ScriptType::WPKH(payload) => {
                         let mut v = vec![0x76, 0xa9, 0x14];
-                        v.extend(&payload);
+                        v.extend(payload.as_ref());
                         v.extend(&[0x88, 0xac]);
                         Some(v.into())
                     }
