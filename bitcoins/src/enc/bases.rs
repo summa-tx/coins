@@ -1,5 +1,5 @@
 //! Contains simplified access to `bech32` and `base58check` encoder/decoder for Bitcoin
-//! addresses. Also defines common encoder errors.
+//! addresses.
 
 use bech32::Error as BechError;
 use coins_core::enc::{
