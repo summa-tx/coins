@@ -51,11 +51,11 @@ where
     T: BitcoinEncoderMarker,
 {
     /// Add a set of witnesses to the transaction, and return a witness builder.
-    pub fn extend_witnesses<I>(mut self, outputs: I) -> Self
+    pub fn extend_witnesses<I>(mut self, witnesses: I) -> Self
     where
         I: IntoIterator<Item = Witness>,
     {
-        self.witnesses.extend(outputs);
+        self.witnesses.extend(witnesses);
         self
     }
 

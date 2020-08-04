@@ -15,7 +15,7 @@ mark_hash256!(
 );
 
 mark_hash256!(
-    /// A marked Hash256Digest representing witness transaction IDs
+    /// A marked Hash256Digest representing a block hash
     BlockHash
 );
 
