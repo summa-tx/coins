@@ -81,13 +81,10 @@ impl PSBTGlobal {
         let tx_ins: Vec<BitcoinTxIn> = tx.inputs().iter().map(|i| i.unsigned()).collect();
         let new = LegacyTx::new(tx.version(), tx_ins, tx.outputs(), tx.locktime());
 
-        match new {
-            Ok(tx) => {
-                let mut value = vec![];
-                tx.write_to(&mut value).unwrap(); // no error on heap write
-                self.insert(GlobalKey::UNSIGNED_TX.into(), value.into());
-            }
-            _ => {}
+        if let Ok(tx) = new {
+            let mut value = vec![];
+            tx.write_to(&mut value).unwrap(); // no error on heap write
+            self.insert(GlobalKey::UNSIGNED_TX.into(), value.into());
         }
     }
 
