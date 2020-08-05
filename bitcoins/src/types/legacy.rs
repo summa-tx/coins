@@ -156,11 +156,11 @@ impl Transaction for LegacyTx {
         let vins = vin.into();
         let vouts = vout.into();
 
-        if vins.len() == 0 {
+        if vins.is_empty() {
             return Err(TxError::EmptyVin)
         }
 
-        if vouts.len() == 0 {
+        if vouts.is_empty() {
             return Err(TxError::EmptyVout)
         }
 
