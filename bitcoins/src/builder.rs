@@ -70,12 +70,12 @@ where
     }
 
     /// Consume self, produce a legacy tx. Discard any witness information in the builder
-    pub fn build_legacy(self) -> LegacyTx {
+    pub fn build_legacy(self) -> Result<LegacyTx, <LegacyTx as Transaction>::TxError> {
         LegacyTx::new(self.version, self.vin, self.vout, self.locktime)
     }
 
     /// Consume self, produce a witness tx
-    pub fn build_witness(self) -> WitnessTx {
+    pub fn build_witness(self) -> Result<WitnessTx, <WitnessTx as Transaction>::TxError> {
         <WitnessTx as WitnessTransaction>::new(
             self.version,
             self.vin,
@@ -199,18 +199,17 @@ where
         self
     }
 
-    fn build(self) -> Self::Transaction {
+    fn build(self) -> Result<Self::Transaction, <Self::Transaction as Transaction>::TxError> {
         if self.produce_witness || !self.witnesses.is_empty() {
-            <WitnessTx as WitnessTransaction>::new(
+            Ok(<WitnessTx as WitnessTransaction>::new(
                 self.version,
                 self.vin,
                 self.vout,
                 self.witnesses,
                 self.locktime,
-            )
-            .into()
+            )?.into())
         } else {
-            LegacyTx::new(self.version, self.vin, self.vout, self.locktime).into()
+            Ok(LegacyTx::new(self.version, self.vin, self.vout, self.locktime)?.into())
         }
     }
 }

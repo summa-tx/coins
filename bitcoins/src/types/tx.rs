@@ -130,17 +130,18 @@ impl Transaction for BitcoinTx {
     type SighashArgs = WitnessSighashArgs;
 
     /// Instantiate a new `BitcoinTx`. This always returns a `BitcoinTx::Legacy`
-    fn new<I, O>(version: u32, vin: I, vout: O, locktime: u32) -> Self
+    fn new<I, O>(version: u32, vin: I, vout: O, locktime: u32) -> Result<Self, Self::TxError>
     where
         I: Into<Vec<BitcoinTxIn>>,
         O: Into<Vec<TxOut>>,
+        Self: Sized,
     {
-        Self::Legacy(LegacyTx {
+        Ok(Self::Legacy(LegacyTx {
             version,
             vin: vin.into(),
             vout: vout.into(),
             locktime,
-        })
+        }))
     }
 
     /// Get the version number from the underlying tx
@@ -227,9 +228,14 @@ pub enum TxError {
     /// Wrong sighash args passed in to wrapped tx
     #[error("Sighash args must match the wrapped tx type")]
     WrongSighashArgs,
-    // /// No outputs in vout
-    // #[error("Vout may not be empty")]
-    // EmptyVout
+
+    /// No outputs in vout
+    #[error("Vout may not be empty")]
+    EmptyVout,
+
+    /// No inputs in vin
+    #[error("Vin may not be empty")]
+    EmptyVin,
 }
 
 /// Type alias for result with TxError

@@ -51,10 +51,11 @@ pub trait Transaction: ByteFormat {
     type HashWriter: MarkedDigestWriter<Self::Digest>;
 
     /// Instantiate a new Transaction by specifying inputs and outputs.
-    fn new<I, O>(version: u32, vin: I, vout: O, locktime: u32) -> Self
+    fn new<I, O>(version: u32, vin: I, vout: O, locktime: u32) -> Result<Self, Self::TxError>
     where
         I: Into<Vec<Self::TxIn>>,
-        O: Into<Vec<Self::TxOut>>;
+        O: Into<Vec<Self::TxOut>>,
+        Self: Sized;
 
     /// Returns the transaction version number
     fn version(&self) -> u32;

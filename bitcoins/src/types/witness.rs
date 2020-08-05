@@ -38,11 +38,12 @@ pub trait WitnessTransaction: BitcoinTransaction {
     type Witness;
 
     /// Instantiate a new WitnessTx from the arguments.
-    fn new<I, O, W>(version: u32, vin: I, vout: O, witnesses: W, locktime: u32) -> Self
+    fn new<I, O, W>(version: u32, vin: I, vout: O, witnesses: W, locktime: u32) -> Result<Self, Self::TxError>
     where
         I: Into<Vec<Self::TxIn>>,
         O: Into<Vec<Self::TxOut>>,
-        W: Into<Vec<Self::Witness>>;
+        W: Into<Vec<Self::Witness>>,
+        Self: Sized;
 
     /// Calculates the witness txid of the transaction.
     fn wtxid(&self) -> Self::WTXID;
@@ -221,19 +222,20 @@ impl Transaction for WitnessTx {
     type TXID = TXID;
     type HashWriter = Hash256Writer;
 
-    fn new<I, O>(version: u32, vin: I, vout: O, locktime: u32) -> Self
+    fn new<I, O>(version: u32, vin: I, vout: O, locktime: u32) -> Result<Self, Self::TxError>
     where
         I: Into<Vec<Self::TxIn>>,
         O: Into<Vec<Self::TxOut>>,
+        Self: Sized,
     {
         let input_vector: Vec<BitcoinTxIn> = vin.into();
         let witnesses = input_vector.iter().map(|_| Witness::default()).collect();
 
-        let legacy_tx = LegacyTx::new(version, input_vector, vout, locktime);
-        Self {
+        let legacy_tx = LegacyTx::new(version, input_vector, vout, locktime)?;
+        Ok(Self {
             legacy_tx,
             witnesses,
-        }
+        })
     }
 
     fn inputs(&self) -> &[Self::TxIn] {
@@ -293,11 +295,12 @@ impl WitnessTransaction for WitnessTx {
     /// ensure that there are the same number of witnesses as inputs.
     /// The number of witnesses will be trimmed if there are too many
     /// and will be filled with empty witnesses if too few.
-    fn new<I, O, W>(version: u32, vin: I, vout: O, witnesses: W, locktime: u32) -> Self
+    fn new<I, O, W>(version: u32, vin: I, vout: O, witnesses: W, locktime: u32) -> Result<Self, Self::TxError>
     where
         I: Into<Vec<Self::TxIn>>,
         O: Into<Vec<Self::TxOut>>,
         W: Into<Vec<Self::Witness>>,
+        Self: Sized,
     {
         let vins = vin.into();
         let mut wits = witnesses.into();
@@ -305,12 +308,12 @@ impl WitnessTransaction for WitnessTx {
             wits.resize(vins.len(), Witness::default());
         }
 
-        let legacy_tx = LegacyTx::new(version, vins, vout, locktime);
+        let legacy_tx = LegacyTx::new(version, vins, vout, locktime)?;
 
-        Self {
+        Ok(Self {
             legacy_tx,
             witnesses: wits,
-        }
+        })
     }
 
     fn wtxid(&self) -> Self::WTXID {
@@ -441,7 +444,7 @@ mod test {
         let witnesses = vec![];
 
         let expect = vin.len();
-        let tx = <WitnessTx as WitnessTransaction>::new(2, vin, vout, witnesses, 0);
+        let tx = <WitnessTx as WitnessTransaction>::new(2, vin, vout, witnesses, 0).unwrap();
         assert_eq!(tx.witnesses.len(), expect);
     }
 
@@ -454,7 +457,7 @@ mod test {
         let witnesses = vec![expected_witness.clone(), Witness::default()];
 
         let expected_size = vin.len();
-        let tx = <WitnessTx as WitnessTransaction>::new(2, vin, vout, witnesses, 0);
+        let tx = <WitnessTx as WitnessTransaction>::new(2, vin, vout, witnesses, 0).unwrap();
         assert_eq!(tx.witnesses.len(), expected_size);
         assert_eq!(expected_witness, tx.witnesses[0]);
     }
