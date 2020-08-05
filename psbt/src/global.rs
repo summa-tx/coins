@@ -79,13 +79,16 @@ impl PSBTGlobal {
     /// Set the tx key. This should only be done on instantiation.
     pub(crate) fn set_tx(&mut self, tx: &LegacyTx) {
         let tx_ins: Vec<BitcoinTxIn> = tx.inputs().iter().map(|i| i.unsigned()).collect();
+        let new = LegacyTx::new(tx.version(), tx_ins, tx.outputs(), tx.locktime());
 
-        // TODO: don't unwrap here
-        let tx = LegacyTx::new(tx.version(), tx_ins, tx.outputs(), tx.locktime()).unwrap();
-
-        let mut value = vec![];
-        tx.write_to(&mut value).unwrap(); // no error on heap write
-        self.insert(GlobalKey::UNSIGNED_TX.into(), value.into());
+        match new {
+            Ok(tx) => {
+                let mut value = vec![];
+                tx.write_to(&mut value).unwrap(); // no error on heap write
+                self.insert(GlobalKey::UNSIGNED_TX.into(), value.into());
+            }
+            _ => {}
+        }
     }
 
     /// Get a range of XPUBs
