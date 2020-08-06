@@ -261,7 +261,10 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl<T: JsonRPCTransport + Send + Sync> PollingBTCProvider for BitcoindRPC<T> {
+impl<T> PollingBTCProvider for BitcoindRPC<T>
+where
+    T: JsonRPCTransport + Send + Sync,
+{
     fn interval(&self) -> Duration {
         self.interval
     }

@@ -337,7 +337,10 @@ impl<T: BTCProvider> CachingProvider<T> {
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl<T: BTCProvider> BTCProvider for CachingProvider<T> {
+impl<T> BTCProvider for CachingProvider<T>
+where
+    T: BTCProvider,
+{
     async fn tip_hash(&self) -> Result<BlockHash, ProviderError> {
         self.provider.tip_hash().await
     }
@@ -438,7 +441,10 @@ impl<T: BTCProvider> BTCProvider for CachingProvider<T> {
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl<T: PollingBTCProvider> PollingBTCProvider for CachingProvider<T> {
+impl<T> PollingBTCProvider for CachingProvider<T>
+where
+    T: PollingBTCProvider,
+{
     fn interval(&self) -> Duration {
         self.provider.interval()
     }
