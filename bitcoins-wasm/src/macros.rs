@@ -310,8 +310,11 @@ macro_rules! impl_builders {
             }
 
             /// Consume the builder and produce a transaction
-            pub fn build(self) -> crate::types::tx::BitcoinTx {
-                self.0.build().into()
+            pub fn build(self) -> Result<crate::types::tx::BitcoinTx, JsValue> {
+                self.0.build()
+                    .map(crate::types::tx::BitcoinTx::from)
+                    .map_err(crate::types::errors::WasmError::from)
+                    .map_err(JsValue::from)
             }
         }
     };

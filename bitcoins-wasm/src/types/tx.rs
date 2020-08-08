@@ -50,9 +50,11 @@ impl_wrapped_getter_passthrough!(BitcoinTx, txid, TXID);
 impl LegacyTx {
     /// Instantiate a new Legacy Tx.
     #[wasm_bindgen(constructor)]
-    pub fn new(version: u32, vin: Vin, vout: Vout, locktime: u32) -> Self {
+    pub fn new(version: u32, vin: Vin, vout: Vout, locktime: u32) -> Result<LegacyTx, JsValue> {
         legacy::LegacyTx::new(version, vin.inner(), vout.inner(), locktime)
-            .into()
+            .map(Self::from)
+            .map_err(crate::types::errors::WasmError::from)
+            .map_err(JsValue::from)
     }
 
     /// Return a clone of the transaction input vector
@@ -105,9 +107,9 @@ impl LegacyTx {
 
 #[wasm_bindgen]
 impl WitnessTx {
-    /// Instantiate a new Legacy Tx.
+    /// Instantiate a new Witness Tx.
     #[wasm_bindgen(constructor)]
-    pub fn new(version: u32, vin: Vin, vout: Vout, witnesses: TxWitness, locktime: u32) -> Self {
+    pub fn new(version: u32, vin: Vin, vout: Vout, witnesses: TxWitness, locktime: u32) -> Result<WitnessTx, JsValue> {
         // disambiguate `new`
         <witness::WitnessTx as witness::WitnessTransaction>::new(
             version,
@@ -116,7 +118,9 @@ impl WitnessTx {
             witnesses,
             locktime,
         )
-        .into()
+        .map(Self::from)
+        .map_err(crate::types::errors::WasmError::from)
+        .map_err(JsValue::from)
     }
 
     /// Return a clone of the transaction input vector
