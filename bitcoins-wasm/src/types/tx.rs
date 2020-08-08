@@ -4,10 +4,7 @@ use wasm_bindgen::prelude::*;
 
 use bitcoins::prelude::*;
 
-use coins_core::{
-    ser::ByteFormat,
-    types::tx::Transaction,
-};
+use coins_core::{ser::ByteFormat, types::tx::Transaction};
 
 use crate::{
     hashes::{TXID, WTXID},
@@ -44,7 +41,6 @@ impl_wrapped_getter_passthrough!(WitnessTx, wtxid, WTXID);
 impl_getter_passthrough!(BitcoinTx, version, u32);
 impl_getter_passthrough!(BitcoinTx, locktime, u32);
 impl_wrapped_getter_passthrough!(BitcoinTx, txid, TXID);
-
 
 #[wasm_bindgen]
 impl LegacyTx {
@@ -109,7 +105,13 @@ impl LegacyTx {
 impl WitnessTx {
     /// Instantiate a new Witness Tx.
     #[wasm_bindgen(constructor)]
-    pub fn new(version: u32, vin: Vin, vout: Vout, witnesses: TxWitness, locktime: u32) -> Result<WitnessTx, JsValue> {
+    pub fn new(
+        version: u32,
+        vin: Vin,
+        vout: Vout,
+        witnesses: TxWitness,
+        locktime: u32,
+    ) -> Result<WitnessTx, JsValue> {
         // disambiguate `new`
         <witness::WitnessTx as witness::WitnessTransaction>::new(
             version,

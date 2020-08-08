@@ -5,8 +5,8 @@ use wasm_bindgen::prelude::*;
 
 use bitcoin_spv::types::Hash256Digest;
 
-use coins_core::ser::ByteFormat;
 use bitcoins::hashes;
+use coins_core::ser::ByteFormat;
 
 wrap_struct!(
     /// A marked Hash256Digest representing transaction IDs

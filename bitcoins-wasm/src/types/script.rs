@@ -2,8 +2,8 @@
 
 use wasm_bindgen::prelude::*;
 
-use coins_core::ser::ByteFormat;
 use bitcoins::types::script;
+use coins_core::ser::ByteFormat;
 
 wrap_struct!(
     /// A Script is marked Vec<u8> for use as an opaque `Script` in `SighashArgs`
