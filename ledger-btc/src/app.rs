@@ -1,6 +1,6 @@
 use futures::lock::Mutex;
 use coins_core::{
-    tx::Transaction,
+    Transaction,
 };
 use coins_bip32::{
     derived::DerivedXPub,
