@@ -8,7 +8,7 @@ use futures::executor::block_on;
 
 use bitcoins::{
     enc::encoder::BitcoinEncoderMarker,
-    types::transactions::{BitcoinTransaction, Sighash},
+    types::{BitcoinTransaction, Sighash},
 };
 use bitcoins_ledger::{LedgerBTC, SigningInfo};
 use coins_bip32 as bip32;
