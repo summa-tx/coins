@@ -55,7 +55,7 @@ pub fn try_val_as_key_derivation(val: &PSBTValue) -> Result<KeyDerivation, PSBTE
     if val.is_empty() || val.len() % 4 != 0 {
         return Err(PSBTError::InvalidBip32Path);
     }
-    let limit = val.len() / 4;
+    let limit = (val.len() / 4) - 1;
     let mut deriv_bytes = &val.items()[..];
     Ok(KeyDerivation::read_from(&mut deriv_bytes, limit)?)
 }

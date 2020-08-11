@@ -13,5 +13,3 @@ exclude = [
   "ledger",  # Excluded until we can figure out how to build hidapi on travis
   "ledger-btc", # Excluded until we can figure out how to build hidapi on travis
 ]
-
-license = "MIT OR Apache-2.0"
