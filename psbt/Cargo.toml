@@ -3,7 +3,7 @@ name = "bitcoins-psbt"
 version = "0.1.0-alpha.0"
 authors = ["James Prestwich <james@prestwi.ch>"]
 edition = "2018"
-license = "LGPL-3.0-or-later"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/summa-tx/bitcoins-rs"
 
 [lib]
