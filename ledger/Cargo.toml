@@ -6,7 +6,7 @@ edition = "2018"
 categories  = ["authentication", "cryptography"]
 keywords = ["ledger", "nano", "apdu"]
 repository = "https://github.com/summa-tx/bitcoins-rs"
-license = "LGPL-3.0-or-later"
+license = "LGPL-3.0-or-later OR MIT OR Apache-2.0"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
