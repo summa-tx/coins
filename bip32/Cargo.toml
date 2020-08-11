@@ -5,7 +5,7 @@ authors = ["James Prestwich <james@prestwi.ch>"]
 edition = "2018"
 description = "Bip32 (and related BIPs) in Rust"
 repository = "https://github.com/summa-tx/bitcoins-rs"
-license = "LGPL-3.0-or-later OR MIT OR Apache-2.0"
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 thiserror = "1.0"
