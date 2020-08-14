@@ -20,6 +20,7 @@
 //!  .pay(0x8888_8888_8888_8888, &address).unwrap()
 //!  .pay(0x7777_7777_7777_7777, &Address::SH("377mKFYsaJPsxYSB5aFfx8SW3RaN5BzZVh".to_owned())).unwrap()
 //!  .build()
+//!  .unwrap()
 //!  .serialize_hex();
 //!
 //! let script = BitcoinMainnet::decode_address(&address).unwrap();
@@ -106,6 +107,7 @@ mod test {
             )
             .unwrap()
             .build()
+            .unwrap()
             .serialize_hex();
         BitcoinMainnet::builder_from_hex(&tx_hex).unwrap();
         // println!("{:?}", b);

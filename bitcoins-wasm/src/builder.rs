@@ -11,10 +11,7 @@
 
 use wasm_bindgen::prelude::*;
 
-use coins_core::{
-    enc::AddressEncoder,
-    builder::TxBuilder,
-};
+use coins_core::{builder::TxBuilder, enc::AddressEncoder};
 
 use crate::types::{
     script::TxWitness,

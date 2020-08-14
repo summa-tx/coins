@@ -2,8 +2,8 @@
 
 use wasm_bindgen::prelude::*;
 
-use coins_core::{ser::ByteFormat};
 use bitcoins::types::{script, txin};
+use coins_core::ser::ByteFormat;
 
 use crate::hashes::TXID;
 
@@ -54,8 +54,9 @@ impl BitcoinOutpoint {
     pub fn from_explorer_format(txid_be: String, idx: u32) -> Self {
         txin::BitcoinOutpoint::from_explorer_format(
             TXID::deserialize_hex(txid_be).unwrap().into(),
-            idx
-        ).into()
+            idx,
+        )
+        .into()
     }
 
     /// Returns a new Outpoint from a digest and index

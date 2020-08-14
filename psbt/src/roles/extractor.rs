@@ -36,6 +36,6 @@ where
             }
         }
 
-        Ok(builder.build())
+        Ok(builder.build()?)
     }
 }

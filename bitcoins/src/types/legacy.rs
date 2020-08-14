@@ -147,17 +147,29 @@ impl Transaction for LegacyTx {
     type TXID = TXID;
     type HashWriter = Hash256Writer;
 
-    fn new<I, O>(version: u32, vin: I, vout: O, locktime: u32) -> Self
+    fn new<I, O>(version: u32, vin: I, vout: O, locktime: u32) -> Result<Self, Self::Error>
     where
         I: Into<Vec<Self::TxIn>>,
         O: Into<Vec<Self::TxOut>>,
+        Self: Sized,
     {
-        Self {
-            version,
-            vin: vin.into(),
-            vout: vout.into(),
-            locktime,
+        let vins = vin.into();
+        let vouts = vout.into();
+
+        if vins.is_empty() {
+            return Err(TxError::EmptyVin)
         }
+
+        if vouts.is_empty() {
+            return Err(TxError::EmptyVout)
+        }
+
+        Ok(Self {
+            version,
+            vin: vins,
+            vout: vouts,
+            locktime,
+        })
     }
 
     fn inputs(&self) -> &[Self::TxIn] {

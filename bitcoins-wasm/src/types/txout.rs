@@ -2,8 +2,8 @@
 
 use wasm_bindgen::prelude::*;
 
-use coins_core::{ser::ByteFormat};
 use bitcoins::types::{script, txout};
+use coins_core::ser::ByteFormat;
 
 wrap_struct!(
     /// An Output. This describes a new UTXO to be created. The value is encoded as an LE u64. The

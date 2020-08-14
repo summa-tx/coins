@@ -219,7 +219,6 @@ macro_rules! impl_prefix_vec_access {
 
 macro_rules! impl_builders {
     ($builder:ident, $enc:ident) => {
-
         /// This is a generic builder for Bitcoin transactions. It allows you to easily build legacy and
         /// witness transactions.
         ///
@@ -289,12 +288,16 @@ macro_rules! impl_builders {
 
             /// Extend the vin with several inputs
             pub fn extend_inputs(self, inputs: Vin) -> $builder {
-                self.0.extend_inputs(bitcoins::types::txin::Vin::from(inputs)).into()
+                self.0
+                    .extend_inputs(bitcoins::types::txin::Vin::from(inputs))
+                    .into()
             }
 
             /// Extend the vout with several outputs
             pub fn extend_outputs(self, outputs: Vout) -> $builder {
-                self.0.extend_outputs(bitcoins::types::txout::Vout::from(outputs)).into()
+                self.0
+                    .extend_outputs(bitcoins::types::txout::Vout::from(outputs))
+                    .into()
             }
 
             /// Set the locktime
@@ -310,8 +313,12 @@ macro_rules! impl_builders {
             }
 
             /// Consume the builder and produce a transaction
-            pub fn build(self) -> crate::types::tx::BitcoinTx {
-                self.0.build().into()
+            pub fn build(self) -> Result<crate::types::tx::BitcoinTx, JsValue> {
+                self.0
+                    .build()
+                    .map(crate::types::tx::BitcoinTx::from)
+                    .map_err(crate::types::errors::WasmError::from)
+                    .map_err(JsValue::from)
             }
         }
     };

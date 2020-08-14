@@ -142,7 +142,7 @@ where
     pub fn insert_input(&mut self, index: usize, tx_in: BitcoinTxIn) -> Result<(), PSBTError> {
         let index = std::cmp::min(index, self.inputs.len());
         let b = self.tx_builder()?;
-        let tx = b.insert_input(index, tx_in).build();
+        let tx = b.insert_input(index, tx_in).build()?;
         let mut buf = vec![];
         tx.write_to(&mut buf)?;
         self.global_map_mut()
@@ -157,7 +157,7 @@ where
     pub fn insert_output(&mut self, index: usize, tx_out: TxOut) -> Result<(), PSBTError> {
         let index = std::cmp::min(index, self.outputs.len());
         let b = self.tx_builder()?;
-        let tx = b.insert_output(index, tx_out).build();
+        let tx = b.insert_output(index, tx_out).build()?;
         let mut buf = vec![];
         tx.write_to(&mut buf)?;
         self.global_map_mut()

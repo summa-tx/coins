@@ -3,7 +3,7 @@
 use serde::ser::{Serialize, Serializer};
 use wasm_bindgen::prelude::*;
 
-use coins_core::{enc::AddressEncoder};
+use coins_core::enc::AddressEncoder;
 
 use bitcoins::enc;
 

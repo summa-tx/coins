@@ -92,5 +92,5 @@ pub trait TxBuilder: std::marker::Sized {
     fn locktime(self, locktime: u32) -> Self;
 
     /// Consume the builder and produce a transaction from the builder's current state.
-    fn build(self) -> Self::Transaction;
+    fn build(self) -> Result<Self::Transaction, <Self::Transaction as Transaction>::TxError>;
 }
