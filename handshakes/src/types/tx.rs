@@ -10,7 +10,7 @@ use coins_core::{
         marked::{MarkedDigest, MarkedDigestWriter},
     },
     ser::{ByteFormat, SerError},
-    types::tx::{Transaction},
+    types::tx::Transaction,
 };
 
 use crate::types::{
@@ -27,7 +27,13 @@ pub trait HandshakeTransaction: Transaction {
     type Witness;
 
     /// Instantiate a new WitnessTx from the arguments.
-    fn new<I, O, W>(version: u32, vin: I, vout: O, witnesses: W, locktime: u32) -> Result<Self, Self::TxError>
+    fn new<I, O, W>(
+        version: u32,
+        vin: I,
+        vout: O,
+        witnesses: W,
+        locktime: u32,
+    ) -> Result<Self, Self::TxError>
     where
         I: Into<Vec<Self::TxIn>>,
         O: Into<Vec<Self::TxOut>>,
@@ -164,7 +170,13 @@ impl HandshakeTransaction for HandshakeTx {
     type Witness = Witness;
 
     /// Instantiate a new HandshakeTx from the arguments.
-    fn new<I, O, W>(version: u32, vin: I, vout: O, witnesses: W, locktime: u32) -> Result<Self, Self::TxError>
+    fn new<I, O, W>(
+        version: u32,
+        vin: I,
+        vout: O,
+        witnesses: W,
+        locktime: u32,
+    ) -> Result<Self, Self::TxError>
     where
         I: Into<Vec<Self::TxIn>>,
         O: Into<Vec<Self::TxOut>>,
@@ -174,11 +186,11 @@ impl HandshakeTransaction for HandshakeTx {
         let vouts = vout.into();
 
         if vins.is_empty() {
-            return Err(TxError::EmptyVin)
+            return Err(TxError::EmptyVin);
         }
 
         if vouts.is_empty() {
-            return Err(TxError::EmptyVout)
+            return Err(TxError::EmptyVout);
         }
 
         Ok(Self {
@@ -337,11 +349,11 @@ impl Transaction for HandshakeTx {
         let vouts = vout.into();
 
         if vins.is_empty() {
-            return Err(TxError::EmptyVin)
+            return Err(TxError::EmptyVin);
         }
 
         if vouts.is_empty() {
-            return Err(TxError::EmptyVout)
+            return Err(TxError::EmptyVout);
         }
 
         let witnesses = vins.clone().iter().map(|_| Witness::default()).collect();
@@ -576,7 +588,14 @@ mod tests {
         let vout = vec![TxOut::default()];
         let witnesses = vec![Witness::default()];
 
-        let tx = <HandshakeTx as HandshakeTransaction>::new(0, vin.clone(), vout.clone(), witnesses.clone(), 0).unwrap();
+        let tx = <HandshakeTx as HandshakeTransaction>::new(
+            0,
+            vin.clone(),
+            vout.clone(),
+            witnesses.clone(),
+            0,
+        )
+        .unwrap();
 
         assert_eq!(tx.version, 0);
         assert_eq!(tx.vin.len(), vin.len());
