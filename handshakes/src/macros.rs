@@ -192,6 +192,18 @@ macro_rules! mark_hash256 {
             }
         }
 
+        impl From<[u8; 32]> for $hash_name {
+            fn from(bytes: [u8; 32]) -> Self {
+                Self(bytes.into())
+            }
+        }
+
+        impl AsRef<[u8; 32]> for $hash_name {
+            fn as_ref(&self) -> &[u8; 32] {
+                self.0.as_ref()
+            }
+        }
+
         impl coins_core::ser::ByteFormat for $hash_name {
             type Error = coins_core::ser::SerError;
 
@@ -205,7 +217,7 @@ macro_rules! mark_hash256 {
                 Self: std::marker::Sized
             {
                 let mut buf = <Blake2b256Digest>::default();
-                reader.read_exact(&mut buf)?;
+                reader.read_exact(buf.as_mut())?;
                 Ok(Self(buf))
             }
 
@@ -213,7 +225,7 @@ macro_rules! mark_hash256 {
             where
                 W: std::io::Write
             {
-                Ok(writer.write(&self.0)?)
+                Ok(writer.write(self.0.as_ref())?)
             }
         }
 
@@ -228,7 +240,7 @@ macro_rules! mark_hash256 {
             }
 
             fn bytes(&self) -> Vec<u8> {
-                self.0.to_vec()
+                self.0.as_ref().to_vec()
             }
         }
 

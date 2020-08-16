@@ -62,29 +62,25 @@ where
     }
 
     /// Consume self, produce a tx
-    pub fn build(self) -> HandshakeTx {
-        <HandshakeTx as HandshakeTransaction>::new(
+    pub fn build(self) -> Result<HandshakeTx, <HandshakeTx as Transaction>::TxError> {
+        Ok(<HandshakeTx as HandshakeTransaction>::new(
             self.version,
             self.vin,
             self.vout,
             self.witnesses,
             self.locktime,
-        )
+        )?)
     }
 
-    /// Add an output paying `value` to `script_pubkey`
+    /// Add an output paying `value` to `LockingScript`
     pub fn pay_locking_script(mut self, value: u64, locking_script: LockingScript) -> Self {
         let output = TxOut::new(value, locking_script, Covenant::null());
         self.vout.push(output);
         self
     }
-}
 
-impl<T> HandshakeTxBuilder<T>
-where
-    T: HandshakeEncoderMarker,
-{
-    fn pay_covenant(
+    /// Add an output paying `value` to `address` with a covenant
+    pub fn pay_covenant(
         mut self,
         value: u64,
         address: &Address,
@@ -196,13 +192,13 @@ where
         self
     }
 
-    fn build(self) -> Self::Transaction {
-        <HandshakeTx as HandshakeTransaction>::new(
+    fn build(self) -> Result<Self::Transaction, <Self::Transaction as Transaction>::TxError> {
+        Ok(<HandshakeTx as HandshakeTransaction>::new(
             self.version,
             self.vin,
             self.vout,
             self.witnesses,
             self.locktime,
-        )
+        )?)
     }
 }

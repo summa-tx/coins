@@ -10,7 +10,7 @@ use coins_core::{
         marked::{MarkedDigest, MarkedDigestWriter},
     },
     ser::{ByteFormat, SerError},
-    types::tx::Transaction,
+    types::tx::{Transaction},
 };
 
 use crate::types::{
@@ -27,11 +27,12 @@ pub trait HandshakeTransaction: Transaction {
     type Witness;
 
     /// Instantiate a new WitnessTx from the arguments.
-    fn new<I, O, W>(version: u32, vin: I, vout: O, witnesses: W, locktime: u32) -> Self
+    fn new<I, O, W>(version: u32, vin: I, vout: O, witnesses: W, locktime: u32) -> Result<Self, Self::TxError>
     where
         I: Into<Vec<Self::TxIn>>,
         O: Into<Vec<Self::TxOut>>,
-        W: Into<Vec<Self::Witness>>;
+        W: Into<Vec<Self::Witness>>,
+        Self: Sized;
 
     /// Calculates the witness txid of the transaction.
     fn wtxid(&self) -> Self::WTXID;
@@ -162,20 +163,31 @@ impl HandshakeTransaction for HandshakeTx {
     type WTXID = WTXID;
     type Witness = Witness;
 
-    /// Instantiate a new WitnessTx from the arguments.
-    fn new<I, O, W>(version: u32, vin: I, vout: O, witnesses: W, locktime: u32) -> Self
+    /// Instantiate a new HandshakeTx from the arguments.
+    fn new<I, O, W>(version: u32, vin: I, vout: O, witnesses: W, locktime: u32) -> Result<Self, Self::TxError>
     where
         I: Into<Vec<Self::TxIn>>,
         O: Into<Vec<Self::TxOut>>,
         W: Into<Vec<Self::Witness>>,
     {
-        Self {
+        let vins = vin.into();
+        let vouts = vout.into();
+
+        if vins.is_empty() {
+            return Err(TxError::EmptyVin)
+        }
+
+        if vouts.is_empty() {
+            return Err(TxError::EmptyVout)
+        }
+
+        Ok(Self {
             version,
-            vin: vin.into(),
-            vout: vout.into(),
+            vin: vins,
+            vout: vouts,
             locktime,
             witnesses: witnesses.into(),
-        }
+        })
     }
 
     fn wtxid(&self) -> WTXID {
@@ -205,8 +217,8 @@ impl HandshakeTransaction for HandshakeTx {
         let hash: Blake2b256Digest = witness_hash.finish();
         let txid = self.txid();
 
-        let mut len = writer.write(&txid.0)?;
-        len += writer.write(&hash)?;
+        let mut len = writer.write(txid.as_ref())?;
+        len += writer.write(hash.as_ref())?;
 
         Ok(len)
     }
@@ -315,19 +327,32 @@ impl Transaction for HandshakeTx {
     type HashWriter = Blake2b256Writer;
     type SighashArgs = SighashArgs;
 
-    /// Instantiate a new `BitcoinTx`. This always returns a `BitcoinTx::Legacy`
-    fn new<I, O>(version: u32, vin: I, vout: O, locktime: u32) -> Self
+    /// Instantiate a new `HandshakeTx`.
+    fn new<I, O>(version: u32, vin: I, vout: O, locktime: u32) -> Result<Self, Self::TxError>
     where
         I: Into<Vec<HandshakeTxIn>>,
         O: Into<Vec<TxOut>>,
     {
-        Self {
-            version,
-            vin: vin.into(),
-            vout: vout.into(),
-            locktime,
-            witnesses: vec![],
+        let vins = vin.into();
+        let vouts = vout.into();
+
+        if vins.is_empty() {
+            return Err(TxError::EmptyVin)
         }
+
+        if vouts.is_empty() {
+            return Err(TxError::EmptyVout)
+        }
+
+        let witnesses = vins.clone().iter().map(|_| Witness::default()).collect();
+
+        Ok(Self {
+            version,
+            vin: vins,
+            vout: vouts,
+            locktime,
+            witnesses,
+        })
     }
 
     /// Get the version number from the underlying tx
@@ -403,6 +428,14 @@ pub enum TxError {
     /// Caller provided an unknown sighash type to `Sighash::from_u8`
     #[error("Unknown Sighash: {}", .0)]
     UnknownSighash(u8),
+
+    /// No outputs in vout
+    #[error("Vout may not be empty")]
+    EmptyVout,
+
+    /// No inputs in vin
+    #[error("Vin may not be empty")]
+    EmptyVin,
 }
 
 /// Type alias for result with TxError
@@ -501,6 +534,56 @@ impl Sighash {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::types::{TxInput, TxOut, Witness};
+
+    #[test]
+    fn it_creates_new_tx() {
+        let vin = vec![TxInput::default()];
+        let vout = vec![TxOut::default()];
+
+        let tx = <HandshakeTx as Transaction>::new(0, vin.clone(), vout.clone(), 0).unwrap();
+
+        assert_eq!(tx.version, 0);
+        assert_eq!(tx.vin.len(), vin.len());
+        assert_eq!(tx.witnesses.len(), vin.len());
+        assert_eq!(tx.vout.len(), vout.len());
+        assert_eq!(tx.locktime, 0);
+    }
+
+    #[test]
+    fn it_fails_to_create_new_tx_no_inputs() {
+        let vin = vec![];
+        let vout = vec![TxOut::default()];
+
+        let tx = <HandshakeTx as Transaction>::new(0, vin.clone(), vout.clone(), 0);
+
+        assert!(tx.is_err());
+    }
+
+    #[test]
+    fn it_fails_to_create_new_tx_no_outputs() {
+        let vin = vec![TxInput::default()];
+        let vout = vec![];
+
+        let tx = <HandshakeTx as Transaction>::new(0, vin.clone(), vout.clone(), 0);
+
+        assert!(tx.is_err());
+    }
+
+    #[test]
+    fn it_creates_new_handshake_tx() {
+        let vin = vec![TxInput::default()];
+        let vout = vec![TxOut::default()];
+        let witnesses = vec![Witness::default()];
+
+        let tx = <HandshakeTx as HandshakeTransaction>::new(0, vin.clone(), vout.clone(), witnesses.clone(), 0).unwrap();
+
+        assert_eq!(tx.version, 0);
+        assert_eq!(tx.vin.len(), vin.len());
+        assert_eq!(tx.witnesses.len(), witnesses.len());
+        assert_eq!(tx.vout.len(), vout.len());
+        assert_eq!(tx.locktime, 0);
+    }
 
     #[test]
     fn it_serialized_and_deserialized_tx() {
@@ -524,11 +607,11 @@ mod tests {
         let wtxid = tx.wtxid();
 
         assert_eq!(
-            hex::encode(txid.0),
+            hex::encode(txid.as_ref()),
             "6de399beeec5c2e9993f2c58351c57535025a991d5f1242c15f1cc18d1358981"
         );
         assert_eq!(
-            hex::encode(wtxid.0),
+            hex::encode(wtxid.as_ref()),
             "911f4ad0616acad31f8a36313d02b746835b39f3910a32eeb37a99a55181430c"
         );
     }
@@ -569,7 +652,7 @@ mod tests {
 
         let expected = "c4f226db5b21a0948f43c856f6441f1776c3c38d4530c25006fa0bdd48e5af7e";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash));
+        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
     }
 
     #[test]
@@ -586,7 +669,7 @@ mod tests {
 
         let expected = "cc28298ea955eaff411b0ac41f1501fd5686373d1c0d364d9ed70a6cde83e081";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash));
+        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
     }
 
     #[test]
@@ -603,7 +686,7 @@ mod tests {
 
         let expected = "c286ea11df23aebbede3dbc06daf9a93c348f2e4182d047a47f73d503e1d7d91";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash));
+        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
     }
 
     #[test]
@@ -620,7 +703,7 @@ mod tests {
 
         let expected = "9f4320c7874118ffbbc1ae8af9d57e98a3c04aa1bdecbefd52f077047f5da861";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash));
+        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
     }
 
     #[test]
@@ -637,7 +720,7 @@ mod tests {
 
         let expected = "3eb4a929e0283c7e3d6757637ebd58c5524cc74a787a2b66a798c0462e2b14d4";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash));
+        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
     }
 
     #[test]
@@ -654,7 +737,7 @@ mod tests {
 
         let expected = "18799a272c12589cd703967ee94c73d1be97649c0d1340391fa09795f50d549b";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash));
+        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
     }
 
     #[test]
@@ -671,7 +754,7 @@ mod tests {
 
         let expected = "e759858e74d5e69fb1703348fa21eeb6be1531784990ffc0a3e905fadaed5134";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash));
+        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
     }
 
     #[test]
@@ -688,7 +771,7 @@ mod tests {
 
         let expected = "a2722b88db66fae11494e1d4b113908736f68755c763e15e3bd51ededc16851a";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash));
+        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
     }
 
     #[test]
@@ -705,7 +788,7 @@ mod tests {
 
         let expected = "c650b5a5329f39d065845adb407dcca151dc7ceed1a1f2932f4c2f77704dc6b8";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash));
+        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
     }
 
     #[test]
@@ -722,7 +805,7 @@ mod tests {
 
         let expected = "7b188afac059d4e00652563b3404fcc17f6d50efddc13197b9b462afba809fb7";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash));
+        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
     }
 
     #[test]
@@ -739,7 +822,7 @@ mod tests {
 
         let expected = "4cd708a5bbc4a9f27aaf18ec99e5efb7b80cb162a409ffb69f360165348a34d3";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash));
+        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
     }
 
     #[test]
@@ -756,7 +839,7 @@ mod tests {
 
         let expected = "6db11c454b3185143739a1110cbbbdaacd689290cc84fc4ff53ab1cf7754bec2";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash));
+        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
     }
 
     #[test]
@@ -773,7 +856,7 @@ mod tests {
 
         let expected = "c84c24aca3c207d5021bff5d81e98c61b5d1810f2a4ea2f077dcaa5af98a3979";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash));
+        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
     }
 
     #[test]
@@ -790,7 +873,7 @@ mod tests {
 
         let expected = "23cb231e1bd7206b4a33cb4cb1f6871637d3423daac07731d1f7bfe4e8b5bc7d";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash));
+        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
     }
 
     #[test]
@@ -807,7 +890,7 @@ mod tests {
 
         let expected = "4e496c67237a7caf3678326b20e3dbb982418c44bf83cbdcc5efe8e53414831f";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash));
+        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
     }
 
     #[test]
@@ -824,6 +907,6 @@ mod tests {
 
         let expected = "943a86b8657a2dd9d533a69baeebb6ee2cbed40116b57e8157914d8b8d9ebff2";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash));
+        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
     }
 }

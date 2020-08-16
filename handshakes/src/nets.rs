@@ -20,6 +20,7 @@
 //!  .pay(0x8888_8888_8888_8888, &address).unwrap()
 //!  .pay(0x7777_7777_7777_7777, &Address::WSH("hs1qjhgt8dwvhwapf2a5v9865nmrrqhhqlz38w3zze".to_owned())).unwrap()
 //!  .build()
+//!  .unwrap()
 //!  .serialize_hex();
 //!
 //! let script = HandshakeMainnet::decode_address(&address).unwrap();
@@ -91,6 +92,7 @@ mod test {
             )
             .unwrap()
             .build()
+            .unwrap()
             .serialize_hex();
 
         let _ = HandshakeMainnet::builder_from_hex(&tx_hex).unwrap();

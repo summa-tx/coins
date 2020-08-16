@@ -3,10 +3,8 @@
 //! It also holds a blake2b160 wrapper function.
 
 use blake2_rfc::blake2b::Blake2b;
-use coins_core::hashes::marked::MarkedDigest;
 
-/// A Handshake Blake2b256 digest
-pub type Blake2b256Digest = [u8; 32];
+use coins_core::hashes::{Blake2b256Digest, marked::MarkedDigest};
 
 mark_hash256!(
     /// A marked Blake2b256Digest representing transaction IDs
