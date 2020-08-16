@@ -1,9 +1,40 @@
-use crate::hashes::marked::MarkedDigestWriter;
 use sha3::{Digest, Sha3_256};
-use std::io::{Result as IOResult, Write};
+use std::io::{Read, Result as IOResult, Write};
+
+use crate::{
+    hashes::marked::{Digest as CoinsDigest, MarkedDigestWriter},
+    ser::{ByteFormat, SerError, SerResult},
+};
 
 /// A sha3_256 digest.
 pub type Sha3_256Digest = [u8; 32];
+
+impl CoinsDigest for Sha3_256Digest {}
+
+impl ByteFormat for Sha3_256Digest {
+    type Error = SerError;
+
+    fn serialized_length(&self) -> usize {
+        32
+    }
+
+    fn read_from<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
+    where
+        R: Read,
+        Self: std::marker::Sized,
+    {
+        let mut buf = Sha3_256Digest::default();
+        reader.read_exact(buf.as_mut())?;
+        Ok(buf)
+    }
+
+    fn write_to<W>(&self, writer: &mut W) -> SerResult<usize>
+    where
+        W: Write,
+    {
+        Ok(writer.write(self.as_ref())?)
+    }
+}
 
 /// A struct that exposes a Sha3_256 `Write` interface.
 ///
