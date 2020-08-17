@@ -44,6 +44,7 @@ js-sys = "0.3.37"
 
 [dev-dependencies]
 serial_test = "0.3.2"
+tokio = {version = "0.2.22", features = ["rt-threaded", "macros"]}
 
 [features]
 browser = []

@@ -1,8 +1,8 @@
 use serial_test::serial;
 
-use rmn_ledger::{
+use coins_ledger::{
     common::*,
-    transports::{self, hid, LedgerSync},
+    transports::{self, hid, LedgerAsync},
 };
 
 // // TODO: refactor or delete this
@@ -37,10 +37,10 @@ fn ledger_device_path() {
     println!("{:?}", ledger_path);
 }
 
-#[test]
+#[tokio::test]
 #[serial]
-fn exchange() {
-    let transport = transports::Ledger::init().expect("Could not get a device");
+async fn exchange() {
+    let transport = transports::Ledger::init().await.expect("Could not get a device");
     let buf: &[u8] = &[];
     // Ethereum `get_app_version`
     let command = APDUCommand {
@@ -50,6 +50,6 @@ fn exchange() {
         data: buf.into(),
         response_len: None,
     };
-    let result = transport.exchange(&command).unwrap();
+    let result = transport.exchange(&command).await.unwrap();
     println!("{}", result);
 }

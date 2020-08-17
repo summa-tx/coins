@@ -5,6 +5,12 @@ use thiserror::Error;
 
 use crate::{errors::LedgerError, common::{APDUAnswer, APDUCommand}};
 
+use std::{ffi::CString, io::Cursor};
+
+use byteorder::{BigEndian, ReadBytesExt};
+use hidapi::HidDevice;
+use std::cell::RefCell;
+use std::sync::{Arc, Mutex, Weak};
 
 cfg_if! {
     if #[cfg(target_os = "linux")] {
@@ -14,21 +20,15 @@ cfg_if! {
     } else {
         // Mock the type in other target_os
         mod nix {
-            quick_error! {
-                #[derive(Debug)]
-                pub enum Error {
-                }
+            #[derive(thiserror::Error, Debug)]
+            pub enum Error {
+                #[error("")]
+                Unimplemented,
             }
         }
     }
 }
 
-use std::{ffi::CString, io::Cursor};
-
-use byteorder::{BigEndian, ReadBytesExt};
-use hidapi::HidDevice;
-use std::cell::RefCell;
-use std::sync::{Arc, Mutex, Weak};
 
 const LEDGER_VID: u16 = 0x2c97;
 const LEDGER_USAGE_PAGE: u16 = 0xFFA0;
