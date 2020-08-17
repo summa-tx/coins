@@ -193,12 +193,17 @@ impl HandshakeTransaction for HandshakeTx {
             return Err(TxError::EmptyVout);
         }
 
+        let mut wits = witnesses.into();
+        if wits.len() != vins.len() {
+            wits.resize(vins.len(), Witness::default());
+        }
+
         Ok(Self {
             version,
             vin: vins,
             vout: vouts,
             locktime,
-            witnesses: witnesses.into(),
+            witnesses: wits,
         })
     }
 
@@ -356,7 +361,7 @@ impl Transaction for HandshakeTx {
             return Err(TxError::EmptyVout);
         }
 
-        let witnesses = vins.clone().iter().map(|_| Witness::default()).collect();
+        let witnesses = vins.iter().map(|_| Witness::default()).collect();
 
         Ok(Self {
             version,
@@ -600,6 +605,50 @@ mod tests {
         assert_eq!(tx.version, 0);
         assert_eq!(tx.vin.len(), vin.len());
         assert_eq!(tx.witnesses.len(), witnesses.len());
+        assert_eq!(tx.vout.len(), vout.len());
+        assert_eq!(tx.locktime, 0);
+    }
+
+    #[test]
+    fn it_creates_new_tx_trims_witness() {
+        let vin = vec![TxInput::default()];
+        let vout = vec![TxOut::default()];
+        let witnesses = vec![Witness::default(), Witness::default()];
+
+        let tx = <HandshakeTx as HandshakeTransaction>::new(
+            0,
+            vin.clone(),
+            vout.clone(),
+            witnesses.clone(),
+            0,
+        )
+        .unwrap();
+
+        assert_eq!(tx.version, 0);
+        assert_eq!(tx.vin.len(), vin.len());
+        assert_eq!(tx.witnesses.len(), vin.len());
+        assert_eq!(tx.vout.len(), vout.len());
+        assert_eq!(tx.locktime, 0);
+    }
+
+    #[test]
+    fn it_creates_new_tx_adds_witnesses() {
+        let vin = vec![TxInput::default()];
+        let vout = vec![TxOut::default()];
+        let witnesses = vec![];
+
+        let tx = <HandshakeTx as HandshakeTransaction>::new(
+            0,
+            vin.clone(),
+            vout.clone(),
+            witnesses.clone(),
+            0,
+        )
+        .unwrap();
+
+        assert_eq!(tx.version, 0);
+        assert_eq!(tx.vin.len(), vin.len());
+        assert_eq!(tx.witnesses.len(), vin.len());
         assert_eq!(tx.vout.len(), vout.len());
         assert_eq!(tx.locktime, 0);
     }
