@@ -1,8 +1,8 @@
 //! Handshake Covenant Types
 
 use coins_core::ser::{prefix_byte_len, ByteFormat, SerError, SerResult};
+use std::convert::TryFrom;
 use std::io::{Read, Write};
-use std::convert::{TryFrom};
 use thiserror::Error;
 
 wrap_prefixed_byte_vector!(
@@ -173,7 +173,7 @@ impl TryFrom<&str> for CovenantType {
             "TRANSFER" => Ok(Self(9)),
             "FINALIZE" => Ok(Self(10)),
             "REVOKE" => Ok(Self(11)),
-            _ => Err(CovenantError::UnknownCovenant)
+            _ => Err(CovenantError::UnknownCovenant),
         }
     }
 }
@@ -195,7 +195,7 @@ impl TryFrom<u8> for CovenantType {
             9 => Ok(Self(9)),
             10 => Ok(Self(10)),
             11 => Ok(Self(11)),
-            _ => Err(CovenantError::UnknownCovenant)
+            _ => Err(CovenantError::UnknownCovenant),
         }
     }
 }
@@ -209,7 +209,10 @@ mod test {
     fn it_creates_null_covenant() {
         let covenant = Covenant::null();
 
-        assert_eq!(covenant.covenant_type, CovenantType::try_from("NONE").unwrap());
+        assert_eq!(
+            covenant.covenant_type,
+            CovenantType::try_from("NONE").unwrap()
+        );
         assert_eq!(covenant.covenant_data, CovenantData::null());
 
         let hex = covenant.serialize_hex();
