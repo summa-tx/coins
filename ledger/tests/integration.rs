@@ -5,28 +5,6 @@ use coins_ledger::{
     transports::{self, hid, LedgerAsync},
 };
 
-// // TODO: refactor or delete this
-// #[test]
-// #[serial]
-// fn list_all_devices() {
-//     let apiwrapper = hid::HIDAPIWRAPPER.lock().expect("Could not lock api wrapper");
-//     let api_mutex = apiwrapper.get().expect("Error getting api_mutex");
-//     let api = api_mutex.lock().expect("Could not lock");
-//
-//     for device_info in api.device_list() {
-//         println!(
-//             "{:#?} - {:#x}/{:#x}/{:#x}/{:#x} {:#} {:#}",
-//             device_info.path(),
-//             device_info.vendor_id(),
-//             device_info.product_id(),
-//             device_info.usage_page(),
-//             device_info.interface_number(),
-//             device_info.manufacturer_string().clone().unwrap_or_default(),
-//             device_info.product_string().clone().unwrap_or_default()
-//         );
-//     }
-// }
-
 #[test]
 #[serial]
 fn ledger_device_path() {
