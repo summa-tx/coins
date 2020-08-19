@@ -3,20 +3,24 @@
 
 use bitcoin_spv::types::Hash256Digest;
 
-use coins_core::hashes::marked::MarkedDigest;
+use coins_core::{hashes::marked::MarkedDigest, mark_32_byte_hash};
 
-mark_hash256!(
+coins_core::mark_32_byte_hash!(
     /// A marked Hash256Digest representing transaction IDs
-    TXID
-);
-mark_hash256!(
-    /// A marked Hash256Digest representing witness transaction IDs
-    WTXID
+    TXID,
+    Hash256Digest
 );
 
-mark_hash256!(
+mark_32_byte_hash!(
+    /// A marked Hash256Digest representing witness transaction IDs
+    WTXID,
+    Hash256Digest
+);
+
+mark_32_byte_hash!(
     /// A marked Hash256Digest representing a block hash
-    BlockHash
+    BlockHash,
+    Hash256Digest
 );
 
 #[cfg(test)]

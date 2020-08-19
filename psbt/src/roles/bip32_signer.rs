@@ -78,7 +78,10 @@ impl Bip32Signer {
             _ => {
                 return Err(PSBTError::WrongPrevoutScriptType {
                     got: prevout.script_pubkey.standard_type(),
-                    expected: vec![ScriptType::WSH(Hash256Digest::default()), ScriptType::WPKH(Hash160Digest::default())],
+                    expected: vec![
+                        ScriptType::WSH(Hash256Digest::default()),
+                        ScriptType::WPKH(Hash160Digest::default()),
+                    ],
                 })
             }
         }

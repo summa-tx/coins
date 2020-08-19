@@ -21,7 +21,10 @@
 //! let script = bitcoins::types::Script::from(script.into_bytes());
 //! ```
 use bitcoin_spv::types::{Hash160Digest, Hash256Digest};
-use coins_core::types::tx::RecipientIdentifier;
+use coins_core::{
+    impl_hex_serde, impl_script_conversion, types::tx::RecipientIdentifier,
+    wrap_prefixed_byte_vector,
+};
 
 /// A wrapped script.
 pub trait BitcoinScript {}

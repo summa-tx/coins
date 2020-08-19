@@ -2,13 +2,9 @@ use std::{collections::btree_map, io::Error as IOError, ops::RangeBounds};
 
 use thiserror::Error;
 
-use coins_core::ser::SerError;
+use coins_core::{impl_hex_serde, ser::SerError, wrap_prefixed_byte_vector};
 
-use bitcoins::{
-    impl_hex_serde,
-    types::{ScriptType, TxError},
-    wrap_prefixed_byte_vector,
-};
+use bitcoins::types::{ScriptType, TxError};
 
 use crate::schema;
 

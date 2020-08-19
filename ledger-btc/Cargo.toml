@@ -14,6 +14,7 @@ crate-type = ["cdylib", "rlib"]
 [dev-dependencies]
 futures = "0.3.5"
 serial_test = "0.3.2"
+tokio = {version = "0.2.22", features = ["rt-threaded", "macros"]}
 
 [dependencies]
 thiserror = "1.0.10"
@@ -43,3 +44,7 @@ default = ["native"]
 native = []
 browser = ["coins-ledger/browser"]
 node = ["coins-ledger/node"]
+
+# https://github.com/rustwasm/wasm-pack/issues/886#issuecomment-667669802
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-mutable-globals"]

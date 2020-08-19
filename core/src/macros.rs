@@ -1,7 +1,7 @@
-//! Contains macros for use in this crate
+//! Useful macros for implementing new chains
 
-/// Implement `serde::Serialize` and `serde::Deserialize` by passing through to the hex
 #[macro_export]
+/// Implement `serde::Serialize` and `serde::Deserialize` by passing through to the hex
 macro_rules! impl_hex_serde {
     ($item:ty) => {
         impl serde::Serialize for $item {
@@ -9,7 +9,7 @@ macro_rules! impl_hex_serde {
             where
                 S: serde::Serializer,
             {
-                let s = coins_core::ser::ByteFormat::serialize_hex(self);
+                let s = $crate::ser::ByteFormat::serialize_hex(self);
                 serializer.serialize_str(&s)
             }
         }
@@ -20,16 +20,16 @@ macro_rules! impl_hex_serde {
                 D: serde::Deserializer<'de>,
             {
                 let s: &str = serde::Deserialize::deserialize(deserializer)?;
-                <$item as coins_core::ser::ByteFormat>::deserialize_hex(s)
+                <$item as $crate::ser::ByteFormat>::deserialize_hex(s)
                     .map_err(|e| serde::de::Error::custom(e.to_string()))
             }
         }
     };
 }
 
+#[macro_export]
 /// Wrap a prefixed vector of bytes (`u8`) in a newtype, and implement convenience functions for
 /// it.
-#[macro_export]
 macro_rules! wrap_prefixed_byte_vector {
     (
         $(#[$outer:meta])*
@@ -39,8 +39,8 @@ macro_rules! wrap_prefixed_byte_vector {
         #[derive(Clone, Debug, Eq, PartialEq, Default, Hash, PartialOrd, Ord)]
         pub struct $wrapper_name(Vec<u8>);
 
-        impl coins_core::ser::ByteFormat for $wrapper_name {
-            type Error = coins_core::ser::SerError;
+        impl $crate::ser::ByteFormat for $wrapper_name {
+            type Error = $crate::ser::SerError;
 
             fn serialized_length(&self) -> usize {
                 let mut length = self.len();
@@ -109,7 +109,7 @@ macro_rules! wrap_prefixed_byte_vector {
 
             /// Determine the byte-length of the vector length prefix
             pub fn len_prefix(&self) -> u8 {
-                coins_core::ser::prefix_byte_len(self.len() as u64)
+                $crate::ser::prefix_byte_len(self.len() as u64)
             }
 
             /// Insert an item at the specified index.
@@ -169,7 +169,8 @@ macro_rules! wrap_prefixed_byte_vector {
     }
 }
 
-// TOOD: make this repeat properly
+#[macro_export]
+/// Implement conversion between script types by passing via `as_ref().into()`
 macro_rules! impl_script_conversion {
     ($t1:ty, $t2:ty) => {
         impl From<&$t2> for $t1 {
@@ -185,26 +186,26 @@ macro_rules! impl_script_conversion {
     };
 }
 
-/// Make a new marked hash of length 32.
 #[macro_export]
-macro_rules! mark_hash256 {
+/// Make a new marked digest based on .
+macro_rules! mark_32_byte_hash {
     (
         $(#[$outer:meta])*
-        $hash_name:ident
+        $hash_name:ident, $base_type:ty
     ) => {
         $(#[$outer])*
         #[derive(Hash, serde::Serialize, serde::Deserialize, Copy, Clone, Default, Debug, Eq, PartialEq)]
-        pub struct $hash_name(pub Hash256Digest);
+        pub struct $hash_name(pub $base_type);
 
         impl $hash_name {
             /// Deserialize to BE hex
-            pub fn from_be_hex(be: &str) -> coins_core::ser::SerResult<Self> {
-                Ok(<Self as coins_core::ser::ByteFormat>::deserialize_hex(be)?.reversed())
+            pub fn from_be_hex(be: &str) -> $crate::ser::SerResult<Self> {
+                Ok(<Self as $crate::ser::ByteFormat>::deserialize_hex(be)?.reversed())
             }
 
             /// Convert to BE hex
             pub fn to_be_hex(&self) -> String {
-                coins_core::ser::ByteFormat::serialize_hex(&self.reversed())
+                $crate::ser::ByteFormat::serialize_hex(&self.reversed())
             }
         }
 
@@ -220,24 +221,24 @@ macro_rules! mark_hash256 {
             }
         }
 
-        impl coins_core::ser::ByteFormat for $hash_name {
-            type Error = coins_core::ser::SerError;
+        impl $crate::ser::ByteFormat for $hash_name {
+            type Error = $crate::ser::SerError;
 
             fn serialized_length(&self) -> usize {
                 32
             }
 
-            fn read_from<R>(reader: &mut R, _limit: usize) -> coins_core::ser::SerResult<Self>
+            fn read_from<R>(reader: &mut R, _limit: usize) -> $crate::ser::SerResult<Self>
             where
                 R: std::io::Read,
                 Self: std::marker::Sized
             {
-                let mut buf = <Hash256Digest>::default();
+                let mut buf = <$base_type>::default();
                 reader.read_exact(buf.as_mut())?;
                 Ok(Self(buf))
             }
 
-            fn write_to<W>(&self, writer: &mut W) -> coins_core::ser::SerResult<usize>
+            fn write_to<W>(&self, writer: &mut W) -> $crate::ser::SerResult<usize>
             where
                 W: std::io::Write
             {
@@ -245,13 +246,13 @@ macro_rules! mark_hash256 {
             }
         }
 
-        impl coins_core::hashes::MarkedDigest for $hash_name {
-            type Digest = Hash256Digest;
-            fn new(hash: Hash256Digest) -> Self {
+        impl $crate::hashes::MarkedDigest for $hash_name {
+            type Digest = $base_type;
+            fn new(hash: $base_type) -> Self {
                 Self(hash)
             }
 
-            fn internal(&self) -> Hash256Digest {
+            fn internal(&self) -> $base_type {
                 self.0
             }
 
@@ -260,13 +261,13 @@ macro_rules! mark_hash256 {
             }
         }
 
-        impl From<Hash256Digest> for $hash_name {
-            fn from(h: Hash256Digest) -> Self {
+        impl From<$base_type> for $hash_name {
+            fn from(h: $base_type) -> Self {
                 Self::new(h)
             }
         }
-        impl Into<Hash256Digest> for $hash_name {
-            fn into(self) -> Hash256Digest {
+        impl Into<$base_type> for $hash_name {
+            fn into(self) -> $base_type {
                 self.internal()
             }
         }

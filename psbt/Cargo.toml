@@ -32,3 +32,7 @@ node = ["ledger", "bitcoins-ledger/node"]
 ledger = ["futures", "bitcoins-ledger"]
 mainnet = ["bitcoins/mainnet", "coins-bip32/mainnet"]
 testnet = ["bitcoins/testnet", "coins-bip32/testnet"]
+
+# https://github.com/rustwasm/wasm-pack/issues/886#issuecomment-667669802
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-mutable-globals"]

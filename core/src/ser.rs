@@ -374,7 +374,6 @@ impl ByteFormat for bitcoin_spv::types::RawHeader {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
