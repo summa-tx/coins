@@ -11,3 +11,7 @@ repository = "https://github.com/summa-tx/bitcoins-rs"
 [dependencies]
 bitcoins = {path = "../bitcoins"}
 coins-core = { path = "../core"}
+
+# https://github.com/rustwasm/wasm-pack/issues/886#issuecomment-667669802
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-mutable-globals"]

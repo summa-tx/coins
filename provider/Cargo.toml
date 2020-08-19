@@ -46,3 +46,7 @@ fetch = ["reqwest", "hex", "serde", "serde_json", "bytes"]
 # mutually exclusive
 mainnet = ["bitcoins/mainnet"]
 testnet = ["bitcoins/testnet"]
+
+# https://github.com/rustwasm/wasm-pack/issues/886#issuecomment-667669802
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-mutable-globals"]

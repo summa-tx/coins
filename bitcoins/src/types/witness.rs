@@ -38,7 +38,13 @@ pub trait WitnessTransaction: BitcoinTransaction {
     type Witness;
 
     /// Instantiate a new WitnessTx from the arguments.
-    fn new<I, O, W>(version: u32, vin: I, vout: O, witnesses: W, locktime: u32) -> Result<Self, Self::TxError>
+    fn new<I, O, W>(
+        version: u32,
+        vin: I,
+        vout: O,
+        witnesses: W,
+        locktime: u32,
+    ) -> Result<Self, Self::TxError>
     where
         I: Into<Vec<Self::TxIn>>,
         O: Into<Vec<Self::TxOut>>,
@@ -295,7 +301,13 @@ impl WitnessTransaction for WitnessTx {
     /// ensure that there are the same number of witnesses as inputs.
     /// The number of witnesses will be trimmed if there are too many
     /// and will be filled with empty witnesses if too few.
-    fn new<I, O, W>(version: u32, vin: I, vout: O, witnesses: W, locktime: u32) -> Result<Self, Self::TxError>
+    fn new<I, O, W>(
+        version: u32,
+        vin: I,
+        vout: O,
+        witnesses: W,
+        locktime: u32,
+    ) -> Result<Self, Self::TxError>
     where
         I: Into<Vec<Self::TxIn>>,
         O: Into<Vec<Self::TxOut>>,

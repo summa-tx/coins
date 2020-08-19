@@ -49,3 +49,7 @@ tokio = {version = "0.2.22", features = ["rt-threaded", "macros"]}
 [features]
 browser = []
 node = []
+
+# https://github.com/rustwasm/wasm-pack/issues/886#issuecomment-667669802
+[package.metadata.wasm-pack.profile.release]
+wasm-opt = ["-Oz", "--enable-mutable-globals"]

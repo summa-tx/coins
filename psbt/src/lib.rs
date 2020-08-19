@@ -652,6 +652,11 @@ mod test {
     #[test]
     fn it_decodes_a_thing() {
         let b64 = "cHNidP8BAHECAAAAAeBANSdI+VT5VJvVfchN4UEUniZ5cfeucBkBuoA475wjAAAAAAD+////AgDh9QUAAAAAFgAU7gEhvO/VGbeMDvk2DeqaTVkRQh8AERAkAQAAABYAFCQ8xyUkB4v4DqmV7T6aVADqs8M5AAAAAAABAR8A8gUqAQAAABYAFO4BIbzv1Rm3jA75Ng3qmk1ZEUIfIgYDbXrhM7lpiaTJhxwJSplsX1r33gCcoD9xL4wEteLypE8YRwNsJ1QAAIABAACAAAAAgAAAAAAAAAAAACICA2164TO5aYmkyYccCUqZbF9a994AnKA/cS+MBLXi8qRPGEcDbCdUAACAAQAAgAAAAIAAAAAAAAAAAAAiAgONam8JJOdoEr/jubocGRelQAnn2NfLVM7jLliPK0n8KBhHA2wnVAAAgAEAAIAAAACAAQAAAAAAAAAA".to_owned();
-        assert_eq!(b64, MainnetPSBT::deserialize_base64(&b64).unwrap().serialize_base64());
+        assert_eq!(
+            b64,
+            MainnetPSBT::deserialize_base64(&b64)
+                .unwrap()
+                .serialize_base64()
+        );
     }
 }

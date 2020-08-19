@@ -207,7 +207,8 @@ where
                 self.vout,
                 self.witnesses,
                 self.locktime,
-            )?.into())
+            )?
+            .into())
         } else {
             Ok(LegacyTx::new(self.version, self.vin, self.vout, self.locktime)?.into())
         }

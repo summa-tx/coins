@@ -10,7 +10,7 @@
   "license": "ISC",
   "dependencies": {
     "@ledgerhq/hw-transport-node-hid": "^5.15.0",
-    "@summa-tx/rmn-ledger": "file:rmn_ledger"
+    "@summa-tx/coins-ledger": "file:coins_ledger",
   },
   "devDependencies": {
     "jest": "^26.0.1"

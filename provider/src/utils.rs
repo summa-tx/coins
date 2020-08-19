@@ -97,7 +97,8 @@ pub fn create_tree(leaves: &[TXID]) -> Vec<TXID> {
                 let right = nodes[i + k];
 
                 let mut ctx = Hash256Writer::default();
-                ctx.write_all(left.0.as_ref()).expect("no error on heap allocation");
+                ctx.write_all(left.0.as_ref())
+                    .expect("no error on heap allocation");
                 ctx.write_all(right.0.as_ref())
                     .expect("no error on heap allocation");
                 let digest = ctx.finish();
