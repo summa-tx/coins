@@ -1,15 +1,20 @@
 use blake2_rfc::blake2b::Blake2b;
 use std::io::{Read, Result as IOResult, Write};
-use serde::{Deserialize, Serialize};
 
 use crate::{
     hashes::marked::{Digest, MarkedDigestWriter},
     ser::{ByteFormat, SerError, SerResult},
+    impl_hex_serde,
 };
 
 /// A blake2b256 digest.
-#[derive(Copy, Clone, PartialEq, Eq, Default, Hash, PartialOrd, Ord, Serialize, Deserialize)]
+#[derive(Copy, Clone, Default, PartialEq, Eq, Hash)]
 pub struct Blake2b256Digest([u8; 32]);
+
+#[macro_use]
+impl_hex_serde!(
+    Blake2b256Digest
+);
 
 impl Digest for Blake2b256Digest {}
 
