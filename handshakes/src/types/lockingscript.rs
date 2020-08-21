@@ -3,9 +3,9 @@
 use crate::{hashes::blake2b160, types::Script};
 use coins_core::{
     hashes::{MarkedDigestWriter, Sha3_256Writer},
+    impl_hex_serde,
     ser::ByteFormat,
     types::tx::RecipientIdentifier,
-    impl_hex_serde
 };
 use std::io::{Read, Write};
 use thiserror::Error;

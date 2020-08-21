@@ -1,6 +1,9 @@
 //! Handshake Covenant Types
 
-use coins_core::{impl_hex_serde, ser::{prefix_byte_len, ByteFormat, SerError, SerResult}};
+use coins_core::{
+    impl_hex_serde,
+    ser::{prefix_byte_len, ByteFormat, SerError, SerResult},
+};
 use std::convert::TryFrom;
 use std::io::{Read, Write};
 use thiserror::Error;
