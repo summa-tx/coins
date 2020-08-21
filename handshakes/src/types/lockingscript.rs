@@ -5,11 +5,12 @@ use coins_core::{
     hashes::{MarkedDigestWriter, Sha3_256Writer},
     ser::ByteFormat,
     types::tx::RecipientIdentifier,
+    impl_hex_serde
 };
 use std::io::{Read, Write};
 use thiserror::Error;
 
-wrap_prefixed_byte_vector!(
+coins_core::wrap_prefixed_byte_vector!(
     /// A WitnessStackItem is a marked `Vec<u8>` intended for use in witnesses. Each
     /// Witness is a `PrefixVec<WitnessStackItem>`. The Transactions `witnesses` is a non-prefixed
     /// `Vec<Witness>.`
@@ -35,7 +36,7 @@ pub enum LockingScriptError {
     InvalidWitnessProgramSizeError,
 }
 
-wrap_prefixed_byte_vector!(
+coins_core::wrap_prefixed_byte_vector!(
     /// A WitnessProgram represents the data field of a LockingScript.
     /// Since Handshake is segwit only, the WitnessProgram doesn't contain
     /// opcodes itself, it is templated into a script at runtime. The

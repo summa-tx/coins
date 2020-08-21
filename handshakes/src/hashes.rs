@@ -6,18 +6,15 @@ use blake2_rfc::blake2b::Blake2b;
 
 use coins_core::hashes::{marked::MarkedDigest, Blake2b256Digest};
 
-mark_hash256!(
+coins_core::mark_32_byte_hash!(
     /// A marked Blake2b256Digest representing transaction IDs
-    TXID
+    TXID,
+    Blake2b256Digest
 );
-mark_hash256!(
+coins_core::mark_32_byte_hash!(
     /// A marked Blake2b256Digest representing witness transaction IDs
-    WTXID
-);
-
-mark_hash256!(
-    /// A marked Blake2b256Digest representing witness transaction IDs
-    BlockHash
+    WTXID,
+    Blake2b256Digest
 );
 
 /// A Handshake Blake2b160Digest

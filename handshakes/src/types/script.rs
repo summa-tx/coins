@@ -4,10 +4,12 @@
 //! bech32 and depending on the version and data, a Script is created
 //! at runtime.
 
+use coins_core::impl_hex_serde;
+
 /// A wrapped script.
 pub trait HandshakeScript {}
 
-wrap_prefixed_byte_vector!(
+coins_core::wrap_prefixed_byte_vector!(
     /// A Script is marked Vec<u8> for use as an opaque `Script` in `SighashArgs`
     /// structs.
     ///

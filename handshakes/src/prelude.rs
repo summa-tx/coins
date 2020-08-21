@@ -1,7 +1,7 @@
 pub use crate::{
     builder::*,
     enc::*,
-    hashes::{BlockHash, TXID, WTXID},
+    hashes::{TXID, WTXID},
     types::*,
 };
 
