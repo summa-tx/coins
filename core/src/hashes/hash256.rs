@@ -71,7 +71,7 @@ impl Write for Hash256Writer {
 
 impl MarkedDigestWriter<Hash256Digest> for Hash256Writer {
     fn finish(self) -> Hash256Digest {
-        let first = self.internal.result();
+        let first = self.internal.finalize();
         let second = Sha256::digest(&first);
         let mut digest = Hash256Digest::default();
         digest.as_mut().copy_from_slice(&second[..]);

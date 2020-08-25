@@ -2,7 +2,7 @@
 
 use crate::{hashes::blake2b160, types::Script};
 use coins_core::{
-    hashes::{MarkedDigestWriter, Sha3_256Writer},
+    hashes::{MarkedDigestWriter, Sha3_256Digest, Sha3_256Writer},
     impl_hex_serde,
     ser::ByteFormat,
     types::tx::RecipientIdentifier,
@@ -69,6 +69,12 @@ impl From<[u8; 20]> for WitnessProgram {
 impl From<[u8; 32]> for WitnessProgram {
     fn from(v: [u8; 32]) -> Self {
         Self::new(v.to_vec())
+    }
+}
+
+impl From<Sha3_256Digest> for WitnessProgram {
+    fn from(v: Sha3_256Digest) -> Self {
+        Self::new(v.as_ref().to_vec())
     }
 }
 
