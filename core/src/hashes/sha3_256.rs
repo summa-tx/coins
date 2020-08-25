@@ -7,7 +7,33 @@ use crate::{
 };
 
 /// A sha3_256 digest.
-pub type Sha3_256Digest = [u8; 32];
+#[derive(Copy, Clone, Default, PartialEq, Eq, Hash)]
+pub struct Sha3_256Digest([u8; 32]);
+
+#[cfg_attr(tarpaulin, skip)]
+impl core::fmt::Debug for Sha3_256Digest {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Sha3_256Digest: {:x?}", self.0)
+    }
+}
+
+impl From<[u8; 32]> for Sha3_256Digest {
+    fn from(buf: [u8; 32]) -> Self {
+        Self(buf)
+    }
+}
+
+impl AsRef<[u8; 32]> for Sha3_256Digest {
+    fn as_ref(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
+impl AsMut<[u8; 32]> for Sha3_256Digest {
+    fn as_mut(&mut self) -> &mut [u8; 32] {
+        &mut self.0
+    }
+}
 
 impl CoinsDigest for Sha3_256Digest {}
 
@@ -82,7 +108,7 @@ impl MarkedDigestWriter<Sha3_256Digest> for Sha3_256Writer {
         let result = self.internal.result();
 
         let mut digest = Sha3_256Digest::default();
-        digest[..].copy_from_slice(&result[..]);
+        digest.as_mut().copy_from_slice(&result[..]);
         digest
     }
 }

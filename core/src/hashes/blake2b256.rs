@@ -1,6 +1,6 @@
-use blake2_rfc::blake2b::Blake2b;
 use std::io::{Read, Result as IOResult, Write};
 
+use blake2::{VarBlake2b, digest::VariableOutput};
 use crate::{
     hashes::marked::{Digest, MarkedDigestWriter},
     ser::{ByteFormat, SerError, SerResult},
@@ -11,7 +11,6 @@ use crate::{
 #[derive(Copy, Clone, Default, PartialEq, Eq, Hash)]
 pub struct Blake2b256Digest([u8; 32]);
 
-#[macro_use]
 impl_hex_serde!(
     Blake2b256Digest
 );
@@ -63,20 +62,20 @@ impl ByteFormat for Blake2b256Digest {
 /// }
 /// ```
 pub struct Blake2b256Writer {
-    internal: Blake2b,
+    internal: VarBlake2b,
 }
 
 impl Default for Blake2b256Writer {
     fn default() -> Blake2b256Writer {
         Blake2b256Writer {
-            internal: Blake2b::new(32),
+            internal: VarBlake2b::new(32).unwrap(),
         }
     }
 }
 
 impl Write for Blake2b256Writer {
     fn write(&mut self, buf: &[u8]) -> IOResult<usize> {
-        self.internal.update(buf);
+        self.internal.write_all(buf)?;
         Ok(buf.len())
     }
     fn flush(&mut self) -> IOResult<()> {
@@ -86,11 +85,12 @@ impl Write for Blake2b256Writer {
 
 impl MarkedDigestWriter<Blake2b256Digest> for Blake2b256Writer {
     fn finish(self) -> Blake2b256Digest {
-        let digest = self.internal.finalize();
-        let result = digest.as_bytes();
-
         let mut digest = Blake2b256Digest::default();
-        digest.as_mut().copy_from_slice(&result[..]);
+        
+        self.internal.finalize_variable(|res| {
+            digest.as_mut().copy_from_slice(&res[..]);
+        });
+
         digest
     }
 }
