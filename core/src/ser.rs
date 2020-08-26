@@ -219,8 +219,7 @@ pub trait ByteFormat {
     ///
     /// ```
     /// use std::io::Read;
-    /// use coins_core::ser::*;
-    /// use bitcoin_spv::types::Hash256Digest;
+    /// use coins_core::{hashes::Hash256Digest, ser::*};
     ///
     /// let mut a = [0u8; 32];
     /// let result = Hash256Digest::read_from(&mut a.as_ref(), 0).unwrap();
@@ -262,8 +261,7 @@ pub trait ByteFormat {
     ///
     /// ```
     /// use std::io::Write;
-    /// use coins_core::ser::*;
-    /// use bitcoin_spv::types::Hash256Digest;
+    /// use coins_core::{hashes::Hash256Digest, ser::*};
     ///
     /// let mut buf: Vec<u8> = vec![];
     /// let written = Hash256Digest::default().write_to(&mut buf).unwrap();

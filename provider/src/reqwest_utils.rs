@@ -5,7 +5,7 @@ use thiserror::Error;
 use wasm_bindgen::prelude::*;
 
 use bitcoins::prelude::TXID;
-use coins_core::{hashes::marked::MarkedDigest, ser::ByteFormat};
+use coins_core::{hashes::MarkedDigestOutput, ser::ByteFormat};
 
 use crate::provider::ProviderError;
 

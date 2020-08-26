@@ -4,7 +4,7 @@
 use std::io::{Read, Write};
 
 use coins_core::{
-    hashes::marked::MarkedDigest,
+    hashes::MarkedDigestOutput,
     ser::{ByteFormat, SerError, SerResult},
     types::tx::{Input, TXOIdentifier},
 };
@@ -20,7 +20,7 @@ use crate::hashes::TXID;
 #[derive(serde::Serialize, serde::Deserialize, Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Outpoint<M>
 where
-    M: MarkedDigest,
+    M: MarkedDigestOutput,
 {
     /// The txid that created the UTXO being pointed to.
     pub txid: M,
@@ -28,11 +28,11 @@ where
     pub idx: u32,
 }
 
-impl<M> TXOIdentifier for Outpoint<M> where M: MarkedDigest {}
+impl<M> TXOIdentifier for Outpoint<M> where M: MarkedDigestOutput {}
 
 impl<M> Outpoint<M>
 where
-    M: MarkedDigest,
+    M: MarkedDigestOutput,
 {
     /// Returns a new Outpoint from a digest and index
     pub fn new(txid: M, idx: u32) -> Self {
@@ -50,7 +50,7 @@ where
 
 impl<M> Default for Outpoint<M>
 where
-    M: MarkedDigest,
+    M: MarkedDigestOutput,
 {
     fn default() -> Self {
         Outpoint::null()
@@ -59,7 +59,7 @@ where
 
 impl<M> ByteFormat for Outpoint<M>
 where
-    M: MarkedDigest + ByteFormat,
+    M: MarkedDigestOutput + ByteFormat,
 {
     type Error = SerError;
 
@@ -100,7 +100,7 @@ where
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct TxInput<M>
 where
-    M: MarkedDigest,
+    M: MarkedDigestOutput,
 {
     /// The Outpoint identifying the UTXO being spent.
     pub outpoint: Outpoint<M>,
@@ -110,14 +110,14 @@ where
 
 impl<M> Input for TxInput<M>
 where
-    M: MarkedDigest,
+    M: MarkedDigestOutput,
 {
     type TXOIdentifier = Outpoint<M>;
 }
 
 impl<M> TxInput<M>
 where
-    M: MarkedDigest,
+    M: MarkedDigestOutput,
 {
     /// Instantiate a new TxInput
     pub fn new(outpoint: Outpoint<M>, sequence: u32) -> Self {
@@ -127,7 +127,7 @@ where
 
 impl<M> Default for TxInput<M>
 where
-    M: MarkedDigest,
+    M: MarkedDigestOutput,
 {
     fn default() -> Self {
         Self {
@@ -139,7 +139,7 @@ where
 
 impl<M> ByteFormat for TxInput<M>
 where
-    M: MarkedDigest + ByteFormat,
+    M: MarkedDigestOutput + ByteFormat,
 {
     type Error = SerError;
 

@@ -1,8 +1,7 @@
 //! Legacy Transactions
-use bitcoin_spv::types::Hash256Digest;
 use std::io::{Read, Write};
 
-use coins_core::{hashes::hash256::Hash256Writer, ser::ByteFormat, types::tx::Transaction};
+use coins_core::{hashes::*, ser::ByteFormat, types::tx::Transaction};
 
 use crate::{
     hashes::TXID,
@@ -140,12 +139,11 @@ impl LegacyTx {
 
 impl Transaction for LegacyTx {
     type TxError = TxError;
-    type Digest = Hash256Digest;
     type TxIn = BitcoinTxIn;
     type TxOut = TxOut;
     type SighashArgs = LegacySighashArgs;
     type TXID = TXID;
-    type HashWriter = Hash256Writer;
+    type HashWriter = Hash256;
 
     fn new<I, O>(version: u32, vin: I, vout: O, locktime: u32) -> Result<Self, Self::Error>
     where

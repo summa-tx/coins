@@ -123,7 +123,7 @@ impl Bip32Signer {
         for path in paths.iter() {
             // TODO: DRY
             let sighash = tx.sighash(&sighash_args)?;
-            let signature = self.xpriv.descendant_sign_digest(path, sighash)?;
+            let signature = self.xpriv.descendant_sign_digest(path, sighash.into())?;
             input_map.insert_partial_sig(&self.xpriv.derive_verifying_key()?, &signature);
         }
 
@@ -154,7 +154,9 @@ impl Bip32Signer {
 
         for path in paths.iter() {
             let sighash = tx.sighash(&sighash_args)?;
-            let signature = self.xpriv.descendant_sign_digest(path.clone(), sighash)?;
+            let signature = self
+                .xpriv
+                .descendant_sign_digest(path.clone(), sighash.into())?;
             input_map.insert_partial_sig(&self.xpriv.derive_verifying_key()?, &signature);
         }
         Ok(())

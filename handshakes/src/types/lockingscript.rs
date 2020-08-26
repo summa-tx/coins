@@ -2,7 +2,7 @@
 
 use crate::{hashes::blake2b160, types::Script};
 use coins_core::{
-    hashes::{MarkedDigestWriter, Sha3_256Digest, Sha3_256Writer},
+    hashes::{Digest, DigestOutput, Sha3_256},
     impl_hex_serde,
     ser::ByteFormat,
     types::tx::RecipientIdentifier,
@@ -72,9 +72,9 @@ impl From<[u8; 32]> for WitnessProgram {
     }
 }
 
-impl From<Sha3_256Digest> for WitnessProgram {
-    fn from(v: Sha3_256Digest) -> Self {
-        Self::new(v.as_ref().to_vec())
+impl From<DigestOutput<Sha3_256>> for WitnessProgram {
+    fn from(v: DigestOutput<Sha3_256>) -> Self {
+        Self::new(v.as_slice().to_vec())
     }
 }
 
@@ -215,9 +215,9 @@ impl LockingScript {
 
     /// Instantiate a standard p2wsh script pubkey from a script.
     pub fn p2wsh(script: &Script) -> Self {
-        let mut w = Sha3_256Writer::default();
+        let mut w = Sha3_256::default();
         w.write_all(script.items()).expect("No i/o error");
-        let digest = w.finish();
+        let digest = w.finalize();
 
         Self {
             version: 0,

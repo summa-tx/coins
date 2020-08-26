@@ -15,8 +15,8 @@ use futures_util::{
 };
 use std::time::Duration;
 
-use bitcoins::prelude::{Hash256Digest, MarkedDigest, TXID};
-use coins_core::hashes::{Hash256Writer, MarkedDigestWriter};
+use bitcoins::prelude::TXID;
+use coins_core::prelude::{Hash256, Hash256Digest, MarkedDigest, MarkedDigestOutput};
 
 // Async delay stream
 pub(crate) fn new_interval(duration: Duration) -> impl Stream<Item = ()> + Send + Unpin {
@@ -96,13 +96,13 @@ pub fn create_tree(leaves: &[TXID]) -> Vec<TXID> {
                 let left = nodes[i + j];
                 let right = nodes[i + k];
 
-                let mut ctx = Hash256Writer::default();
-                ctx.write_all(left.0.as_ref())
+                let mut ctx = Hash256::default();
+                ctx.write_all(left.as_slice())
                     .expect("no error on heap allocation");
-                ctx.write_all(right.0.as_ref())
+                ctx.write_all(right.as_slice())
                     .expect("no error on heap allocation");
-                let digest = ctx.finish();
-                nodes.push(TXID::from(digest));
+                let digest: TXID = ctx.finalize_marked();
+                nodes.push(digest);
             }
 
             i += size;
@@ -125,7 +125,7 @@ pub fn create_branch(index: usize, leaves: &[TXID]) -> Vec<Hash256Digest> {
     while size > 1 {
         let j = std::cmp::min(idx ^ 1, size - 1);
 
-        branch.push(nodes[i + j].internal());
+        branch.push(nodes[i + j].to_internal().into());
 
         idx >>= 1;
         i += size;
@@ -186,19 +186,22 @@ mod tests {
                 ],
             ),
             vec![
-                TXID::from([0x01; 32]).internal(),
+                TXID::from([0x01; 32]).to_internal(),
                 TXID::from([
                     0x1b, 0x12, 0xc1, 0x42, 0xca, 0x6f, 0xab, 0xe6, 0xcc, 0xcf, 0x4a, 0xa5, 0x2a,
                     0xff, 0x1f, 0x21, 0x88, 0x2e, 0xc4, 0x9d, 0xa2, 0xdd, 0x4c, 0x1c, 0xf7, 0x0a,
                     0xbf, 0xfc, 0xc4, 0x5f, 0x59, 0x1b,
                 ])
-                .internal(),
+                .to_internal(),
             ],
         )];
 
         for case in cases.iter() {
             let (index, leaves) = &case.0;
-            let result = create_branch(*index, leaves);
+            let result: Vec<_> = create_branch(*index, leaves)
+                .into_iter()
+                .map(|d| d.to_internal())
+                .collect();
             assert_eq!(result, case.1);
         }
     }

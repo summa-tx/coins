@@ -3,7 +3,7 @@ use std::io::{Error as IOError, Read, Write};
 use thiserror::Error;
 
 use coins_core::{
-    hashes::hash256::Hash256Writer,
+    hashes::*,
     ser::{ByteFormat, SerError},
     types::tx::Transaction,
 };
@@ -121,12 +121,11 @@ impl ByteFormat for BitcoinTx {
 }
 
 impl Transaction for BitcoinTx {
-    type Digest = bitcoin_spv::types::Hash256Digest;
     type TxError = TxError;
     type TXID = TXID;
     type TxOut = TxOut;
     type TxIn = BitcoinTxIn;
-    type HashWriter = Hash256Writer;
+    type HashWriter = Hash256;
     type SighashArgs = WitnessSighashArgs;
 
     /// Instantiate a new `BitcoinTx`. This always returns a `BitcoinTx::Legacy`
@@ -245,13 +244,12 @@ pub type TxResult<T> = Result<T, TxError>;
 /// Legacy/SegWit tx divide by implementing a small common interface between them.
 pub trait BitcoinTransaction:
     Transaction<
-        Digest = bitcoin_spv::types::Hash256Digest,
         Error = TxError,  // Ser associated error
         TxError = TxError,
         TXID = TXID,
         TxOut = TxOut,
         TxIn = BitcoinTxIn,
-        HashWriter = Hash256Writer,
+        HashWriter = Hash256,
     >
 {
     /// Returns a reference to the tx as a legacy tx.
@@ -352,7 +350,6 @@ impl Sighash {
 mod tests {
     use super::*;
     use crate::prelude::*;
-    use bitcoin_spv::types::Hash256Digest;
 
     #[test]
     fn it_calculates_legacy_sighashes_and_txids() {
@@ -367,25 +364,29 @@ mod tests {
         let all = Hash256Digest::deserialize_hex(
             "b85c4f8d1377cc138225dd9b319d0a4ca547f7884270640f44c5fcdf269e0fe8",
         )
-        .unwrap();
+        .unwrap()
+        .to_internal();
         let all_anyonecanpay = Hash256Digest::deserialize_hex(
             "3b67a5114cc9fc837ddd6f6ec11bde38db5f68c34ab6ece2a043d7b25f2cf8bb",
         )
-        .unwrap();
+        .unwrap()
+        .to_internal();
         let single = Hash256Digest::deserialize_hex(
             "1dab67d768be0380fc800098005d1f61744ffe585b0852f8d7adc12121a86938",
         )
-        .unwrap();
+        .unwrap()
+        .to_internal();
         let single_anyonecanpay = Hash256Digest::deserialize_hex(
             "d4687b93c0a9090dc0a3384cd3a594ce613834bb37abc56f6032e96c597547e3",
         )
-        .unwrap();
+        .unwrap()
+        .to_internal();
 
-        let txid = Hash256Digest::deserialize_hex(
+        let txid = TXID::deserialize_hex(
             "03ee4f7a4e68f802303bc659f8f817964b4b74fe046facc3ae1be4679d622c45",
         )
         .unwrap();
-        assert_eq!(tx.txid(), txid.into());
+        assert_eq!(tx.txid(), txid);
 
         let mut args = LegacySighashArgs {
             index: 0,
@@ -415,25 +416,29 @@ mod tests {
         let all = Hash256Digest::deserialize_hex(
             "135754ab872e4943f7a9c30d6143c4c7187e33d0f63c75ec82a7f9a15e2f2d00",
         )
-        .unwrap();
+        .unwrap()
+        .to_internal();
         let all_anyonecanpay = Hash256Digest::deserialize_hex(
             "cc7438d5b15e93ba612dcd227cf1937c35273675b3aa7d1b771573667376ddf6",
         )
-        .unwrap();
+        .unwrap()
+        .to_internal();
         let single = Hash256Digest::deserialize_hex(
             "d04631d2742e6fd8e80e2e4309dece65becca41d37fd6bc0bcba041c52d824d5",
         )
-        .unwrap();
+        .unwrap()
+        .to_internal();
         let single_anyonecanpay = Hash256Digest::deserialize_hex(
             "ffea9cdda07170af9bc9967cedf485e9fe15b78a622e0c196c0b6fc64f40c615",
         )
-        .unwrap();
+        .unwrap()
+        .to_internal();
 
-        let txid = Hash256Digest::deserialize_hex(
+        let txid = TXID::deserialize_hex(
             "9e77087321b870859ebf08976d665c42d9f98cad18fff6a05a91c1d2da6d6c41",
         )
         .unwrap();
-        assert_eq!(tx.txid(), txid.into());
+        assert_eq!(tx.txid(), txid);
 
         let mut args = WitnessSighashArgs {
             index: 0,
@@ -467,25 +472,29 @@ mod tests {
         let all = Hash256Digest::deserialize_hex(
             "75385c87ece4980b581cfd71bc5814f607801a87f6e0973c63dc9fda465c19c4",
         )
-        .unwrap();
+        .unwrap()
+        .to_internal();
         let all_anyonecanpay = Hash256Digest::deserialize_hex(
             "bc55c4303c82cdcc8e290c597a00d662ab34414d79ec15d63912b8be7fe2ca3c",
         )
-        .unwrap();
+        .unwrap()
+        .to_internal();
         let single = Hash256Digest::deserialize_hex(
             "9d57bf7af01a4e0baa57e749aa193d37a64e3bbc08eb88af93944f41af8dfc70",
         )
-        .unwrap();
+        .unwrap()
+        .to_internal();
         let single_anyonecanpay = Hash256Digest::deserialize_hex(
             "ffea9cdda07170af9bc9967cedf485e9fe15b78a622e0c196c0b6fc64f40c615",
         )
-        .unwrap();
+        .unwrap()
+        .to_internal();
 
-        let txid = Hash256Digest::deserialize_hex(
+        let txid = TXID::deserialize_hex(
             "184e7bce099679b27ed958213c97d2fb971e227c6517bca11f06ccbb97dcdc30",
         )
         .unwrap();
-        assert_eq!(tx.txid(), txid.into());
+        assert_eq!(tx.txid(), txid);
 
         let mut args = WitnessSighashArgs {
             index: 1,
@@ -523,25 +532,29 @@ mod tests {
         let all = Hash256Digest::deserialize_hex(
             "3ab40bf1287b7be9a5c67ed0f97f80b38c5f68e53ec93bffd3893901eaaafdb2",
         )
-        .unwrap();
+        .unwrap()
+        .to_internal();
         let all_anyonecanpay = Hash256Digest::deserialize_hex(
             "2d5802fed31e1ef6a857346cc0a9085ea452daeeb3a0b5afcb16a2203ce5689d",
         )
-        .unwrap();
+        .unwrap()
+        .to_internal();
         let single = Hash256Digest::deserialize_hex(
             "ea52b62b26c1f0db838c952fa50806fb8e39ba4c92a9a88d1b4ba7e9c094517d",
         )
-        .unwrap();
+        .unwrap()
+        .to_internal();
         let single_anyonecanpay = Hash256Digest::deserialize_hex(
             "9e2aca0a04afa6e1e5e00ff16b06a247a0da1e7bbaa7cd761c066a82bb3b07d0",
         )
-        .unwrap();
+        .unwrap()
+        .to_internal();
 
-        let txid = Hash256Digest::deserialize_hex(
+        let txid = TXID::deserialize_hex(
             "40157948972c5c97a2bafff861ee2f8745151385c7f9fbd03991ddf59b76ac81",
         )
         .unwrap();
-        assert_eq!(tx.txid(), txid.into());
+        assert_eq!(tx.txid(), txid);
 
         let mut args = LegacySighashArgs {
             index: 1,
@@ -565,14 +578,14 @@ mod tests {
     fn it_calculates_witness_txid() {
         // from mainnet: 3c7fb4af9b7bd2ba6f155318e0bc8a50432d4732ab6e36293ef45b304567b46a
         let tx_hex = "01000000000101b77bebb3ac480e99c0d95a4c812137b116e65e2f3b3a66a36d0e252928d460180100000000ffffffff03982457000000000017a91417b8e0f150215cc70bf2fb58070041d655b162dd8740e133000000000017a9142535e444f7d55f0500c1f86609d6cfc289576b698747abfb0100000000220020701a8d401c84fb13e6baf169d59684e17abd9fa216c8cc5b9fc63d622ff8c58d040047304402205c6a889efa26955bef7ce2b08792e63e25eac9859080f0d83912b0ea833d7eb402205f859f4640f1600db5012b467ec05bb4ae1779640c1b5fadc8908960740e52b30147304402201c239ea25cfeadfa9493a1b0d136d70f50f821385972b7188c4329c2bf2d23a302201ee790e4b6794af6567f85a226a387d5b0222c3dc90d2fc558d09e08062b8271016952210375e00eb72e29da82b89367947f29ef34afb75e8654f6ea368e0acdfd92976b7c2103a1b26313f430c4b15bb1fdce663207659d8cac749a0e53d70eff01874496feff2103c96d495bfdd5ba4145e3e046fee45e84a8a48ad05bd8dbb395c011a32cf9f88053ae00000000";
-        let wtxid = Hash256Digest::deserialize_hex(
+        let wtxid = WTXID::deserialize_hex(
             "84d85ce82c728e072bb11f379a6ed0b9127aa43905b7bae14b254bfcdce63549",
         )
         .unwrap();
 
         let tx = WitnessTx::deserialize_hex(tx_hex).unwrap();
 
-        assert_eq!(tx.wtxid(), wtxid.into());
+        assert_eq!(tx.wtxid(), wtxid);
     }
 
     #[test]
@@ -625,25 +638,29 @@ mod tests {
         let all = Hash256Digest::deserialize_hex(
             "b85c4f8d1377cc138225dd9b319d0a4ca547f7884270640f44c5fcdf269e0fe8",
         )
-        .unwrap();
+        .unwrap()
+        .to_internal();
         let all_anyonecanpay = Hash256Digest::deserialize_hex(
             "3b67a5114cc9fc837ddd6f6ec11bde38db5f68c34ab6ece2a043d7b25f2cf8bb",
         )
-        .unwrap();
+        .unwrap()
+        .to_internal();
         let single = Hash256Digest::deserialize_hex(
             "1dab67d768be0380fc800098005d1f61744ffe585b0852f8d7adc12121a86938",
         )
-        .unwrap();
+        .unwrap()
+        .to_internal();
         let single_anyonecanpay = Hash256Digest::deserialize_hex(
             "d4687b93c0a9090dc0a3384cd3a594ce613834bb37abc56f6032e96c597547e3",
         )
-        .unwrap();
+        .unwrap()
+        .to_internal();
 
-        let txid = Hash256Digest::deserialize_hex(
+        let txid = TXID::deserialize_hex(
             "03ee4f7a4e68f802303bc659f8f817964b4b74fe046facc3ae1be4679d622c45",
         )
         .unwrap();
-        assert_eq!(tx.txid(), txid.into());
+        assert_eq!(tx.txid(), txid);
 
         let mut args = LegacySighashArgs {
             index: 0,

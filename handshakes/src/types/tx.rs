@@ -5,24 +5,24 @@ use thiserror::Error;
 use crate::hashes::{TXID, WTXID};
 
 use coins_core::{
-    hashes::{
-        blake2b256::{Blake2b256Digest, Blake2b256Writer},
-        marked::{MarkedDigest, MarkedDigestWriter},
-    },
+    hashes::{Blake2b256, MarkedDigest, MarkedDigestOutput},
     ser::{ByteFormat, SerError},
     types::tx::Transaction,
 };
 
-use crate::types::{
-    txin::{HandshakeTxIn, Vin},
-    txout::{TxOut, Vout},
-    Script, Witness,
+use crate::{
+    hashes::Blake2b256Digest,
+    types::{
+        txin::{HandshakeTxIn, Vin},
+        txout::{TxOut, Vout},
+        Script, Witness,
+    },
 };
 
 /// Trait that describes a Handshake Transaction
 pub trait HandshakeTransaction: Transaction {
     /// The MarkedDigest type for the Transaction's Witness TXID
-    type WTXID: MarkedDigest<Digest = Self::Digest>;
+    type WTXID: MarkedDigestOutput;
     /// A type that represents this transactions per-input `Witness`.
     type Witness;
 
@@ -45,10 +45,10 @@ pub trait HandshakeTransaction: Transaction {
 
     /// Calculates the BIP143 sighash given the sighash args. See the
     /// `WitnessSighashArgsSigh` documentation for more in-depth discussion of sighash.
-    fn signature_hash(&self, args: &Self::SighashArgs) -> Result<Self::Digest, Self::TxError> {
-        let mut w = Self::HashWriter::default();
+    fn signature_hash(&self, args: &Self::SighashArgs) -> Result<Blake2b256Digest, Self::TxError> {
+        let mut w = Blake2b256::default();
         self.write_sighash_preimage(&mut w, args)?;
-        Ok(w.finish())
+        Ok(w.finalize_marked())
     }
 
     /// Computes the txid preimage.
@@ -211,7 +211,7 @@ impl HandshakeTransaction for HandshakeTx {
         let mut w = Self::HashWriter::default();
         self.write_wtxid_preimage(&mut w)
             .expect("No IOError from hash functions");
-        w.finish_marked()
+        w.finalize_marked()
     }
 
     fn write_txid_preimage<W: Write>(&self, writer: &mut W) -> Result<usize, Self::Error> {
@@ -225,17 +225,17 @@ impl HandshakeTransaction for HandshakeTx {
     }
 
     fn write_wtxid_preimage<W: Write>(&self, writer: &mut W) -> Result<usize, Self::Error> {
-        let mut witness_hash = Blake2b256Writer::default();
+        let mut witness_hash = Blake2b256::default();
 
         for wit in self.witnesses.iter() {
             Self::write_prefix_vec(&mut witness_hash, &wit)?;
         }
 
-        let hash: Blake2b256Digest = witness_hash.finish();
+        let hash: Blake2b256Digest = witness_hash.finalize_marked();
         let txid = self.txid();
 
-        let mut len = writer.write(txid.as_ref())?;
-        len += writer.write(hash.as_ref())?;
+        let mut len = writer.write(txid.as_slice())?;
+        len += writer.write(hash.as_slice())?;
 
         Ok(len)
     }
@@ -258,11 +258,11 @@ impl HandshakeTx {
         if (sighash_flag as u8 & Sighash::ACP as u8) == Sighash::ACP as u8 {
             Ok(Blake2b256Digest::default())
         } else {
-            let mut w = Blake2b256Writer::default();
+            let mut w = Blake2b256::default();
             for input in self.vin.iter() {
                 input.outpoint.write_to(&mut w)?;
             }
-            Ok(w.finish())
+            Ok(w.finalize_marked())
         }
     }
 
@@ -282,11 +282,11 @@ impl HandshakeTx {
         {
             Ok(Blake2b256Digest::default())
         } else {
-            let mut w = Blake2b256Writer::default();
+            let mut w = Blake2b256::default();
             for input in self.vin.iter() {
                 Self::write_u32_le(&mut w, input.sequence)?;
             }
-            Ok(w.finish())
+            Ok(w.finalize_marked())
         }
     }
 
@@ -300,20 +300,20 @@ impl HandshakeTx {
     fn hash_outputs(&self, index: usize, sighash_flag: Sighash) -> TxResult<Blake2b256Digest> {
         match sighash_flag {
             Sighash::All | Sighash::AllACP | Sighash::AllNoInput | Sighash::AllNoInputACP => {
-                let mut w = Blake2b256Writer::default();
+                let mut w = Blake2b256::default();
                 for output in self.vout.iter() {
                     output.write_to(&mut w)?;
                 }
-                Ok(w.finish())
+                Ok(w.finalize_marked())
             }
             Sighash::Single
             | Sighash::SingleACP
             | Sighash::SingleNoInput
             | Sighash::SingleNoInputACP => {
                 if index < self.vout.len() {
-                    let mut w = Blake2b256Writer::default();
+                    let mut w = Blake2b256::default();
                     self.vout[index].write_to(&mut w)?;
-                    Ok(w.finish())
+                    Ok(w.finalize_marked())
                 } else {
                     Ok(Blake2b256Digest::default())
                 }
@@ -323,9 +323,9 @@ impl HandshakeTx {
             | Sighash::SingleReverseNoInput
             | Sighash::SingleReverseNoInputACP => {
                 if index < self.vout.len() {
-                    let mut w = Blake2b256Writer::default();
+                    let mut w = Blake2b256::default();
                     self.vout[self.vout.len() - 1 - index].write_to(&mut w)?;
-                    Ok(w.finish())
+                    Ok(w.finalize_marked())
                 } else {
                     Ok(Blake2b256Digest::default())
                 }
@@ -336,12 +336,11 @@ impl HandshakeTx {
 }
 
 impl Transaction for HandshakeTx {
-    type Digest = Blake2b256Digest;
     type TxError = TxError;
     type TXID = TXID;
     type TxOut = TxOut;
     type TxIn = HandshakeTxIn;
-    type HashWriter = Blake2b256Writer;
+    type HashWriter = Blake2b256;
     type SighashArgs = SighashArgs;
 
     /// Instantiate a new `HandshakeTx`.
@@ -397,7 +396,7 @@ impl Transaction for HandshakeTx {
         let mut w = Self::HashWriter::default();
         self.write_txid_preimage(&mut w)
             .expect("No IOError from hash functions");
-        w.finish_marked()
+        w.finalize_marked()
     }
 
     /// Return the signature digest preimage
@@ -675,11 +674,11 @@ mod tests {
         let wtxid = tx.wtxid();
 
         assert_eq!(
-            hex::encode(txid.as_ref()),
+            hex::encode(txid.as_slice()),
             "6de399beeec5c2e9993f2c58351c57535025a991d5f1242c15f1cc18d1358981"
         );
         assert_eq!(
-            hex::encode(wtxid.as_ref()),
+            hex::encode(wtxid.as_slice()),
             "911f4ad0616acad31f8a36313d02b746835b39f3910a32eeb37a99a55181430c"
         );
     }
@@ -720,7 +719,7 @@ mod tests {
 
         let expected = "c4f226db5b21a0948f43c856f6441f1776c3c38d4530c25006fa0bdd48e5af7e";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
+        assert_eq!(expected, hex::encode(signature_hash.as_slice()));
     }
 
     #[test]
@@ -737,7 +736,7 @@ mod tests {
 
         let expected = "cc28298ea955eaff411b0ac41f1501fd5686373d1c0d364d9ed70a6cde83e081";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
+        assert_eq!(expected, hex::encode(signature_hash.as_slice()));
     }
 
     #[test]
@@ -754,7 +753,7 @@ mod tests {
 
         let expected = "c286ea11df23aebbede3dbc06daf9a93c348f2e4182d047a47f73d503e1d7d91";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
+        assert_eq!(expected, hex::encode(signature_hash.as_slice()));
     }
 
     #[test]
@@ -771,7 +770,7 @@ mod tests {
 
         let expected = "9f4320c7874118ffbbc1ae8af9d57e98a3c04aa1bdecbefd52f077047f5da861";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
+        assert_eq!(expected, hex::encode(signature_hash.as_slice()));
     }
 
     #[test]
@@ -788,7 +787,7 @@ mod tests {
 
         let expected = "3eb4a929e0283c7e3d6757637ebd58c5524cc74a787a2b66a798c0462e2b14d4";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
+        assert_eq!(expected, hex::encode(signature_hash.as_slice()));
     }
 
     #[test]
@@ -805,7 +804,7 @@ mod tests {
 
         let expected = "18799a272c12589cd703967ee94c73d1be97649c0d1340391fa09795f50d549b";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
+        assert_eq!(expected, hex::encode(signature_hash.as_slice()));
     }
 
     #[test]
@@ -822,7 +821,7 @@ mod tests {
 
         let expected = "e759858e74d5e69fb1703348fa21eeb6be1531784990ffc0a3e905fadaed5134";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
+        assert_eq!(expected, hex::encode(signature_hash.as_slice()));
     }
 
     #[test]
@@ -839,7 +838,7 @@ mod tests {
 
         let expected = "a2722b88db66fae11494e1d4b113908736f68755c763e15e3bd51ededc16851a";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
+        assert_eq!(expected, hex::encode(signature_hash.as_slice()));
     }
 
     #[test]
@@ -856,7 +855,7 @@ mod tests {
 
         let expected = "c650b5a5329f39d065845adb407dcca151dc7ceed1a1f2932f4c2f77704dc6b8";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
+        assert_eq!(expected, hex::encode(signature_hash.as_slice()));
     }
 
     #[test]
@@ -873,7 +872,7 @@ mod tests {
 
         let expected = "7b188afac059d4e00652563b3404fcc17f6d50efddc13197b9b462afba809fb7";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
+        assert_eq!(expected, hex::encode(signature_hash.as_slice()));
     }
 
     #[test]
@@ -890,7 +889,7 @@ mod tests {
 
         let expected = "4cd708a5bbc4a9f27aaf18ec99e5efb7b80cb162a409ffb69f360165348a34d3";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
+        assert_eq!(expected, hex::encode(signature_hash.as_slice()));
     }
 
     #[test]
@@ -907,7 +906,7 @@ mod tests {
 
         let expected = "6db11c454b3185143739a1110cbbbdaacd689290cc84fc4ff53ab1cf7754bec2";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
+        assert_eq!(expected, hex::encode(signature_hash.as_slice()));
     }
 
     #[test]
@@ -924,7 +923,7 @@ mod tests {
 
         let expected = "c84c24aca3c207d5021bff5d81e98c61b5d1810f2a4ea2f077dcaa5af98a3979";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
+        assert_eq!(expected, hex::encode(signature_hash.as_slice()));
     }
 
     #[test]
@@ -941,7 +940,7 @@ mod tests {
 
         let expected = "23cb231e1bd7206b4a33cb4cb1f6871637d3423daac07731d1f7bfe4e8b5bc7d";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
+        assert_eq!(expected, hex::encode(signature_hash.as_slice()));
     }
 
     #[test]
@@ -958,7 +957,7 @@ mod tests {
 
         let expected = "4e496c67237a7caf3678326b20e3dbb982418c44bf83cbdcc5efe8e53414831f";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
+        assert_eq!(expected, hex::encode(signature_hash.as_slice()));
     }
 
     #[test]
@@ -975,6 +974,6 @@ mod tests {
 
         let expected = "943a86b8657a2dd9d533a69baeebb6ee2cbed40116b57e8157914d8b8d9ebff2";
         let signature_hash = tx.signature_hash(&args).unwrap();
-        assert_eq!(expected, hex::encode(signature_hash.as_ref()));
+        assert_eq!(expected, hex::encode(signature_hash.as_slice()));
     }
 }
