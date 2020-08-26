@@ -97,14 +97,14 @@ impl ByteFormat for TxOut {
         len
     }
 
-    fn read_from<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
+    fn read_from<R>(reader: &mut R) -> SerResult<Self>
     where
         R: Read,
         Self: std::marker::Sized,
     {
         let value = Self::read_u64_le(reader)?;
-        let locking_script = LockingScript::read_from(reader, 0)?;
-        let covenant = Covenant::read_from(reader, 0)?;
+        let locking_script = LockingScript::read_from(reader)?;
+        let covenant = Covenant::read_from(reader)?;
 
         Ok(Self {
             value,

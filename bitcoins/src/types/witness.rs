@@ -382,18 +382,18 @@ impl ByteFormat for WitnessTx {
         let mut len = 4; // version
         len += 2; // Segwit Flag
         len += coins_core::ser::prefix_byte_len(self.legacy_tx.vin.len() as u64) as usize;
-        len += self.legacy_tx.vin.serialized_length();
+        len += self.legacy_tx.vin.iter().map(|i| i.serialized_length()).sum::<usize>();
         len += coins_core::ser::prefix_byte_len(self.legacy_tx.vout.len() as u64) as usize;
-        len += self.legacy_tx.vout.serialized_length();
+        len += self.legacy_tx.vout.iter().map(|o| o.serialized_length()).sum::<usize>();
         for witness in self.witnesses.iter() {
             len += coins_core::ser::prefix_byte_len(self.witnesses.len() as u64) as usize;
-            len += witness.serialized_length();
+            len += witness.iter().map(|w| w.serialized_length()).sum::<usize>();
         }
         len += 4; // locktime
         len
     }
 
-    fn read_from<R>(reader: &mut R, _limit: usize) -> Result<Self, Self::Error>
+    fn read_from<R>(reader: &mut R) -> Result<Self, Self::Error>
     where
         R: Read,
         Self: std::marker::Sized,

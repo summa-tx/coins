@@ -164,7 +164,7 @@ pub trait ByteFormat {
         let items = Self::read_compact_int(reader)?;
         let mut ret = vec![];
         for _ in 0..items {
-            ret.push(I::read_from(reader, 0).map_err(Into::into)?);
+            ret.push(I::read_from(reader).map_err(Into::into)?);
         }
         Ok(ret)
     }
@@ -222,7 +222,7 @@ pub trait ByteFormat {
     /// use coins_core::{hashes::Hash256Digest, ser::*};
     ///
     /// let mut a = [0u8; 32];
-    /// let result = Hash256Digest::read_from(&mut a.as_ref(), 0).unwrap();
+    /// let result = Hash256Digest::read_from(&mut a.as_ref()).unwrap();
     ///
     /// assert_eq!(result, Hash256Digest::default());
     ///
@@ -231,10 +231,23 @@ pub trait ByteFormat {
     ///
     /// assert_eq!(result, vec![0u8; 16]);
     /// ```
-    fn read_from<R>(reader: &mut R, limit: usize) -> Result<Self, Self::Error>
+    fn read_from<R>(reader: &mut R) -> Result<Self, Self::Error>
     where
         R: Read,
         Self: std::marker::Sized;
+
+    /// Read a sequence of `limit` objects from the reader.
+    fn read_seq_from<R>(reader: &mut R, limit: usize) -> Result<Vec<Self>, Self::Error>
+    where
+        R: Read,
+        Self: std::marker::Sized
+    {
+        let mut v = vec![];
+        for _ in 0..limit {
+            v.push(Self::read_from(reader)?);
+        }
+        Ok(v)
+    }
 
     /// Decodes a hex string to a `Vec<u8>`, deserializes an instance of `Self` from that vector.
     fn deserialize_hex(s: &str) -> Result<Self, Self::Error>
@@ -243,7 +256,7 @@ pub trait ByteFormat {
     {
         let v: Vec<u8> = hex::decode(s).map_err(SerError::from)?;
         let mut cursor = Cursor::new(v);
-        Self::read_from(&mut cursor, 0)
+        Self::read_from(&mut cursor)
     }
 
     /// Serialize `self` to a base64 string, using standard RFC4648 non-url safe characters
@@ -253,7 +266,7 @@ pub trait ByteFormat {
     {
         let v: Vec<u8> = base64::decode(s).map_err(SerError::from)?;
         let mut cursor = Cursor::new(v);
-        Self::read_from(&mut cursor, 0)
+        Self::read_from(&mut cursor)
     }
 
     /// Serializes `Self` to a `std::io::Write`. Following `Write` trait conventions, its `Ok`
@@ -290,37 +303,6 @@ pub trait ByteFormat {
     }
 }
 
-impl<E, I> ByteFormat for Vec<I>
-where
-    E: From<SerError> + From<IOError> + std::error::Error,
-    I: ByteFormat<Error = E>,
-{
-    type Error = E;
-
-    fn serialized_length(&self) -> usize {
-        self.iter().map(|v| v.serialized_length()).sum()
-    }
-
-    fn read_from<T>(reader: &mut T, limit: usize) -> Result<Self, Self::Error>
-    where
-        T: Read,
-        Self: std::marker::Sized,
-    {
-        let mut v = vec![];
-        for _ in 0..limit {
-            v.push(I::read_from(reader, 0)?);
-        }
-        Ok(v)
-    }
-
-    fn write_to<W>(&self, writer: &mut W) -> Result<usize, Self::Error>
-    where
-        W: Write,
-    {
-        Ok(self.iter().map(|v| v.write_to(writer).unwrap()).sum())
-    }
-}
-
 impl ByteFormat for u8 {
     type Error = SerError;
 
@@ -328,7 +310,7 @@ impl ByteFormat for u8 {
         1
     }
 
-    fn read_from<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
+    fn read_from<R>(reader: &mut R) -> SerResult<Self>
     where
         R: Read,
         Self: std::marker::Sized,
@@ -353,7 +335,7 @@ impl ByteFormat for bitcoin_spv::types::RawHeader {
         80
     }
 
-    fn read_from<R>(reader: &mut R, _limit: usize) -> Result<Self, Self::Error>
+    fn read_from<R>(reader: &mut R) -> Result<Self, Self::Error>
     where
         R: std::io::Read,
         Self: std::marker::Sized,

@@ -92,7 +92,7 @@ impl ByteFormat for BitcoinTx {
         }
     }
 
-    fn read_from<R>(reader: &mut R, _limit: usize) -> Result<Self, Self::Error>
+    fn read_from<R>(reader: &mut R) -> Result<Self, Self::Error>
     where
         R: Read,
         Self: std::marker::Sized,
@@ -103,9 +103,9 @@ impl ByteFormat for BitcoinTx {
         reader.read_exact(&mut tag)?;
         let mut chain = tag.chain(reader);
         if tag[4..=5] == [0, 1] {
-            Ok(BitcoinTx::Witness(WitnessTx::read_from(&mut chain, 0)?))
+            Ok(BitcoinTx::Witness(WitnessTx::read_from(&mut chain)?))
         } else {
-            Ok(BitcoinTx::Legacy(LegacyTx::read_from(&mut chain, 0)?))
+            Ok(BitcoinTx::Legacy(LegacyTx::read_from(&mut chain)?))
         }
     }
 

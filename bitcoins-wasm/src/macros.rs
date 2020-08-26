@@ -56,7 +56,7 @@ macro_rules! wrap_struct {
             /// Deserialize from a `Uint8Array`
             #[allow(clippy::useless_asref)]
             pub fn read_from(buf: &[u8]) -> Result<$name, JsValue> {
-                $module::$name::read_from(&mut buf.as_ref(), 0)
+                $module::$name::read_from(&mut buf.as_ref())
                     .map(Self::from)
                     .map_err(crate::types::errors::WasmError::from)
                     .map_err(JsValue::from)
@@ -306,9 +306,9 @@ macro_rules! impl_builders {
             }
 
             /// Add witnesses and implicitly convert to a witness builder.
-            pub fn extend_witnesses(self, witnesses: TxWitness) -> $builder {
+            pub fn extend_witnesses(self, witnesses: JsValue) -> $builder {
                 self.0
-                    .extend_witnesses(Vec::<bitcoins::types::script::Witness>::from(witnesses))
+                    .extend_witnesses(witnesses.into_serde().unwrap())
                     .into()
             }
 

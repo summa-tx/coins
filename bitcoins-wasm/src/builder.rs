@@ -14,9 +14,9 @@ use wasm_bindgen::prelude::*;
 use coins_core::{builder::TxBuilder, enc::AddressEncoder};
 
 use crate::types::{
-    script::TxWitness,
     txin::{BitcoinOutpoint, Vin},
     txout::Vout,
+    script::WitnessStackItem,
 };
 
 impl_builders!(MainnetBuilder, MainnetEncoder);

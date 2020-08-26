@@ -10,7 +10,7 @@ use crate::{
     hashes::{TXID, WTXID},
     types::{
         errors::WasmError,
-        script::{TxWitness, Witness},
+        script::WitnessStackItem,
         txin::{BitcoinTxIn, Vin},
         txout::{TxOut, Vout},
     },
@@ -109,7 +109,7 @@ impl WitnessTx {
         version: u32,
         vin: Vin,
         vout: Vout,
-        witnesses: TxWitness,
+        witnesses: JsValue,
         locktime: u32,
     ) -> Result<WitnessTx, JsValue> {
         // disambiguate `new`
@@ -117,7 +117,7 @@ impl WitnessTx {
             version,
             vin.inner(),
             vout.inner(),
-            witnesses,
+            witnesses.into_serde().unwrap(),
             locktime,
         )
         .map(Self::from)
