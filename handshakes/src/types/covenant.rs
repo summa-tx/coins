@@ -55,8 +55,7 @@ impl ByteFormat for CovenantData {
 
         let mut items = vec![];
         for _ in 0..count {
-            // TODO(mark): sane limit argument?
-            let item = CovenantItem::read_from(reader, 256)?;
+            let item = CovenantItem::read_from(reader, 0)?;
             items.push(item);
         }
 
@@ -120,8 +119,7 @@ impl ByteFormat for Covenant {
         let mut buf = [0u8; 1];
         reader.read_exact(&mut buf)?;
         let covenant_type = u8::from_le_bytes(buf);
-        // TODO(mark): sane max?
-        let covenant_data = CovenantData::read_from(reader, 1024)?;
+        let covenant_data = CovenantData::read_from(reader, 0)?;
 
         Ok(Self {
             covenant_type: CovenantType::new(covenant_type),
