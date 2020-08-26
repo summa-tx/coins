@@ -45,6 +45,14 @@ pub enum EncodingError {
     /// Op Return ScriptPubkey was passed to encoder
     #[error("Can't encode op return scripts as addresses")]
     NullDataScript,
+
+    /// Invalid Segwit Version
+    #[error("Invalid Segwit Version: {:?}", .0)]
+    SegwitVersionError(u8),
+
+    /// Invalid Address Size
+    #[error("Invalid Address Size")]
+    InvalidSizeError,
 }
 
 /// Impl explicitly because FromBase58CheckError doesn't implement the std error format

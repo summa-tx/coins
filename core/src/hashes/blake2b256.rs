@@ -1,45 +1,22 @@
-use crate::{
-    hashes::marked::{Digest, MarkedDigestWriter},
-    ser::{ByteFormat, SerError, SerResult},
-};
 use blake2_rfc::blake2b::Blake2b;
 use std::io::{Read, Result as IOResult, Write};
 
+use crate::{
+    hashes::marked::{Digest, MarkedDigestWriter},
+    ser::{ByteFormat, SerError, SerResult},
+    impl_hex_serde,
+};
+
 /// A blake2b256 digest.
-#[derive(Copy, Clone, PartialEq, Eq, Default, Hash)]
+#[derive(Copy, Clone, Default, PartialEq, Eq, Hash)]
 pub struct Blake2b256Digest([u8; 32]);
 
+#[macro_use]
+impl_hex_serde!(
+    Blake2b256Digest
+);
+
 impl Digest for Blake2b256Digest {}
-
-#[cfg_attr(tarpaulin, skip)]
-impl core::fmt::Debug for Blake2b256Digest {
-    /// Formats the RawHeader for readability
-    ///
-    /// # Arguments
-    ///
-    /// * `self` - The Bitcoin header
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "Blake2b256Digest: {:x?}", self.0)
-    }
-}
-
-impl From<[u8; 32]> for Blake2b256Digest {
-    fn from(buf: [u8; 32]) -> Self {
-        Self(buf)
-    }
-}
-
-impl AsRef<[u8; 32]> for Blake2b256Digest {
-    fn as_ref(&self) -> &[u8; 32] {
-        &self.0
-    }
-}
-
-impl AsMut<[u8; 32]> for Blake2b256Digest {
-    fn as_mut(&mut self) -> &mut [u8; 32] {
-        &mut self.0
-    }
-}
 
 impl ByteFormat for Blake2b256Digest {
     type Error = SerError;
@@ -117,6 +94,32 @@ impl MarkedDigestWriter<Blake2b256Digest> for Blake2b256Writer {
         digest
     }
 }
+
+#[cfg_attr(tarpaulin, skip)]
+impl core::fmt::Debug for Blake2b256Digest {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "Blake2b256Digest: {:x?}", self.0)
+    }
+}
+
+impl From<[u8; 32]> for Blake2b256Digest {
+    fn from(buf: [u8; 32]) -> Self {
+        Self(buf)
+    }
+}
+
+impl AsRef<[u8; 32]> for Blake2b256Digest {
+    fn as_ref(&self) -> &[u8; 32] {
+        &self.0
+    }
+}
+
+impl AsMut<[u8; 32]> for Blake2b256Digest {
+    fn as_mut(&mut self) -> &mut [u8; 32] {
+        &mut self.0
+    }
+}
+
 
 #[cfg(test)]
 mod test {

@@ -13,6 +13,14 @@ pub mod hash256;
 /// Tooling for blake2b256
 pub mod blake2b256;
 
+/// Tooling for sha3_256
+pub mod sha3_256;
+
 pub use blake2b256::*;
 pub use hash256::*;
 pub use marked::*;
+
+pub use hash256::*;
+pub use marked::*;
+pub use blake2b256::*;
+pub use sha3_256::*;
