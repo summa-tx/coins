@@ -46,7 +46,7 @@ impl ByteFormat for CovenantData {
         size
     }
 
-    fn read_from<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
+    fn read_from<R>(reader: &mut R) -> SerResult<Self>
     where
         R: Read,
         Self: std::marker::Sized,
@@ -55,8 +55,7 @@ impl ByteFormat for CovenantData {
 
         let mut items = vec![];
         for _ in 0..count {
-            // TODO(mark): sane limit argument?
-            let item = CovenantItem::read_from(reader, 256)?;
+            let item = CovenantItem::read_from(reader)?;
             items.push(item);
         }
 
@@ -112,7 +111,7 @@ impl ByteFormat for Covenant {
         size
     }
 
-    fn read_from<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
+    fn read_from<R>(reader: &mut R) -> SerResult<Self>
     where
         R: Read,
         Self: std::marker::Sized,
@@ -120,8 +119,8 @@ impl ByteFormat for Covenant {
         let mut buf = [0u8; 1];
         reader.read_exact(&mut buf)?;
         let covenant_type = u8::from_le_bytes(buf);
-        // TODO(mark): sane max?
-        let covenant_data = CovenantData::read_from(reader, 1024)?;
+
+        let covenant_data = CovenantData::read_from(reader)?;
 
         Ok(Self {
             covenant_type: CovenantType::new(covenant_type),

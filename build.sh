@@ -22,12 +22,12 @@ cd ../psbt && \
 cargo --verbose build && \
 cargo --verbose build --target wasm32-unknown-unknown && \
 
-### BTC_WASM ###
-cd ../bitcoins-wasm && \
-cargo build --verbose && \
-cargo test --verbose --lib && \
+# ### BTC_WASM ###
+# cd ../bitcoins-wasm && \
+# cargo build --verbose && \
+# cargo test --verbose --lib && \
 
-cargo build --verbose --target wasm32-unknown-unknown && \
+# cargo build --verbose --target wasm32-unknown-unknown && \
 
 ### LEDGER ###
 cd ../ledger && \

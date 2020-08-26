@@ -48,7 +48,7 @@ macro_rules! wrap_prefixed_byte_vector {
                 length
             }
 
-            fn read_from<R>(reader: &mut R, _limit: usize) -> Result<Self, Self::Error>
+            fn read_from<R>(reader: &mut R) -> Result<Self, Self::Error>
             where
                 R: std::io::Read
             {
@@ -260,7 +260,7 @@ macro_rules! marked_digest {
                 $crate::hashes::MarkedDigestOutput::size(self)
             }
 
-            fn read_from<R>(reader: &mut R, _limit: usize) -> $crate::ser::SerResult<Self>
+            fn read_from<R>(reader: &mut R) -> $crate::ser::SerResult<Self>
             where
                 R: std::io::Read,
                 Self: std::marker::Sized,

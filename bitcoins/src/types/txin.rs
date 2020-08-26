@@ -78,13 +78,13 @@ where
         36
     }
 
-    fn read_from<T>(reader: &mut T, _limit: usize) -> SerResult<Self>
+    fn read_from<T>(reader: &mut T) -> SerResult<Self>
     where
         T: Read,
         Self: std::marker::Sized,
     {
         Ok(Outpoint {
-            txid: M::read_from(reader, 0)
+            txid: M::read_from(reader)
                 .map_err(|e| SerError::ComponentError(format!("{}", e)))?,
             idx: Self::read_u32_le(reader)?,
         })
@@ -167,14 +167,14 @@ where
         len
     }
 
-    fn read_from<T>(reader: &mut T, _limit: usize) -> SerResult<Self>
+    fn read_from<T>(reader: &mut T) -> SerResult<Self>
     where
         T: Read,
         Self: std::marker::Sized,
     {
         Ok(TxInput {
-            outpoint: Outpoint::read_from(reader, 0)?,
-            script_sig: ScriptSig::read_from(reader, 0)?,
+            outpoint: Outpoint::read_from(reader)?,
+            script_sig: ScriptSig::read_from(reader)?,
             sequence: Self::read_u32_le(reader)?,
         })
     }

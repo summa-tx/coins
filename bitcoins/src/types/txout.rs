@@ -89,7 +89,7 @@ impl ByteFormat for TxOut {
         len
     }
 
-    fn read_from<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
+    fn read_from<R>(reader: &mut R) -> SerResult<Self>
     where
         R: Read,
         Self: std::marker::Sized,
@@ -97,7 +97,7 @@ impl ByteFormat for TxOut {
         let value = Self::read_u64_le(reader)?;
         Ok(TxOut {
             value,
-            script_pubkey: ScriptPubkey::read_from(reader, 0)?,
+            script_pubkey: ScriptPubkey::read_from(reader)?,
         })
     }
 

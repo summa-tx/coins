@@ -148,7 +148,7 @@ impl coins_core::ser::ByteFormat for LockingScript {
         length
     }
 
-    fn read_from<R>(reader: &mut R, _limit: usize) -> Result<Self, Self::Error>
+    fn read_from<R>(reader: &mut R) -> Result<Self, Self::Error>
     where
         R: Read,
     {

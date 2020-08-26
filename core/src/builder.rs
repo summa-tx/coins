@@ -33,7 +33,7 @@ pub trait TxBuilder: std::marker::Sized {
     where
         R: Read,
     {
-        let tx = Self::Transaction::read_from(reader, 0)?;
+        let tx = Self::Transaction::read_from(reader)?;
         Ok(Self::from_tx(tx))
     }
 

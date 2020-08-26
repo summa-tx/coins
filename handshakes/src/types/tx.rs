@@ -91,9 +91,9 @@ impl ByteFormat for HandshakeTx {
     fn serialized_length(&self) -> usize {
         let mut len = 4; // version
         len += coins_core::ser::prefix_byte_len(self.vin.len() as u64) as usize;
-        len += self.vin.serialized_length();
+        len += self.vin.iter().map(|i| i.serialized_length()).sum::<usize>();
         len += coins_core::ser::prefix_byte_len(self.vout.len() as u64) as usize;
-        len += self.vout.serialized_length();
+        len += self.vout.iter().map(|o| o.serialized_length()).sum::<usize>();
         len += 4; // locktime
 
         for i in 0..self.vin.len() {
@@ -102,7 +102,7 @@ impl ByteFormat for HandshakeTx {
             match witness {
                 Some(w) => {
                     len += coins_core::ser::prefix_byte_len(self.witnesses.len() as u64) as usize;
-                    len += w.serialized_length();
+                    len += w.iter().map(|w| w.serialized_length()).sum::<usize>();
                 }
                 None => {
                     len += 1;
@@ -113,7 +113,7 @@ impl ByteFormat for HandshakeTx {
         len
     }
 
-    fn read_from<R>(reader: &mut R, _limit: usize) -> Result<Self, Self::Error>
+    fn read_from<R>(reader: &mut R) -> Result<Self, Self::Error>
     where
         R: Read,
         Self: std::marker::Sized,
