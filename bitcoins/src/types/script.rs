@@ -20,9 +20,10 @@
 //! let script = bitcoin::Script::new(/* your script info */);
 //! let script = bitcoins::types::Script::from(script.into_bytes());
 //! ```
-use bitcoin_spv::types::{Hash160Digest, Hash256Digest};
 use coins_core::{
-    impl_hex_serde, impl_script_conversion, types::tx::RecipientIdentifier,
+    hashes::{Digest, Hash160, Hash160Digest, Hash256Digest, MarkedDigestOutput, Sha256},
+    impl_hex_serde, impl_script_conversion,
+    types::tx::RecipientIdentifier,
     wrap_prefixed_byte_vector,
 };
 
@@ -98,7 +99,7 @@ impl ScriptPubkey {
         T: coins_bip32::model::HasPubkey<'a, B>,
     {
         let mut v: Vec<u8> = vec![0x76, 0xa9, 0x14]; // DUP, HASH160, PUSH_20
-        v.extend(key.pubkey_hash160().as_ref());
+        v.extend(key.pubkey_hash160().as_slice());
         v.extend(&[0x88, 0xac]); // EQUALVERIFY, CHECKSIG
         v.into()
     }
@@ -110,14 +111,14 @@ impl ScriptPubkey {
         T: coins_bip32::model::HasPubkey<'a, B>,
     {
         let mut v: Vec<u8> = vec![0x00, 0x14]; // OP_0, PUSH_20
-        v.extend(key.pubkey_hash160().as_ref());
+        v.extend(key.pubkey_hash160().as_slice());
         v.into()
     }
 
     /// Instantiate a standard p2sh script pubkey from a script.
     pub fn p2sh(script: &Script) -> Self {
         let mut v: Vec<u8> = vec![0xa9, 0x14]; // HASH160, PUSH_20
-        v.extend(bitcoin_spv::btcspv::hash160(script.as_ref()).as_ref());
+        v.extend(Hash160::digest(script.as_ref()).as_slice());
         v.extend(&[0x87]); // EQUAL
         v.into()
     }
@@ -125,7 +126,7 @@ impl ScriptPubkey {
     /// Instantiate a standard p2wsh script pubkey from a script.
     pub fn p2wsh(script: &Script) -> Self {
         let mut v: Vec<u8> = vec![0x00, 0x20]; // OP_0, PUSH_32
-        v.extend(<sha2::Sha256 as sha2::Digest>::digest(script.as_ref()));
+        v.extend(Sha256::digest(script.as_ref()));
         v.into()
     }
 }
@@ -175,7 +176,7 @@ impl ScriptPubkey {
                 // PKH;
                 if items[0..3] == [0x76, 0xa9, 0x14] && items[0x17..] == [0x88, 0xac] {
                     let mut buf = Hash160Digest::default();
-                    buf.as_mut().copy_from_slice(&items[3..23]);
+                    buf.as_mut_slice().copy_from_slice(&items[3..23]);
                     return ScriptType::PKH(buf);
                 }
             }
@@ -183,7 +184,7 @@ impl ScriptPubkey {
                 // SH
                 if items[0..2] == [0xa9, 0x14] && items[0x16..] == [0x87] {
                     let mut buf = Hash160Digest::default();
-                    buf.as_mut().copy_from_slice(&items[2..22]);
+                    buf.as_mut_slice().copy_from_slice(&items[2..22]);
                     return ScriptType::SH(buf);
                 }
             }
@@ -191,14 +192,14 @@ impl ScriptPubkey {
                 // WPKH
                 if items[0..2] == [0x00, 0x14] {
                     let mut buf = Hash160Digest::default();
-                    buf.as_mut().copy_from_slice(&items[2..22]);
+                    buf.as_mut_slice().copy_from_slice(&items[2..22]);
                     return ScriptType::WPKH(buf);
                 }
             }
             0x22 => {
                 if items[0..2] == [0x00, 0x20] {
                     let mut buf = Hash256Digest::default();
-                    buf.as_mut().copy_from_slice(&items[2..34]);
+                    buf.as_mut_slice().copy_from_slice(&items[2..34]);
                     return ScriptType::WSH(buf);
                 }
             }

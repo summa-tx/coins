@@ -17,7 +17,10 @@ base64 = "0.12.0"
 serde_derive = "1.0.106"
 serde = { version = "1.0.106", features = ["derive"] }
 
+# update in parallel
+generic-array = "0.14.4"
+digest = "0.9.0"
 blake2 = "0.9.0"
 sha2 = "0.9.1"
-sha3 = "0.8.2"
+sha3 = "0.9.1"
 ripemd160 = "0.9.1"

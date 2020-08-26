@@ -3,10 +3,8 @@
 
 use wasm_bindgen::prelude::*;
 
-use bitcoin_spv::types::Hash256Digest;
-
 use bitcoins::hashes;
-use coins_core::ser::ByteFormat;
+use coins_core::{hashes::MarkedDigestOutput, ser::ByteFormat};
 
 wrap_struct!(
     /// A marked Hash256Digest representing transaction IDs
@@ -22,15 +20,15 @@ impl TXID {
     /// Instantiate a new TXID from a Uint8Array
     #[wasm_bindgen(constructor)]
     pub fn new(digest: &[u8]) -> Self {
-        let mut h = Hash256Digest::default();
-        h.as_mut().copy_from_slice(&digest[..32]);
-        hashes::TXID::from(h).into()
+        let mut h = hashes::TXID::default();
+        h.as_mut_slice().copy_from_slice(&digest[..32]);
+        h.into()
     }
 
     /// Return the underlying digest as a Uint8Array
     #[wasm_bindgen(method, getter)]
     pub fn internal(&self) -> js_sys::Uint8Array {
-        js_sys::Uint8Array::from(&self.0.as_ref()[..])
+        js_sys::Uint8Array::from(self.0.as_slice())
     }
 }
 
@@ -39,14 +37,14 @@ impl WTXID {
     /// Instantiate a new WTXID from a Uint8Array
     #[wasm_bindgen(constructor)]
     pub fn new(digest: &[u8]) -> Self {
-        let mut h = Hash256Digest::default();
-        h.as_mut().copy_from_slice(&digest[..32]);
-        hashes::WTXID::from(h).into()
+        let mut h = hashes::WTXID::default();
+        h.as_mut_slice().copy_from_slice(&digest[..32]);
+        h.into()
     }
 
     /// Return the underlying digest as a Uint8Array
     #[wasm_bindgen(method, getter)]
     pub fn internal(&self) -> js_sys::Uint8Array {
-        js_sys::Uint8Array::from(&self.0.as_ref()[..])
+        js_sys::Uint8Array::from(self.0.as_slice())
     }
 }

@@ -12,6 +12,7 @@ use crate::types::{
     BitcoinOutpoint, BitcoinTransaction, LegacySighashArgs, Script, ScriptPubkey, ScriptType,
     Sighash, TxOut, WitnessSighashArgs,
 };
+use coins_core::hashes::{Digest, Hash160, MarkedDigest, MarkedDigestOutput, Sha256};
 use serde::{Deserialize, Serialize};
 
 /// This type specifies whether a script is known to be none, or whether it is unknown.
@@ -117,7 +118,7 @@ impl UTXO {
                     // TODO: break this out into a function
                     ScriptType::WPKH(payload) => {
                         let mut v = vec![0x76, 0xa9, 0x14];
-                        v.extend(payload.as_ref());
+                        v.extend(payload.as_slice());
                         v.extend(&[0x88, 0xac]);
                         Some(v.into())
                     }
@@ -140,14 +141,13 @@ impl UTXO {
     pub fn set_spend_script(&mut self, script: Script) -> bool {
         match self.standard_type() {
             ScriptType::SH(data) => {
-                if data == bitcoin_spv::btcspv::hash160(script.as_ref()) {
+                if data == Hash160::digest_marked(script.as_ref()) {
                     self.spend_script = SpendScript::Known(script);
                     return true;
                 }
             }
             ScriptType::WSH(data) => {
-                if data.as_ref() == <sha2::Sha256 as sha2::Digest>::digest(script.as_ref()).as_ref()
-                {
+                if data.as_slice() == Sha256::digest(script.as_ref()).as_slice() {
                     self.spend_script = SpendScript::Known(script);
                     return true;
                 }

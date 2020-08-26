@@ -5,8 +5,9 @@ pub use crate::{
     types::*,
 };
 
-pub use bitcoin_spv::types::{Hash160Digest, Hash256Digest, RawHeader};
 pub use coins_core::prelude::*;
+
+pub use bitcoin_spv::types::RawHeader;
 
 #[cfg(any(feature = "mainnet", feature = "testnet", feature = "signet"))]
 pub use crate::defaults::*;

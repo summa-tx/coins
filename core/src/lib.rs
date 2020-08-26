@@ -18,6 +18,7 @@
 #![warn(unused_extern_crates)]
 
 #[cfg_attr(tarpaulin, skip)]
+#[macro_use]
 pub mod macros;
 
 pub mod builder;

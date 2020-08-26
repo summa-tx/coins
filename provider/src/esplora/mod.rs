@@ -8,6 +8,7 @@ use async_trait::async_trait;
 use std::time::Duration;
 
 use bitcoins::prelude::*;
+use coins_core::hashes::MarkedDigestOutput;
 
 use crate::provider::{BTCProvider, PollingBTCProvider, ProviderError};
 
@@ -190,9 +191,7 @@ impl BTCProvider for EsploraProvider {
                     .merkle
                     .iter()
                     .map(|s| {
-                        TXID::from_be_hex(&s)
-                            .expect("No malformed txids in api response")
-                            .internal()
+                        Hash256Digest::from_be_hex(&s).expect("No malformed txids in api response")
                     })
                     .collect();
                 Ok(Some((proof.pos, ids)))

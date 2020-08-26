@@ -1,12 +1,6 @@
-use bitcoin_spv::{
-    btcspv::hash160,
-    types::{Hash160Digest, Hash256Digest},
-};
+use coins_core::hashes::{Digest, Hash160, Hash160Digest, Hash256Digest, MarkedDigest};
 
 use crate::{primitives::KeyFingerprint, Bip32Error};
-
-/// A simple hash function type signature
-pub type HashFunc = dyn Fn(&[u8]) -> Hash256Digest;
 
 /// A Serializable 32-byte scalar
 pub trait ScalarSerialize {
@@ -17,9 +11,9 @@ pub trait ScalarSerialize {
     ///
     /// TODO: replace this later when underlying libs have safe debugging
     fn short_id(&self) -> [u8; 4] {
-        let digest = hash160(&self.privkey_array());
+        let digest = Hash160::digest(&self.privkey_array());
         let mut buf = [0u8; 4];
-        buf.copy_from_slice(&digest.as_ref()[..4]);
+        buf.copy_from_slice(&digest.as_slice()[..4]);
         buf
     }
 }
@@ -48,16 +42,16 @@ pub trait PointSerialize {
     /// Calculate the key fingerprint of the associated public key. This is the first 4 bytes of
     /// the Bitcoin HASH_160 of the compressed representation of the public key.
     fn fingerprint(&self) -> KeyFingerprint {
-        let digest = hash160(&self.pubkey_array());
+        let digest = Hash160::digest(&self.pubkey_array());
         let mut buf = [0u8; 4];
-        buf.copy_from_slice(&digest.as_ref()[..4]);
+        buf.copy_from_slice(&digest.as_slice()[..4]);
         buf.into()
     }
 
     /// Calculate the hash160 of the associated public key. This is commonly used to consturct
     /// pubkeyhash outputs in bitcoin-like chains, and has been provided here as a convenience.
     fn hash160(&self) -> Hash160Digest {
-        hash160(&self.pubkey_array())
+        Hash160::digest_marked(&self.pubkey_array())
     }
 }
 
@@ -140,18 +134,19 @@ pub trait Secp256k1Backend: Clone + std::fmt::Debug + PartialEq {
     ) -> Self::RecoverableSignature;
 
     /// Sign a message
-    fn sign(&self, k: &Self::Privkey, message: &[u8], hash: &HashFunc) -> Self::Signature {
-        self.sign_digest(k, hash(message))
+    fn sign<D>(&self, k: &Self::Privkey, message: &[u8]) -> Self::Signature
+    where
+        D: MarkedDigest<Hash256Digest>,
+    {
+        self.sign_digest(k, D::digest_marked(message))
     }
 
     /// Sign a message and produce a recovery ID
-    fn sign_recoverable(
-        &self,
-        k: &Self::Privkey,
-        message: &[u8],
-        hash: &HashFunc,
-    ) -> Self::RecoverableSignature {
-        self.sign_digest_recoverable(k, hash(message))
+    fn sign_recoverable<D>(&self, k: &Self::Privkey, message: &[u8]) -> Self::RecoverableSignature
+    where
+        D: MarkedDigest<Hash256Digest>,
+    {
+        self.sign_digest_recoverable(k, D::digest_marked(message))
     }
 
     /// Verify a signature on a digest.
@@ -177,25 +172,29 @@ pub trait Secp256k1Backend: Clone + std::fmt::Debug + PartialEq {
     ) -> Result<(), Self::Error>;
 
     /// Verify a signature on a message
-    fn verify(
+    fn verify<D>(
         &self,
         k: &Self::Pubkey,
         message: &[u8],
-        hash: &HashFunc,
         sig: &Self::Signature,
-    ) -> Result<(), Self::Error> {
-        self.verify_digest(k, hash(message), sig)
+    ) -> Result<(), Self::Error>
+    where
+        D: MarkedDigest<Hash256Digest>,
+    {
+        self.verify_digest(k, D::digest_marked(message), sig)
     }
 
     /// Sign a message and produce a recovery ID
-    fn verify_recoverable(
+    fn verify_recoverable<D>(
         &self,
         k: &Self::Pubkey,
         message: &[u8],
-        hash: &HashFunc,
         sig: &Self::RecoverableSignature,
-    ) -> Result<(), Self::Error> {
-        self.verify_digest_recoverable(k, hash(message), sig)
+    ) -> Result<(), Self::Error>
+    where
+        D: MarkedDigest<Hash256Digest>,
+    {
+        self.verify_digest_recoverable(k, D::digest_marked(message), sig)
     }
 
     /// Recover the public key that produced a `RecoverableSignature` on a certain digest.

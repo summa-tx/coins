@@ -1,5 +1,5 @@
 // Wuille's secp
-use bitcoin_spv::types::Hash256Digest;
+use coins_core::hashes::Hash256Digest;
 
 use crate::{curve::model::*, Bip32Error};
 

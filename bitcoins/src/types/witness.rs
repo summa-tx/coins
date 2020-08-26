@@ -1,13 +1,9 @@
 //! Witness Transactions
 
-use bitcoin_spv::types::Hash256Digest;
 use std::io::{Read, Write};
 
 use coins_core::{
-    hashes::{
-        hash256::Hash256Writer,
-        marked::{MarkedDigest, MarkedDigestWriter},
-    },
+    hashes::{Digest, DigestOutput, Hash256, Hash256Digest, MarkedDigest, MarkedDigestOutput},
     ser::ByteFormat,
     types::tx::Transaction,
 };
@@ -31,7 +27,7 @@ use crate::{
 /// unique functionality.
 pub trait WitnessTransaction: BitcoinTransaction {
     /// The MarkedDigest type for the Transaction's Witness TXID
-    type WTXID: MarkedDigest<Digest = Self::Digest>;
+    type WTXID: MarkedDigestOutput;
     /// The BIP143 sighash args needed to sign an input
     type WitnessSighashArgs;
     /// A type that represents this transactions per-input `Witness`.
@@ -62,10 +58,13 @@ pub trait WitnessTransaction: BitcoinTransaction {
     ) -> Result<(), Self::TxError>;
 
     /// Calculates the Legacy sighash preimage given the sighash args.
-    fn legacy_sighash(&self, args: &LegacySighashArgs) -> Result<Self::Digest, Self::TxError> {
+    fn legacy_sighash(
+        &self,
+        args: &LegacySighashArgs,
+    ) -> Result<DigestOutput<Self::HashWriter>, Self::TxError> {
         let mut w = Self::HashWriter::default();
         self.write_legacy_sighash_preimage(&mut w, args)?;
-        Ok(w.finish())
+        Ok(w.finalize())
     }
 
     /// Writes the BIP143 sighash preimage to the provided `writer`. See the
@@ -81,10 +80,10 @@ pub trait WitnessTransaction: BitcoinTransaction {
     fn witness_sighash(
         &self,
         args: &Self::WitnessSighashArgs,
-    ) -> Result<Self::Digest, Self::TxError> {
+    ) -> Result<DigestOutput<Self::HashWriter>, Self::TxError> {
         let mut w = Self::HashWriter::default();
         self.write_witness_sighash_preimage(&mut w, args)?;
-        Ok(w.finish())
+        Ok(w.finalize())
     }
 }
 
@@ -155,11 +154,11 @@ impl WitnessTx {
         if sighash_flag as u8 & 0x80 == 0x80 {
             Ok(Hash256Digest::default())
         } else {
-            let mut w = Hash256Writer::default();
+            let mut w = Hash256::default();
             for input in self.legacy_tx.vin.iter() {
                 input.outpoint.write_to(&mut w)?;
             }
-            Ok(w.finish())
+            Ok(w.finalize_marked())
         }
     }
 
@@ -174,11 +173,11 @@ impl WitnessTx {
         if sighash_flag == Sighash::Single || sighash_flag as u8 & 0x80 == 0x80 {
             Ok(Hash256Digest::default())
         } else {
-            let mut w = Hash256Writer::default();
+            let mut w = Hash256::default();
             for input in self.legacy_tx.vin.iter() {
                 Self::write_u32_le(&mut w, input.sequence)?;
             }
-            Ok(w.finish())
+            Ok(w.finalize_marked())
         }
     }
 
@@ -192,16 +191,16 @@ impl WitnessTx {
     fn hash_outputs(&self, index: usize, sighash_flag: Sighash) -> TxResult<Hash256Digest> {
         match sighash_flag {
             Sighash::All | Sighash::AllACP => {
-                let mut w = Hash256Writer::default();
+                let mut w = Hash256::default();
                 for output in self.legacy_tx.vout.iter() {
                     output.write_to(&mut w)?;
                 }
-                Ok(w.finish())
+                Ok(w.finalize_marked())
             }
             Sighash::Single | Sighash::SingleACP => {
-                let mut w = Hash256Writer::default();
+                let mut w = Hash256::default();
                 self.legacy_tx.vout[index].write_to(&mut w)?;
-                Ok(w.finish())
+                Ok(w.finalize_marked())
             }
             _ => Ok(Hash256Digest::default()),
         }
@@ -221,12 +220,11 @@ impl WitnessTx {
 
 impl Transaction for WitnessTx {
     type TxError = TxError;
-    type Digest = Hash256Digest;
     type TxIn = BitcoinTxIn;
     type TxOut = TxOut;
     type SighashArgs = WitnessSighashArgs;
     type TXID = TXID;
-    type HashWriter = Hash256Writer;
+    type HashWriter = Hash256;
 
     fn new<I, O>(version: u32, vin: I, vout: O, locktime: u32) -> Result<Self, Self::TxError>
     where
@@ -331,7 +329,7 @@ impl WitnessTransaction for WitnessTx {
     fn wtxid(&self) -> Self::WTXID {
         let mut w = Self::HashWriter::default();
         self.write_to(&mut w).expect("No IOError from SHA2");
-        w.finish_marked()
+        w.finalize_marked()
     }
 
     fn write_legacy_sighash_preimage<W: Write>(
