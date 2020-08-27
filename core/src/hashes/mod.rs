@@ -28,7 +28,7 @@ pub trait MarkedDigestOutput:
     /// Return a clone in opposite byte order
     fn reversed(&self) -> Self {
         let mut reversed = Self::default();
-        let mut digest_bytes = self.as_ref().to_vec();
+        let mut digest_bytes = self.as_slice().to_vec();
         digest_bytes.reverse();
         reversed
             .as_mut()
@@ -103,7 +103,7 @@ impl Digest for Hash256 {
     }
 
     fn finalize(self) -> DigestOutput<Self> {
-        sha2::Sha256::digest(self.0.finalize().as_ref())
+        sha2::Sha256::digest(self.0.finalize().as_slice())
     }
 
     fn finalize_reset(&mut self) -> DigestOutput<Self> {
@@ -121,7 +121,7 @@ impl Digest for Hash256 {
     }
 
     fn digest(data: &[u8]) -> DigestOutput<Self> {
-        sha2::Sha256::digest(sha2::Sha256::digest(data).as_ref())
+        sha2::Sha256::digest(sha2::Sha256::digest(data).as_slice())
     }
 }
 
@@ -159,7 +159,7 @@ impl Digest for Hash160 {
     }
 
     fn finalize(self) -> DigestOutput<Self> {
-        ripemd160::Ripemd160::digest(self.0.finalize().as_ref())
+        ripemd160::Ripemd160::digest(self.0.finalize().as_slice())
     }
 
     fn finalize_reset(&mut self) -> DigestOutput<Self> {
@@ -177,7 +177,7 @@ impl Digest for Hash160 {
     }
 
     fn digest(data: &[u8]) -> DigestOutput<Self> {
-        ripemd160::Ripemd160::digest(sha2::Sha256::digest(data).as_ref())
+        ripemd160::Ripemd160::digest(sha2::Sha256::digest(data).as_slice())
     }
 }
 
