@@ -3,6 +3,7 @@
 use base64::DecodeError;
 use hex::FromHexError;
 use std::{
+    convert::TryInto,
     fmt::Debug,
     io::{Cursor, Error as IOError, Read, Write},
 };
@@ -162,11 +163,7 @@ pub trait ByteFormat {
         I: ByteFormat<Error = E>,
     {
         let items = Self::read_compact_int(reader)?;
-        let mut ret = vec![];
-        for _ in 0..items {
-            ret.push(I::read_from(reader).map_err(Into::into)?);
-        }
-        Ok(ret)
+        I::read_seq_from(reader, items.try_into().unwrap()).map_err(Into::into)
     }
 
     /// Convenience function for writing a LE u32
@@ -196,6 +193,49 @@ pub trait ByteFormat {
         write_compact_int(writer, number).map_err(Into::into)
     }
 
+    /// Write a sequence of `ByteFormat` objects to a writer. The `iter` 
+    /// argument may be any object that implements 
+    /// `IntoIterator<Item = &Item>`. This means we can seamlessly use vectors,
+    /// slices, and any other iterator.
+    /// 
+    /// ```
+    /// use std::io::Write;
+    /// use coins_core::{hashes::Hash256Digest, ser::*};
+    ///
+    /// let mut buf: Vec<u8> = vec![];
+    /// let mut digests = vec![Hash256Digest::default(), Hash256Digest::default()];
+    /// 
+    /// // Works with iterators
+    /// let written = Hash256Digest::write_seq_to(&mut buf, digests.iter()).expect("Write succesful");
+    ///
+    /// assert_eq!(
+    ///    buf,
+    ///    vec![0u8; 64]
+    /// );
+    /// 
+    /// // And with vectors
+    /// let written = Hash256Digest::write_seq_to(&mut buf, &digests).expect("Write succesful");
+    /// assert_eq!(
+    ///    buf,
+    ///    vec![0u8; 128]
+    /// );
+    /// 
+    /// ```
+    /// This should be invoked as `Item::write_seq_to(writer, iter)`
+    fn write_seq_to<'a, W, E, Iter, Item>(writer: &mut W, iter: Iter) -> Result<usize, <Self as ByteFormat>::Error> 
+    where
+        W: Write,
+        E: Into<Self::Error> + From<SerError> + From<IOError> + std::error::Error,
+        Item: 'a + ByteFormat<Error = E>,
+        Iter: IntoIterator<Item = &'a Item>,
+    {
+        let mut written = 0;
+        for item in iter {
+            written += item.write_to(writer).map_err(Into::into)?;
+        }
+        Ok(written)
+    }
+
     /// Convenience function to write a length-prefixed vector.
     fn write_prefix_vec<W, E, I>(
         writer: &mut W,
@@ -207,9 +247,7 @@ pub trait ByteFormat {
         I: ByteFormat<Error = E>,
     {
         let mut written = Self::write_compact_int(writer, vector.len() as u64)?;
-        for i in vector.iter() {
-            written += i.write_to(writer).map_err(Into::into)?;
-        }
+        written += I::write_seq_to(writer, vector.iter()).map_err(Into::into)?;
         Ok(written)
     }
 
@@ -225,11 +263,6 @@ pub trait ByteFormat {
     /// let result = Hash256Digest::read_from(&mut a.as_ref()).unwrap();
     ///
     /// assert_eq!(result, Hash256Digest::default());
-    ///
-    /// let mut b = [0u8; 32];
-    /// let result = Vec::<u8>::read_from(&mut b.as_ref(), 16).unwrap();
-    ///
-    /// assert_eq!(result, vec![0u8; 16]);
     /// ```
     fn read_from<R>(reader: &mut R) -> Result<Self, Self::Error>
     where
