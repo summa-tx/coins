@@ -1,7 +1,7 @@
 //! Partially Signed Bitcoin transactions (bip174)
 
 #[macro_use]
-pub(crate) mod prelude;
+pub(crate) mod macros;
 
 /// Common data structures
 pub mod common;

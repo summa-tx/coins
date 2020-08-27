@@ -16,7 +16,7 @@ pub enum SerError {
     #[error("Attempted to deserialize non-minmal VarInt. Someone is doing something fishy.")]
     NonMinimalVarInt,
 
-    /// IOError bubbled up from a `Write` passed to a `Ser::write_to` implementation.
+    /// IOError bubbled up from a `Write` passed to a `ByteFormat::write_to` implementation.
     #[error(transparent)]
     IOError(#[from] IOError),
 
@@ -116,9 +116,8 @@ where
 }
 
 /// A simple trait for deserializing from `std::io::Read` and serializing to `std::io::Write`.
-/// We have provided implementations for `u8` and `Vec<T: Ser>`
 ///
-/// `Ser` is used extensively in Sighash calculation, txid calculations, and transaction
+/// `ByteFormat` is used extensively in Sighash calculation, txid calculations, and transaction
 /// serialization and deserialization.
 pub trait ByteFormat {
     /// An associated error type
@@ -196,7 +195,7 @@ pub trait ByteFormat {
     /// Write a sequence of `ByteFormat` objects to a writer. The `iter` 
     /// argument may be any object that implements 
     /// `IntoIterator<Item = &Item>`. This means we can seamlessly use vectors,
-    /// slices, and any other iterator.
+    /// slices, etc.
     /// 
     /// ```
     /// use std::io::Write;
@@ -236,7 +235,7 @@ pub trait ByteFormat {
         Ok(written)
     }
 
-    /// Convenience function to write a length-prefixed vector.
+    /// Convenience function to write a Bitcoin-style length-prefixed vector.
     fn write_prefix_vec<W, E, I>(
         writer: &mut W,
         vector: &[I],
@@ -302,8 +301,8 @@ pub trait ByteFormat {
         Self::read_from(&mut cursor)
     }
 
-    /// Serializes `Self` to a `std::io::Write`. Following `Write` trait conventions, its `Ok`
-    /// type is a `usize` denoting the number of bytes written.
+    /// Serializes `self` to a `std::io::Write`. Following `Write` trait conventions, its `Ok`
+    /// type must be a `usize` denoting the number of bytes written.
     ///
     /// ```
     /// use std::io::Write;
