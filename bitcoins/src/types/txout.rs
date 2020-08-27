@@ -94,7 +94,7 @@ impl ByteFormat for TxOut {
         R: Read,
         Self: std::marker::Sized,
     {
-        let value = Self::read_u64_le(reader)?;
+        let value = coins_core::ser::read_u64_le(reader)?;
         Ok(TxOut {
             value,
             script_pubkey: ScriptPubkey::read_from(reader)?,
@@ -105,7 +105,7 @@ impl ByteFormat for TxOut {
     where
         W: Write,
     {
-        let mut len = Self::write_u64_le(writer, self.value)?;
+        let mut len = coins_core::ser::write_u64_le(writer, self.value)?;
         len += self.script_pubkey.write_to(writer)?;
         Ok(len)
     }

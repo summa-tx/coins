@@ -71,7 +71,7 @@ pub fn prefix_len_from_first_byte(number: u8) -> u8 {
 }
 
 /// Convenience function for writing a Bitcoin-style VarInt
-pub fn write_compact_int<W>(writer: &mut W, number: u64) -> Result<usize, SerError>
+pub fn write_compact_int<W>(writer: &mut W, number: u64) -> SerResult<usize>
 where
     W: Write,
 {
@@ -89,7 +89,7 @@ where
 }
 
 /// Convenience function for reading a Bitcoin-style VarInt
-pub fn read_compact_int<R>(reader: &mut R) -> Result<u64, SerError>
+pub fn read_compact_int<R>(reader: &mut R) -> SerResult<u64>
 where
     R: Read,
 {
@@ -115,6 +115,65 @@ where
     }
 }
 
+/// Convenience function for reading a LE u32
+pub fn read_u32_le<R>(reader: &mut R) -> SerResult<u32>
+where
+    R: Read,
+{
+    let mut buf = [0u8; 4];
+    reader.read_exact(&mut buf)?;
+    Ok(u32::from_le_bytes(buf))
+}
+
+/// Convenience function for writing a LE u32
+pub fn write_u32_le<W>(writer: &mut W, number: u32) -> SerResult<usize>
+where
+    W: Write,
+{
+    Ok(writer.write(&number.to_le_bytes())?)
+}
+
+/// Convenience function for reading a LE u64
+pub fn read_u64_le<R>(reader: &mut R) -> SerResult<u64>
+where
+    R: Read,
+{
+    let mut buf = [0u8; 8];
+    reader.read_exact(&mut buf)?;
+    Ok(u64::from_le_bytes(buf))
+}
+
+/// Convenience function for writing a LE u64
+pub fn write_u64_le<W>(writer: &mut W, number: u64) -> SerResult<usize>
+where
+    W: Write,
+{
+    Ok(writer.write(&number.to_le_bytes())?)
+}
+
+/// Convenience function for reading a prefixed vector
+pub fn read_prefix_vec<R, E, I>(reader: &mut R) -> Result<Vec<I>, E>
+where
+    R: Read,
+    E: From<SerError> + From<IOError> + std::error::Error,
+    I: ByteFormat<Error = E>,
+{
+    let items = read_compact_int(reader)?;
+    I::read_seq_from(reader, items.try_into().unwrap()).map_err(Into::into)
+}
+
+/// Convenience function to write a Bitcoin-style length-prefixed vector.
+pub fn write_prefix_vec<W, E, I>(writer: &mut W, vector: &[I]) -> Result<usize, E>
+where
+    W: Write,
+    E: From<SerError> + From<IOError> + std::error::Error,
+    I: ByteFormat<Error = E>,
+{
+    let mut written = write_compact_int(writer, vector.len() as u64)?;
+    written += I::write_seq_to(writer, vector.iter())?;
+    Ok(written)
+}
+
 /// A simple trait for deserializing from `std::io::Read` and serializing to `std::io::Write`.
 ///
 /// `ByteFormat` is used extensively in Sighash calculation, txid calculations, and transaction
@@ -125,130 +184,6 @@ pub trait ByteFormat {
 
     /// Returns the byte-length of the serialized data structure.
     fn serialized_length(&self) -> usize;
-
-    /// Convenience function for reading a LE u32
-    fn read_u32_le<R>(reader: &mut R) -> Result<u32, Self::Error>
-    where
-        R: Read,
-    {
-        let mut buf = [0u8; 4];
-        reader.read_exact(&mut buf)?;
-        Ok(u32::from_le_bytes(buf))
-    }
-
-    /// Convenience function for reading a LE u64
-    fn read_u64_le<R>(reader: &mut R) -> Result<u64, Self::Error>
-    where
-        R: Read,
-    {
-        let mut buf = [0u8; 8];
-        reader.read_exact(&mut buf)?;
-        Ok(u64::from_le_bytes(buf))
-    }
-
-    /// Convenience function for reading a Bitcoin-style VarInt
-    fn read_compact_int<R>(reader: &mut R) -> Result<u64, <Self as ByteFormat>::Error>
-    where
-        R: Read,
-    {
-        read_compact_int(reader).map_err(Into::into)
-    }
-
-    /// Convenience function for reading a prefixed vector
-    fn read_prefix_vec<R, E, I>(reader: &mut R) -> Result<Vec<I>, <Self as ByteFormat>::Error>
-    where
-        R: Read,
-        E: Into<Self::Error> + From<SerError> + From<IOError> + std::error::Error,
-        I: ByteFormat<Error = E>,
-    {
-        let items = Self::read_compact_int(reader)?;
-        I::read_seq_from(reader, items.try_into().unwrap()).map_err(Into::into)
-    }
-
-    /// Convenience function for writing a LE u32
-    fn write_u32_le<W>(writer: &mut W, number: u32) -> Result<usize, <Self as ByteFormat>::Error>
-    where
-        W: Write,
-    {
-        Ok(writer.write(&number.to_le_bytes())?)
-    }
-
-    /// Convenience function for writing a LE u64
-    fn write_u64_le<W>(writer: &mut W, number: u64) -> Result<usize, <Self as ByteFormat>::Error>
-    where
-        W: Write,
-    {
-        Ok(writer.write(&number.to_le_bytes())?)
-    }
-
-    /// Convenience function for writing a Bitcoin-style VarInt
-    fn write_compact_int<W>(
-        writer: &mut W,
-        number: u64,
-    ) -> Result<usize, <Self as ByteFormat>::Error>
-    where
-        W: Write,
-    {
-        write_compact_int(writer, number).map_err(Into::into)
-    }
-
-    /// Write a sequence of `ByteFormat` objects to a writer. The `iter` 
-    /// argument may be any object that implements 
-    /// `IntoIterator<Item = &Item>`. This means we can seamlessly use vectors,
-    /// slices, etc.
-    /// 
-    /// ```
-    /// use std::io::Write;
-    /// use coins_core::{hashes::Hash256Digest, ser::*};
-    ///
-    /// let mut buf: Vec<u8> = vec![];
-    /// let mut digests = vec![Hash256Digest::default(), Hash256Digest::default()];
-    /// 
-    /// // Works with iterators
-    /// let written = Hash256Digest::write_seq_to(&mut buf, digests.iter()).expect("Write succesful");
-    ///
-    /// assert_eq!(
-    ///    buf,
-    ///    vec![0u8; 64]
-    /// );
-    /// 
-    /// // And with vectors
-    /// let written = Hash256Digest::write_seq_to(&mut buf, &digests).expect("Write succesful");
-    /// assert_eq!(
-    ///    buf,
-    ///    vec![0u8; 128]
-    /// );
-    /// 
-    /// ```
-    /// This should be invoked as `Item::write_seq_to(writer, iter)`
-    fn write_seq_to<'a, W, E, Iter, Item>(writer: &mut W, iter: Iter) -> Result<usize, <Self as ByteFormat>::Error> 
-    where
-        W: Write,
-        E: Into<Self::Error> + From<SerError> + From<IOError> + std::error::Error,
-        Item: 'a + ByteFormat<Error = E>,
-        Iter: IntoIterator<Item = &'a Item>,
-    {
-        let mut written = 0;
-        for item in iter {
-            written += item.write_to(writer).map_err(Into::into)?;
-        }
-        Ok(written)
-    }
-
-    /// Convenience function to write a Bitcoin-style length-prefixed vector.
-    fn write_prefix_vec<W, E, I>(
-        writer: &mut W,
-        vector: &[I],
-    ) -> Result<usize, <Self as ByteFormat>::Error>
-    where
-        W: Write,
-        E: Into<Self::Error> + From<SerError> + From<IOError> + std::error::Error,
-        I: ByteFormat<Error = E>,
-    {
-        let mut written = Self::write_compact_int(writer, vector.len() as u64)?;
-        written += I::write_seq_to(writer, vector.iter()).map_err(Into::into)?;
-        Ok(written)
-    }
 
     /// Deserializes an instance of `Self` from a `std::io::Read`.
     /// The `limit` argument is used only when deserializing collections, and  specifies a maximum
@@ -268,17 +203,82 @@ pub trait ByteFormat {
         R: Read,
         Self: std::marker::Sized;
 
-    /// Read a sequence of `limit` objects from the reader.
+    /// Serializes `self` to a `std::io::Write`. Following `Write` trait conventions, its `Ok`
+    /// type must be a `usize` denoting the number of bytes written.
+    ///
+    /// ```
+    /// use std::io::Write;
+    /// use coins_core::{hashes::Hash256Digest, ser::*};
+    ///
+    /// let mut buf: Vec<u8> = vec![];
+    /// let written = Hash256Digest::default().write_to(&mut buf).unwrap();
+    ///
+    /// assert_eq!(
+    ///    buf,
+    ///    vec![0u8; 32]
+    /// );
+    /// ```
+    fn write_to<W>(&self, writer: &mut W) -> Result<usize, <Self as ByteFormat>::Error>
+    where
+        W: Write;
+
+    /// Read a sequence of exactly `limit` objects from the reader.
     fn read_seq_from<R>(reader: &mut R, limit: usize) -> Result<Vec<Self>, Self::Error>
     where
         R: Read,
-        Self: std::marker::Sized
+        Self: std::marker::Sized,
     {
         let mut v = vec![];
         for _ in 0..limit {
             v.push(Self::read_from(reader)?);
         }
         Ok(v)
+    }
+
+    /// Write a sequence of `ByteFormat` objects to a writer. The `iter`
+    /// argument may be any object that implements
+    /// `IntoIterator<Item = &Item>`. This means we can seamlessly use vectors,
+    /// slices, etc.
+    ///
+    /// ```
+    /// use std::io::Write;
+    /// use coins_core::{hashes::Hash256Digest, ser::*};
+    ///
+    /// let mut buf: Vec<u8> = vec![];
+    /// let mut digests = vec![Hash256Digest::default(), Hash256Digest::default()];
+    ///
+    /// // Works with iterators
+    /// let written = Hash256Digest::write_seq_to(&mut buf, digests.iter()).expect("Write succesful");
+    ///
+    /// assert_eq!(
+    ///    buf,
+    ///    vec![0u8; 64]
+    /// );
+    ///
+    /// // And with vectors
+    /// let written = Hash256Digest::write_seq_to(&mut buf, &digests).expect("Write succesful");
+    /// assert_eq!(
+    ///    buf,
+    ///    vec![0u8; 128]
+    /// );
+    ///
+    /// ```
+    /// This should be invoked as `Item::write_seq_to(writer, iter)`
+    fn write_seq_to<'a, W, E, Iter, Item>(
+        writer: &mut W,
+        iter: Iter,
+    ) -> Result<usize, <Self as ByteFormat>::Error>
+    where
+        W: Write,
+        E: Into<Self::Error> + From<SerError> + From<IOError> + std::error::Error,
+        Item: 'a + ByteFormat<Error = E>,
+        Iter: IntoIterator<Item = &'a Item>,
+    {
+        let mut written = 0;
+        for item in iter {
+            written += item.write_to(writer).map_err(Into::into)?;
+        }
+        Ok(written)
     }
 
     /// Decodes a hex string to a `Vec<u8>`, deserializes an instance of `Self` from that vector.
@@ -300,25 +300,6 @@ pub trait ByteFormat {
         let mut cursor = Cursor::new(v);
         Self::read_from(&mut cursor)
     }
-
-    /// Serializes `self` to a `std::io::Write`. Following `Write` trait conventions, its `Ok`
-    /// type must be a `usize` denoting the number of bytes written.
-    ///
-    /// ```
-    /// use std::io::Write;
-    /// use coins_core::{hashes::Hash256Digest, ser::*};
-    ///
-    /// let mut buf: Vec<u8> = vec![];
-    /// let written = Hash256Digest::default().write_to(&mut buf).unwrap();
-    ///
-    /// assert_eq!(
-    ///    buf,
-    ///    vec![0u8; 32]
-    /// );
-    /// ```
-    fn write_to<W>(&self, writer: &mut W) -> Result<usize, <Self as ByteFormat>::Error>
-    where
-        W: Write;
 
     /// Serializes `self` to a vector, returns the hex-encoded vector
     fn serialize_hex(&self) -> String {

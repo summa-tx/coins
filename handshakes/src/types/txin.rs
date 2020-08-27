@@ -5,7 +5,7 @@ use std::io::{Read, Write};
 
 use coins_core::{
     hashes::MarkedDigestOutput,
-    ser::{ByteFormat, SerError, SerResult},
+    ser::{self, ByteFormat, SerError, SerResult},
     types::tx::{Input, TXOIdentifier},
 };
 
@@ -73,9 +73,8 @@ where
         Self: std::marker::Sized,
     {
         Ok(Outpoint {
-            txid: M::read_from(reader)
-                .map_err(|e| SerError::ComponentError(format!("{}", e)))?,
-            idx: Self::read_u32_le(reader)?,
+            txid: M::read_from(reader).map_err(|e| SerError::ComponentError(format!("{}", e)))?,
+            idx: ser::read_u32_le(reader)?,
         })
     }
 
@@ -87,7 +86,7 @@ where
             .txid
             .write_to(writer)
             .map_err(|e| SerError::ComponentError(format!("{}", e)))?;
-        len += Self::write_u32_le(writer, self.idx)?;
+        len += ser::write_u32_le(writer, self.idx)?;
         Ok(len)
     }
 }
@@ -156,7 +155,7 @@ where
     {
         Ok(TxInput {
             outpoint: Outpoint::read_from(reader)?,
-            sequence: Self::read_u32_le(reader)?,
+            sequence: ser::read_u32_le(reader)?,
         })
     }
 
@@ -165,7 +164,7 @@ where
         T: Write,
     {
         let mut len = self.outpoint.write_to(writer)?;
-        len += Self::write_u32_le(writer, self.sequence)?;
+        len += ser::write_u32_le(writer, self.sequence)?;
         Ok(len)
     }
 }

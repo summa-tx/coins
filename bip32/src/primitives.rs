@@ -1,6 +1,6 @@
-use std::io::{Read, Write};
-use coins_core::ser::ByteFormat;
 use crate::Bip32Error;
+use coins_core::ser::ByteFormat;
+use std::io::{Read, Write};
 
 /// We treat the bip32 xpub bip49 ypub and bip84 zpub convention as a hint regarding address type.
 /// Downstream crates are free to follow or ignore these hints when generating addresses from

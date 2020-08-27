@@ -2,7 +2,10 @@ use std::collections::{btree_map, BTreeMap};
 
 use bitcoins::types::{BitcoinTxIn, LegacyTx};
 use coins_bip32::{enc::XKeyEncoder as Bip32Encoder, model::DerivedKey, DerivedXPub};
-use coins_core::{ser::ByteFormat, types::tx::Transaction};
+use coins_core::{
+    ser::{self, ByteFormat},
+    types::tx::Transaction,
+};
 
 use crate::{
     common::{PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},
@@ -125,7 +128,7 @@ impl PSBTGlobal {
     pub fn version(&self) -> Result<u32, PSBTError> {
         if let Some(version_val) = self.get(&GlobalKey::VERSION.into()) {
             let mut version_bytes = &version_val.items()[..];
-            Self::read_u32_le(&mut version_bytes)
+            ser::read_u32_le(&mut version_bytes).map_err(Into::into)
         } else {
             Ok(0)
         }

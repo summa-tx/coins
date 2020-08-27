@@ -84,9 +84,8 @@ where
         Self: std::marker::Sized,
     {
         Ok(Outpoint {
-            txid: M::read_from(reader)
-                .map_err(|e| SerError::ComponentError(format!("{}", e)))?,
-            idx: Self::read_u32_le(reader)?,
+            txid: M::read_from(reader).map_err(|e| SerError::ComponentError(format!("{}", e)))?,
+            idx: coins_core::ser::read_u32_le(reader)?,
         })
     }
 
@@ -98,7 +97,7 @@ where
             .txid
             .write_to(writer)
             .map_err(|e| SerError::ComponentError(format!("{}", e)))?;
-        len += Self::write_u32_le(writer, self.idx)?;
+        len += coins_core::ser::write_u32_le(writer, self.idx)?;
         Ok(len)
     }
 }
@@ -175,7 +174,7 @@ where
         Ok(TxInput {
             outpoint: Outpoint::read_from(reader)?,
             script_sig: ScriptSig::read_from(reader)?,
-            sequence: Self::read_u32_le(reader)?,
+            sequence: coins_core::ser::read_u32_le(reader)?,
         })
     }
 
@@ -185,7 +184,7 @@ where
     {
         let mut len = self.outpoint.write_to(writer)?;
         len += self.script_sig.write_to(writer)?;
-        len += Self::write_u32_le(writer, self.sequence)?;
+        len += coins_core::ser::write_u32_le(writer, self.sequence)?;
         Ok(len)
     }
 }

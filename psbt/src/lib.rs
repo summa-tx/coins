@@ -388,13 +388,15 @@ where
         let mut len = writer.write(&<PSBT<T, E> as PST<T>>::MAGIC_BYTES)?;
         len += writer.write(&[0xff])?;
         len += self.global_map().write_to(writer)?;
-        len += self.input_maps()
+        len += self
+            .input_maps()
             .iter()
             .map(|m| m.write_to(writer))
             .collect::<Result<Vec<usize>, _>>()?
             .into_iter()
             .sum::<usize>();
-        len += self.output_maps()
+        len += self
+            .output_maps()
             .iter()
             .map(|m| m.write_to(writer))
             .collect::<Result<Vec<usize>, _>>()?

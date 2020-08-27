@@ -4,7 +4,7 @@ use crate::{hashes::blake2b160, types::Script};
 use coins_core::{
     hashes::{Digest, DigestOutput, Sha3_256},
     impl_hex_serde,
-    ser::ByteFormat,
+    ser::{self, ByteFormat},
     types::tx::RecipientIdentifier,
 };
 use std::io::{Read, Write};
@@ -157,7 +157,7 @@ impl coins_core::ser::ByteFormat for LockingScript {
 
         Ok(LockingScript {
             version: version[0],
-            witness_program: WitnessProgram::read_prefix_vec(reader)?.into(),
+            witness_program: ser::read_prefix_vec(reader)?.into(),
         })
     }
 

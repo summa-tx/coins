@@ -63,14 +63,13 @@ pub fn try_val_as_key_derivation(val: &PSBTValue) -> Result<KeyDerivation, PSBTE
 
     let root = KeyFingerprint::read_from(&mut deriv_bytes)?;
     for _ in 0..limit {
-        v.push(PSBTKey::read_u32_le(&mut deriv_bytes)?)
+        v.push(ser::read_u32_le(&mut deriv_bytes)?)
     }
 
     Ok(KeyDerivation {
         root,
         path: v.into_iter().collect(),
     })
-
 }
 
 /// Validate that a key is a fixed length

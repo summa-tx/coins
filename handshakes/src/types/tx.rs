@@ -6,7 +6,7 @@ use crate::hashes::{TXID, WTXID};
 
 use coins_core::{
     hashes::{Blake2b256, MarkedDigest, MarkedDigestOutput},
-    ser::{ByteFormat, SerError},
+    ser::{self, ByteFormat, SerError},
     types::tx::Transaction,
 };
 
@@ -91,9 +91,17 @@ impl ByteFormat for HandshakeTx {
     fn serialized_length(&self) -> usize {
         let mut len = 4; // version
         len += coins_core::ser::prefix_byte_len(self.vin.len() as u64) as usize;
-        len += self.vin.iter().map(|i| i.serialized_length()).sum::<usize>();
+        len += self
+            .vin
+            .iter()
+            .map(|i| i.serialized_length())
+            .sum::<usize>();
         len += coins_core::ser::prefix_byte_len(self.vout.len() as u64) as usize;
-        len += self.vout.iter().map(|o| o.serialized_length()).sum::<usize>();
+        len += self
+            .vout
+            .iter()
+            .map(|o| o.serialized_length())
+            .sum::<usize>();
         len += 4; // locktime
 
         for i in 0..self.vin.len() {
@@ -101,7 +109,7 @@ impl ByteFormat for HandshakeTx {
 
             match witness {
                 Some(w) => {
-                    len += coins_core::ser::prefix_byte_len(self.witnesses.len() as u64) as usize;
+                    len += ser::prefix_byte_len(self.witnesses.len() as u64) as usize;
                     len += w.iter().map(|w| w.serialized_length()).sum::<usize>();
                 }
                 None => {
@@ -118,14 +126,14 @@ impl ByteFormat for HandshakeTx {
         R: Read,
         Self: std::marker::Sized,
     {
-        let version = Self::read_u32_le(reader)?;
-        let vin = Self::read_prefix_vec(reader)?;
-        let vout = Self::read_prefix_vec(reader)?;
-        let locktime = Self::read_u32_le(reader)?;
+        let version = ser::read_u32_le(reader)?;
+        let vin = ser::read_prefix_vec(reader)?;
+        let vout = ser::read_prefix_vec(reader)?;
+        let locktime = ser::read_u32_le(reader)?;
 
         let mut witnesses = vec![];
         for _ in vin.iter() {
-            witnesses.push(Self::read_prefix_vec(reader)?);
+            witnesses.push(ser::read_prefix_vec(reader)?);
         }
 
         Ok(Self {
@@ -141,22 +149,22 @@ impl ByteFormat for HandshakeTx {
     where
         W: Write,
     {
-        let mut len = Self::write_u32_le(writer, self.version())?;
+        let mut len = ser::write_u32_le(writer, self.version())?;
 
-        len += Self::write_prefix_vec(writer, &self.vin)?;
-        len += Self::write_prefix_vec(writer, &self.vout)?;
-        len += Self::write_u32_le(writer, self.locktime())?;
+        len += ser::write_prefix_vec(writer, &self.vin)?;
+        len += ser::write_prefix_vec(writer, &self.vout)?;
+        len += ser::write_u32_le(writer, self.locktime())?;
 
         for i in 0..self.vin.len() {
             let witness = self.witnesses.get(i);
 
             match witness {
                 Some(wit) => {
-                    len += Self::write_prefix_vec(writer, &wit)?;
+                    len += ser::write_prefix_vec(writer, &wit)?;
                 }
                 None => {
                     let wit = Witness::default();
-                    len += Self::write_prefix_vec(writer, &wit)?;
+                    len += ser::write_prefix_vec(writer, &wit)?;
                 }
             }
         }
@@ -215,11 +223,11 @@ impl HandshakeTransaction for HandshakeTx {
     }
 
     fn write_txid_preimage<W: Write>(&self, writer: &mut W) -> Result<usize, Self::Error> {
-        let mut len = Self::write_u32_le(writer, self.version())?;
+        let mut len = ser::write_u32_le(writer, self.version())?;
 
-        len += Self::write_prefix_vec(writer, &self.vin)?;
-        len += Self::write_prefix_vec(writer, &self.vout)?;
-        len += Self::write_u32_le(writer, self.locktime())?;
+        len += ser::write_prefix_vec(writer, &self.vin)?;
+        len += ser::write_prefix_vec(writer, &self.vout)?;
+        len += ser::write_u32_le(writer, self.locktime())?;
 
         Ok(len)
     }
@@ -228,7 +236,7 @@ impl HandshakeTransaction for HandshakeTx {
         let mut witness_hash = Blake2b256::default();
 
         for wit in self.witnesses.iter() {
-            Self::write_prefix_vec(&mut witness_hash, &wit)?;
+            ser::write_prefix_vec(&mut witness_hash, &wit)?;
         }
 
         let hash: Blake2b256Digest = witness_hash.finalize_marked();
@@ -284,7 +292,7 @@ impl HandshakeTx {
         } else {
             let mut w = Blake2b256::default();
             for input in self.vin.iter() {
-                Self::write_u32_le(&mut w, input.sequence)?;
+                ser::write_u32_le(&mut w, input.sequence)?;
             }
             Ok(w.finalize_marked())
         }
@@ -414,17 +422,17 @@ impl Transaction for HandshakeTx {
             }
         };
 
-        Self::write_u32_le(writer, self.version)?;
+        ser::write_u32_le(writer, self.version)?;
         self.hash_prevouts(args.sighash_flag)?.write_to(writer)?;
         self.hash_sequence(args.sighash_flag)?.write_to(writer)?;
         input.outpoint.write_to(writer)?;
         args.prevout_script.write_to(writer)?;
-        Self::write_u64_le(writer, args.prevout_value)?;
-        Self::write_u32_le(writer, input.sequence)?;
+        ser::write_u64_le(writer, args.prevout_value)?;
+        ser::write_u32_le(writer, input.sequence)?;
         self.hash_outputs(args.index, args.sighash_flag)?
             .write_to(writer)?;
-        Self::write_u32_le(writer, self.locktime)?;
-        Self::write_u32_le(writer, args.sighash_flag as u32)?;
+        ser::write_u32_le(writer, self.locktime)?;
+        ser::write_u32_le(writer, args.sighash_flag as u32)?;
 
         Ok(())
     }

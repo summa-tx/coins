@@ -2,7 +2,7 @@
 
 use coins_core::{
     impl_hex_serde,
-    ser::{prefix_byte_len, ByteFormat, SerError, SerResult},
+    ser::{self, ByteFormat, SerError, SerResult},
 };
 use std::convert::TryFrom;
 use std::io::{Read, Write};
@@ -37,7 +37,7 @@ impl ByteFormat for CovenantData {
 
     fn serialized_length(&self) -> usize {
         let mut size: usize = 0;
-        size += self::prefix_byte_len(self.0.len() as u64) as usize;
+        size += ser::prefix_byte_len(self.0.len() as u64) as usize;
 
         for item in self.0.iter() {
             size += item.serialized_length();
@@ -51,7 +51,7 @@ impl ByteFormat for CovenantData {
         R: Read,
         Self: std::marker::Sized,
     {
-        let count = Self::read_compact_int(reader)?;
+        let count = ser::read_compact_int(reader)?;
 
         let mut items = vec![];
         for _ in 0..count {
@@ -67,7 +67,7 @@ impl ByteFormat for CovenantData {
         W: Write,
     {
         let mut total: usize = 0;
-        total += Self::write_compact_int(writer, self.0.len() as u64)?;
+        total += ser::write_compact_int(writer, self.0.len() as u64)?;
 
         for covenant_data in self.0.clone() {
             total += covenant_data.write_to(writer)?;

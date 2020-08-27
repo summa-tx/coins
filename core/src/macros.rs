@@ -52,14 +52,14 @@ macro_rules! wrap_prefixed_byte_vector {
             where
                 R: std::io::Read
             {
-                Ok(Self::read_prefix_vec(reader)?.into())
+                Ok(coins_core::ser::read_prefix_vec(reader)?.into())
             }
 
             fn write_to<W>(&self, writer: &mut W) -> Result<usize, Self::Error>
             where
                 W: std::io::Write
             {
-                Ok(Self::write_prefix_vec(writer, &self.0)?)
+                Ok(coins_core::ser::write_prefix_vec(writer, &self.0)?)
             }
         }
 
