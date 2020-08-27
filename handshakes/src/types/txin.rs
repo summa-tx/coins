@@ -4,8 +4,8 @@
 use std::io::{Read, Write};
 
 use coins_core::{
-    hashes::marked::MarkedDigest,
-    ser::{ByteFormat, SerError, SerResult},
+    hashes::MarkedDigestOutput,
+    ser::{self, ByteFormat, SerError, SerResult},
     types::tx::{Input, TXOIdentifier},
 };
 
@@ -20,7 +20,7 @@ use crate::hashes::TXID;
 #[derive(serde::Serialize, serde::Deserialize, Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct Outpoint<M>
 where
-    M: MarkedDigest,
+    M: MarkedDigestOutput,
 {
     /// The txid that created the UTXO being pointed to.
     pub txid: M,
@@ -28,11 +28,11 @@ where
     pub idx: u32,
 }
 
-impl<M> TXOIdentifier for Outpoint<M> where M: MarkedDigest {}
+impl<M> TXOIdentifier for Outpoint<M> where M: MarkedDigestOutput {}
 
 impl<M> Outpoint<M>
 where
-    M: MarkedDigest,
+    M: MarkedDigestOutput,
 {
     /// Returns a new Outpoint from a digest and index
     pub fn new(txid: M, idx: u32) -> Self {
@@ -50,7 +50,7 @@ where
 
 impl<M> Default for Outpoint<M>
 where
-    M: MarkedDigest,
+    M: MarkedDigestOutput,
 {
     fn default() -> Self {
         Outpoint::null()
@@ -59,7 +59,7 @@ where
 
 impl<M> ByteFormat for Outpoint<M>
 where
-    M: MarkedDigest + ByteFormat,
+    M: MarkedDigestOutput + ByteFormat,
 {
     type Error = SerError;
 
@@ -67,15 +67,14 @@ where
         36
     }
 
-    fn read_from<T>(reader: &mut T, _limit: usize) -> SerResult<Self>
+    fn read_from<T>(reader: &mut T) -> SerResult<Self>
     where
         T: Read,
         Self: std::marker::Sized,
     {
         Ok(Outpoint {
-            txid: M::read_from(reader, 0)
-                .map_err(|e| SerError::ComponentError(format!("{}", e)))?,
-            idx: Self::read_u32_le(reader)?,
+            txid: M::read_from(reader).map_err(|e| SerError::ComponentError(format!("{}", e)))?,
+            idx: ser::read_u32_le(reader)?,
         })
     }
 
@@ -87,7 +86,7 @@ where
             .txid
             .write_to(writer)
             .map_err(|e| SerError::ComponentError(format!("{}", e)))?;
-        len += Self::write_u32_le(writer, self.idx)?;
+        len += ser::write_u32_le(writer, self.idx)?;
         Ok(len)
     }
 }
@@ -100,7 +99,7 @@ where
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct TxInput<M>
 where
-    M: MarkedDigest,
+    M: MarkedDigestOutput,
 {
     /// The Outpoint identifying the UTXO being spent.
     pub outpoint: Outpoint<M>,
@@ -110,14 +109,14 @@ where
 
 impl<M> Input for TxInput<M>
 where
-    M: MarkedDigest,
+    M: MarkedDigestOutput,
 {
     type TXOIdentifier = Outpoint<M>;
 }
 
 impl<M> TxInput<M>
 where
-    M: MarkedDigest,
+    M: MarkedDigestOutput,
 {
     /// Instantiate a new TxInput
     pub fn new(outpoint: Outpoint<M>, sequence: u32) -> Self {
@@ -127,7 +126,7 @@ where
 
 impl<M> Default for TxInput<M>
 where
-    M: MarkedDigest,
+    M: MarkedDigestOutput,
 {
     fn default() -> Self {
         Self {
@@ -139,7 +138,7 @@ where
 
 impl<M> ByteFormat for TxInput<M>
 where
-    M: MarkedDigest + ByteFormat,
+    M: MarkedDigestOutput + ByteFormat,
 {
     type Error = SerError;
 
@@ -149,14 +148,14 @@ where
         len
     }
 
-    fn read_from<T>(reader: &mut T, _limit: usize) -> SerResult<Self>
+    fn read_from<T>(reader: &mut T) -> SerResult<Self>
     where
         T: Read,
         Self: std::marker::Sized,
     {
         Ok(TxInput {
-            outpoint: Outpoint::read_from(reader, 0)?,
-            sequence: Self::read_u32_le(reader)?,
+            outpoint: Outpoint::read_from(reader)?,
+            sequence: ser::read_u32_le(reader)?,
         })
     }
 
@@ -165,7 +164,7 @@ where
         T: Write,
     {
         let mut len = self.outpoint.write_to(writer)?;
-        len += Self::write_u32_le(writer, self.sequence)?;
+        len += ser::write_u32_le(writer, self.sequence)?;
         Ok(len)
     }
 }

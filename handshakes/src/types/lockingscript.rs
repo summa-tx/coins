@@ -2,9 +2,9 @@
 
 use crate::{hashes::blake2b160, types::Script};
 use coins_core::{
-    hashes::{MarkedDigestWriter, Sha3_256Writer},
+    hashes::{Digest, DigestOutput, Sha3_256},
     impl_hex_serde,
-    ser::ByteFormat,
+    ser::{self, ByteFormat},
     types::tx::RecipientIdentifier,
 };
 use std::io::{Read, Write};
@@ -69,6 +69,12 @@ impl From<[u8; 20]> for WitnessProgram {
 impl From<[u8; 32]> for WitnessProgram {
     fn from(v: [u8; 32]) -> Self {
         Self::new(v.to_vec())
+    }
+}
+
+impl From<DigestOutput<Sha3_256>> for WitnessProgram {
+    fn from(v: DigestOutput<Sha3_256>) -> Self {
+        Self::new(v.as_slice().to_vec())
     }
 }
 
@@ -142,7 +148,7 @@ impl coins_core::ser::ByteFormat for LockingScript {
         length
     }
 
-    fn read_from<R>(reader: &mut R, _limit: usize) -> Result<Self, Self::Error>
+    fn read_from<R>(reader: &mut R) -> Result<Self, Self::Error>
     where
         R: Read,
     {
@@ -151,7 +157,7 @@ impl coins_core::ser::ByteFormat for LockingScript {
 
         Ok(LockingScript {
             version: version[0],
-            witness_program: WitnessProgram::read_prefix_vec(reader)?.into(),
+            witness_program: ser::read_prefix_vec(reader)?.into(),
         })
     }
 
@@ -209,9 +215,9 @@ impl LockingScript {
 
     /// Instantiate a standard p2wsh script pubkey from a script.
     pub fn p2wsh(script: &Script) -> Self {
-        let mut w = Sha3_256Writer::default();
+        let mut w = Sha3_256::default();
         w.write_all(script.items()).expect("No i/o error");
-        let digest = w.finish();
+        let digest = w.finalize();
 
         Self {
             version: 0,

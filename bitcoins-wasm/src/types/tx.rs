@@ -10,7 +10,7 @@ use crate::{
     hashes::{TXID, WTXID},
     types::{
         errors::WasmError,
-        script::{TxWitness, Witness},
+        script::WitnessStackItem,
         txin::{BitcoinTxIn, Vin},
         txout::{TxOut, Vout},
     },
@@ -95,7 +95,7 @@ impl LegacyTx {
         };
         self.0
             .sighash(&args)
-            .map(|v| js_sys::Uint8Array::from(&v.as_ref()[..]))
+            .map(|v| js_sys::Uint8Array::from(v.as_slice()))
             .map_err(WasmError::from)
             .map_err(JsValue::from)
     }
@@ -109,7 +109,7 @@ impl WitnessTx {
         version: u32,
         vin: Vin,
         vout: Vout,
-        witnesses: TxWitness,
+        witnesses: JsValue,
         locktime: u32,
     ) -> Result<WitnessTx, JsValue> {
         // disambiguate `new`
@@ -117,7 +117,7 @@ impl WitnessTx {
             version,
             vin.inner(),
             vout.inner(),
-            witnesses,
+            witnesses.into_serde().unwrap(),
             locktime,
         )
         .map(Self::from)
@@ -181,7 +181,7 @@ impl WitnessTx {
         };
         self.0
             .sighash(&args)
-            .map(|v| js_sys::Uint8Array::from(&v.as_ref()[..]))
+            .map(|v| js_sys::Uint8Array::from(v.as_slice()))
             .map_err(WasmError::from)
             .map_err(JsValue::from)
     }

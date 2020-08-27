@@ -1,3 +1,7 @@
+use crate::Bip32Error;
+use coins_core::ser::ByteFormat;
+use std::io::{Read, Write};
+
 /// We treat the bip32 xpub bip49 ypub and bip84 zpub convention as a hint regarding address type.
 /// Downstream crates are free to follow or ignore these hints when generating addresses from
 /// extended keys.
@@ -18,6 +22,31 @@ pub struct KeyFingerprint(pub [u8; 4]);
 impl From<[u8; 4]> for KeyFingerprint {
     fn from(v: [u8; 4]) -> Self {
         Self(v)
+    }
+}
+
+impl ByteFormat for KeyFingerprint {
+    type Error = Bip32Error;
+
+    fn serialized_length(&self) -> usize {
+        4
+    }
+
+    fn read_from<R>(reader: &mut R) -> Result<Self, Self::Error>
+    where
+        R: Read,
+        Self: std::marker::Sized,
+    {
+        let mut buf = [0u8; 4];
+        reader.read_exact(&mut buf)?;
+        Ok(Self(buf))
+    }
+
+    fn write_to<W>(&self, writer: &mut W) -> Result<usize, Self::Error>
+    where
+        W: Write,
+    {
+        Ok(writer.write(&self.0)?)
     }
 }
 

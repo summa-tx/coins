@@ -1,7 +1,7 @@
 //! Partially Signed Bitcoin transactions (bip174)
 
 #[macro_use]
-pub(crate) mod prelude;
+pub(crate) mod macros;
 
 /// Common data structures
 pub mod common;
@@ -346,7 +346,7 @@ where
         length
     }
 
-    fn read_from<R>(reader: &mut R, _limit: usize) -> Result<Self, PSBTError>
+    fn read_from<R>(reader: &mut R) -> Result<Self, PSBTError>
     where
         R: Read,
         Self: std::marker::Sized,
@@ -357,7 +357,7 @@ where
             return Err(PSBTError::BadPrefix);
         }
 
-        let global = PSBTGlobal::read_from(reader, 0)?;
+        let global = PSBTGlobal::read_from(reader)?;
         let tx = global.tx()?;
 
         for input in tx.inputs().iter() {
@@ -365,9 +365,9 @@ where
                 return Err(PSBTError::ScriptSigInTx);
             }
         }
-        let inputs = Vec::<PSBTInput>::read_from(reader, tx.inputs().len())?;
+        let inputs = PSBTInput::read_seq_from(reader, tx.inputs().len())?;
 
-        let outputs = Vec::<PSBTOutput>::read_from(reader, tx.outputs().len())?;
+        let outputs = PSBTOutput::read_seq_from(reader, tx.outputs().len())?;
 
         let result = PSBT {
             global,
@@ -388,8 +388,20 @@ where
         let mut len = writer.write(&<PSBT<T, E> as PST<T>>::MAGIC_BYTES)?;
         len += writer.write(&[0xff])?;
         len += self.global_map().write_to(writer)?;
-        len += self.input_maps().write_to(writer)?;
-        len += self.output_maps().write_to(writer)?;
+        len += self
+            .input_maps()
+            .iter()
+            .map(|m| m.write_to(writer))
+            .collect::<Result<Vec<usize>, _>>()?
+            .into_iter()
+            .sum::<usize>();
+        len += self
+            .output_maps()
+            .iter()
+            .map(|m| m.write_to(writer))
+            .collect::<Result<Vec<usize>, _>>()?
+            .into_iter()
+            .sum::<usize>();
         Ok(len)
     }
 }

@@ -5,7 +5,7 @@ use std::{
     str::FromStr,
 };
 
-use coins_core::ser::{ByteFormat, SerError};
+use coins_core::ser::ByteFormat;
 
 use crate::{primitives::KeyFingerprint, Bip32Error, BIP32_HARDEN};
 
@@ -236,33 +236,34 @@ impl ByteFormat for KeyDerivation {
         4 + 4 * self.path.len()
     }
 
-    fn read_from<T>(reader: &mut T, limit: usize) -> Result<Self, Self::Error>
+    fn read_from<T>(_reader: &mut T) -> Result<Self, Self::Error>
     where
         T: Read,
         Self: std::marker::Sized,
     {
-        if limit == 0 {
-            return Err(SerError::RequiresLimit.into());
-        }
+        unimplemented!()
+        // if limit == 0 {
+        //     return Err(SerError::RequiresLimit.into());
+        // }
 
-        if limit > 255 {
-            return Err(Bip32Error::InvalidBip32Path);
-        }
+        // if limit > 255 {
+        //     return Err(Bip32Error::InvalidBip32Path);
+        // }
 
-        let mut finger = [0u8; 4];
-        reader.read_exact(&mut finger)?;
+        // let mut finger = [0u8; 4];
+        // reader.read_exact(&mut finger)?;
 
-        let mut path = vec![];
-        for _ in 0..limit {
-            let mut buf = [0u8; 4];
-            reader.read_exact(&mut buf)?;
-            path.push(u32::from_le_bytes(buf));
-        }
+        // let mut path = vec![];
+        // for _ in 0..limit {
+        //     let mut buf = [0u8; 4];
+        //     reader.read_exact(&mut buf)?;
+        //     path.push(u32::from_le_bytes(buf));
+        // }
 
-        Ok(KeyDerivation {
-            root: finger.into(),
-            path: path.into(),
-        })
+        // Ok(KeyDerivation {
+        //     root: finger.into(),
+        //     path: path.into(),
+        // })
     }
 
     fn write_to<T>(&self, writer: &mut T) -> Result<usize, Self::Error>

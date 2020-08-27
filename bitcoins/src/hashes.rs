@@ -1,27 +1,29 @@
 //! This module holds `MarkedDigest` types used by Bitcoin transactions. Currently we represent
 //! only `TXID`s and `WTXID`s. In the future we may also represent sighash digests this way.
 
-use bitcoin_spv::types::Hash256Digest;
+use coins_core::{hashes, impl_hex_serde, marked_digest};
 
-use coins_core::{hashes::marked::MarkedDigest, mark_32_byte_hash};
-
-coins_core::mark_32_byte_hash!(
+marked_digest!(
     /// A marked Hash256Digest representing transaction IDs
     TXID,
-    Hash256Digest
+    hashes::Hash256
 );
 
-mark_32_byte_hash!(
+marked_digest!(
     /// A marked Hash256Digest representing witness transaction IDs
     WTXID,
-    Hash256Digest
+    hashes::Hash256
 );
 
-mark_32_byte_hash!(
+marked_digest!(
     /// A marked Hash256Digest representing a block hash
     BlockHash,
-    Hash256Digest
+    hashes::Hash256
 );
+
+impl_hex_serde!(TXID);
+impl_hex_serde!(WTXID);
+impl_hex_serde!(BlockHash);
 
 #[cfg(test)]
 mod test {

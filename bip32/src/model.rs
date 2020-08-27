@@ -1,14 +1,9 @@
 use std::convert::TryInto;
 
-use bitcoin_spv::{
-    btcspv::hash256,
-    types::{Hash160Digest, Hash256Digest},
-};
+use coins_core::hashes::{Hash160Digest, Hash256, Hash256Digest, MarkedDigest};
 
 use crate::{
-    curve::model::{
-        HashFunc, PointSerialize, RecoverableSigSerialize, ScalarSerialize, Secp256k1Backend,
-    },
+    curve::model::{PointSerialize, RecoverableSigSerialize, ScalarSerialize, Secp256k1Backend},
     path::{DerivationPath, KeyDerivation},
     primitives::{ChainCode, Hint, KeyFingerprint, XKeyInfo},
     Bip32Error,
@@ -116,27 +111,32 @@ pub trait SigningKey<'a, T: 'a + Secp256k1Backend>:
     }
 
     /// Sign a message
-    fn sign_with_hash(&self, message: &[u8], hash: &HashFunc) -> Result<T::Signature, Bip32Error> {
-        self.sign_digest(hash(message))
+    fn sign_with_hash<D>(&self, message: &[u8]) -> Result<T::Signature, Bip32Error>
+    where
+        D: MarkedDigest<Hash256Digest>,
+    {
+        self.sign_digest(D::digest_marked(message))
     }
 
     /// Sign a message and produce a recovery ID
-    fn sign_recoverable_with_hash(
+    fn sign_recoverable_with_hash<D>(
         &self,
         message: &[u8],
-        hash: &HashFunc,
-    ) -> Result<T::RecoverableSignature, Bip32Error> {
-        self.sign_digest_recoverable(hash(message))
+    ) -> Result<T::RecoverableSignature, Bip32Error>
+    where
+        D: MarkedDigest<Hash256Digest>,
+    {
+        self.sign_digest_recoverable(D::digest_marked(message))
     }
 
     /// Produce a signature on `sha2(sha2(message))`
     fn sign(&self, message: &[u8]) -> Result<T::Signature, Bip32Error> {
-        self.sign_with_hash(message, &|m| hash256(&[m]))
+        self.sign_with_hash::<Hash256>(message)
     }
 
     /// Produce a recoverable signature on `sha2(sha2(message))`
     fn sign_recoverable(&self, message: &[u8]) -> Result<T::RecoverableSignature, Bip32Error> {
-        self.sign_recoverable_with_hash(message, &|m| hash256(&[m]))
+        self.sign_recoverable_with_hash::<Hash256>(message)
     }
 }
 
@@ -171,28 +171,28 @@ pub trait VerifyingKey<'a, T: 'a + Secp256k1Backend>:
     }
 
     /// Verify a signature on a message
-    fn verify_with_hash(
-        &self,
-        message: &[u8],
-        hash: &HashFunc,
-        sig: &T::Signature,
-    ) -> Result<(), Bip32Error> {
-        self.verify_digest(hash(message), sig)
+    fn verify_with_hash<D>(&self, message: &[u8], sig: &T::Signature) -> Result<(), Bip32Error>
+    where
+        D: MarkedDigest<Hash256Digest>,
+    {
+        self.verify_digest(D::digest_marked(message), sig)
     }
 
     /// Verify a recoverable signature on a message.
-    fn verify_recoverable_with_hash(
+    fn verify_recoverable_with_hash<D>(
         &self,
         message: &[u8],
-        hash: &HashFunc,
         sig: &T::RecoverableSignature,
-    ) -> Result<(), Bip32Error> {
-        self.verify_digest(hash(message), &sig.without_recovery())
+    ) -> Result<(), Bip32Error>
+    where
+        D: MarkedDigest<Hash256Digest>,
+    {
+        self.verify_digest(D::digest_marked(message), &sig.without_recovery())
     }
 
     /// Produce a signature on `sha2(sha2(message))`
     fn verify(&self, message: &[u8], sig: &T::Signature) -> Result<(), Bip32Error> {
-        self.verify_with_hash(message, &|m| hash256(&[m]), sig)
+        self.verify_with_hash::<Hash256>(message, sig)
     }
 
     /// Produce a recoverable signature on `sha2(sha2(message))`
@@ -201,7 +201,7 @@ pub trait VerifyingKey<'a, T: 'a + Secp256k1Backend>:
         message: &[u8],
         sig: &T::RecoverableSignature,
     ) -> Result<(), Bip32Error> {
-        self.verify_recoverable_with_hash(message, &|m| hash256(&[m]), sig)
+        self.verify_recoverable_with_hash::<Hash256>(message, sig)
     }
 }
 
@@ -253,7 +253,7 @@ pub trait DerivePrivateChild<'a, T: Secp256k1Backend>: XKey + HasPrivkey<'a, T> 
 
     /// Derive a series of child indices. Allows traversing several levels of the tree at once.
     /// Accepts an iterator producing u32, or a string.
-    fn derive_private_path<P, E>(&self, p: P) -> Result<Self, Bip32Error>
+    fn derive_private_path<E, P>(&self, p: P) -> Result<Self, Bip32Error>
     where
         E: Into<Bip32Error>,
         P: TryInto<DerivationPath, Error = E>,
@@ -339,31 +339,31 @@ pub trait XSigning<'a, T: 'a + Secp256k1Backend>:
     }
 
     /// Derive a descendant, and have it sign a message
-    fn descendant_sign_with_hash<E, P>(
+    fn descendant_sign_with_hash<D, E, P>(
         &self,
         path: P,
         message: &[u8],
-        hash: &HashFunc,
     ) -> Result<T::Signature, Bip32Error>
     where
+        D: MarkedDigest<Hash256Digest>,
         E: Into<Bip32Error>,
         P: TryInto<DerivationPath, Error = E>,
     {
-        self.descendant_sign_digest(path, hash(message))
+        self.descendant_sign_digest(path, D::digest_marked(message))
     }
 
     /// Derive a descendant, and have it sign a message and produce a recovery ID
-    fn descendant_sign_recoverable_with_hash<E, P>(
+    fn descendant_sign_recoverable_with_hash<D, E, P>(
         &self,
         path: P,
         message: &[u8],
-        hash: &HashFunc,
     ) -> Result<T::RecoverableSignature, Bip32Error>
     where
+        D: MarkedDigest<Hash256Digest>,
         E: Into<Bip32Error>,
         P: TryInto<DerivationPath, Error = E>,
     {
-        self.descendant_sign_digest_recoverable(path, hash(message))
+        self.descendant_sign_digest_recoverable(path, D::digest_marked(message))
     }
 
     /// Derive a descendant, and have it produce a signature on `sha2(sha2(message))`
@@ -372,7 +372,7 @@ pub trait XSigning<'a, T: 'a + Secp256k1Backend>:
         E: Into<Bip32Error>,
         P: TryInto<DerivationPath, Error = E>,
     {
-        self.descendant_sign_with_hash(path, message, &|m| hash256(&[m]))
+        self.descendant_sign_with_hash::<Hash256, E, P>(path, message)
     }
 
     /// Derive a descendant, and have it produce a recoverable signature on `sha2(sha2(message))`
@@ -385,7 +385,7 @@ pub trait XSigning<'a, T: 'a + Secp256k1Backend>:
         E: Into<Bip32Error>,
         P: TryInto<DerivationPath, Error = E>,
     {
-        self.descendant_sign_recoverable_with_hash(path, message, &|m| hash256(&[m]))
+        self.descendant_sign_recoverable_with_hash::<Hash256, E, P>(path, message)
     }
 }
 
@@ -396,7 +396,7 @@ pub trait XVerifying<'a, T: 'a + Secp256k1Backend>:
     DerivePublicChild<'a, T> + VerifyingKey<'a, T>
 {
     /// Verify a signature on a digest
-    fn descendant_verify_digest<P, E>(
+    fn descendant_verify_digest<E, P>(
         &self,
         path: P,
         digest: Hash256Digest,
@@ -410,7 +410,7 @@ pub trait XVerifying<'a, T: 'a + Secp256k1Backend>:
     }
 
     /// Verify a recoverable signature on a digest.
-    fn descendant_verify_digest_recoverable<P, E>(
+    fn descendant_verify_digest_recoverable<E, P>(
         &self,
         path: P,
         digest: Hash256Digest,
@@ -424,37 +424,37 @@ pub trait XVerifying<'a, T: 'a + Secp256k1Backend>:
     }
 
     /// Verify a signature on a message
-    fn descendant_verify_with_hash<P, E>(
+    fn descendant_verify_with_hash<D, E, P>(
         &self,
         path: P,
         message: &[u8],
-        hash: &HashFunc,
         sig: &T::Signature,
     ) -> Result<(), Bip32Error>
     where
+        D: MarkedDigest<Hash256Digest>,
         E: Into<Bip32Error>,
         P: TryInto<DerivationPath, Error = E>,
     {
-        self.descendant_verify_digest(path, hash(message), sig)
+        self.descendant_verify_digest(path, D::digest_marked(message), sig)
     }
 
     /// Verify a recoverable signature on a message.
-    fn descendant_verify_recoverable_with_hash<P, E>(
+    fn descendant_verify_recoverable_with_hash<D, E, P>(
         &self,
         path: P,
         message: &[u8],
-        hash: &HashFunc,
         sig: &T::RecoverableSignature,
     ) -> Result<(), Bip32Error>
     where
+        D: MarkedDigest<Hash256Digest>,
         E: Into<Bip32Error>,
         P: TryInto<DerivationPath, Error = E>,
     {
-        self.descendant_verify_digest(path, hash(message), &sig.without_recovery())
+        self.descendant_verify_digest(path, D::digest_marked(message), &sig.without_recovery())
     }
 
     /// Produce a signature on `sha2(sha2(message))`
-    fn descendant_verify<P, E>(
+    fn descendant_verify<E, P>(
         &self,
         path: P,
         message: &[u8],
@@ -464,11 +464,11 @@ pub trait XVerifying<'a, T: 'a + Secp256k1Backend>:
         E: Into<Bip32Error>,
         P: TryInto<DerivationPath, Error = E>,
     {
-        self.descendant_verify_with_hash(path, message, &|m| hash256(&[m]), sig)
+        self.descendant_verify_with_hash::<Hash256, E, P>(path, message, sig)
     }
 
     /// Produce a recoverable signature on `sha2(sha2(message))`
-    fn descendant_verify_recoverable<P, E>(
+    fn descendant_verify_recoverable<E, P>(
         &self,
         path: P,
         message: &[u8],
@@ -478,7 +478,7 @@ pub trait XVerifying<'a, T: 'a + Secp256k1Backend>:
         E: Into<Bip32Error>,
         P: TryInto<DerivationPath, Error = E>,
     {
-        self.descendant_verify_recoverable_with_hash(path, message, &|m| hash256(&[m]), sig)
+        self.descendant_verify_recoverable_with_hash::<Hash256, E, P>(path, message, sig)
     }
 }
 

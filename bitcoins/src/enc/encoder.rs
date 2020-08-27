@@ -5,6 +5,7 @@ use std::marker::PhantomData;
 use coins_core::{
     bases::{decode_base58, encode_base58},
     enc::{AddressEncoder, EncodingError, EncodingResult},
+    hashes::MarkedDigestOutput,
 };
 
 use crate::{
@@ -87,12 +88,12 @@ impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
                 // s.items contains the op codes. we want only the pkh
                 Ok(Address::PKH(encode_base58(
                     P::PKH_VERSION,
-                    payload.as_ref(),
+                    payload.as_slice(),
                 )))
             }
             ScriptType::SH(payload) => {
                 // s.items contains the op codes. we want only the sh
-                Ok(Address::SH(encode_base58(P::SH_VERSION, payload.as_ref())))
+                Ok(Address::SH(encode_base58(P::SH_VERSION, payload.as_slice())))
             }
             ScriptType::WSH(_) => Ok(Address::WSH(encode_bech32(P::HRP, &s.items())?)),
             ScriptType::WPKH(_) => Ok(Address::WPKH(encode_bech32(P::HRP, &s.items())?)),

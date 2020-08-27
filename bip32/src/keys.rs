@@ -1,4 +1,4 @@
-use bitcoin_spv::types::Hash256Digest;
+use coins_core::hashes::Hash256Digest;
 
 use crate::{
     curve::{ScalarSerialize, Secp256k1Backend},

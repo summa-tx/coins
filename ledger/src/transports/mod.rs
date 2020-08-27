@@ -55,7 +55,10 @@ impl LedgerAsync for Ledger {
     }
 
     async fn exchange(&self, packet: &APDUCommand) -> Result<APDUAnswer, LedgerError> {
-       self.0.exchange(packet).await
+        log::debug!("Exchanging Packet {:#?}", packet);
+        let res = self.0.exchange(packet).await;
+        log::debug!("Got response: {:#?}", &res);
+        res
    }
 }
 

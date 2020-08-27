@@ -305,7 +305,9 @@ impl PSBTInput {
     pub fn insert_witness(&mut self, witness: &Witness) {
         let mut value = vec![];
         ser::write_compact_int(&mut value, witness.len() as u64).unwrap();
-        witness.write_to(&mut value).unwrap();
+        witness.iter().for_each(|w| {
+            w.write_to(&mut value).unwrap();
+        });
         self.insert(InputKey::FINAL_SCRIPTWITNESS.into(), value.into());
     }
 

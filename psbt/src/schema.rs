@@ -9,10 +9,11 @@ use coins_bip32::{
     keys::Pubkey,
     model::DerivedKey,
     path::KeyDerivation,
+    primitives::KeyFingerprint,
     Bip32Error, Secp256k1, XPub,
 };
 
-use bitcoins::types::{LegacyTx, ScriptType, Sighash, TxError, TxOut, Witness};
+use bitcoins::types::{LegacyTx, ScriptType, Sighash, TxError, TxOut, Witness, WitnessStackItem};
 
 use crate::common::{PSBTError, PSBTKey, PSBTValue};
 
@@ -57,7 +58,18 @@ pub fn try_val_as_key_derivation(val: &PSBTValue) -> Result<KeyDerivation, PSBTE
     }
     let limit = (val.len() / 4) - 1;
     let mut deriv_bytes = &val.items()[..];
-    Ok(KeyDerivation::read_from(&mut deriv_bytes, limit)?)
+
+    let mut v = vec![];
+
+    let root = KeyFingerprint::read_from(&mut deriv_bytes)?;
+    for _ in 0..limit {
+        v.push(ser::read_u32_le(&mut deriv_bytes)?)
+    }
+
+    Ok(KeyDerivation {
+        root,
+        path: v.into_iter().collect(),
+    })
 }
 
 /// Validate that a key is a fixed length
@@ -135,13 +147,13 @@ pub fn try_key_as_pubkey(key: &PSBTKey) -> Result<Pubkey, PSBTError> {
 /// Attempt to deserialize a value as a as transaction
 pub fn try_val_as_tx(val: &PSBTValue) -> Result<LegacyTx, PSBTError> {
     let mut tx_bytes = &val.items()[..];
-    Ok(LegacyTx::read_from(&mut tx_bytes, 0)?)
+    Ok(LegacyTx::read_from(&mut tx_bytes)?)
 }
 
 /// Attempt to deserialize a value as a Bitcoin Output
 pub fn try_val_as_tx_out(val: &PSBTValue) -> Result<TxOut, PSBTError> {
     let mut out_bytes = &val.items()[..];
-    Ok(TxOut::read_from(&mut out_bytes, 0)?)
+    Ok(TxOut::read_from(&mut out_bytes)?)
 }
 
 /// Attempt to deserialize a value as a sighash flag
@@ -175,7 +187,7 @@ pub fn try_val_as_signature(val: &PSBTValue) -> Result<(Signature, Sighash), PSB
 pub fn try_val_as_witness(val: &PSBTValue) -> Result<Witness, PSBTError> {
     let mut wit_bytes = &val.items()[..];
     let number = ser::read_compact_int(&mut wit_bytes)? as usize;
-    Ok(Witness::read_from(&mut wit_bytes, number)?)
+    Ok(WitnessStackItem::read_seq_from(&mut wit_bytes, number)?)
 }
 
 /// Attempt to parse a key as a valid extended pubkey

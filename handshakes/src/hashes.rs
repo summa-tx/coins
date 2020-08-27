@@ -4,18 +4,28 @@
 
 use blake2_rfc::blake2b::Blake2b;
 
-use coins_core::hashes::{marked::MarkedDigest, Blake2b256Digest};
+use coins_core::{hashes::Blake2b256, impl_hex_serde, marked_digest};
 
-coins_core::mark_32_byte_hash!(
-    /// A marked Blake2b256Digest representing transaction IDs
+marked_digest!(
+    /// An unmarked Blake2b256 digest output
+    Blake2b256Digest,
+    Blake2b256
+);
+
+marked_digest!(
+    /// A marked Blake2b256 representing transaction IDs
     TXID,
-    Blake2b256Digest
+    Blake2b256
 );
-coins_core::mark_32_byte_hash!(
-    /// A marked Blake2b256Digest representing witness transaction IDs
+marked_digest!(
+    /// A marked Blake2b256 representing witness transaction IDs
     WTXID,
-    Blake2b256Digest
+    Blake2b256
 );
+
+impl_hex_serde!(Blake2b256Digest);
+impl_hex_serde!(TXID);
+impl_hex_serde!(WTXID);
 
 /// A Handshake Blake2b160Digest
 pub type Blake2b160Digest = [u8; 20];

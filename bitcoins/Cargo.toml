@@ -8,12 +8,11 @@ repository = "https://github.com/summa-tx/bitcoins-rs"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-bitcoin-spv = "4.0.1"
+bitcoin-spv = "5.0.0"
 hex = "0.4.2"
 bech32 = "0.7.2"
 base58check = "0.1.0"
 thiserror = "1.0"
-sha2 = "0.8.1"
 serde = "1.0.105"
 coins-core = { path = "../core" }
 

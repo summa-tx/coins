@@ -2,7 +2,7 @@
 
 use crate::types::{Covenant, LockingScript, LockingScriptType, WitnessProgram};
 use coins_core::{
-    ser::{ByteFormat, SerError, SerResult},
+    ser::{self, ByteFormat, SerError, SerResult},
     types::tx::Output,
 };
 use std::io::{Read, Write};
@@ -97,14 +97,14 @@ impl ByteFormat for TxOut {
         len
     }
 
-    fn read_from<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
+    fn read_from<R>(reader: &mut R) -> SerResult<Self>
     where
         R: Read,
         Self: std::marker::Sized,
     {
-        let value = Self::read_u64_le(reader)?;
-        let locking_script = LockingScript::read_from(reader, 0)?;
-        let covenant = Covenant::read_from(reader, 0)?;
+        let value = ser::read_u64_le(reader)?;
+        let locking_script = LockingScript::read_from(reader)?;
+        let covenant = Covenant::read_from(reader)?;
 
         Ok(Self {
             value,
@@ -117,7 +117,7 @@ impl ByteFormat for TxOut {
     where
         W: Write,
     {
-        let mut len = Self::write_u64_le(writer, self.value)?;
+        let mut len = ser::write_u64_le(writer, self.value)?;
         len += self.locking_script.write_to(writer)?;
         len += self.covenant.write_to(writer)?;
         Ok(len)

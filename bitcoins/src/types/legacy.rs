@@ -1,8 +1,11 @@
 //! Legacy Transactions
-use bitcoin_spv::types::Hash256Digest;
 use std::io::{Read, Write};
 
-use coins_core::{hashes::hash256::Hash256Writer, ser::ByteFormat, types::tx::Transaction};
+use coins_core::{
+    hashes::*,
+    ser::{self, ByteFormat},
+    types::tx::Transaction,
+};
 
 use crate::{
     hashes::TXID,
@@ -140,12 +143,11 @@ impl LegacyTx {
 
 impl Transaction for LegacyTx {
     type TxError = TxError;
-    type Digest = Hash256Digest;
     type TxIn = BitcoinTxIn;
     type TxOut = TxOut;
     type SighashArgs = LegacySighashArgs;
     type TXID = TXID;
-    type HashWriter = Hash256Writer;
+    type HashWriter = Hash256;
 
     fn new<I, O>(version: u32, vin: I, vout: O, locktime: u32) -> Result<Self, Self::Error>
     where
@@ -210,7 +212,7 @@ impl Transaction for LegacyTx {
         }
 
         copy_tx.write_to(writer)?;
-        Self::write_u32_le(writer, args.sighash_flag as u32)?;
+        coins_core::ser::write_u32_le(writer, args.sighash_flag as u32)?;
 
         Ok(())
     }
@@ -240,22 +242,30 @@ impl ByteFormat for LegacyTx {
     fn serialized_length(&self) -> usize {
         let mut len = 4; // version
         len += coins_core::ser::prefix_byte_len(self.vin.len() as u64) as usize;
-        len += self.vin.serialized_length();
+        len += self
+            .vin
+            .iter()
+            .map(|i| i.serialized_length())
+            .sum::<usize>();
         len += coins_core::ser::prefix_byte_len(self.vout.len() as u64) as usize;
-        len += self.vout.serialized_length();
+        len += self
+            .vout
+            .iter()
+            .map(|o| o.serialized_length())
+            .sum::<usize>();
         len += 4; // locktime
         len
     }
 
-    fn read_from<R>(reader: &mut R, _limit: usize) -> Result<Self, Self::Error>
+    fn read_from<R>(reader: &mut R) -> Result<Self, Self::Error>
     where
         R: Read,
         Self: std::marker::Sized,
     {
-        let version = Self::read_u32_le(reader)?;
-        let vin = Self::read_prefix_vec(reader)?;
-        let vout = Self::read_prefix_vec(reader)?;
-        let locktime = Self::read_u32_le(reader)?;
+        let version = coins_core::ser::read_u32_le(reader)?;
+        let vin = ser::read_prefix_vec(reader)?;
+        let vout = ser::read_prefix_vec(reader)?;
+        let locktime = coins_core::ser::read_u32_le(reader)?;
         Ok(Self {
             version,
             vin,
@@ -268,10 +278,10 @@ impl ByteFormat for LegacyTx {
     where
         W: Write,
     {
-        let mut len = Self::write_u32_le(writer, self.version())?;
-        Self::write_prefix_vec(writer, &self.vin)?;
-        Self::write_prefix_vec(writer, &self.vout)?;
-        len += Self::write_u32_le(writer, self.locktime())?;
+        let mut len = coins_core::ser::write_u32_le(writer, self.version())?;
+        ser::write_prefix_vec(writer, &self.vin)?;
+        ser::write_prefix_vec(writer, &self.vout)?;
+        len += coins_core::ser::write_u32_le(writer, self.locktime())?;
         Ok(len)
     }
 }

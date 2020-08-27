@@ -1,14 +1,10 @@
 //! Witness Transactions
 
-use bitcoin_spv::types::Hash256Digest;
 use std::io::{Read, Write};
 
 use coins_core::{
-    hashes::{
-        hash256::Hash256Writer,
-        marked::{MarkedDigest, MarkedDigestWriter},
-    },
-    ser::ByteFormat,
+    hashes::{Digest, DigestOutput, Hash256, Hash256Digest, MarkedDigest, MarkedDigestOutput},
+    ser::{self, ByteFormat},
     types::tx::Transaction,
 };
 
@@ -31,7 +27,7 @@ use crate::{
 /// unique functionality.
 pub trait WitnessTransaction: BitcoinTransaction {
     /// The MarkedDigest type for the Transaction's Witness TXID
-    type WTXID: MarkedDigest<Digest = Self::Digest>;
+    type WTXID: MarkedDigestOutput;
     /// The BIP143 sighash args needed to sign an input
     type WitnessSighashArgs;
     /// A type that represents this transactions per-input `Witness`.
@@ -62,10 +58,13 @@ pub trait WitnessTransaction: BitcoinTransaction {
     ) -> Result<(), Self::TxError>;
 
     /// Calculates the Legacy sighash preimage given the sighash args.
-    fn legacy_sighash(&self, args: &LegacySighashArgs) -> Result<Self::Digest, Self::TxError> {
+    fn legacy_sighash(
+        &self,
+        args: &LegacySighashArgs,
+    ) -> Result<DigestOutput<Self::HashWriter>, Self::TxError> {
         let mut w = Self::HashWriter::default();
         self.write_legacy_sighash_preimage(&mut w, args)?;
-        Ok(w.finish())
+        Ok(w.finalize())
     }
 
     /// Writes the BIP143 sighash preimage to the provided `writer`. See the
@@ -81,10 +80,10 @@ pub trait WitnessTransaction: BitcoinTransaction {
     fn witness_sighash(
         &self,
         args: &Self::WitnessSighashArgs,
-    ) -> Result<Self::Digest, Self::TxError> {
+    ) -> Result<DigestOutput<Self::HashWriter>, Self::TxError> {
         let mut w = Self::HashWriter::default();
         self.write_witness_sighash_preimage(&mut w, args)?;
-        Ok(w.finish())
+        Ok(w.finalize())
     }
 }
 
@@ -155,11 +154,11 @@ impl WitnessTx {
         if sighash_flag as u8 & 0x80 == 0x80 {
             Ok(Hash256Digest::default())
         } else {
-            let mut w = Hash256Writer::default();
+            let mut w = Hash256::default();
             for input in self.legacy_tx.vin.iter() {
                 input.outpoint.write_to(&mut w)?;
             }
-            Ok(w.finish())
+            Ok(w.finalize_marked())
         }
     }
 
@@ -174,11 +173,11 @@ impl WitnessTx {
         if sighash_flag == Sighash::Single || sighash_flag as u8 & 0x80 == 0x80 {
             Ok(Hash256Digest::default())
         } else {
-            let mut w = Hash256Writer::default();
+            let mut w = Hash256::default();
             for input in self.legacy_tx.vin.iter() {
-                Self::write_u32_le(&mut w, input.sequence)?;
+                ser::write_u32_le(&mut w, input.sequence)?;
             }
-            Ok(w.finish())
+            Ok(w.finalize_marked())
         }
     }
 
@@ -192,16 +191,16 @@ impl WitnessTx {
     fn hash_outputs(&self, index: usize, sighash_flag: Sighash) -> TxResult<Hash256Digest> {
         match sighash_flag {
             Sighash::All | Sighash::AllACP => {
-                let mut w = Hash256Writer::default();
+                let mut w = Hash256::default();
                 for output in self.legacy_tx.vout.iter() {
                     output.write_to(&mut w)?;
                 }
-                Ok(w.finish())
+                Ok(w.finalize_marked())
             }
             Sighash::Single | Sighash::SingleACP => {
-                let mut w = Hash256Writer::default();
+                let mut w = Hash256::default();
                 self.legacy_tx.vout[index].write_to(&mut w)?;
-                Ok(w.finish())
+                Ok(w.finalize_marked())
             }
             _ => Ok(Hash256Digest::default()),
         }
@@ -221,12 +220,11 @@ impl WitnessTx {
 
 impl Transaction for WitnessTx {
     type TxError = TxError;
-    type Digest = Hash256Digest;
     type TxIn = BitcoinTxIn;
     type TxOut = TxOut;
     type SighashArgs = WitnessSighashArgs;
     type TXID = TXID;
-    type HashWriter = Hash256Writer;
+    type HashWriter = Hash256;
 
     fn new<I, O>(version: u32, vin: I, vout: O, locktime: u32) -> Result<Self, Self::TxError>
     where
@@ -331,7 +329,7 @@ impl WitnessTransaction for WitnessTx {
     fn wtxid(&self) -> Self::WTXID {
         let mut w = Self::HashWriter::default();
         self.write_to(&mut w).expect("No IOError from SHA2");
-        w.finish_marked()
+        w.finalize_marked()
     }
 
     fn write_legacy_sighash_preimage<W: Write>(
@@ -362,17 +360,17 @@ impl WitnessTransaction for WitnessTx {
 
         let input = &self.legacy_tx.vin[args.index];
 
-        Self::write_u32_le(writer, self.legacy_tx.version)?;
+        ser::write_u32_le(writer, self.legacy_tx.version)?;
         self.hash_prevouts(args.sighash_flag)?.write_to(writer)?;
         self.hash_sequence(args.sighash_flag)?.write_to(writer)?;
         input.outpoint.write_to(writer)?;
         args.prevout_script.write_to(writer)?;
-        Self::write_u64_le(writer, args.prevout_value)?;
-        Self::write_u32_le(writer, input.sequence)?;
+        ser::write_u64_le(writer, args.prevout_value)?;
+        ser::write_u32_le(writer, input.sequence)?;
         self.hash_outputs(args.index, args.sighash_flag)?
             .write_to(writer)?;
-        Self::write_u32_le(writer, self.legacy_tx.locktime)?;
-        Self::write_u32_le(writer, args.sighash_flag as u32)?;
+        ser::write_u32_le(writer, self.legacy_tx.locktime)?;
+        ser::write_u32_le(writer, args.sighash_flag as u32)?;
         Ok(())
     }
 }
@@ -384,35 +382,45 @@ impl ByteFormat for WitnessTx {
         let mut len = 4; // version
         len += 2; // Segwit Flag
         len += coins_core::ser::prefix_byte_len(self.legacy_tx.vin.len() as u64) as usize;
-        len += self.legacy_tx.vin.serialized_length();
+        len += self
+            .legacy_tx
+            .vin
+            .iter()
+            .map(|i| i.serialized_length())
+            .sum::<usize>();
         len += coins_core::ser::prefix_byte_len(self.legacy_tx.vout.len() as u64) as usize;
-        len += self.legacy_tx.vout.serialized_length();
+        len += self
+            .legacy_tx
+            .vout
+            .iter()
+            .map(|o| o.serialized_length())
+            .sum::<usize>();
         for witness in self.witnesses.iter() {
             len += coins_core::ser::prefix_byte_len(self.witnesses.len() as u64) as usize;
-            len += witness.serialized_length();
+            len += witness.iter().map(|w| w.serialized_length()).sum::<usize>();
         }
         len += 4; // locktime
         len
     }
 
-    fn read_from<R>(reader: &mut R, _limit: usize) -> Result<Self, Self::Error>
+    fn read_from<R>(reader: &mut R) -> Result<Self, Self::Error>
     where
         R: Read,
         Self: std::marker::Sized,
     {
-        let version = Self::read_u32_le(reader)?;
+        let version = ser::read_u32_le(reader)?;
         let mut flag = [0u8; 2];
         reader.read_exact(&mut flag)?;
         if flag != [0u8, 1u8] {
             return Err(TxError::BadWitnessFlag(flag));
         };
-        let vin = Self::read_prefix_vec(reader)?;
-        let vout = Self::read_prefix_vec(reader)?;
+        let vin = ser::read_prefix_vec(reader)?;
+        let vout = ser::read_prefix_vec(reader)?;
         let mut witnesses = vec![];
         for _ in vin.iter() {
-            witnesses.push(Self::read_prefix_vec(reader)?);
+            witnesses.push(ser::read_prefix_vec(reader)?);
         }
-        let locktime = Self::read_u32_le(reader)?;
+        let locktime = ser::read_u32_le(reader)?;
 
         let legacy_tx = LegacyTx {
             version,
@@ -431,15 +439,15 @@ impl ByteFormat for WitnessTx {
     where
         W: Write,
     {
-        let mut len = Self::write_u32_le(writer, self.version())?;
+        let mut len = ser::write_u32_le(writer, self.version())?;
         len += writer.write(&[0u8, 1u8])?;
 
-        len += Self::write_prefix_vec(writer, &self.legacy_tx.vin)?;
-        len += Self::write_prefix_vec(writer, &self.legacy_tx.vout)?;
+        len += ser::write_prefix_vec(writer, &self.legacy_tx.vin)?;
+        len += ser::write_prefix_vec(writer, &self.legacy_tx.vout)?;
         for wit in self.witnesses.iter() {
-            len += Self::write_prefix_vec(writer, &wit)?;
+            len += ser::write_prefix_vec(writer, &wit)?;
         }
-        len += Self::write_u32_le(writer, self.locktime())?;
+        len += ser::write_u32_le(writer, self.locktime())?;
         Ok(len)
     }
 }

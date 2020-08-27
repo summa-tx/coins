@@ -63,7 +63,7 @@ macro_rules! psbt_map {
                 kv_length + 1 // terminates in a 0 byte (null key)
             }
 
-            fn read_from<R>(reader: &mut R, _limit: usize) -> Result<Self, crate::common::PSBTError>
+            fn read_from<R>(reader: &mut R) -> Result<Self, crate::common::PSBTError>
             where
                 R: std::io::Read,
                 Self: std::marker::Sized,
@@ -73,14 +73,14 @@ macro_rules! psbt_map {
                 };
 
                 loop {
-                    let key = PSBTKey::read_from(reader, 0)?;
+                    let key = PSBTKey::read_from(reader)?;
                     if map.contains_key(&key) {
                         return Err(crate::common::PSBTError::DuplicateKey(key));
                     }
                     if key.len() == 0 {
                         break;
                     }
-                    let value = PSBTValue::read_from(reader, 0)?;
+                    let value = PSBTValue::read_from(reader)?;
                     map.insert(key, value);
                 }
                 Ok(map)

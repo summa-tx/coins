@@ -1,7 +1,9 @@
 use std::io::Write;
 
+use digest::Digest;
+
 use crate::{
-    hashes::marked::{Digest, MarkedDigest, MarkedDigestWriter},
+    hashes::{DigestOutput, MarkedDigest, MarkedDigestOutput},
     ser::{ByteFormat, SerError},
 };
 
@@ -37,8 +39,6 @@ pub trait Output {
 pub trait Transaction: ByteFormat {
     /// An associated error type, used in Results returned by the Transaction.
     type TxError: From<SerError> + From<<Self as ByteFormat>::Error>;
-    /// A Digest type that underlies the associated marked hash, and is returned by `sighash()`.
-    type Digest: Digest;
     /// The Input type for the transaction
     type TxIn: Input;
     /// The Output type for the transaction
@@ -46,9 +46,9 @@ pub trait Transaction: ByteFormat {
     /// A type describing arguments for the sighash function for this transaction.
     type SighashArgs;
     /// A marked hash (see crate::hashes::marked) to be used as the transaction ID type.
-    type TXID: MarkedDigest<Digest = Self::Digest>;
+    type TXID: MarkedDigestOutput;
     /// A type that implements `HashWriter`. Used to generate the `TXID` and `Sighash`.
-    type HashWriter: MarkedDigestWriter<Self::Digest>;
+    type HashWriter: MarkedDigest<Self::TXID>;
 
     /// Instantiate a new Transaction by specifying inputs and outputs.
     fn new<I, O>(version: u32, vin: I, vout: O, locktime: u32) -> Result<Self, Self::TxError>
@@ -75,7 +75,7 @@ pub trait Transaction: ByteFormat {
         let mut w = Self::HashWriter::default();
         self.write_to(&mut w)
             .expect("No IOError from hash functions");
-        w.finish_marked()
+        w.finalize_marked()
     }
 
     /// Generate the digest that must be signed to authorize inputs. For Bitcoin transactions
@@ -94,9 +94,12 @@ pub trait Transaction: ByteFormat {
 
     /// Calls `write_sighash_preimage` with the provided arguments and a new HashWriter.
     /// Returns the sighash digest which should be signed.
-    fn sighash(&self, args: &Self::SighashArgs) -> Result<Self::Digest, Self::TxError> {
+    fn sighash(
+        &self,
+        args: &Self::SighashArgs,
+    ) -> Result<DigestOutput<Self::HashWriter>, Self::TxError> {
         let mut w = Self::HashWriter::default();
         self.write_sighash_preimage(&mut w, args)?;
-        Ok(w.finish())
+        Ok(w.finalize())
     }
 }

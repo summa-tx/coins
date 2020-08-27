@@ -2,7 +2,7 @@
 
 use coins_core::{
     impl_hex_serde,
-    ser::{prefix_byte_len, ByteFormat, SerError, SerResult},
+    ser::{self, ByteFormat, SerError, SerResult},
 };
 use std::convert::TryFrom;
 use std::io::{Read, Write};
@@ -37,7 +37,7 @@ impl ByteFormat for CovenantData {
 
     fn serialized_length(&self) -> usize {
         let mut size: usize = 0;
-        size += self::prefix_byte_len(self.0.len() as u64) as usize;
+        size += ser::prefix_byte_len(self.0.len() as u64) as usize;
 
         for item in self.0.iter() {
             size += item.serialized_length();
@@ -46,17 +46,16 @@ impl ByteFormat for CovenantData {
         size
     }
 
-    fn read_from<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
+    fn read_from<R>(reader: &mut R) -> SerResult<Self>
     where
         R: Read,
         Self: std::marker::Sized,
     {
-        let count = Self::read_compact_int(reader)?;
+        let count = ser::read_compact_int(reader)?;
 
         let mut items = vec![];
         for _ in 0..count {
-            // TODO(mark): sane limit argument?
-            let item = CovenantItem::read_from(reader, 256)?;
+            let item = CovenantItem::read_from(reader)?;
             items.push(item);
         }
 
@@ -68,7 +67,7 @@ impl ByteFormat for CovenantData {
         W: Write,
     {
         let mut total: usize = 0;
-        total += Self::write_compact_int(writer, self.0.len() as u64)?;
+        total += ser::write_compact_int(writer, self.0.len() as u64)?;
 
         for covenant_data in self.0.clone() {
             total += covenant_data.write_to(writer)?;
@@ -112,7 +111,7 @@ impl ByteFormat for Covenant {
         size
     }
 
-    fn read_from<R>(reader: &mut R, _limit: usize) -> SerResult<Self>
+    fn read_from<R>(reader: &mut R) -> SerResult<Self>
     where
         R: Read,
         Self: std::marker::Sized,
@@ -120,8 +119,8 @@ impl ByteFormat for Covenant {
         let mut buf = [0u8; 1];
         reader.read_exact(&mut buf)?;
         let covenant_type = u8::from_le_bytes(buf);
-        // TODO(mark): sane max?
-        let covenant_data = CovenantData::read_from(reader, 1024)?;
+
+        let covenant_data = CovenantData::read_from(reader)?;
 
         Ok(Self {
             covenant_type: CovenantType::new(covenant_type),

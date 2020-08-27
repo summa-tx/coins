@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use bitcoin_spv::btcspv::hash256;
+use coins_core::hashes::{Digest, Hash256};
 
 use crate::{
     curve::model::{PointDeserialize, ScalarDeserialize, Secp256k1Backend},
@@ -18,10 +18,10 @@ pub fn decode_b58_check(s: &str) -> Result<Vec<u8>, Bip32Error> {
     let payload = &data[..idx];
     let checksum = &data[idx..];
 
-    let digest = &hash256(&[&payload[..]]);
+    let digest = &Hash256::digest(payload);
 
     let mut expected = [0u8; 4];
-    expected.copy_from_slice(&digest.as_ref()[..4]);
+    expected.copy_from_slice(&digest.as_slice()[..4]);
     if expected != checksum {
         Err(Bip32Error::BadB58Checksum)
     } else {
@@ -31,10 +31,10 @@ pub fn decode_b58_check(s: &str) -> Result<Vec<u8>, Bip32Error> {
 
 /// Encode a vec into a base58 check String
 pub fn encode_b58_check(v: &[u8]) -> String {
-    let digest = &hash256(&[&v[..]]);
+    let digest = &Hash256::digest(v);
 
     let mut checksum = [0u8; 4];
-    checksum.copy_from_slice(&digest.as_ref()[..4]);
+    checksum.copy_from_slice(&digest.as_slice()[..4]);
 
     let mut data = v.to_vec();
     data.extend(&checksum);
