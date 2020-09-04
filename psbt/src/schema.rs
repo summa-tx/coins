@@ -187,7 +187,10 @@ pub fn try_val_as_signature(val: &PSBTValue) -> Result<(Signature, Sighash), PSB
 pub fn try_val_as_witness(val: &PSBTValue) -> Result<Witness, PSBTError> {
     let mut wit_bytes = &val.items()[..];
     let number = ser::read_compact_int(&mut wit_bytes)? as usize;
-    Ok(WitnessStackItem::read_seq_from(&mut wit_bytes, ReadSequenceMode::Exactly(number))?)
+    Ok(WitnessStackItem::read_seq_from(
+        &mut wit_bytes,
+        ReadSequenceMode::Exactly(number),
+    )?)
 }
 
 /// Attempt to parse a key as a valid extended pubkey

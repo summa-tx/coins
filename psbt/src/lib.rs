@@ -365,9 +365,11 @@ where
                 return Err(PSBTError::ScriptSigInTx);
             }
         }
-        let inputs = PSBTInput::read_seq_from(reader, ReadSequenceMode::Exactly(tx.inputs().len()))?;
+        let inputs =
+            PSBTInput::read_seq_from(reader, ReadSequenceMode::Exactly(tx.inputs().len()))?;
 
-        let outputs = PSBTOutput::read_seq_from(reader, ReadSequenceMode::Exactly(tx.outputs().len()))?;
+        let outputs =
+            PSBTOutput::read_seq_from(reader, ReadSequenceMode::Exactly(tx.outputs().len()))?;
 
         let result = PSBT {
             global,

@@ -34,15 +34,15 @@ pub enum SerError {
 
     /// Thrown when `ReadSequenceMode::Exactly` reads fewer items than expected.
     #[error("Expected a sequence of exaclty {expected} items. Got only {got} items")]
-    InsufficientSeqItems { 
+    InsufficientSeqItems {
         /// The number of items expected
-        expected: usize, 
+        expected: usize,
         /// The number of items succesfully deserialized
-        got: usize 
+        got: usize,
     },
 }
 
-/// Operation mode for `read_seq_from`. 
+/// Operation mode for `read_seq_from`.
 pub enum ReadSequenceMode {
     /// Specify `Exactly` to deserialize an exact number, or return an error
     Exactly(usize),
@@ -51,7 +51,6 @@ pub enum ReadSequenceMode {
     /// Specify `UntilEnd` to read to the end of the reader.
     UntilEnd,
 }
-
 
 /// Type alias for serialization errors
 pub type SerResult<T> = Result<T, SerError>;
@@ -175,7 +174,8 @@ where
     I: ByteFormat<Error = E>,
 {
     let items = read_compact_int(reader)?;
-    I::read_seq_from(reader, ReadSequenceMode::Exactly(items.try_into().unwrap())).map_err(Into::into)
+    I::read_seq_from(reader, ReadSequenceMode::Exactly(items.try_into().unwrap()))
+        .map_err(Into::into)
 }
 
 /// Convenience function to write a Bitcoin-style length-prefixed vector.
@@ -251,14 +251,18 @@ pub trait ByteFormat {
                     v.push(Self::read_from(reader)?);
                 }
                 if v.len() != number {
-                    return Err(SerError::InsufficientSeqItems {got: v.len(), expected: number }.into())
+                    return Err(SerError::InsufficientSeqItems {
+                        got: v.len(),
+                        expected: number,
+                    }
+                    .into());
                 }
             }
             ReadSequenceMode::AtMost(limit) => {
                 for _ in 0..limit {
                     v.push(Self::read_from(reader)?);
                 }
-            },
+            }
             ReadSequenceMode::UntilEnd => {
                 while let Ok(obj) = Self::read_from(reader) {
                     v.push(obj);
@@ -356,7 +360,7 @@ impl ByteFormat for u8 {
         1
     }
 
-    fn read_seq_from<R>(reader: &mut R, mode: ReadSequenceMode) -> SerResult<Vec<u8>> 
+    fn read_seq_from<R>(reader: &mut R, mode: ReadSequenceMode) -> SerResult<Vec<u8>>
     where
         R: Read,
         Self: std::marker::Sized,
@@ -372,10 +376,8 @@ impl ByteFormat for u8 {
                 let n = reader.read(v.as_mut_slice())?;
                 v.truncate(n);
                 Ok(v)
-            },
-            ReadSequenceMode::UntilEnd => {
-                Ok(reader.bytes().collect::<Result<Vec<u8>, _>>()?)
             }
+            ReadSequenceMode::UntilEnd => Ok(reader.bytes().collect::<Result<Vec<u8>, _>>()?),
         }
     }
 
