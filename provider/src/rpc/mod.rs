@@ -16,6 +16,7 @@ use std::time::Duration;
 
 use crate::{
     provider::*,
+    types::RawHeader,
     rpc::{common::*, http::HttpTransport, rpc_types::*},
 };
 

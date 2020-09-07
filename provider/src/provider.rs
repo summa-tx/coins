@@ -5,14 +5,19 @@ use thiserror::Error;
 use bitcoins::{
     enc::Address,
     hashes::{BlockHash, TXID},
-    prelude::RawHeader,
     types::*,
 };
 use coins_core::prelude::*;
 use futures_util::lock::Mutex;
 use lru::LruCache;
 
-use crate::{chain::Tips, pending::PendingTx, watcher::PollingWatcher, DEFAULT_CACHE_SIZE};
+use crate::{
+    chain::Tips,
+    pending::PendingTx,
+    types::RawHeader,
+    watcher::PollingWatcher,
+    DEFAULT_CACHE_SIZE
+};
 
 /// Errors thrown by providers
 #[derive(Debug, Error)]

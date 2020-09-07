@@ -38,6 +38,9 @@ pub mod rpc;
 /// Common usage
 pub mod prelude;
 
+/// Minimal Types
+pub mod types;
+
 /// The default poll interval, set to 300 seconds (5 minutes)
 pub const DEFAULT_POLL_INTERVAL: std::time::Duration = std::time::Duration::from_millis(180 * 1000);
 

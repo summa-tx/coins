@@ -4,4 +4,6 @@ pub use crate::provider::*;
 #[cfg(feature = "rpc")]
 pub use crate::rpc::BitcoindRPC;
 
-pub use bitcoins::prelude::{BlockHash, Hash256Digest, RawHeader};
+pub use crate::types::RawHeader;
+
+pub use bitcoins::prelude::{BlockHash, Hash256Digest};

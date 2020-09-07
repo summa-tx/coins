@@ -341,32 +341,6 @@ impl ByteFormat for u8 {
     }
 }
 
-impl ByteFormat for bitcoin_spv::types::RawHeader {
-    type Error = SerError;
-
-    fn serialized_length(&self) -> usize {
-        80
-    }
-
-    fn read_from<R>(reader: &mut R) -> Result<Self, Self::Error>
-    where
-        R: std::io::Read,
-        Self: std::marker::Sized,
-    {
-        let mut header = [0u8; 80];
-        reader.read_exact(&mut header)?;
-        Ok(header.into())
-    }
-
-    fn write_to<W>(&self, writer: &mut W) -> Result<usize, Self::Error>
-    where
-        W: std::io::Write,
-    {
-        writer.write_all(self.as_ref())?;
-        Ok(80)
-    }
-}
-
 #[cfg(test)]
 mod test {
     use super::*;
