@@ -174,8 +174,7 @@ where
     I: ByteFormat<Error = E>,
 {
     let items = read_compact_int(reader)?;
-    I::read_seq_from(reader, ReadSeqMode::Exactly(items.try_into().unwrap()))
-        .map_err(Into::into)
+    I::read_seq_from(reader, ReadSeqMode::Exactly(items.try_into().unwrap())).map_err(Into::into)
 }
 
 /// Convenience function to write a Bitcoin-style length-prefixed vector.
@@ -468,39 +467,56 @@ mod test {
         assert_eq!(buf, input);
 
         // Read exactly the whole slice
-        let exact_len = u8::read_seq_from(&mut buf.clone().as_slice(), ReadSeqMode::Exactly(buf.len())).unwrap();
+        let exact_len =
+            u8::read_seq_from(&mut buf.clone().as_slice(), ReadSeqMode::Exactly(buf.len()))
+                .unwrap();
         assert_eq!(exact_len.len(), buf.len());
         assert_eq!(input, exact_len);
 
         // Try to read more than the size of the slice
-        let exact_too_long = u8::read_seq_from(&mut buf.clone().as_slice(), ReadSeqMode::Exactly(buf.len() + 1));
+        let exact_too_long = u8::read_seq_from(
+            &mut buf.clone().as_slice(),
+            ReadSeqMode::Exactly(buf.len() + 1),
+        );
         assert_eq!(exact_too_long.is_err(), true);
 
         // Read exactly the first element
-        let exact_first = u8::read_seq_from(&mut buf.clone().as_slice(), ReadSeqMode::Exactly(1)).unwrap();
+        let exact_first =
+            u8::read_seq_from(&mut buf.clone().as_slice(), ReadSeqMode::Exactly(1)).unwrap();
         assert_eq!(exact_first, vec![0]);
 
         // Read exactly no elements
-        let exact_none = u8::read_seq_from(&mut buf.clone().as_slice(), ReadSeqMode::Exactly(0)).unwrap();
+        let exact_none =
+            u8::read_seq_from(&mut buf.clone().as_slice(), ReadSeqMode::Exactly(0)).unwrap();
         assert_eq!(exact_none, Vec::<u8>::new());
 
         // Read at most all of the elements
-        let at_most_all = u8::read_seq_from(&mut buf.clone().as_slice(), ReadSeqMode::AtMost(buf.len())).unwrap();
+        let at_most_all =
+            u8::read_seq_from(&mut buf.clone().as_slice(), ReadSeqMode::AtMost(buf.len())).unwrap();
         assert_eq!(at_most_all, buf.clone());
         //println!("{:?}", at_most)
 
         // Read at most 10 more elements than exist
-        let at_most_more = u8::read_seq_from(&mut buf.clone().as_slice(), ReadSeqMode::AtMost(buf.len() + 10)).unwrap();
+        let at_most_more = u8::read_seq_from(
+            &mut buf.clone().as_slice(),
+            ReadSeqMode::AtMost(buf.len() + 10),
+        )
+        .unwrap();
         assert_eq!(at_most_more, buf.clone());
 
         // Read at most 1 less element than what exists
-        let at_most_less = u8::read_seq_from(&mut buf.clone().as_slice(), ReadSeqMode::AtMost(buf.len() - 1)).unwrap();
+        let at_most_less = u8::read_seq_from(
+            &mut buf.clone().as_slice(),
+            ReadSeqMode::AtMost(buf.len() - 1),
+        )
+        .unwrap();
         let mut resized = buf.clone();
         resized.resize(buf.len() - 1, 0);
         assert_eq!(at_most_less, resized);
 
         // Read until the end
-        let until_end = u8::read_seq_from(&mut buf.clone().as_slice(), ReadSeqMode::UntilEnd).unwrap();
+        let until_end =
+            u8::read_seq_from(&mut buf.clone().as_slice(), ReadSeqMode::UntilEnd).unwrap();
         assert_eq!(until_end, buf.clone());
     }
 }
