@@ -11,12 +11,8 @@ use bitcoins::prelude::*;
 use coins_core::hashes::MarkedDigestOutput;
 
 use crate::{
+    provider::{BTCProvider, PollingBTCProvider, ProviderError},
     types::RawHeader,
-    provider::{
-        BTCProvider,
-        PollingBTCProvider,
-        ProviderError
-    }
 };
 
 #[cfg(feature = "mainnet")]
