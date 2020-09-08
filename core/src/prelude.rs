@@ -4,6 +4,6 @@ pub use crate::{
     enc::*,
     hashes::*,
     nets::Network,
-    ser::{ByteFormat, ReadSequenceMode},
+    ser::{ByteFormat, ReadSeqMode},
     types::Transaction,
 };

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use coins_core::ser::{self, ByteFormat, ReadSequenceMode};
+use coins_core::ser::{self, ByteFormat, ReadSeqMode};
 
 use coins_bip32::{
     self as bip32,
@@ -189,7 +189,7 @@ pub fn try_val_as_witness(val: &PSBTValue) -> Result<Witness, PSBTError> {
     let number = ser::read_compact_int(&mut wit_bytes)? as usize;
     Ok(WitnessStackItem::read_seq_from(
         &mut wit_bytes,
-        ReadSequenceMode::Exactly(number),
+        ReadSeqMode::Exactly(number),
     )?)
 }
 
