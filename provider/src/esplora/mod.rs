@@ -10,7 +10,10 @@ use std::time::Duration;
 use bitcoins::prelude::*;
 use coins_core::hashes::MarkedDigestOutput;
 
-use crate::provider::{BTCProvider, PollingBTCProvider, ProviderError};
+use crate::{
+    provider::{BTCProvider, PollingBTCProvider, ProviderError},
+    types::RawHeader,
+};
 
 #[cfg(feature = "mainnet")]
 static BLOCKSTREAM: &str = "https://blockstream.info/api";

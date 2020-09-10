@@ -17,6 +17,7 @@ use std::time::Duration;
 use crate::{
     provider::*,
     rpc::{common::*, http::HttpTransport, rpc_types::*},
+    types::RawHeader,
 };
 
 static ERR_NOT_FOUND: i64 = -1;
