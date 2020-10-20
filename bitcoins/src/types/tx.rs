@@ -66,18 +66,12 @@ impl BitcoinTx {
 
     /// True if the wrapped tx is a witness transaction. False otherwise
     pub fn is_witness(&self) -> bool {
-        match self {
-            BitcoinTx::Witness(_) => true,
-            _ => false,
-        }
+        matches!(self, BitcoinTx::Witness(_))
     }
 
     /// True if the wrapped tx is a legacy transaction. False otherwise
     pub fn is_legacy(&self) -> bool {
-        match self {
-            BitcoinTx::Legacy(_) => true,
-            _ => false,
-        }
+        matches!(self, BitcoinTx::Legacy(_))
     }
 }
 

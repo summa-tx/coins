@@ -1,7 +1,7 @@
 use coins_core::hashes::Hash256Digest;
 
 use crate::{
-    curve::{ScalarSerialize, ScalarDeserialize, Secp256k1Backend},
+    curve::{ScalarDeserialize, ScalarSerialize, Secp256k1Backend},
     model::{CanDerivePubkey, HasBackend, HasPrivkey, HasPubkey, SigningKey, VerifyingKey},
     Bip32Error,
 };
@@ -15,7 +15,7 @@ pub type Privkey = GenericPrivkey<'static, crate::Secp256k1<'static>>;
 
 impl Privkey {
     /// Instantiate a privkey using the crate's default backend.
-    pub fn from_bytes(buf: [u8;32]) -> Result<Self, Bip32Error> {
+    pub fn from_bytes(buf: [u8; 32]) -> Result<Self, Bip32Error> {
         Ok(Self {
             key: ScalarDeserialize::from_privkey_array(buf)?,
             backend: Some(crate::curve::Secp256k1::static_ref()),
