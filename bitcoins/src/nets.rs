@@ -17,13 +17,13 @@
 //! let b = BitcoinMainnet::tx_builder();
 //! b.version(2)
 //!  .spend(Outpoint::default(), 0xaabbccdd)
-//!  .pay(0x8888_8888_8888_8888, &address).unwrap()
-//!  .pay(0x7777_7777_7777_7777, &Address::SH("377mKFYsaJPsxYSB5aFfx8SW3RaN5BzZVh".to_owned())).unwrap()
+//!  .pay(0x8888_8888_8888_8888, &address)
+//!  .pay(0x7777_7777_7777_7777, &Address::SH("377mKFYsaJPsxYSB5aFfx8SW3RaN5BzZVh".to_owned()))
 //!  .build()
 //!  .unwrap()
 //!  .serialize_hex();
 //!
-//! let script = BitcoinMainnet::decode_address(&address).unwrap();
+//! let script = BitcoinMainnet::decode_address(&address);
 //! let re_encoded = BitcoinMainnet::encode_address(&script).unwrap();
 //! assert_eq!(address, re_encoded);
 //! ```
@@ -100,12 +100,10 @@ mod test {
                 0x8888_8888_8888_8888,
                 &Address::WPKH("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned()),
             )
-            .unwrap()
             .pay(
                 0x7777_7777_7777_7777,
                 &Address::SH("377mKFYsaJPsxYSB5aFfx8SW3RaN5BzZVh".to_owned()),
             )
-            .unwrap()
             .build()
             .unwrap()
             .serialize_hex();
@@ -121,7 +119,7 @@ mod test {
             &address,
             &BitcoinMainnet::string_to_address(&addr_string).unwrap()
         );
-        let u = BitcoinMainnet::decode_address(&address).unwrap();
+        let u = BitcoinMainnet::decode_address(&address);
         assert_eq!(&address, &BitcoinMainnet::encode_address(&u).unwrap())
     }
 }

@@ -17,13 +17,13 @@
 //! let b = HandshakeMainnet::tx_builder();
 //! b.version(2)
 //!  .spend(Outpoint::default(), 0xaabbccdd)
-//!  .pay(0x8888_8888_8888_8888, &address).unwrap()
-//!  .pay(0x7777_7777_7777_7777, &Address::WSH("hs1qjhgt8dwvhwapf2a5v9865nmrrqhhqlz38w3zze".to_owned())).unwrap()
+//!  .pay(0x8888_8888_8888_8888, &address)
+//!  .pay(0x7777_7777_7777_7777, &Address::WSH("hs1qjhgt8dwvhwapf2a5v9865nmrrqhhqlz38w3zze".to_owned()))
 //!  .build()
 //!  .unwrap()
 //!  .serialize_hex();
 //!
-//! let script = HandshakeMainnet::decode_address(&address).unwrap();
+//! let script = HandshakeMainnet::decode_address(&address);
 //! let re_encoded = HandshakeMainnet::encode_address(&script).unwrap();
 //! assert_eq!(address, re_encoded);
 //! ```
@@ -85,12 +85,10 @@ mod test {
                 0x0000_0000_8888_8888,
                 &Address::WPKH("hs1qjhgt8dwvhwapf2a5v9865nmrrqhhqlz38w3zze".to_owned()),
             )
-            .unwrap()
             .pay(
                 0x0000_0000_7777_7777,
                 &Address::WPKH("hs1qjhgt8dwvhwapf2a5v9865nmrrqhhqlz38w3zze".to_owned()),
             )
-            .unwrap()
             .build()
             .unwrap()
             .serialize_hex();
@@ -110,7 +108,7 @@ mod test {
             &address,
             &HandshakeMainnet::string_to_address(&addr_string).unwrap()
         );
-        let u = HandshakeMainnet::decode_address(&address).unwrap();
+        let u = HandshakeMainnet::decode_address(&address);
         assert_eq!(&address, &HandshakeMainnet::encode_address(&u).unwrap())
     }
 }
