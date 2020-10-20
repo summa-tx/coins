@@ -26,6 +26,18 @@ pub enum Address {
     WSH(String),
 }
 
+impl std::fmt::Display for Address {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let addr = match &self {
+            Address::PKH(s) => s,
+            Address::SH(s) => s,
+            Address::WPKH(s) => s,
+            Address::WSH(s) => s,
+        };
+        write!(f, "{}", addr)
+    }
+}
+
 impl AsRef<str> for Address {
     fn as_ref(&self) -> &str {
         match &self {
