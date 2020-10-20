@@ -36,7 +36,7 @@ impl std::str::FromStr for crate::types::ScriptPubkey {
     type Err = <network::Encoder as AddressEncoder>::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        network::Encoder::decode_address(&network::Encoder::string_to_address(s)?)
+        Ok(network::Encoder::decode_address(&network::Encoder::string_to_address(s)?))
     }
 }
 

@@ -105,11 +105,11 @@ impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
         }
     }
 
-    fn decode_address(addr: &Address) -> EncodingResult<ScriptPubkey> {
+    fn decode_address(addr: &Address) -> ScriptPubkey {
         match &addr {
-            Address::PKH(s) => decode_base58(P::PKH_VERSION, s).map(|v| v.into()),
-            Address::SH(s) => decode_base58(P::SH_VERSION, s).map(|v| v.into()),
-            Address::WPKH(s) | Address::WSH(s) => decode_bech32(P::HRP, &s).map(|v| v.into()),
+            Address::PKH(s) => decode_base58(P::PKH_VERSION, s).unwrap().into(),
+            Address::SH(s) => decode_base58(P::SH_VERSION, s).unwrap().into(),
+            Address::WPKH(s) | Address::WSH(s) => decode_bech32(P::HRP, &s).unwrap().into(),
         }
     }
 

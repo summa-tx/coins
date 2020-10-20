@@ -25,8 +25,9 @@ pub trait AddressEncoder {
     /// Attempt to encode a `RecipientIdentifier` as an `Address`.
     fn encode_address(s: &Self::RecipientIdentifier) -> Result<Self::Address, Self::Error>;
 
-    /// Attempt to decode a `RecipientIdentifier` from an `Address`.
-    fn decode_address(addr: &Self::Address) -> Result<Self::RecipientIdentifier, Self::Error>;
+    /// Decode a `RecipientIdentifier` from an `Address`. Addresses should be defined such that
+    /// this cannot fail.
+    fn decode_address(addr: &Self::Address) -> Self::RecipientIdentifier;
 
     /// Attempt to convert a string into an `Address`.
     fn string_to_address(s: &str) -> Result<Self::Address, Self::Error>;

@@ -59,6 +59,12 @@ where
         self
     }
 
+    /// Add an op_return output. Using this twice may render the transaction non-standard.
+    pub fn op_return(mut self, message: &[u8]) -> Self {
+        self.vout.push(TxOut::op_return(message));
+        self
+    }
+
     /// Set the script sig at a specific input. Do nothing if the vin is not that long.
     pub fn set_script_sig(mut self, input_idx: usize, script_sig: ScriptSig) -> Self {
         if input_idx >= self.vin.len() {
@@ -154,7 +160,7 @@ where
     }
 
     fn pay(self, value: u64, address: &Address) -> EncodingResult<Self> {
-        let script_pubkey = T::decode_address(&address)?;
+        let script_pubkey = T::decode_address(&address);
         Ok(self.pay_script_pubkey(value, script_pubkey))
     }
 

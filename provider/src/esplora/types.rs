@@ -97,7 +97,7 @@ impl EsploraUTXO {
     }
 
     pub(crate) fn into_utxo(self, addr: &Address) -> Result<UTXO, ProviderError> {
-        let script_pubkey = bitcoins::Network::decode_address(addr)?;
+        let script_pubkey = bitcoins::Network::decode_address(addr);
         let outpoint = BitcoinOutpoint::from_explorer_format(
             TXID::deserialize_hex(&self.txid)?,
             self.vout as u32,

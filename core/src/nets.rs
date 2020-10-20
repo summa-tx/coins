@@ -79,8 +79,8 @@ pub trait Network {
         Self::Encoder::encode_address(&a)
     }
 
-    /// Encode an address using the network's `Address` semantics
-    fn decode_address(addr: &Self::Address) -> Result<Self::RecipientIdentifier, Self::Error> {
+    /// Decode an address using the network's `Address` semantics
+    fn decode_address(addr: &Self::Address) -> Self::RecipientIdentifier {
         Self::Encoder::decode_address(&addr)
     }
 
