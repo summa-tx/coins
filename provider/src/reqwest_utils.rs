@@ -26,10 +26,7 @@ pub enum FetchError {
 
 impl From<FetchError> for ProviderError {
     fn from(e: FetchError) -> ProviderError {
-        let from_parsing = match e {
-            FetchError::SerdeError(_) => true,
-            _ => false,
-        };
+        let from_parsing = matches!(e, FetchError::SerdeError(_));
         ProviderError::Custom {
             from_parsing,
             e: Box::new(e),
