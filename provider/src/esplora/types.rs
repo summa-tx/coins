@@ -1,4 +1,5 @@
 use bitcoins::prelude::*;
+use coins_core::nets::Network;
 
 use crate::esplora::*;
 use crate::{provider::ProviderError, reqwest_utils};

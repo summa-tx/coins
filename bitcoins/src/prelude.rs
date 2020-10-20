@@ -9,3 +9,6 @@ pub use coins_core::prelude::*;
 
 #[cfg(any(feature = "mainnet", feature = "testnet", feature = "signet"))]
 pub use crate::defaults::*;
+
+#[cfg(any(feature = "mainnet", feature = "testnet", feature = "signet"))]
+pub use crate::defaults::network::*;
