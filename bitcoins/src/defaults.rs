@@ -3,7 +3,7 @@ use coins_core::enc::AddressEncoder;
 #[cfg(feature = "mainnet")]
 pub mod network {
     /// The default network, selected by feature flag
-    pub type Network = crate::nets::BitcoinMainnet;
+    pub type Net = crate::nets::BitcoinMainnet;
     /// The default encoder, selected by feature flag
     pub type Encoder = crate::enc::MainnetEncoder;
 }
@@ -11,7 +11,7 @@ pub mod network {
 #[cfg(feature = "testnet")]
 pub mod network {
     /// The default network, selected by feature flag
-    pub type Network = crate::nets::BitcoinTestnet;
+    pub type Net = crate::nets::BitcoinTestnet;
     /// The default encoder, selected by feature flag
     pub type Encoder = crate::enc::TestnetEncoder;
 }
@@ -19,7 +19,7 @@ pub mod network {
 #[cfg(feature = "signet")]
 pub mod network {
     /// The default network, selected by feature flag
-    pub type Network = crate::nets::BitcoinSignet;
+    pub type Net = crate::nets::BitcoinSignet;
     /// The default encoder, selected by feature flag
     pub type Encoder = crate::enc::SignetEncoder;
 }

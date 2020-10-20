@@ -19,6 +19,6 @@ pub mod prelude;
 pub mod defaults;
 
 #[cfg(any(feature = "mainnet", feature = "testnet"))]
-pub use defaults::network::{Encoder, Network};
+pub use defaults::network::{Encoder, Net};
 
 pub use nets::*;
