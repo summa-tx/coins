@@ -11,7 +11,7 @@ use std::marker::PhantomData;
 
 use coins_core::{
     builder::TxBuilder,
-    enc::{AddressEncoder, EncodingResult},
+    enc::AddressEncoder,
     types::tx::Transaction,
 };
 
@@ -159,9 +159,9 @@ where
         self
     }
 
-    fn pay(self, value: u64, address: &Address) -> EncodingResult<Self> {
+    fn pay(self, value: u64, address: &Address) -> Self {
         let script_pubkey = T::decode_address(&address);
-        Ok(self.pay_script_pubkey(value, script_pubkey))
+        self.pay_script_pubkey(value, script_pubkey)
     }
 
     fn insert_input(

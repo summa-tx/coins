@@ -86,7 +86,7 @@ where
         address: &Address,
         covenant: Covenant,
     ) -> EncodingResult<Self> {
-        let locking_script = T::decode_address(&address)?;
+        let locking_script = T::decode_address(&address);
         let output = TxOut::new(value, locking_script, covenant);
         self.vout.push(output);
         Ok(self)
@@ -146,9 +146,9 @@ where
         self
     }
 
-    fn pay(self, value: u64, address: &Address) -> EncodingResult<Self> {
-        let locking_script = T::decode_address(&address)?;
-        Ok(self.pay_locking_script(value, locking_script))
+    fn pay(self, value: u64, address: &Address) -> Self {
+        let locking_script = T::decode_address(&address);
+        self.pay_locking_script(value, locking_script)
     }
 
     fn insert_input(

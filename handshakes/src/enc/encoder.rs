@@ -90,10 +90,10 @@ impl<P: NetworkParams> AddressEncoder for HandshakeEncoder<P> {
         }
     }
 
-    fn decode_address(addr: &Address) -> EncodingResult<LockingScript> {
+    fn decode_address(addr: &Address) -> LockingScript {
         match &addr {
             Address::WPKH(s) | Address::WSH(s) | Address::OP_RETURN(s) => {
-                decode_bech32(P::HRP, &s).map(|v| v.into())
+                decode_bech32(P::HRP, &s).unwrap().into()
             }
         }
     }

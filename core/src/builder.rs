@@ -59,7 +59,7 @@ pub trait TxBuilder: std::marker::Sized {
         self,
         value: <<Self::Transaction as Transaction>::TxOut as Output>::Value,
         address: &<Self::Encoder as AddressEncoder>::Address,
-    ) -> Result<Self, <Self::Encoder as AddressEncoder>::Error>;
+    ) -> Self;
 
     /// Insert an input at the specified index. Inputs after that are shifted to later indices.
     ///
