@@ -314,6 +314,15 @@ impl<T: BTCProvider> From<T> for CachingProvider<T> {
     }
 }
 
+impl<T> Default for CachingProvider<T>
+where
+    T: BTCProvider + Default
+{
+    fn default() -> Self {
+        T::default().into()
+    }
+}
+
 impl<T: BTCProvider> CachingProvider<T> {
     /// Return a reference to the TX, if it's in the cache.
     pub async fn peek_tx(&self, txid: TXID) -> Option<BitcoinTx> {
