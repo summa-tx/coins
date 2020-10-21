@@ -111,7 +111,7 @@ pub(crate) async fn post_str(
 }
 
 /// Easy posting hex to a url
-pub(crate) async fn post_hex<T>(
+pub(crate) async fn post_bytes_as_hex<T>(
     client: &reqwest::Client,
     url: &str,
     bytes: T,

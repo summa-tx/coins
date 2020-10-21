@@ -55,6 +55,17 @@ where
         self
     }
 
+    /// Insert a witness at a speicified index
+    pub fn insert_witness(
+        mut self,
+        index: usize,
+        witness: <<Self as TxBuilder>::Transaction as Transaction>::TxIn,
+    ) -> Self {
+        let index = std::cmp::min(index, self.vin.len());
+        self.vin.insert(index, witness);
+        self
+    }
+
     /// Add an op_return output. Using this twice may render the transaction non-standard.
     pub fn op_return(mut self, message: &[u8]) -> Self {
         self.vout.push(TxOut::op_return(message));
