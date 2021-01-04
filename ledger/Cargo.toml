@@ -7,6 +7,7 @@ categories  = ["authentication", "cryptography"]
 keywords = ["ledger", "apdu", "cryptocurrency"]
 repository = "https://github.com/summa-tx/bitcoins-rs"
 license = "MIT OR Apache-2.0"
+description = "Ledger Nano X/S connection and communication management library"
 
 [lib]
 crate-type = ["cdylib", "rlib"]
