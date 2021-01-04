@@ -8,6 +8,9 @@ cd bip32 && \
 cargo --verbose build && \
 cargo --verbose build --target wasm32-unknown-unknown && \
 
+cd ../bitcoins && \
+cargo --verbose build --target wasm32-unknown-unknown && \
+
 # default features covered by workspace-level tests
 cargo test --verbose && \
 
@@ -38,4 +41,5 @@ cargo build --verbose --target wasm32-unknown-unknown --no-default-features --fe
 ### HANDSHAKE ###
 cd ../handshakes && \
 cargo build --verbose && \
-cargo test --verbose --lib
+cargo test --verbose --lib && \
+cargo --verbose build --target wasm32-unknown-unknown
