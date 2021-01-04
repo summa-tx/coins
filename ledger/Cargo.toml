@@ -1,10 +1,10 @@
 [package]
 name = "coins-ledger"
 version = "0.1.0"
-authors = ["Zondax GmbH <info@zondax.ch>", "Summa <team@summa.one>"]
+authors = ["Summa <team@summa.one>", "James Prestwich <james@summa.one>", "Zondax GmbH <info@zondax.ch>"]
 edition = "2018"
 categories  = ["authentication", "cryptography"]
-keywords = ["ledger", "nano", "apdu"]
+keywords = ["ledger", "apdu", "cryptocurrency"]
 repository = "https://github.com/summa-tx/bitcoins-rs"
 license = "MIT OR Apache-2.0"
 
