@@ -285,7 +285,7 @@ pub trait XKeyEncoder {
         T: Secp256k1Backend;
 
     /// Serialize an XPriv to base58
-    fn xpriv_to_base58<'a, T>(k: &GenericXPriv<'a, T>) -> Result<String, Bip32Error>
+    fn xpriv_to_base58<T>(k: &GenericXPriv<T>) -> Result<String, Bip32Error>
     where
         T: Secp256k1Backend,
     {
@@ -295,7 +295,7 @@ pub trait XKeyEncoder {
     }
 
     /// Serialize an XPub to base58
-    fn xpub_to_base58<'a, T>(k: &GenericXPub<'a, T>) -> Result<String, Bip32Error>
+    fn xpub_to_base58<T>(k: &GenericXPub<T>) -> Result<String, Bip32Error>
     where
         T: Secp256k1Backend,
     {

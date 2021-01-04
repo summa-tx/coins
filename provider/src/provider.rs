@@ -63,17 +63,16 @@ impl ProviderError {
     /// APIs to violate JSON RPC conventions, and return raw strings in this case.
     #[cfg(any(feature = "rpc", feature = "esplora"))]
     pub fn from_parsing(&self) -> bool {
-        match self {
+        matches!(self,
             ProviderError::Custom {
                 from_parsing: true,
                 e: _,
-            } => true,
-            ProviderError::SerdeJSONError(_) => true,
-            ProviderError::CoinsSerError(_) => true,
-            ProviderError::EncoderError(_) => true,
-            _ => false,
-        }
+            } | ProviderError::SerdeJSONError(_) |
+            ProviderError::CoinsSerError(_) |
+            ProviderError::EncoderError(_)
+        )
     }
+
     /// Returns true if the request failed due to a local parsing error.
     ///
     /// ## Note:

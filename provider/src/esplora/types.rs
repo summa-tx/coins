@@ -148,7 +148,7 @@ impl Outspend {
     ) -> Result<Option<Outspend>, FetchError> {
         let url = format!("{}/tx/{}/outspend/{}", api_root, txid_be_hex, idx);
         let o: Outspend = reqwest_utils::ez_fetch_json(client, &url).await?;
-        if o.txid_be == "" {
+        if o.txid_be.is_empty() {
             Ok(None)
         } else {
             Ok(Some(o))
