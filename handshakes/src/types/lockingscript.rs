@@ -202,14 +202,13 @@ pub enum LockingScriptType {
 
 impl LockingScript {
     /// Instantiate a standard p2wpkh script pubkey from a pubkey.
-    pub fn p2wpkh<'a, T, B>(key: &T) -> Self
+    pub fn p2wpkh<T>(key: &T) -> Self
     where
-        B: coins_bip32::curve::Secp256k1Backend,
-        T: coins_bip32::model::HasPubkey<'a, B>,
+        T: AsRef<coins_bip32::ecdsa::VerifyingKey>,
     {
         Self {
             version: 0,
-            witness_program: blake2b160(&key.pubkey_bytes()).into(),
+            witness_program: blake2b160(&key.as_ref().to_bytes()).into(),
         }
     }
 
@@ -276,7 +275,7 @@ impl LockingScript {
 #[cfg(test)]
 mod test {
     use super::*;
-    use coins_bip32::{curve::model::*, model::*, XPriv};
+    use coins_bip32::prelude::XPriv;
     use coins_core::ser::ByteFormat;
 
     #[test]
@@ -291,11 +290,11 @@ mod test {
     fn it_generates_p2wpkh_locking_script() {
         let xpriv_str = "xprv9s21ZrQH143K24iSk4AuKHKkRzWQBqPHV3bB7n1fFxQxitybVXAixpB72Um9DhrNumiR9YAmmXvPCdqM8s1XMM2inRiCvgND9cy7uHs1FCa";
         let xpriv: XPriv = xpriv_str.parse().unwrap();
-        let xpub = xpriv.derive_verifying_key().unwrap();
+        let xpub = xpriv.verify_key();
 
-        let pubkey = xpriv.derive_pubkey().unwrap();
+        let pubkey = xpriv.verify_key();
         let mut vec = Vec::new();
-        vec.extend(pubkey.pubkey_array().iter());
+        vec.extend(&pubkey.to_bytes());
         assert_eq!(
             "026180c26fb38078b5d5c717cd70e4b774f4ef56b8ae994599764a9156909aa437",
             hex::encode(vec)

@@ -1,0 +1,45 @@
+[package]
+name = "coins-bip32"
+version = "0.1.0-beta.0"
+authors = ["James Prestwich <james@prestwi.ch>"]
+edition = "2018"
+description = "Bip32 (and related BIPs) in Rust"
+repository = "https://github.com/summa-tx/bitcoins-rs"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+thiserror = "1.0"
+hmac = "0.7.1"
+sha2 = "0.8.0"
+bs58 = "0.3.0"
+lazy_static = "1.4.0"
+coins-core = { path = "../core"}
+serde = "1.0.105"
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies.secp256k1]
+version = "0.17.2"
+features = ["recovery"]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.libsecp256k1]
+git = "https://github.com/paritytech/libsecp256k1.git"
+default-features = false
+features = ["std", "hmac"]
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.libsecp256k1-core]
+git = "https://github.com/paritytech/libsecp256k1.git"
+default-features = false
+features = ["std"]
+
+[dev-dependencies]
+hex = "0.4.2"
+criterion = "0.3.1"
+
+[features]
+default = ["mainnet"]
+rust-secp-static-context = ["libsecp256k1/static-context"]
+mainnet = []
+testnet = []
+
+[[bench]]
+name = "bench"
+harness = false

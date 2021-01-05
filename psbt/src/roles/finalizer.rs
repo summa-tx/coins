@@ -4,8 +4,8 @@ use bitcoins::{
     prelude::Hash160Digest,
     types::{BitcoinOutpoint, BitcoinTransaction, ScriptType},
 };
-use coins_bip32::{self as bip32, curve::SigSerialize, HasPubkey};
-use coins_core::Transaction;
+use coins_bip32::{self as bip32};
+use coins_core::prelude::{Digest, MarkedDigestOutput, Transaction};
 
 /// A finalizer that creates WPKH witnesses
 pub struct PSBTWPKHFinalizer();
@@ -51,17 +51,17 @@ fn finalize_input(outpoint: &BitcoinOutpoint, input_map: &mut PSBTInput) -> Resu
     };
 
     // If any pubkeys match, build a witness and finalize
-    if let Some((pubkey, partial_sig, sighash)) = input_map
-        .partial_sigs()
-        .iter()
-        .find(|(pubkey, _, _)| pkh == pubkey.pubkey_hash160())
+    if let Some((pubkey, partial_sig, sighash)) =
+        input_map.partial_sigs().iter().find(|(pubkey, _, _)| {
+            pkh.as_slice() == coins_core::hashes::Hash160::digest(&pubkey.to_bytes()).as_slice()
+        })
     {
         let mut witness = bitcoins::types::Witness::default();
         let mut sig_bytes = vec![];
-        sig_bytes.extend(partial_sig.to_der());
+        sig_bytes.extend(partial_sig.to_asn1().as_bytes());
         sig_bytes.extend(&[sighash.to_u8()]);
 
-        witness.push(pubkey.pubkey_bytes().as_ref().into());
+        witness.push(pubkey.to_bytes().as_ref().into());
         witness.push(sig_bytes.into());
 
         input_map.insert_witness(&witness);

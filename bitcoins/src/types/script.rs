@@ -93,25 +93,27 @@ pub type TxWitness = Vec<Witness>;
 
 impl ScriptPubkey {
     /// Instantiate a standard p2pkh script pubkey from a pubkey.
-    pub fn p2pkh<'a, T, B>(key: &T) -> Self
+    pub fn p2pkh<K>(key: &K) -> Self
     where
-        B: coins_bip32::curve::Secp256k1Backend,
-        T: coins_bip32::model::HasPubkey<'a, B>,
+        K: AsRef<coins_bip32::ecdsa::VerifyingKey>,
     {
+        let digest = Hash160::digest(&key.as_ref().to_bytes());
+
         let mut v: Vec<u8> = vec![0x76, 0xa9, 0x14]; // DUP, HASH160, PUSH_20
-        v.extend(key.pubkey_hash160().as_slice());
+        v.extend(&digest);
         v.extend(&[0x88, 0xac]); // EQUALVERIFY, CHECKSIG
         v.into()
     }
 
     /// Instantiate a standard p2wpkh script pubkey from a pubkey.
-    pub fn p2wpkh<'a, T, B>(key: &T) -> Self
+    pub fn p2wpkh<K>(key: &K) -> Self
     where
-        B: coins_bip32::curve::Secp256k1Backend,
-        T: coins_bip32::model::HasPubkey<'a, B>,
+        K: AsRef<coins_bip32::ecdsa::VerifyingKey>,
     {
+        let digest = Hash160::digest(&key.as_ref().to_bytes());
+
         let mut v: Vec<u8> = vec![0x00, 0x14]; // OP_0, PUSH_20
-        v.extend(key.pubkey_hash160().as_slice());
+        v.extend(&digest);
         v.into()
     }
 

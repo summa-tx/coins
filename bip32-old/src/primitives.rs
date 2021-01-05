@@ -88,3 +88,15 @@ pub struct XKeyInfo {
     /// The key's stanadard output type preference
     pub hint: Hint,
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    #[test]
+    fn fingerprint_slice_equality() {
+        let print = [0; 4];
+        let k: KeyFingerprint = print.into();
+        assert!(k.eq_slice(&print[..]));
+        println!("{:?}", &k);
+    }
+}

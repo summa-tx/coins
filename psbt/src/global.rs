@@ -1,7 +1,10 @@
 use std::collections::{btree_map, BTreeMap};
 
 use bitcoins::types::{BitcoinTxIn, LegacyTx};
-use coins_bip32::{enc::XKeyEncoder as Bip32Encoder, model::DerivedKey, DerivedXPub};
+use coins_bip32::{
+    derived::{DerivedKey, DerivedXPub},
+    enc::XKeyEncoder as Bip32Encoder,
+};
 use coins_core::{
     ser::{self, ByteFormat},
     types::tx::Transaction,
@@ -102,10 +105,10 @@ impl PSBTGlobal {
         E: Bip32Encoder,
     {
         let mut key = vec![GlobalKey::XPUB as u8];
-        E::write_xpub(&mut key, &xpub.xpub).unwrap();
+        E::write_xpub(&mut key, &xpub).unwrap();
 
         let mut val = vec![];
-        xpub.derivation.write_to(&mut val).unwrap();
+        xpub.derivation().write_to(&mut val).unwrap();
         self.insert(key.into(), val.into());
     }
 

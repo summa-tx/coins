@@ -2,16 +2,7 @@ use std::collections::HashMap;
 
 use coins_core::ser::{self, ByteFormat, ReadSeqMode};
 
-use coins_bip32::{
-    self as bip32,
-    curve::{PointDeserialize, Secp256k1Backend, SigSerialize, Signature},
-    derived::DerivedPubkey,
-    keys::Pubkey,
-    model::DerivedKey,
-    path::KeyDerivation,
-    primitives::KeyFingerprint,
-    Bip32Error, Secp256k1, XPub,
-};
+use coins_bip32::prelude::*;
 
 use bitcoins::types::{LegacyTx, ScriptType, Sighash, TxError, TxOut, Witness, WitnessStackItem};
 
@@ -129,7 +120,7 @@ pub fn validate_xpub_depth(key: &PSBTKey, val: &PSBTValue) -> Result<(), PSBTErr
 }
 
 /// Attempt to parse a keyas a Secp256k1 pybkey
-pub fn try_key_as_pubkey(key: &PSBTKey) -> Result<Pubkey, PSBTError> {
+pub fn try_key_as_pubkey(key: &PSBTKey) -> Result<VerifyingKey, PSBTError> {
     if key.len() != 34 {
         return Err(PSBTError::WrongKeyLength {
             expected: 34,
@@ -138,10 +129,7 @@ pub fn try_key_as_pubkey(key: &PSBTKey) -> Result<Pubkey, PSBTError> {
     }
     let mut buf = [0u8; 33];
     buf.copy_from_slice(&key.items()[1..]);
-    Ok(Pubkey {
-        key: <Secp256k1 as Secp256k1Backend>::Pubkey::from_pubkey_array(buf)?,
-        backend: Some(Secp256k1::static_ref()),
-    })
+    Ok(VerifyingKey::from_sec1_bytes(&buf).map_err(Bip32Error::from)?)
 }
 
 /// Attempt to deserialize a value as a as transaction
@@ -179,7 +167,7 @@ pub fn try_val_as_signature(val: &PSBTValue) -> Result<(Signature, Sighash), PSB
                 expected: 75,
             })?;
 
-    let sig = Signature::try_from_der(sig_bytes)?;
+    let sig = Signature::from_asn1(sig_bytes).map_err(Bip32Error::from)?;
     Ok((sig, Sighash::from_u8(*sighash_flag)?))
 }
 
@@ -196,17 +184,14 @@ pub fn try_val_as_witness(val: &PSBTValue) -> Result<Witness, PSBTError> {
 /// Attempt to parse a key as a valid extended pubkey
 pub fn try_key_as_xpub<E>(key: &PSBTKey) -> Result<XPub, PSBTError>
 where
-    E: bip32::enc::XKeyEncoder,
+    E: XKeyEncoder,
 {
     if key.len() < 2 {
         return Err(Bip32Error::BadXPubVersionBytes([0u8; 4]).into());
     }
     // strip off first byte (the type)
     let mut xpub_bytes = &key.items()[1..];
-    Ok(E::read_xpub(
-        &mut xpub_bytes,
-        Some(Secp256k1::static_ref()),
-    )?)
+    Ok(E::read_xpub(&mut xpub_bytes)?)
 }
 
 /// Attempt to convert a KV pair into a derived pubkey struct
@@ -217,11 +202,12 @@ pub fn try_kv_pair_as_derived_pubkey(
     let pubkey = if key.len() == 34 {
         let mut pubkey = [0u8; 33];
         pubkey.copy_from_slice(&key[1..34]);
-        bip32::curve::Pubkey::from_pubkey_array(pubkey)?
+        VerifyingKey::from_sec1_bytes(&pubkey).map_err(Bip32Error::from)?
     } else if key.len() == 66 {
-        let mut pubkey = [0u8; 65];
-        pubkey.copy_from_slice(&key[1..66]);
-        bip32::curve::Pubkey::from_pubkey_array_uncompressed(pubkey)?
+        panic!("unimplemented!")
+    // let mut pubkey = [0u8; 65];
+    // pubkey.copy_from_slice(&key[1..66]);
+    // bip32::curve::Pubkey::from_pubkey_array_uncompressed(pubkey)?
     } else {
         return Err(PSBTError::WrongKeyLength {
             got: key.len(),
@@ -231,18 +217,13 @@ pub fn try_kv_pair_as_derived_pubkey(
 
     let deriv = try_val_as_key_derivation(val)?;
 
-    let pubkey = bip32::keys::Pubkey {
-        key: pubkey,
-        backend: Some(Secp256k1::static_ref()),
-    };
-
     Ok(DerivedPubkey::new(pubkey, deriv))
 }
 
 pub fn try_kv_pair_as_pubkey_and_sig(
     key: &PSBTKey,
     val: &PSBTValue,
-) -> Result<(Pubkey, Signature, Sighash), PSBTError> {
+) -> Result<(VerifyingKey, Signature, Sighash), PSBTError> {
     let pubkey = try_key_as_pubkey(key)?;
 
     let (sig, sighash) = try_val_as_signature(val)?;

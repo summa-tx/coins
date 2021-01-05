@@ -1,10 +1,7 @@
 use thiserror::Error;
 
 use bitcoins::prelude::*;
-use coins_bip32::{
-    self as bip32,
-    model::{DerivedKey, HasPubkey, SigningKey, XSigning},
-};
+use coins_bip32::prelude::*;
 use coins_core::types::Transaction;
 
 use crate::{input::PSBTInput, roles::PSTSigner, PSBTError, PSBT, PST};
@@ -13,7 +10,7 @@ use crate::{input::PSBTInput, roles::PSTSigner, PSBTError, PSBT, PST};
 pub enum Bip32SignerError {
     /// Bubbled up from the BIP32 library
     #[error(transparent)]
-    Bip32Error(#[from] coins_bip32::Bip32Error),
+    Bip32Error(#[from] Bip32Error),
 
     /// PSBTError bubbled up
     #[error(transparent)]
@@ -29,7 +26,7 @@ pub enum Bip32SignerError {
 /// Implements naive change-checking by simply checking if it owns the pubkey of a PKH or WPKH
 /// output.
 pub struct Bip32Signer {
-    xpriv: bip32::DerivedXPriv,
+    xpriv: DerivedXPriv,
 }
 
 impl Bip32Signer {
@@ -121,10 +118,10 @@ impl Bip32Signer {
         };
 
         for path in paths.iter() {
-            // TODO: DRY
-            let sighash = tx.sighash(&sighash_args)?;
-            let signature = self.xpriv.descendant_sign_digest(path, sighash.into())?;
-            input_map.insert_partial_sig(&self.xpriv.derive_verifying_key()?, &signature);
+            let mut digest = coins_core::hashes::Hash256::default();
+            tx.write_sighash_preimage(&mut digest, &sighash_args)?;
+            let signature = self.xpriv.derive_path(path.clone())?.sign_digest(digest);
+            input_map.insert_partial_sig(&self.xpriv.verify_key(), &signature);
         }
 
         Ok(())
@@ -153,11 +150,10 @@ impl Bip32Signer {
             .unwrap();
 
         for path in paths.iter() {
-            let sighash = tx.sighash(&sighash_args)?;
-            let signature = self
-                .xpriv
-                .descendant_sign_digest(path.clone(), sighash.into())?;
-            input_map.insert_partial_sig(&self.xpriv.derive_verifying_key()?, &signature);
+            let mut digest = coins_core::hashes::Hash256::default();
+            tx.write_sighash_preimage(&mut digest, &sighash_args)?;
+            let signature = self.xpriv.derive_path(path.clone())?.sign_digest(digest);
+            input_map.insert_partial_sig(&self.xpriv.verify_key(), &signature);
         }
         Ok(())
 
@@ -172,13 +168,13 @@ impl Bip32Signer {
         // for path in paths.iter() {
         //     let sighash = tx.sighash(&sighash_args)?;
         //     let signature = self.xpriv.descendant_sign_digest(path.clone(), sighash)?;
-        //     input_map.insert_partial_sig(&self.xpriv.derive_verifying_key()?, &signature);
+        //     input_map.insert_partial_sig(&self.xpriv.verify_key(), &signature);
         // }
     }
 }
 
-impl From<bip32::DerivedXPriv> for Bip32Signer {
-    fn from(xpriv: bip32::DerivedXPriv) -> Self {
+impl From<DerivedXPriv> for Bip32Signer {
+    fn from(xpriv: DerivedXPriv) -> Self {
         Self { xpriv }
     }
 }
@@ -186,7 +182,7 @@ impl From<bip32::DerivedXPriv> for Bip32Signer {
 impl<A, E> PSTSigner<A, PSBT<A, E>> for Bip32Signer
 where
     A: BitcoinEncoderMarker,
-    E: bip32::enc::XKeyEncoder,
+    E: XKeyEncoder,
 {
     type Error = Bip32SignerError;
 

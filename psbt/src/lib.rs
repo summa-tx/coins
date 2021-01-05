@@ -29,8 +29,8 @@ use std::{
 };
 
 use coins_bip32::{
-    self as bip32, enc::XKeyEncoder as Bip32Encoder, model::DerivedKey, DerivedXPub,
-    KeyFingerprint, XPub,
+    self as bip32, derived::DerivedXPub, enc::XKeyEncoder as Bip32Encoder,
+    primitives::KeyFingerprint, xkeys::XPub,
 };
 
 use coins_core::prelude::*;

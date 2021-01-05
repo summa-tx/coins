@@ -84,44 +84,35 @@ impl std::io::Write for Hash256 {
     }
 }
 
-impl Digest for Hash256 {
-    type OutputSize = <sha2::Sha256 as Digest>::OutputSize;
+impl digest::BlockInput for Hash256 {
+    type BlockSize = <Sha256 as digest::BlockInput>::BlockSize;
+}
 
-    fn new() -> Self {
-        Self::default()
+impl digest::FixedOutput for Hash256 {
+    type OutputSize = <Sha256 as digest::FixedOutput>::OutputSize;
+
+    fn finalize_into(self, out: &mut GenericArray<u8, Self::OutputSize>) {
+        let mut hasher = sha2::Sha256::default();
+        hasher.update(self.0.finalize());
+        hasher.finalize_into(out);
     }
 
-    fn update(&mut self, data: impl AsRef<[u8]>) {
-        self.0.update(data)
+    fn finalize_into_reset(&mut self, out: &mut GenericArray<u8, Self::OutputSize>) {
+        let other = self.clone();
+        other.finalize_into(out);
+        self.0.reset();
     }
+}
 
-    fn chain(self, data: impl AsRef<[u8]>) -> Self
-    where
-        Self: Sized,
-    {
-        Self(self.0.chain(data))
-    }
-
-    fn finalize(self) -> DigestOutput<Self> {
-        sha2::Sha256::digest(self.0.finalize().as_slice())
-    }
-
-    fn finalize_reset(&mut self) -> DigestOutput<Self> {
-        let res = self.clone().finalize();
-        self.reset();
-        res
-    }
-
+impl digest::Reset for Hash256 {
     fn reset(&mut self) {
-        self.0.reset()
+        Digest::reset(&mut self.0);
     }
+}
 
-    fn output_size() -> usize {
-        sha2::Sha256::output_size()
-    }
-
-    fn digest(data: &[u8]) -> DigestOutput<Self> {
-        sha2::Sha256::digest(sha2::Sha256::digest(data).as_slice())
+impl digest::Update for Hash256 {
+    fn update(&mut self, data: impl AsRef<[u8]>) {
+        Digest::update(&mut self.0, data);
     }
 }
 
@@ -140,44 +131,35 @@ impl std::io::Write for Hash160 {
     }
 }
 
-impl Digest for Hash160 {
-    type OutputSize = <ripemd160::Ripemd160 as Digest>::OutputSize;
+impl digest::BlockInput for Hash160 {
+    type BlockSize = <Ripemd160 as digest::BlockInput>::BlockSize;
+}
 
-    fn new() -> Self {
-        Self::default()
+impl digest::FixedOutput for Hash160 {
+    type OutputSize = <Ripemd160 as digest::FixedOutput>::OutputSize;
+
+    fn finalize_into(self, out: &mut GenericArray<u8, Self::OutputSize>) {
+        let mut hasher = ripemd160::Ripemd160::default();
+        hasher.update(self.0.finalize());
+        hasher.finalize_into(out);
     }
 
-    fn update(&mut self, data: impl AsRef<[u8]>) {
-        self.0.update(data)
+    fn finalize_into_reset(&mut self, out: &mut GenericArray<u8, Self::OutputSize>) {
+        let other = self.clone();
+        other.finalize_into(out);
+        self.0.reset();
     }
+}
 
-    fn chain(self, data: impl AsRef<[u8]>) -> Self
-    where
-        Self: Sized,
-    {
-        Self(self.0.chain(data))
-    }
-
-    fn finalize(self) -> DigestOutput<Self> {
-        ripemd160::Ripemd160::digest(self.0.finalize().as_slice())
-    }
-
-    fn finalize_reset(&mut self) -> DigestOutput<Self> {
-        let res = self.clone().finalize();
-        self.reset();
-        res
-    }
-
+impl digest::Reset for Hash160 {
     fn reset(&mut self) {
-        self.0.reset()
+        Digest::reset(&mut self.0);
     }
+}
 
-    fn output_size() -> usize {
-        ripemd160::Ripemd160::output_size()
-    }
-
-    fn digest(data: &[u8]) -> DigestOutput<Self> {
-        ripemd160::Ripemd160::digest(sha2::Sha256::digest(data).as_slice())
+impl digest::Update for Hash160 {
+    fn update(&mut self, data: impl AsRef<[u8]>) {
+        Digest::update(&mut self.0, data);
     }
 }
 

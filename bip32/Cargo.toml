@@ -16,19 +16,7 @@ lazy_static = "1.4.0"
 coins-core = { path = "../core"}
 serde = "1.0.105"
 
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies.secp256k1]
-version = "0.17.2"
-features = ["recovery"]
-
-[target.'cfg(target_arch = "wasm32")'.dependencies.libsecp256k1]
-git = "https://github.com/paritytech/libsecp256k1.git"
-default-features = false
-features = ["std", "hmac"]
-
-[target.'cfg(target_arch = "wasm32")'.dependencies.libsecp256k1-core]
-git = "https://github.com/paritytech/libsecp256k1.git"
-default-features = false
-features = ["std"]
+k256 = { version = "0.7.1", features = ["std", "ecdsa", "arithmetic"] }
 
 [dev-dependencies]
 hex = "0.4.2"
@@ -36,10 +24,6 @@ criterion = "0.3.1"
 
 [features]
 default = ["mainnet"]
-rust-secp-static-context = ["libsecp256k1/static-context"]
 mainnet = []
 testnet = []
 
-[[bench]]
-name = "bench"
-harness = false

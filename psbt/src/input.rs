@@ -1,8 +1,4 @@
-use coins_bip32::{
-    curve::{model::Secp256k1Backend, SigSerialize},
-    derived::DerivedPubkey,
-    model::HasPubkey,
-};
+use coins_bip32::derived::DerivedPubkey;
 use coins_core::ser::{self, ByteFormat};
 use std::collections::{btree_map, BTreeMap};
 
@@ -192,23 +188,28 @@ impl PSBTInput {
     }
 
     /// Returns an iterator over Pubkey/Signature pairs
-    pub fn partial_sigs(&self) -> Vec<(coins_bip32::Pubkey, coins_bip32::Signature, Sighash)> {
+    pub fn partial_sigs(
+        &self,
+    ) -> Vec<(
+        coins_bip32::ecdsa::VerifyingKey,
+        coins_bip32::ecdsa::Signature,
+        Sighash,
+    )> {
         self.raw_partial_sigs()
             .filter_map(|(k, v)| schema::try_kv_pair_as_pubkey_and_sig(k, v).ok())
             .collect::<Vec<_>>()
     }
 
     /// Inserts a signature into the map
-    pub fn insert_partial_sig<'a, T: Secp256k1Backend, K: HasPubkey<'a, T>>(
-        &mut self,
-        pk: &K,
-        sig: &T::Signature,
-    ) {
+    pub fn insert_partial_sig<K>(&mut self, pk: &K, sig: &coins_bip32::ecdsa::Signature)
+    where
+        K: AsRef<coins_bip32::ecdsa::VerifyingKey>,
+    {
         let mut key = vec![InputKey::PARTIAL_SIG as u8];
-        key.extend(pk.pubkey_bytes().iter());
+        key.extend(&pk.as_ref().to_bytes());
 
         let mut val = vec![];
-        val.extend(sig.to_der());
+        val.extend(sig.to_asn1().as_bytes());
         val.push(self.sighash_or_default() as u8);
 
         self.insert(key.into(), val.into());

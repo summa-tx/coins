@@ -1,4 +1,5 @@
-//! Re-exports of common traits.
+//! Re-exports of common types.
+
 pub use crate::{
     builder::TxBuilder,
     enc::*,
@@ -7,3 +8,4 @@ pub use crate::{
     ser::{ByteFormat, ReadSeqMode},
     types::Transaction,
 };
+pub use digest::Digest;
