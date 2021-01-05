@@ -108,6 +108,14 @@ impl AsRef<ecdsa::SigningKey> for XPriv {
 }
 
 impl XPriv {
+    /// Instantiate a new XPriv.
+    pub fn new(key: ecdsa::SigningKey, xkey_info: XKeyInfo) -> Self {
+        Self {
+            key,
+            xkey_info,
+        }
+    }
+
     /// Derive the associated XPub
     pub fn verify_key(&self) -> XPub {
         XPub {
@@ -287,6 +295,14 @@ impl AsRef<ecdsa::VerifyingKey> for XPub {
 }
 
 impl XPub {
+    /// Instantiate a new XPub
+    pub fn new(key: ecdsa::VerifyingKey, xkey_info: XKeyInfo) -> Self {
+        Self {
+            key,
+            xkey_info,
+        }
+    }
+
     /// The fingerprint is the first 4 bytes of the HASH160 of the serialized
     /// public key.
     pub fn fingerprint(&self) -> KeyFingerprint {

@@ -1,10 +1,10 @@
 use k256::ecdsa;
 
-use coins_core::prelude::{Hash160, Hash160Digest, MarkedDigest};
+use coins_core::prelude::{Hash160, Hash160Digest, MarkedDigest, MarkedDigestOutput};
 
 use crate::{
     path::{DerivationPath, KeyDerivation},
-    primitives::{Hint, XKeyInfo},
+    primitives::{Hint, KeyFingerprint, XKeyInfo},
     xkeys::{Parent, XPriv, XPub, SEED},
     Bip32Error,
 };
@@ -43,7 +43,8 @@ pub trait DerivedKey {
 }
 
 /// An XPriv with its derivation.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
+#[cfg_attr(any(feature = "mainnet", feature = "testnet"), derive(serde::Serialize, serde::Deserialize))]
 pub struct DerivedXPriv {
     xpriv: XPriv,
     derivation: KeyDerivation,
@@ -162,7 +163,8 @@ impl Parent for DerivedXPriv {
 }
 
 /// An XPub with its derivation.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize, PartialEq)]
+#[derive(Debug, Clone, PartialEq)]
+#[cfg_attr(any(feature = "mainnet", feature = "testnet"), derive(serde::Serialize, serde::Deserialize))]
 pub struct DerivedXPub {
     xpub: XPub,
     derivation: KeyDerivation,
@@ -227,6 +229,16 @@ pub struct DerivedPubkey {
     derivation: KeyDerivation,
 }
 
+impl std::fmt::Debug for DerivedPubkey {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("DerivedPubkey")
+            .field("public key", &self.key.to_bytes())
+            .field("key fingerprint", &self.fingerprint())
+            .field("derivation", &self.derivation)
+            .finish()
+    }
+}
+
 inherit_verifier!(DerivedPubkey.key);
 
 impl DerivedKey for DerivedPubkey {
@@ -242,7 +254,7 @@ impl AsRef<ecdsa::VerifyingKey> for DerivedPubkey {
 }
 
 impl DerivedPubkey {
-    /// Instantiate a new `
+    /// Instantiate a new `DerivedPubkey`
     pub fn new(key: ecdsa::VerifyingKey, derivation: KeyDerivation) -> Self {
         Self { key, derivation }
     }
@@ -250,6 +262,15 @@ impl DerivedPubkey {
     /// Return the hash of the compressed (Sec1) pubkey.
     pub fn pubkey_hash160(&self) -> Hash160Digest {
         Hash160::digest_marked(&self.key.to_bytes())
+    }
+
+    /// The fingerprint is the first 4 bytes of the HASH160 of the serialized
+    /// public key.
+    pub fn fingerprint(&self) -> KeyFingerprint {
+        let digest = self.pubkey_hash160();
+        let mut buf = [0u8; 4];
+        buf.copy_from_slice(&digest.as_slice()[..4]);
+        buf.into()
     }
 }
 
