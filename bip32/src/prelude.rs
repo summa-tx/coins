@@ -11,10 +11,6 @@ pub use crate::defaults::*;
 /// Re-exported signer traits
 pub use k256::ecdsa::{
     recoverable::Signature as RecoverableSignature,
-    signature::{DigestSigner, DigestVerifier},
+    signature::{DigestSigner, DigestVerifier, Signature as SigTrait},
     Signature, SigningKey, VerifyingKey,
 };
-
-// TODOS:
-// 1. der
-// 2. derived key/

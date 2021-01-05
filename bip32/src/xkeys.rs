@@ -1,8 +1,8 @@
 use coins_core::hashes::{Hash160, Hash160Digest, MarkedDigest, MarkedDigestOutput};
 use hmac::{Hmac, Mac};
-use k256::ecdsa;
+use k256::{elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint}, ecdsa};
 use sha2::Sha512;
-use std::{convert::TryInto, ops::Mul};
+use std::{convert::{TryFrom, TryInto}, ops::{AddAssign, Mul}};
 
 use crate::{
     path::DerivationPath,
@@ -13,14 +13,12 @@ use crate::{
 /// The BIP32-defined seed used for derivation of the root node.
 pub const SEED: &[u8; 12] = b"Bitcoin seed";
 
-fn hmac_and_split(seed: &[u8], data: &[u8]) -> Result<(k256::SecretKey, ChainCode), Bip32Error> {
+fn hmac_and_split(seed: &[u8], data: &[u8]) -> Result<(k256::NonZeroScalar, ChainCode), Bip32Error> {
     let mut mac = Hmac::<Sha512>::new_varkey(seed).expect("key length is ok");
     mac.input(data);
     let result = mac.result().code();
 
-    let mut left = [0u8; 32];
-    left.copy_from_slice(&result[..32]);
-    let left = k256::SecretKey::from_bytes(&left)?;
+    let left = k256::NonZeroScalar::try_from(&result[..32])?;
 
     let mut right = [0u8; 32];
     right.copy_from_slice(&result[32..]);
@@ -144,7 +142,7 @@ impl XPriv {
         }
         let parent = KeyFingerprint([0u8; 4]);
         let (key, chain_code) = hmac_and_split(hmac_key, data)?;
-        if bool::from(key.secret_scalar().is_zero()) {
+        if bool::from(key.is_zero()) {
             // This can only be tested by mocking hmac_and_split
             return Err(Bip32Error::InvalidKey);
         }
@@ -217,7 +215,7 @@ impl Parent for XPriv {
         };
 
         let parent_key = k256::NonZeroScalar::from_repr(key.to_bytes()).unwrap();
-        let tweaked = tweak.secret_scalar().clone().add(&parent_key);
+        let tweaked = tweak.clone().add(&parent_key);
 
         let tweaked = k256::NonZeroScalar::new(tweaked).ok_or(Bip32Error::BadTweak)?;
 
@@ -254,6 +252,7 @@ impl Clone for XPub {
 impl std::fmt::Debug for XPub {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("XPub")
+            .field("public key", &self.key.to_bytes())
             .field("key fingerprint", &self.fingerprint())
             .field("key info", &self.xkey_info)
             .finish()
@@ -316,15 +315,16 @@ impl Parent for XPub {
             _ => return self.derive_child(index + 1),
         };
 
-        if bool::from(tweak.secret_scalar().is_zero()) {
+        if bool::from(tweak.is_zero()) {
             return self.derive_child(index + 1);
         }
 
-        let parent_key = k256::PublicKey::from_sec1_bytes(&self.key.to_bytes()).unwrap();
-        let new_key = parent_key.as_affine().mul(*tweak.secret_scalar());
+        let parent_key = k256::ProjectivePoint::from_encoded_point(&self.key.to_encoded_point(true)).unwrap();
+        let mut tweak_point = k256::ProjectivePoint::generator().mul(*tweak);
+        tweak_point.add_assign(parent_key);
 
         Ok(Self {
-            key: ecdsa::VerifyingKey::from(&new_key),
+            key: ecdsa::VerifyingKey::from(&tweak_point.to_affine()),
             xkey_info: XKeyInfo {
                 depth: self.xkey_info.depth + 1,
                 parent: self.fingerprint(),
@@ -360,6 +360,10 @@ mod test {
     fn validate_descendant<'a>(d: &KeyDeriv, m: &XPriv) {
         let xpriv = m.derive_path(d.path).unwrap();
         let xpub = xpriv.verify_key();
+
+        // let m_pub = m.verify_key();
+        // let xpub_2 = m_pub.derive_path(d.path).unwrap();
+        // assert_eq!(&xpub, &xpub_2);
 
         let deser_xpriv = MainnetEncoder::xpriv_from_base58(&d.xpriv).unwrap();
         let deser_xpub = MainnetEncoder::xpub_from_base58(&d.xpub).unwrap();
