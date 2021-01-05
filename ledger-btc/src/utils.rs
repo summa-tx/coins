@@ -1,13 +1,7 @@
 use coins_core::{
     ser::{self, ByteFormat},
 };
-use coins_bip32::{
-    curve::model::{PointDeserialize, SigSerialize},
-    derived::DerivedXPub,
-    keys::Pubkey,
-    primitives::ChainCode,
-    path::{DerivationPath},
-};
+use coins_bip32::{path::DerivationPath, prelude::*};
 use bitcoins::types::{BitcoinTxIn, TxOut, UTXO, ScriptType, SpendScript};
 use coins_ledger::{
     common::{APDUAnswer, APDUCommand, APDUData},
@@ -27,7 +21,7 @@ pub(crate) enum Commands {
 }
 
 pub(crate) struct InternalKeyInfo {
-    pub(crate) pubkey: Pubkey,
+    pub(crate) pubkey: VerifyingKey,
     pub(crate) path: DerivationPath,
     pub(crate) chain_code: ChainCode,
 }
@@ -39,10 +33,7 @@ pub(crate) fn parse_pubkey_response(deriv: &DerivationPath, data: &[u8]) -> Inte
     let mut pk = [0u8; 65];
     pk.copy_from_slice(&data[1..66]);
     InternalKeyInfo {
-        pubkey: coins_bip32::keys::Pubkey {
-            key: PointDeserialize::from_pubkey_array_uncompressed(pk).unwrap(),
-            backend: Some(coins_bip32::Secp256k1::static_ref()),
-        },
+        pubkey: VerifyingKey::from_sec1_bytes(&pk).unwrap(),
         path: deriv.clone(),
         chain_code: chain_code.into(),
     }
@@ -160,14 +151,14 @@ pub(crate) fn modify_tx_start_packet(command: &APDUCommand) -> APDUCommand {
     c
 }
 
-pub(crate) fn parse_sig(answer: &APDUAnswer) -> Result<coins_bip32::Signature, LedgerBTCError> {
+pub(crate) fn parse_sig(answer: &APDUAnswer) -> Result<Signature, LedgerBTCError> {
     let mut sig = answer
         .data()
         .ok_or(LedgerBTCError::UnexpectedNullResponse)?
         .to_vec();
     sig[0] &= 0xfe;
-    Ok(coins_bip32::Signature::try_from_der(&sig[..sig.len() - 1])
-        .map_err(coins_bip32::Bip32Error::from)?)
+    Ok(Signature::from_asn1(&sig[..sig.len() - 1])
+        .map_err(Bip32Error::from)?)
 }
 
 pub(crate) fn should_sign(xpub: &DerivedXPub, signing_info: &[crate::app::SigningInfo]) -> bool {
@@ -181,5 +172,5 @@ pub(crate) fn should_sign(xpub: &DerivedXPub, signing_info: &[crate::app::Signin
             },
             _ => true
         })
-        .any(|s| xpub.derivation.is_possible_ancestor_of(s.deriv.as_ref().unwrap()))
+        .any(|s| xpub.derivation().is_possible_ancestor_of(s.deriv.as_ref().unwrap()))
 }

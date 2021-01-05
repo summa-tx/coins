@@ -2,12 +2,7 @@ use futures::lock::Mutex;
 use coins_core::{
     Transaction,
 };
-use coins_bip32::{
-    derived::DerivedXPub,
-    model::HasPubkey,
-    path::{DerivationPath, KeyDerivation},
-    primitives::XKeyInfo,
-};
+use coins_bip32::{path::DerivationPath, prelude::*};
 use bitcoins::types::{BitcoinTxIn, WitnessTx, UTXO};
 use coins_ledger::{
     common::{APDUAnswer, APDUCommand},
@@ -33,14 +28,12 @@ pub struct SigInfo {
     /// the input of the signed index
     pub input_idx: usize,
     /// The signature
-    pub sig: coins_bip32::Signature,
+    pub sig: Signature,
     /// The derivation of the key that signed it
     pub deriv: KeyDerivation,
 }
 
 /// A Ledger BTC App.
-///
-/// This is a simple wrapper around the transport and a Secp256k1 backend
 pub struct LedgerBTC {
     transport: Mutex<Ledger>,
 }
@@ -48,11 +41,6 @@ pub struct LedgerBTC {
 // Lifecycle
 impl LedgerBTC {
     /// Instantiate the application by acquiring a lock on the ledger device.
-    ///
-    /// # Notes
-    ///
-    /// - XPub lifetimes are bound to the lifetime of the backend. They can outlive the app,
-    /// but not the backend
     pub async fn init() -> Result<LedgerBTC, LedgerBTCError> {
         Ok(LedgerBTC {
             transport: Mutex::new(Ledger::init().await?),
@@ -107,39 +95,40 @@ impl LedgerBTC {
                 .get_key_info(&transport, &deriv.resized(deriv.len() - 1, 0))
                 .await?;
             let master = self.get_key_info(&transport, &deriv.resized(0, 0)).await?;
-            Ok(DerivedXPub {
-                derivation: KeyDerivation {
-                    root: master.pubkey.fingerprint(),
-                    path: deriv.clone(),
-                },
-                xpub: coins_bip32::XPub {
-                    pubkey: child.pubkey,
-                    info: XKeyInfo {
+            Ok(DerivedXPub::new(
+                XPub::new(
+                    child.pubkey,
+                    XKeyInfo {
                         depth: deriv.len() as u8,
-                        parent: parent.pubkey.fingerprint(),
+                        parent: fingerprint_of(&parent.pubkey),
                         index: *deriv.last().unwrap(),
                         chain_code: child.chain_code,
-                        hint: coins_bip32::primitives::Hint::SegWit,
+                        hint: Hint::SegWit,
                     },
+                ),
+                KeyDerivation {
+                    root: fingerprint_of(&master.pubkey),
+                    path: deriv.clone(),
                 },
-            })
+            ))
         } else {
-            Ok(DerivedXPub {
-                derivation: KeyDerivation {
-                    root: child.pubkey.fingerprint(),
-                    path: child.path,
-                },
-                xpub: coins_bip32::XPub {
-                    pubkey: child.pubkey,
-                    info: XKeyInfo {
+            let root = fingerprint_of(&child.pubkey);
+            Ok(DerivedXPub::new(
+                XPub::new(
+                    child.pubkey,
+                    XKeyInfo {
                         depth: 0,
-                        parent: coins_bip32::primitives::KeyFingerprint([0u8; 4]),
+                        parent: KeyFingerprint([0u8; 4]),
                         index: 0,
                         chain_code: child.chain_code,
-                        hint: coins_bip32::primitives::Hint::SegWit,
+                        hint: Hint::SegWit,
                     },
+                ),
+                KeyDerivation {
+                    root,
+                    path: child.path,
                 },
-            })
+            ))
         }
     }
 
@@ -179,7 +168,7 @@ impl LedgerBTC {
         utxo: &UTXO,
         txin: &BitcoinTxIn,
         deriv: &DerivationPath,
-    ) -> Result<coins_bip32::Signature, LedgerBTCError> {
+    ) -> Result<Signature, LedgerBTCError> {
         parse_sig(
             &self
                 .signature_exchange(transport, first_packet, locktime, utxo, txin, deriv)
