@@ -44,7 +44,10 @@ pub trait DerivedKey {
 
 /// An XPriv with its derivation.
 #[derive(Debug, Clone)]
-#[cfg_attr(any(feature = "mainnet", feature = "testnet"), derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    any(feature = "mainnet", feature = "testnet"),
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub struct DerivedXPriv {
     xpriv: XPriv,
     derivation: KeyDerivation,
@@ -164,7 +167,10 @@ impl Parent for DerivedXPriv {
 
 /// An XPub with its derivation.
 #[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(any(feature = "mainnet", feature = "testnet"), derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    any(feature = "mainnet", feature = "testnet"),
+    derive(serde::Serialize, serde::Deserialize)
+)]
 pub struct DerivedXPub {
     xpub: XPub,
     derivation: KeyDerivation,
