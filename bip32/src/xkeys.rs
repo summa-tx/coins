@@ -1,8 +1,14 @@
 use coins_core::hashes::{Hash160, Hash160Digest, MarkedDigest, MarkedDigestOutput};
 use hmac::{Hmac, Mac};
-use k256::{elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint}, ecdsa};
+use k256::{
+    ecdsa,
+    elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint},
+};
 use sha2::Sha512;
-use std::{convert::{TryFrom, TryInto}, ops::{AddAssign, Mul}};
+use std::{
+    convert::{TryFrom, TryInto},
+    ops::{AddAssign, Mul},
+};
 
 use crate::{
     path::DerivationPath,
@@ -13,7 +19,10 @@ use crate::{
 /// The BIP32-defined seed used for derivation of the root node.
 pub const SEED: &[u8; 12] = b"Bitcoin seed";
 
-fn hmac_and_split(seed: &[u8], data: &[u8]) -> Result<(k256::NonZeroScalar, ChainCode), Bip32Error> {
+fn hmac_and_split(
+    seed: &[u8],
+    data: &[u8],
+) -> Result<(k256::NonZeroScalar, ChainCode), Bip32Error> {
     let mut mac = Hmac::<Sha512>::new_varkey(seed).expect("key length is ok");
     mac.input(data);
     let result = mac.result().code();
@@ -319,7 +328,8 @@ impl Parent for XPub {
             return self.derive_child(index + 1);
         }
 
-        let parent_key = k256::ProjectivePoint::from_encoded_point(&self.key.to_encoded_point(true)).unwrap();
+        let parent_key =
+            k256::ProjectivePoint::from_encoded_point(&self.key.to_encoded_point(true)).unwrap();
         let mut tweak_point = k256::ProjectivePoint::generator().mul(*tweak);
         tweak_point.add_assign(parent_key);
 

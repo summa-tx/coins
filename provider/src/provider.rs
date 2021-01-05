@@ -315,7 +315,7 @@ impl<T: BTCProvider> From<T> for CachingProvider<T> {
 
 impl<T> Default for CachingProvider<T>
 where
-    T: BTCProvider + Default
+    T: BTCProvider + Default,
 {
     fn default() -> Self {
         T::default().into()
