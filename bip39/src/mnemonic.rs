@@ -1,14 +1,11 @@
 use crate::{Wordlist, WordlistError};
 use bitvec::prelude::*;
-use coins_bip32::{
-    xkeys::{Parent, XPriv},
-    Bip32Error,
-};
+use coins_bip32::{path::DerivationPath, xkeys::XPriv, Bip32Error};
 use hmac::Hmac;
 use pbkdf2::pbkdf2;
 use rand::Rng;
 use sha2::{Digest, Sha256, Sha512};
-use std::marker::PhantomData;
+use std::{convert::TryInto, marker::PhantomData};
 use thiserror::Error;
 
 const PBKDF2_ROUNDS: u32 = 2048;
@@ -74,7 +71,7 @@ impl<W: Wordlist> Mnemonic<W> {
     /// Returns a new mnemonic for a given phrase. The 12-24 space-separated words are used to
     /// calculate the entropy that must have produced it.
     pub fn new_from_phrase(phrase: &str) -> Result<Self, MnemonicError> {
-        let words = phrase.split(" ").collect::<Vec<&str>>();
+        let words = phrase.split(' ').collect::<Vec<&str>>();
         let length: usize = match words.len() {
             12 => 16,
             15 => 20,
@@ -160,8 +157,12 @@ impl<W: Wordlist> Mnemonic<W> {
     }
 
     /// Returns the derived child private key of the corresponding mnemonic at the given index.
-    pub fn child_key(&self, password: Option<&str>, index: u32) -> Result<XPriv, MnemonicError> {
-        Ok(self.master_key(password)?.derive_child(index)?)
+    pub fn derive_key<E, P>(&self, path: P, password: Option<&str>) -> Result<XPriv, MnemonicError>
+    where
+        E: Into<Bip32Error>,
+        P: TryInto<DerivationPath, Error = E>,
+    {
+        Ok(self.master_key(password)?.derive_path(path)?)
     }
 
     fn to_seed(&self, password: Option<&str>) -> Result<Vec<u8>, MnemonicError> {
