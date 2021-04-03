@@ -71,7 +71,7 @@ pub struct XPriv {
 
 impl PartialEq for XPriv {
     fn eq(&self, other: &XPriv) -> bool {
-        self.key.to_bytes() == other.key.to_bytes()
+        self.fingerprint() == other.fingerprint() && self.xkey_info == other.xkey_info
     }
 }
 

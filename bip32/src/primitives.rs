@@ -74,7 +74,7 @@ impl From<[u8; 32]> for ChainCode {
 }
 
 /// Info associated with an extended key
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug)]
 pub struct XKeyInfo {
     /// The key depth in the HD tree
     pub depth: u8,
@@ -87,4 +87,13 @@ pub struct XKeyInfo {
     pub chain_code: ChainCode,
     /// The key's stanadard output type preference
     pub hint: Hint,
+}
+
+impl PartialEq for XKeyInfo {
+    fn eq(&self, other: &XKeyInfo) -> bool {
+        self.depth == other.depth
+            && self.parent == other.parent
+            && self.index == other.index
+            && self.chain_code == other.chain_code
+    }
 }
