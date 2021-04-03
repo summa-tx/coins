@@ -2,6 +2,7 @@
 members = [
     "core",
     "bip32",
+    "bip39",
     "bitcoins",
     "litecoins",
     "handshakes",
