@@ -5,24 +5,23 @@ use coins_bip32::derived::DerivedPubkey;
 use bitcoins::types::script::Script;
 
 use crate::{
-    common::{PSBTError, PSBTKey, PSBTValidate, PSBTValue, PSTMap},
+    common::{PSBTKey, PSBTValue, PsbtError, PsbtValidate, PstMap},
     schema,
 };
 
-psbt_map!(PSBTOutput);
+psbt_map!(PsbtOutput);
 
 /// PSBT Output Key Types
 #[repr(u8)]
-#[allow(non_camel_case_types)]
 pub enum OutputKey {
     /// Output key type for PSBT_OUT_REDEEM_SCRIPT as defined in BIP174
-    REDEEM_SCRIPT = 0,
+    RedeemScript = 0,
     /// Output key type for PSBT_OUT_WITNESS_SCRIPT as defined in BIP174
-    WITNESS_SCRIPT = 1,
+    WitnessScript = 1,
     /// Output key type for PSBT_OUT_BIP32_DERIVATION as defined in BIP174
-    BIP32_DERIVATION = 2,
+    Bip32Derivation = 2,
     /// Output key type for PSBT_OUT_PROPRIETARY as defined in BIP174
-    PROPRIETARY = 0xfc,
+    Proprietary = 0xfc,
 }
 
 impl From<OutputKey> for PSBTKey {
@@ -31,39 +30,39 @@ impl From<OutputKey> for PSBTKey {
     }
 }
 
-impl PSBTValidate for PSBTOutput {
-    fn consistency_checks(&self) -> Result<(), PSBTError> {
+impl PsbtValidate for PsbtOutput {
+    fn consistency_checks(&self) -> Result<(), PsbtError> {
         // No current checks
         Ok(())
     }
 
-    fn standard_schema() -> schema::KVTypeSchema {
-        let mut s: schema::KVTypeSchema = Default::default();
+    fn standard_schema() -> schema::KvTypeSchema {
+        let mut s: schema::KvTypeSchema = Default::default();
         s.insert(
-            OutputKey::REDEEM_SCRIPT as u8,
+            OutputKey::RedeemScript as u8,
             Box::new(|k, v| (schema::output::validate_redeem_script(k, v))),
         );
         s.insert(
-            OutputKey::WITNESS_SCRIPT as u8,
+            OutputKey::WitnessScript as u8,
             Box::new(|k, v| (schema::output::validate_witness_script(k, v))),
         );
         s.insert(
-            OutputKey::BIP32_DERIVATION as u8,
+            OutputKey::Bip32Derivation as u8,
             Box::new(|k, v| (schema::output::validate_bip32_derivations(k, v))),
         );
         s
     }
 }
 
-impl PSBTOutput {
+impl PsbtOutput {
     /// Returns the BIP174 PSBT_OUT_REDEEM_SCRIPT transaction if present and valid.
     ///
     /// ## Errors
     ///
-    /// - Returns a `PSBTError::MissingKey` error if no value at that key.
-    /// - Returns a PSBTError::InvalidTx error if the value at that key is not a valid TX.
-    pub fn out_redeem_script(&self) -> Result<Script, PSBTError> {
-        let script_bytes = self.must_get(&OutputKey::REDEEM_SCRIPT.into())?.items();
+    /// - Returns a `PsbtError::MissingKey` error if no value at that key.
+    /// - Returns a PsbtError::InvalidTx error if the value at that key is not a valid TX.
+    pub fn out_redeem_script(&self) -> Result<Script, PsbtError> {
+        let script_bytes = self.must_get(&OutputKey::RedeemScript.into())?.items();
         Ok(script_bytes.into())
     }
 
@@ -71,16 +70,16 @@ impl PSBTOutput {
     ///
     /// ## Errors
     ///
-    /// - Returns a `PSBTError::MissingKey` error if no value at that key.
-    /// - Returns a PSBTError::InvalidTx error if the value at that key is not a valid TX.
-    pub fn out_witness_script(&self) -> Result<Script, PSBTError> {
-        let script_bytes = self.must_get(&OutputKey::WITNESS_SCRIPT.into())?.items();
+    /// - Returns a `PsbtError::MissingKey` error if no value at that key.
+    /// - Returns a PsbtError::InvalidTx error if the value at that key is not a valid TX.
+    pub fn out_witness_script(&self) -> Result<Script, PsbtError> {
+        let script_bytes = self.must_get(&OutputKey::WitnessScript.into())?.items();
         Ok(script_bytes.into())
     }
 
     /// Returns a range containing any PSBT_OUT_BIP32_DERIVATION.
     pub fn pubkey_kv_pairs(&self) -> btree_map::Range<PSBTKey, PSBTValue> {
-        self.range_by_key_type(OutputKey::BIP32_DERIVATION as u8)
+        self.range_by_key_type(OutputKey::Bip32Derivation as u8)
     }
 
     /// Returns a vec containing parsed public keys. Unparsable keys will be ignored

@@ -14,7 +14,7 @@ use bitcoins_ledger::{LedgerBTC, SigningInfo};
 use coins_bip32 as bip32;
 use coins_core::types::tx::Transaction;
 
-use crate::{input::PSBTInput, roles::PSTSigner, PSBTError, PSBT, PST};
+use crate::{input::PsbtInput, roles::PstSigner, PsbtError, PSBT, PST};
 
 #[derive(Debug, Error)]
 pub enum LedgerSignerError {
@@ -22,9 +22,9 @@ pub enum LedgerSignerError {
     #[error(transparent)]
     LedgerBTCError(#[from] bitcoins_ledger::LedgerBTCError),
 
-    /// PSBTError bubbled up
+    /// PsbtError bubbled up
     #[error(transparent)]
-    PSBTError(#[from] crate::common::PSBTError),
+    PsbtError(#[from] crate::common::PsbtError),
 
     /// No matching key
     #[error("No matching key in input")]
@@ -44,7 +44,7 @@ pub enum LedgerSignerError {
 }
 
 /// A PST Signer interface.
-impl<A, E> PSTSigner<A, PSBT<A, E>> for LedgerBTC
+impl<A, E> PstSigner<A, PSBT<A, E>> for LedgerBTC
 where
     A: BitcoinEncoderMarker,
     E: bip32::enc::XKeyEncoder,
@@ -118,8 +118,8 @@ where
 fn extract_signing_info(
     tx: &bitcoins::types::LegacyTx,
     idx: usize,
-    input_map: &PSBTInput,
-) -> Result<Vec<SigningInfo>, PSBTError> {
+    input_map: &PsbtInput,
+) -> Result<Vec<SigningInfo>, PsbtError> {
     let prevout = input_map.as_utxo(&tx.inputs()[idx].outpoint)?;
     Ok(input_map
         .parsed_pubkey_derivations()

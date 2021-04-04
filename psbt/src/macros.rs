@@ -6,7 +6,7 @@ macro_rules! psbt_map {
             map: std::collections::BTreeMap<PSBTKey, PSBTValue>,
         }
 
-        impl crate::common::PSTMap for $name {
+        impl crate::common::PstMap for $name {
             /// Returns a reference to the value corresponding to the key.
             fn get(&self, key: &PSBTKey) -> Option<&PSBTValue> {
                 self.map.get(key)
@@ -53,7 +53,7 @@ macro_rules! psbt_map {
         }
 
         impl coins_core::ser::ByteFormat for $name {
-            type Error = PSBTError;
+            type Error = PsbtError;
 
             fn serialized_length(&self) -> usize {
                 let kv_length: usize = self
@@ -63,7 +63,7 @@ macro_rules! psbt_map {
                 kv_length + 1 // terminates in a 0 byte (null key)
             }
 
-            fn read_from<R>(reader: &mut R) -> Result<Self, crate::common::PSBTError>
+            fn read_from<R>(reader: &mut R) -> Result<Self, crate::common::PsbtError>
             where
                 R: std::io::Read,
                 Self: std::marker::Sized,
@@ -75,7 +75,7 @@ macro_rules! psbt_map {
                 loop {
                     let key = PSBTKey::read_from(reader)?;
                     if map.contains_key(&key) {
-                        return Err(crate::common::PSBTError::DuplicateKey(key));
+                        return Err(crate::common::PsbtError::DuplicateKey(key));
                     }
                     if key.len() == 0 {
                         break;
@@ -86,7 +86,7 @@ macro_rules! psbt_map {
                 Ok(map)
             }
 
-            fn write_to<W>(&self, writer: &mut W) -> Result<usize, crate::common::PSBTError>
+            fn write_to<W>(&self, writer: &mut W) -> Result<usize, crate::common::PsbtError>
             where
                 W: std::io::Write,
             {

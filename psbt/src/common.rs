@@ -10,14 +10,14 @@ use crate::schema;
 
 /// An Error type for PSBT objects
 #[derive(Debug, Error)]
-pub enum PSBTError {
+pub enum PsbtError {
     /// Serialization-related errors
     #[error(transparent)]
     SerError(#[from] SerError),
 
-    /// IOError bubbled up from a `Write` passed to a `Ser::serialize` implementation.
+    /// IoError bubbled up from a `Write` passed to a `Ser::serialize` implementation.
     #[error(transparent)]
-    IOError(#[from] IOError),
+    IoError(#[from] IOError),
 
     /// PSBT Global map tx value is not a valid legacy transaction.
     #[error(transparent)]
@@ -41,7 +41,7 @@ pub enum PSBTError {
 
     /// Placeholder. TODO: Differentiate later
     #[error("Invalid PSBT. Unknown cause.")]
-    InvalidPSBT,
+    InvalidPsbt,
 
     /// The tx contained a non-empty scriptsig.
     #[error("PSBT tx contains non-empty scriptsig.")]
@@ -49,7 +49,7 @@ pub enum PSBTError {
 
     /// An input map contained a non-witness prevout marked as a witness prevout.
     #[error("Non-witness TxOut under witness input key.")]
-    InvalidWitnessTXO,
+    InvalidWitnessTxo,
 
     /// Returned from schema validation when the key size is unexpected
     #[error("Key failed validation. Wrong length. Expected {expected} bytes. Got {got} bytes")]
@@ -146,7 +146,7 @@ impl PSBTKey {
 }
 
 /// Common methods for our Global, Input, and Output maps
-pub trait PSTMap {
+pub trait PstMap {
     /// Returns a reference to the value corresponding to the key.
     fn get(&self, key: &PSBTKey) -> Option<&PSBTValue>;
 
@@ -184,9 +184,9 @@ pub trait PSTMap {
     }
 
     /// Return the value or a MissingKey error
-    fn must_get(&self, key: &PSBTKey) -> Result<&PSBTValue, PSBTError> {
+    fn must_get(&self, key: &PSBTKey) -> Result<&PSBTValue, PsbtError> {
         self.get(key)
-            .ok_or_else(|| PSBTError::MissingKey(key.key_type()))
+            .ok_or_else(|| PsbtError::MissingKey(key.key_type()))
     }
 
     /// Return a range containing any proprietary KV pairs
@@ -196,21 +196,21 @@ pub trait PSTMap {
 }
 
 /// Common methods for validating our PSBTMaps
-pub trait PSBTValidate: PSTMap {
+pub trait PsbtValidate: PstMap {
     /// Return a standard BIP174 KV-pair validation schema
-    fn standard_schema() -> schema::KVTypeSchema;
+    fn standard_schema() -> schema::KvTypeSchema;
 
     /// Check for consistency across multiple KV pairs
-    fn consistency_checks(&self) -> Result<(), PSBTError>;
+    fn consistency_checks(&self) -> Result<(), PsbtError>;
 
     /// Perform validation checks on the input
-    fn validate_schema(&self, schema: schema::KVTypeSchema) -> Result<(), PSBTError> {
+    fn validate_schema(&self, schema: schema::KvTypeSchema) -> Result<(), PsbtError> {
         // TODO:
         // Check that EITHER non_witness_utxo OR witness_utxo is present.
         // BOTH is NOT acceptable
         // NEITHER is acceptable
         for (key_type, predicate) in schema.0.iter() {
-            let result: Result<Vec<_>, PSBTError> = self
+            let result: Result<Vec<_>, PsbtError> = self
                 .range_by_key_type(*key_type)
                 .map(|(k, v)| predicate(k, v))
                 .collect();
@@ -220,7 +220,7 @@ pub trait PSBTValidate: PSTMap {
     }
 
     /// Run standard validation on the map
-    fn validate(&self) -> Result<(), PSBTError> {
+    fn validate(&self) -> Result<(), PsbtError> {
         self.validate_schema(Self::standard_schema())
     }
 }
