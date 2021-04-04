@@ -15,6 +15,8 @@ thiserror = "1.0"
 sha2 = "0.8.1"
 sha3 = "0.8.2"
 serde = "1.0.105"
-coins-core = { path = "../core" }
-coins-bip32 = { path = "../bip32" }
-bitcoins = { path = "../bitcoins" }
+
+
+coins-core = "0.2.0"
+coins-bip32 = { version = "0.2.0", default-features =  false }
+bitcoins =  "0.2.0"

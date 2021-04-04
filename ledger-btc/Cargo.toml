@@ -18,20 +18,12 @@ tokio = {version = "0.2.22", features = ["rt-threaded", "macros"]}
 
 [dependencies]
 thiserror = "1.0.10"
-coins-core = { path = "../core" }
 futures = "0.3.5"
+coins-core = "0.2.0"
+coins-bip32 = { version = "0.2.0", default-features =  false }
+bitcoins = { version = "0.2.0", default-features =  false }
+coins-ledger = { version = "0.2.0", default-features =  false }
 
-[dependencies.bitcoins]
-path = "../bitcoins"
-default-features = false
-
-[dependencies.coins-ledger]
-path = "../ledger"
-default-features = false
-
-[dependencies.coins-bip32]
-path = "../bip32"
-default-features = false
 
 # For wasm targets
 [target.'cfg(target_arch = "wasm32")'.dependencies]
