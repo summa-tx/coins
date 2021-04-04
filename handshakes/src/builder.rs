@@ -63,13 +63,13 @@ where
 
     /// Consume self, produce a tx
     pub fn build(self) -> Result<HandshakeTx, <HandshakeTx as Transaction>::TxError> {
-        Ok(<HandshakeTx as HandshakeTransaction>::new(
+        <HandshakeTx as HandshakeTransaction>::new(
             self.version,
             self.vin,
             self.vout,
             self.witnesses,
             self.locktime,
-        )?)
+        )
     }
 
     /// Add an output paying `value` to `LockingScript`
@@ -193,12 +193,12 @@ where
     }
 
     fn build(self) -> Result<Self::Transaction, <Self::Transaction as Transaction>::TxError> {
-        Ok(<HandshakeTx as HandshakeTransaction>::new(
+        <HandshakeTx as HandshakeTransaction>::new(
             self.version,
             self.vin,
             self.vout,
             self.witnesses,
             self.locktime,
-        )?)
+        )
     }
 }

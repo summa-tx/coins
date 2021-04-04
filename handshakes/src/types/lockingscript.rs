@@ -190,12 +190,11 @@ impl RecipientIdentifier for LockingScript {}
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum LockingScriptType {
     /// Pay to Witness Pubkeyhash.
-    WPKH([u8; 20]),
+    Wpkh([u8; 20]),
     /// Pay to Witness Scripthash.
-    WSH([u8; 32]),
+    Wsh([u8; 32]),
     /// OP_RETURN
-    #[allow(non_camel_case_types)]
-    OP_RETURN(Vec<u8>),
+    OpReturn(Vec<u8>),
     /// Nonstandard or unknown `Script` type. May be a newer witness version.
     NonStandard,
 }
@@ -245,7 +244,7 @@ impl LockingScript {
     /// the WitnessProgram.
     pub fn standard_type(&self) -> Result<LockingScriptType, LockingScriptError> {
         if self.version == 31 {
-            return Ok(LockingScriptType::OP_RETURN(
+            return Ok(LockingScriptType::OpReturn(
                 self.witness_program.clone().into(),
             ));
         }
@@ -255,13 +254,13 @@ impl LockingScript {
                 20 => {
                     let mut wpkh = [0x00; 20];
                     wpkh.copy_from_slice(self.witness_program.items());
-                    return Ok(LockingScriptType::WPKH(wpkh));
+                    return Ok(LockingScriptType::Wpkh(wpkh));
                 }
 
                 32 => {
                     let mut wsh = [0x00; 32];
                     wsh.copy_from_slice(self.witness_program.items());
-                    return Ok(LockingScriptType::WSH(wsh));
+                    return Ok(LockingScriptType::Wsh(wsh));
                 }
                 _ => return Err(LockingScriptError::InvalidWitnessProgramSizeError),
             }

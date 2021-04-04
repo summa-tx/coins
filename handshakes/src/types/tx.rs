@@ -263,7 +263,7 @@ impl HandshakeTx {
     ///
     /// TODO: memoize
     fn hash_prevouts(&self, sighash_flag: Sighash) -> TxResult<Blake2b256Digest> {
-        if (sighash_flag as u8 & Sighash::ACP as u8) == Sighash::ACP as u8 {
+        if (sighash_flag as u8 & Sighash::Acp as u8) == Sighash::Acp as u8 {
             Ok(Blake2b256Digest::default())
         } else {
             let mut w = Blake2b256::default();
@@ -283,7 +283,7 @@ impl HandshakeTx {
     /// TODO: memoize
     fn hash_sequence(&self, sighash_flag: Sighash) -> TxResult<Blake2b256Digest> {
         let flag = sighash_flag as u8;
-        if (flag & Sighash::ACP as u8) == Sighash::ACP as u8
+        if (flag & Sighash::Acp as u8) == Sighash::Acp as u8
             || (flag & 0x1f) == Sighash::Single as u8
             || (flag & 0x1f) == Sighash::SingleReverse as u8
             || (flag & 0x1f) == Sighash::None as u8
@@ -307,7 +307,7 @@ impl HandshakeTx {
     /// TODO: memoize
     fn hash_outputs(&self, index: usize, sighash_flag: Sighash) -> TxResult<Blake2b256Digest> {
         match sighash_flag {
-            Sighash::All | Sighash::AllACP | Sighash::AllNoInput | Sighash::AllNoInputACP => {
+            Sighash::All | Sighash::AllAcp | Sighash::AllNoInput | Sighash::AllNoInputAcp => {
                 let mut w = Blake2b256::default();
                 for output in self.vout.iter() {
                     output.write_to(&mut w)?;
@@ -315,9 +315,9 @@ impl HandshakeTx {
                 Ok(w.finalize_marked())
             }
             Sighash::Single
-            | Sighash::SingleACP
+            | Sighash::SingleAcp
             | Sighash::SingleNoInput
-            | Sighash::SingleNoInputACP => {
+            | Sighash::SingleNoInputAcp => {
                 if index < self.vout.len() {
                     let mut w = Blake2b256::default();
                     self.vout[index].write_to(&mut w)?;
@@ -327,9 +327,9 @@ impl HandshakeTx {
                 }
             }
             Sighash::SingleReverse
-            | Sighash::SingleReverseACP
+            | Sighash::SingleReverseAcp
             | Sighash::SingleReverseNoInput
-            | Sighash::SingleReverseNoInputACP => {
+            | Sighash::SingleReverseNoInputAcp => {
                 if index < self.vout.len() {
                     let mut w = Blake2b256::default();
                     self.vout[self.vout.len() - 1 - index].write_to(&mut w)?;
@@ -445,12 +445,12 @@ pub enum TxError {
     #[error(transparent)]
     SerError(#[from] SerError),
 
-    /// IOError bubbled up from a `Write` passed to a `ByteFormat::serialize` implementation.
+    /// IoError bubbled up from a `Write` passed to a `ByteFormat::serialize` implementation.
     #[error(transparent)]
-    IOError(#[from] IOError),
+    IoError(#[from] IOError),
 
     /// Caller provided an unknown sighash type to `Sighash::from_u8`
-    #[error("Unknown Sighash: {}", .0)]
+    #[error("Unknown Sighash: {0}")]
     UnknownSighash(u8),
 
     /// No outputs in vout
@@ -503,23 +503,23 @@ pub enum Sighash {
     /// Sign ALL inputs and ONE output (opposite index)
     SingleReverseNoInput = 0x44,
     /// Modifier: Only commit to to a single input
-    ACP = 0x80,
+    Acp = 0x80,
     /// Sign ONE input and ALL outputs
-    AllACP = 0x81,
+    AllAcp = 0x81,
     /// Sign ONE input and NO outputs
-    NoneACP = 0x82,
+    NoneAcp = 0x82,
     /// Sign ONE input and ONE output
-    SingleACP = 0x83,
+    SingleAcp = 0x83,
     /// Sign ONE input and ONE output (opposite index)
-    SingleReverseACP = 0x84,
+    SingleReverseAcp = 0x84,
     /// Sign ONE input and ALL outputs
-    AllNoInputACP = 0xc1,
+    AllNoInputAcp = 0xc1,
     /// Sign NO inputs and NO outputs
-    NoneNoInputACP = 0xc2,
+    NoneNoInputAcp = 0xc2,
     /// Sign NO inputs and ONE output
-    SingleNoInputACP = 0xc3,
+    SingleNoInputAcp = 0xc3,
     /// Sign NO inputs and ONE output (opposite index)
-    SingleReverseNoInputACP = 0xc4,
+    SingleReverseNoInputAcp = 0xc4,
 }
 
 /// Methods for the Sighash flags/modifiers.
@@ -541,15 +541,15 @@ impl Sighash {
             0x42 => Ok(Sighash::NoneNoInput),
             0x43 => Ok(Sighash::SingleNoInput),
             0x44 => Ok(Sighash::SingleReverseNoInput),
-            0x80 => Ok(Sighash::ACP),
-            0x81 => Ok(Sighash::AllACP),
-            0x82 => Ok(Sighash::NoneACP),
-            0x83 => Ok(Sighash::SingleACP),
-            0x84 => Ok(Sighash::SingleReverseACP),
-            0xc1 => Ok(Sighash::AllNoInputACP),
-            0xc2 => Ok(Sighash::NoneNoInputACP),
-            0xc3 => Ok(Sighash::SingleNoInputACP),
-            0xc4 => Ok(Sighash::SingleReverseNoInputACP),
+            0x80 => Ok(Sighash::Acp),
+            0x81 => Ok(Sighash::AllAcp),
+            0x82 => Ok(Sighash::NoneAcp),
+            0x83 => Ok(Sighash::SingleAcp),
+            0x84 => Ok(Sighash::SingleReverseAcp),
+            0xc1 => Ok(Sighash::AllNoInputAcp),
+            0xc2 => Ok(Sighash::NoneNoInputAcp),
+            0xc3 => Ok(Sighash::SingleNoInputAcp),
+            0xc4 => Ok(Sighash::SingleReverseNoInputAcp),
             _ => Err(TxError::UnknownSighash(flag)),
         }
     }
@@ -857,7 +857,7 @@ mod tests {
         let args = SighashArgs {
             index: 0,
             prevout_script: Script::from("76c01431437ee12898865eeb61505a16516b78f821e19b88ac"),
-            sighash_flag: Sighash::AllACP,
+            sighash_flag: Sighash::AllAcp,
             prevout_value: 10000000,
         };
 
@@ -874,7 +874,7 @@ mod tests {
         let args = SighashArgs {
             index: 0,
             prevout_script: Script::from("76c014ca26dec0d3001bf16679c57af6c4fe0382b66dd188ac"),
-            sighash_flag: Sighash::NoneACP,
+            sighash_flag: Sighash::NoneAcp,
             prevout_value: 68426400,
         };
 
@@ -891,7 +891,7 @@ mod tests {
         let args = SighashArgs {
             index: 0,
             prevout_script: Script::from("76c0148c1b0a949896e1521d01e2386629047bd898dd8588ac"),
-            sighash_flag: Sighash::SingleACP,
+            sighash_flag: Sighash::SingleAcp,
             prevout_value: 5799600,
         };
 
@@ -908,7 +908,7 @@ mod tests {
         let args = SighashArgs {
             index: 0,
             prevout_script: Script::from("76c014282fa7c6a30266295f9d050284af57578dac4f3388ac"),
-            sighash_flag: Sighash::SingleReverseACP,
+            sighash_flag: Sighash::SingleReverseAcp,
             prevout_value: 5358600,
         };
 
@@ -925,7 +925,7 @@ mod tests {
         let args = SighashArgs {
             index: 0,
             prevout_script: Script::from("76c014aabc402d54f4b5455614ee56e0eb6c6b4e4374cd88ac"),
-            sighash_flag: Sighash::AllNoInputACP,
+            sighash_flag: Sighash::AllNoInputAcp,
             prevout_value: 410000,
         };
 
@@ -942,7 +942,7 @@ mod tests {
         let args = SighashArgs {
             index: 0,
             prevout_script: Script::from("76c0144f9747117b3992c7dc0a09ae427c7b78efc731dc88ac"),
-            sighash_flag: Sighash::NoneNoInputACP,
+            sighash_flag: Sighash::NoneNoInputAcp,
             prevout_value: 20004999,
         };
 
@@ -959,7 +959,7 @@ mod tests {
         let args = SighashArgs {
             index: 0,
             prevout_script: Script::from("76c0143dd4ac1cb78168168c95bed0f615e00b24bd079088ac"),
-            sighash_flag: Sighash::SingleNoInputACP,
+            sighash_flag: Sighash::SingleNoInputAcp,
             prevout_value: 500000,
         };
 
@@ -976,7 +976,7 @@ mod tests {
         let args = SighashArgs {
             index: 0,
             prevout_script: Script::from("76c014cb884746bae24846a6139160b2abc34d256c5e9788ac"),
-            sighash_flag: Sighash::SingleReverseNoInputACP,
+            sighash_flag: Sighash::SingleReverseNoInputAcp,
             prevout_value: 1250000000,
         };
 
