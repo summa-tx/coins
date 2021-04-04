@@ -16,9 +16,9 @@ pub enum SerError {
     #[error("Attempted to deserialize non-minmal VarInt. Someone is doing something fishy.")]
     NonMinimalVarInt,
 
-    /// IOError bubbled up from a `Write` passed to a `ByteFormat::write_to` implementation.
+    /// IoError bubbled up from a `Write` passed to a `ByteFormat::write_to` implementation.
     #[error(transparent)]
-    IOError(#[from] IOError),
+    IoError(#[from] IOError),
 
     /// `deserialize_hex` encountered an error on its input.
     #[error(transparent)]
