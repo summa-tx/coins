@@ -39,7 +39,6 @@ pub struct LedgerTransport(Transport);
 /// Transport Impl for wasm
 impl LedgerTransport {
     /// Send an APDU command to the device, and receive a response
-    #[allow(clippy::needless_lifetimes)]
     pub async fn exchange(&self, apdu_command: &APDUCommand) -> Result<APDUAnswer, LedgerError> {
         let promise = self
             .0
