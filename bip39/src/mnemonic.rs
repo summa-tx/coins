@@ -13,6 +13,7 @@ const PBKDF2_BYTES: usize = 64;
 
 /// Mnemonic represents entropy that can be represented as a phrase. A mnemonic can be used to
 /// deterministically generate an extended private key or derive its child keys.
+#[derive(Clone, Debug, PartialEq)]
 pub struct Mnemonic<W: Wordlist> {
     /// Entropy used to generate mnemonic.
     entropy: Vec<u8>,
@@ -106,14 +107,7 @@ impl<W: Wordlist> Mnemonic<W> {
 
     /// Converts the mnemonic into phrase.
     pub fn to_phrase(&self) -> Result<String, MnemonicError> {
-        let length: usize = match self.entropy.len() {
-            16 => 12,
-            20 => 15,
-            24 => 18,
-            28 => 21,
-            32 => 24,
-            el => return Err(MnemonicError::InvalidEntropyLength(el)),
-        };
+        let length = self.word_count()?;
 
         // Compute checksum. Checksum is the most significant (ENTROPY_BYTES/4) bits. That is also
         // equivalent to (WORD_COUNT/3).
@@ -144,6 +138,17 @@ impl<W: Wordlist> Mnemonic<W> {
             .collect::<Vec<&str>>();
 
         Ok(phrase.join(" "))
+    }
+
+    fn word_count(&self) -> Result<usize, MnemonicError> {
+        match self.entropy.len() {
+            16 => Ok(12),
+            20 => Ok(15),
+            24 => Ok(18),
+            28 => Ok(21),
+            32 => Ok(24),
+            el => Err(MnemonicError::InvalidEntropyLength(el)),
+        }
     }
 }
 
