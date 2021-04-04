@@ -1,6 +1,6 @@
 [package]
 name = "coins-core"
-version = "0.1.0-rc.1"
+version = "0.2.0"
 authors = ["James Prestwich <james@prestwi.ch>"]
 edition = "2018"
 description = "Abstract UTXO transactions to enable code reuse across chains"

@@ -1,6 +1,6 @@
 [package]
 name = "coins-bip39"
-version = "0.1.0"
+version = "0.2.0"
 authors = ["Rohit Narurkar <rohit.narurkar@protonmail.com>"]
 edition = "2018"
 description = "Bip39 in Rust"
