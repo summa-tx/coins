@@ -1,3 +1,4 @@
+consolidate-commits = true
 sign-commit = true
 sign-tag = true
-upload-doc = true
+exclude-paths = ["/README.md", "/build.sh", "/tests/**", "/.travis.yml", "/.gitignore"]
