@@ -197,9 +197,9 @@ pub enum TxError {
     #[error(transparent)]
     SerError(#[from] SerError),
 
-    /// IOError bubbled up from a `Write` passed to a `ByteFormat::serialize` implementation.
+    /// IoError bubbled up from a `Write` passed to a `ByteFormat::serialize` implementation.
     #[error(transparent)]
-    IOError(#[from] IOError),
+    IoError(#[from] IOError),
 
     /// Sighash NONE is unsupported
     #[error("SIGHASH_NONE is unsupported")]
@@ -313,11 +313,11 @@ pub enum Sighash {
     /// Sign ALL inputs and ONE output
     Single = 0x3,
     /// Sign ONE inputs and ALL outputs
-    AllACP = 0x81,
+    AllAcp = 0x81,
     /// Sign ONE inputs and NO outputs (unsupported)
-    NoneACP = 0x82,
+    NoneAcp = 0x82,
     /// Sign ONE inputs and ONE output
-    SingleACP = 0x83,
+    SingleAcp = 0x83,
 }
 
 impl Sighash {
@@ -332,9 +332,9 @@ impl Sighash {
             0x01 => Ok(Sighash::All),
             0x02 => Ok(Sighash::None),
             0x3 => Ok(Sighash::Single),
-            0x81 => Ok(Sighash::AllACP),
-            0x82 => Ok(Sighash::NoneACP),
-            0x83 => Ok(Sighash::SingleACP),
+            0x81 => Ok(Sighash::AllAcp),
+            0x82 => Ok(Sighash::NoneAcp),
+            0x83 => Ok(Sighash::SingleAcp),
             _ => Err(TxError::UnknownSighash(flag)),
         }
     }
@@ -389,11 +389,11 @@ mod tests {
         };
 
         assert_eq!(tx.sighash(&args).unwrap(), all);
-        args.sighash_flag = Sighash::AllACP;
+        args.sighash_flag = Sighash::AllAcp;
         assert_eq!(tx.sighash(&args).unwrap(), all_anyonecanpay);
         args.sighash_flag = Sighash::Single;
         assert_eq!(tx.sighash(&args).unwrap(), single);
-        args.sighash_flag = Sighash::SingleACP;
+        args.sighash_flag = Sighash::SingleAcp;
         assert_eq!(tx.sighash(&args).unwrap(), single_anyonecanpay);
     }
 
@@ -443,13 +443,13 @@ mod tests {
 
         assert_eq!(tx.sighash(&args).unwrap(), all);
 
-        args.sighash_flag = Sighash::AllACP;
+        args.sighash_flag = Sighash::AllAcp;
         assert_eq!(tx.sighash(&args).unwrap(), all_anyonecanpay);
 
         args.sighash_flag = Sighash::Single;
         assert_eq!(tx.sighash(&args).unwrap(), single);
 
-        args.sighash_flag = Sighash::SingleACP;
+        args.sighash_flag = Sighash::SingleAcp;
         assert_eq!(tx.sighash(&args).unwrap(), single_anyonecanpay);
     }
 
@@ -500,7 +500,7 @@ mod tests {
         assert_eq!(tx.sighash(&args).unwrap(), all);
         assert_eq!(tx.witness_sighash(&args).unwrap(), all);
 
-        args.sighash_flag = Sighash::AllACP;
+        args.sighash_flag = Sighash::AllAcp;
         assert_eq!(tx.sighash(&args).unwrap(), all_anyonecanpay);
         assert_eq!(tx.witness_sighash(&args).unwrap(), all_anyonecanpay);
 
@@ -508,7 +508,7 @@ mod tests {
         assert_eq!(tx.sighash(&args).unwrap(), single);
         assert_eq!(tx.witness_sighash(&args).unwrap(), single);
 
-        args.sighash_flag = Sighash::SingleACP;
+        args.sighash_flag = Sighash::SingleAcp;
         assert_eq!(tx.sighash(&args).unwrap(), single_anyonecanpay);
         assert_eq!(tx.witness_sighash(&args).unwrap(), single_anyonecanpay);
     }
@@ -558,13 +558,13 @@ mod tests {
 
         assert_eq!(tx.sighash(&args).unwrap(), all);
 
-        args.sighash_flag = Sighash::AllACP;
+        args.sighash_flag = Sighash::AllAcp;
         assert_eq!(tx.sighash(&args).unwrap(), all_anyonecanpay);
 
         args.sighash_flag = Sighash::Single;
         assert_eq!(tx.sighash(&args).unwrap(), single);
 
-        args.sighash_flag = Sighash::SingleACP;
+        args.sighash_flag = Sighash::SingleAcp;
         assert_eq!(tx.sighash(&args).unwrap(), single_anyonecanpay);
     }
 
@@ -663,11 +663,11 @@ mod tests {
         };
 
         assert_eq!(tx.legacy_sighash(&args).unwrap(), all);
-        args.sighash_flag = Sighash::AllACP;
+        args.sighash_flag = Sighash::AllAcp;
         assert_eq!(tx.legacy_sighash(&args).unwrap(), all_anyonecanpay);
         args.sighash_flag = Sighash::Single;
         assert_eq!(tx.legacy_sighash(&args).unwrap(), single);
-        args.sighash_flag = Sighash::SingleACP;
+        args.sighash_flag = Sighash::SingleAcp;
         assert_eq!(tx.legacy_sighash(&args).unwrap(), single_anyonecanpay);
     }
 
@@ -677,9 +677,9 @@ mod tests {
             (0x01, Sighash::All),
             (0x02, Sighash::None),
             (0x3, Sighash::Single),
-            (0x81, Sighash::AllACP),
-            (0x82, Sighash::NoneACP),
-            (0x83, Sighash::SingleACP),
+            (0x81, Sighash::AllAcp),
+            (0x82, Sighash::NoneAcp),
+            (0x83, Sighash::SingleAcp),
         ];
         let errors = [
             (0x84, TxError::UnknownSighash(0x84)),

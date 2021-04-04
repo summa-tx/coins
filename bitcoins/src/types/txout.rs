@@ -59,9 +59,7 @@ impl TxOut {
         let mut data = data.to_vec();
         data.truncate(75);
 
-        let mut payload = vec![];
-        payload.push(0x6a);
-        payload.push(data.len() as u8);
+        let mut payload = vec![0x6a, data.len() as u8];
         payload.extend(data);
         TxOut {
             value: 0,

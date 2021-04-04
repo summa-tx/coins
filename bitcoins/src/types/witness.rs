@@ -190,14 +190,14 @@ impl WitnessTx {
     /// TODO: memoize
     fn hash_outputs(&self, index: usize, sighash_flag: Sighash) -> TxResult<Hash256Digest> {
         match sighash_flag {
-            Sighash::All | Sighash::AllACP => {
+            Sighash::All | Sighash::AllAcp => {
                 let mut w = Hash256::default();
                 for output in self.legacy_tx.vout.iter() {
                     output.write_to(&mut w)?;
                 }
                 Ok(w.finalize_marked())
             }
-            Sighash::Single | Sighash::SingleACP => {
+            Sighash::Single | Sighash::SingleAcp => {
                 let mut w = Hash256::default();
                 self.legacy_tx.vout[index].write_to(&mut w)?;
                 Ok(w.finalize_marked())
@@ -348,11 +348,11 @@ impl WitnessTransaction for WitnessTx {
     where
         W: Write,
     {
-        if args.sighash_flag == Sighash::None || args.sighash_flag == Sighash::NoneACP {
+        if args.sighash_flag == Sighash::None || args.sighash_flag == Sighash::NoneAcp {
             return Err(TxError::NoneUnsupported);
         }
 
-        if (args.sighash_flag == Sighash::Single || args.sighash_flag == Sighash::SingleACP)
+        if (args.sighash_flag == Sighash::Single || args.sighash_flag == Sighash::SingleAcp)
             && args.index >= self.outputs().len()
         {
             return Err(TxError::SighashSingleBug);

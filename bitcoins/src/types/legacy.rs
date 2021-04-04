@@ -111,7 +111,7 @@ impl LegacyTx {
     /// For Legacy sighash documentation, see here:
     ///
     /// - https://en.bitcoin.it/wiki/OP_CHECKSIG#Hashtype_SIGHASH_ALL_.28default.29
-    fn legacy_sighash_single(copy_tx: &mut Self, index: usize) -> TxResult<()> {
+    fn legacy_sighash_single(copy_tx: &mut Self, index: usize) {
         let mut tx_outs: Vec<TxOut> = (0..index).map(|_| TxOut::null()).collect();
         tx_outs.push(copy_tx.vout[index].clone());
         copy_tx.vout = tx_outs;
@@ -127,7 +127,6 @@ impl LegacyTx {
             vin.push(txin);
         }
         copy_tx.vin = vin;
-        Ok(())
     }
 
     /// Modifies copy_tx according to legacy SIGHASH_ANYONECANPAY semantics.
@@ -135,9 +134,8 @@ impl LegacyTx {
     /// For Legacy sighash documentation, see here:
     ///
     /// - https://en.bitcoin.it/wiki/OP_CHECKSIG#Hashtype_SIGHASH_ALL_.28default.29
-    fn legacy_sighash_anyone_can_pay(copy_tx: &mut Self, index: usize) -> TxResult<()> {
+    fn legacy_sighash_anyone_can_pay(copy_tx: &mut Self, index: usize) {
         copy_tx.vin = vec![copy_tx.vin[index].clone()];
-        Ok(())
     }
 }
 
@@ -195,20 +193,20 @@ impl Transaction for LegacyTx {
         writer: &mut W,
         args: &LegacySighashArgs,
     ) -> TxResult<()> {
-        if args.sighash_flag == Sighash::None || args.sighash_flag == Sighash::NoneACP {
+        if args.sighash_flag == Sighash::None || args.sighash_flag == Sighash::NoneAcp {
             return Err(TxError::NoneUnsupported);
         }
 
         let mut copy_tx: Self = self.legacy_sighash_prep(args.index, &args.prevout_script);
-        if args.sighash_flag == Sighash::Single || args.sighash_flag == Sighash::SingleACP {
+        if args.sighash_flag == Sighash::Single || args.sighash_flag == Sighash::SingleAcp {
             if args.index >= self.outputs().len() {
                 return Err(TxError::SighashSingleBug);
             }
-            Self::legacy_sighash_single(&mut copy_tx, args.index)?;
+            Self::legacy_sighash_single(&mut copy_tx, args.index);
         }
 
         if args.sighash_flag as u8 & 0x80 == 0x80 {
-            Self::legacy_sighash_anyone_can_pay(&mut copy_tx, args.index)?;
+            Self::legacy_sighash_anyone_can_pay(&mut copy_tx, args.index);
         }
 
         copy_tx.write_to(writer)?;

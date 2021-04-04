@@ -18,7 +18,7 @@
 //! b.version(2)
 //!  .spend(Outpoint::default(), 0xaabbccdd)
 //!  .pay(0x8888_8888_8888_8888, &address)
-//!  .pay(0x7777_7777_7777_7777, &Address::SH("377mKFYsaJPsxYSB5aFfx8SW3RaN5BzZVh".to_owned()))
+//!  .pay(0x7777_7777_7777_7777, &Address::Sh("377mKFYsaJPsxYSB5aFfx8SW3RaN5BzZVh".to_owned()))
 //!  .build()
 //!  .unwrap()
 //!  .serialize_hex();
@@ -98,11 +98,11 @@ mod test {
             .spend(BitcoinOutpoint::default(), 0xaabbccdd)
             .pay(
                 0x8888_8888_8888_8888,
-                &Address::WPKH("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned()),
+                &Address::Wpkh("bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned()),
             )
             .pay(
                 0x7777_7777_7777_7777,
-                &Address::SH("377mKFYsaJPsxYSB5aFfx8SW3RaN5BzZVh".to_owned()),
+                &Address::Sh("377mKFYsaJPsxYSB5aFfx8SW3RaN5BzZVh".to_owned()),
             )
             .build()
             .unwrap()
@@ -114,7 +114,7 @@ mod test {
     #[test]
     fn it_exposes_encoder_interface() {
         let addr_string = "bc1qvyyvsdcd0t9863stt7u9rf37wx443lzasg0usy".to_owned();
-        let address = Address::WPKH(addr_string.clone());
+        let address = Address::Wpkh(addr_string.clone());
         assert_eq!(
             &address,
             &BitcoinMainnet::string_to_address(&addr_string).unwrap()

@@ -5,7 +5,7 @@ use std::io::{Read, Write};
 use coins_core::{
     hashes::MarkedDigestOutput,
     ser::{ByteFormat, SerError, SerResult},
-    types::tx::{Input, TXOIdentifier},
+    types::tx::{Input, TxoIdentifier},
 };
 
 use crate::{hashes::TXID, types::script::ScriptSig};
@@ -26,7 +26,7 @@ where
     pub idx: u32,
 }
 
-impl<M> TXOIdentifier for Outpoint<M> where M: MarkedDigestOutput {}
+impl<M> TxoIdentifier for Outpoint<M> where M: MarkedDigestOutput {}
 
 impl<M> Outpoint<M>
 where
@@ -128,7 +128,7 @@ impl<M> Input for TxInput<M>
 where
     M: MarkedDigestOutput,
 {
-    type TXOIdentifier = Outpoint<M>;
+    type TxoIdentifier = Outpoint<M>;
 }
 
 impl<M> TxInput<M>
