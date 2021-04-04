@@ -66,7 +66,7 @@ impl LedgerBTC {
 
         let data = derivation_path_to_apdu_data(deriv);
         let command = APDUCommand {
-            ins: Commands::GET_WALLET_PUBLIC_KEY as u8,
+            ins: Commands::GetWalletPublicKey as u8,
             p1: 0x00,
             p2: 0x02, // always native segwit address
             data,
