@@ -6,10 +6,9 @@ members = [
     "bitcoins",
     "litecoins",
     "handshakes",
-    "psbt",
-    "provider",
     "ledger",
     "ledger-btc",
+    "provider",
 ]
 
 exclude = [

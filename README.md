@@ -6,7 +6,6 @@
 chains. It aims to provide high-quality tooling for constructing
 transactions, and to enable use in the browser via `wasm-bindgen`.
 
-
 ## Building & running tests
 
 - install [rustup](https://rustup.rs/)
@@ -30,11 +29,10 @@ We have provided a `bitcoins` crate with a Bitcoin-targeted implementation. See
 its documentation for usage instruction and details.
 
 Other than that:
+
 - `coins-bip32` provides tooling for BIP32 HDKey derivation
-- `bitcoins-psbt` (WIP) implements the BIP174 partially-signed transaction
-    format.
 - `bitcoins-provider` gives a simple consistent interface to chain data with
-swappable backends.
+  swappable backends.
 
 ## Project Status
 
@@ -43,9 +41,10 @@ alpha software**. There will be rough edges, and the interfaces are subject to
 change.
 
 Specificallly:
+
 - `core`, `bip32`, and `bitcoins` are relatively stable.
 - `provider` is working, but does not yet have a stable API
-- `psbt`, `ledger`, and `ledger-btc` are essentially alpha
+- `ledger`, and `ledger-btc` are essentially alpha
 
 # License Notes
 

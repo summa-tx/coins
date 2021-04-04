@@ -30,11 +30,6 @@ cargo --verbose build
 cargo --verbose build --no-default-features --features="mainnet"
 cargo build --target wasm32-unknown-unknown
 
-### PSBT ###
-cd ../psbt
-cargo --verbose build
-cargo --verbose build --target wasm32-unknown-unknown
-
 ### Ledger ###
 cd ../ledger
 # #  broken on travis
