@@ -82,9 +82,7 @@ impl<P: NetworkParams> AddressEncoder for HandshakeEncoder<P> {
         match s.standard_type().unwrap_or(LockingScriptType::NonStandard) {
             LockingScriptType::Wsh(_) => Ok(Address::Wsh(encode_bech32(P::HRP, &data)?)),
             LockingScriptType::Wpkh(_) => Ok(Address::Wpkh(encode_bech32(P::HRP, &data)?)),
-            LockingScriptType::OpReturn(_) => {
-                Ok(Address::OpReturn(encode_bech32(P::HRP, &data)?))
-            }
+            LockingScriptType::OpReturn(_) => Ok(Address::OpReturn(encode_bech32(P::HRP, &data)?)),
             LockingScriptType::NonStandard => Err(EncodingError::UnknownScriptType),
         }
     }

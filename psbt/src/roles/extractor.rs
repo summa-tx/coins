@@ -1,4 +1,4 @@
-use crate::{roles::PstExtractor, PsbtError, Psbt, Pst};
+use crate::{roles::PstExtractor, Psbt, PsbtError, Pst};
 use bitcoins::{enc::encoder::BitcoinEncoderMarker, types::BitcoinTx};
 use coins_bip32 as bip32;
 use coins_core::builder::TxBuilder;

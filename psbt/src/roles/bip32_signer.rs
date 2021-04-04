@@ -4,7 +4,7 @@ use bitcoins::prelude::*;
 use coins_bip32::prelude::*;
 use coins_core::types::Transaction;
 
-use crate::{input::PsbtInput, roles::PstSigner, PsbtError, Psbt, Pst};
+use crate::{input::PsbtInput, roles::PstSigner, Psbt, PsbtError, Pst};
 
 #[derive(Debug, Error)]
 pub enum Bip32SignerError {

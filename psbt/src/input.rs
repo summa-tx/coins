@@ -2,7 +2,7 @@ use coins_bip32::derived::DerivedPubkey;
 use coins_core::ser::{self, ByteFormat};
 use std::collections::{btree_map, BTreeMap};
 
-use bitcoins::types::{LegacyTx, Script, ScriptSig, Sighash, TxOut, Witness, Utxo};
+use bitcoins::types::{LegacyTx, Script, ScriptSig, Sighash, TxOut, Utxo, Witness};
 
 use crate::{
     common::{PSBTKey, PSBTValue, PsbtError, PsbtValidate, PstMap},

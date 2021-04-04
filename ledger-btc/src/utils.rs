@@ -2,7 +2,7 @@ use coins_core::{
     ser::{self, ByteFormat},
 };
 use coins_bip32::{path::DerivationPath, prelude::*};
-use bitcoins::types::{BitcoinTxIn, TxOut, UTXO, ScriptType, SpendScript};
+use bitcoins::types::{BitcoinTxIn, TxOut, Utxo, ScriptType, SpendScript};
 use coins_ledger::{
     common::{APDUAnswer, APDUCommand, APDUData},
 };
@@ -84,7 +84,7 @@ pub(crate) fn packetize_version_and_vin_length(version: u32, vin_len: u64) -> AP
     untrusted_hash_tx_input_start(&chunk, true)
 }
 
-pub(crate) fn packetize_input(utxo: &UTXO, txin: &BitcoinTxIn) -> Vec<APDUCommand> {
+pub(crate) fn packetize_input(utxo: &Utxo, txin: &BitcoinTxIn) -> Vec<APDUCommand> {
     let mut buf = vec![0x02];
     txin.outpoint.write_to(&mut buf).unwrap();
     buf.extend(&utxo.value.to_le_bytes());
@@ -96,7 +96,7 @@ pub(crate) fn packetize_input(utxo: &UTXO, txin: &BitcoinTxIn) -> Vec<APDUComman
     vec![first, second]
 }
 
-pub(crate) fn packetize_input_for_signing(utxo: &UTXO, txin: &BitcoinTxIn) -> Vec<APDUCommand> {
+pub(crate) fn packetize_input_for_signing(utxo: &Utxo, txin: &BitcoinTxIn) -> Vec<APDUCommand> {
     let mut buf = vec![0x02];
     txin.outpoint.write_to(&mut buf).unwrap();
     buf.extend(&utxo.value.to_le_bytes());

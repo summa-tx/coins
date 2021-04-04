@@ -1,4 +1,4 @@
-use crate::{input::InputKey, roles::PstFinalizer, PsbtInput, PsbtError, PstMap, Psbt, Pst};
+use crate::{input::InputKey, roles::PstFinalizer, Psbt, PsbtError, PsbtInput, Pst, PstMap};
 use bitcoins::{
     enc::encoder::BitcoinEncoderMarker,
     prelude::Hash160Digest,
