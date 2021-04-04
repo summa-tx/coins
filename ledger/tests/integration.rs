@@ -7,6 +7,7 @@ use coins_ledger::{
 
 #[test]
 #[serial]
+#[ignore]
 fn ledger_device_path() {
     let transport = hid::TransportNativeHID::new().unwrap();
 
@@ -17,8 +18,11 @@ fn ledger_device_path() {
 
 #[tokio::test]
 #[serial]
+#[ignore]
 async fn exchange() {
-    let transport = transports::Ledger::init().await.expect("Could not get a device");
+    let transport = transports::Ledger::init()
+        .await
+        .expect("Could not get a device");
     let buf: &[u8] = &[];
     // Ethereum `get_app_version`
     let command = APDUCommand {

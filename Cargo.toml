@@ -8,6 +8,8 @@ members = [
     "handshakes",
     "psbt",
     "provider",
+    "ledger",
+    "ledger-btc",
 ]
 
 exclude = [
