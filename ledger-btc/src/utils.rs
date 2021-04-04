@@ -2,22 +2,20 @@ use coins_core::{
     ser::{self, ByteFormat},
 };
 use coins_bip32::{path::DerivationPath, prelude::*};
-use bitcoins::types::{BitcoinTxIn, TxOut, UTXO, ScriptType, SpendScript};
+use bitcoins::types::{BitcoinTxIn, TxOut, Utxo, ScriptType, SpendScript};
 use coins_ledger::{
     common::{APDUAnswer, APDUCommand, APDUData},
 };
 
 use crate::LedgerBTCError;
 
-
 #[repr(u8)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-#[allow(non_camel_case_types)]
 pub(crate) enum Commands {
-    GET_WALLET_PUBLIC_KEY = 0x40,
-    UNTRUSTED_HASH_TX_INPUT_START = 0x44,
-    UNTRUSTED_HASH_SIGN = 0x48,
-    UNTRUSTED_HASH_TX_INPUT_FINALIZE_FULL = 0x4a,
+    GetWalletPublicKey = 0x40,
+    UntrustedHashTxInputStart = 0x44,
+    UntrustedHashSign = 0x48,
+    UntrustedHashTxInputFinalizeFull = 0x4a,
 }
 
 pub(crate) struct InternalKeyInfo {
@@ -51,7 +49,7 @@ pub(crate) fn derivation_path_to_apdu_data(deriv: &DerivationPath) -> APDUData {
 
 pub(crate) fn untrusted_hash_tx_input_start(chunk: &[u8], first: bool) -> APDUCommand {
     APDUCommand {
-        ins: Commands::UNTRUSTED_HASH_TX_INPUT_START as u8,
+        ins: Commands::UntrustedHashTxInputStart as u8,
         p1: if first { 0x00 } else { 0x80 },
         p2: 0x02,
         data: APDUData::from(chunk),
@@ -61,7 +59,7 @@ pub(crate) fn untrusted_hash_tx_input_start(chunk: &[u8], first: bool) -> APDUCo
 
 pub(crate) fn untrusted_hash_tx_input_finalize(chunk: &[u8], last: bool) -> APDUCommand {
     APDUCommand {
-        ins: Commands::UNTRUSTED_HASH_TX_INPUT_FINALIZE_FULL as u8,
+        ins: Commands::UntrustedHashTxInputFinalizeFull as u8,
         p1: if last { 0x80 } else { 0x00 },
         p2: 0x00,
         data: APDUData::from(chunk),
@@ -71,7 +69,7 @@ pub(crate) fn untrusted_hash_tx_input_finalize(chunk: &[u8], last: bool) -> APDU
 
 pub(crate) fn untrusted_hash_sign(chunk: &[u8]) -> APDUCommand {
     APDUCommand {
-        ins: Commands::UNTRUSTED_HASH_SIGN as u8,
+        ins: Commands::UntrustedHashSign as u8,
         p1: 0x00,
         p2: 0x00,
         data: APDUData::from(chunk),
@@ -86,7 +84,7 @@ pub(crate) fn packetize_version_and_vin_length(version: u32, vin_len: u64) -> AP
     untrusted_hash_tx_input_start(&chunk, true)
 }
 
-pub(crate) fn packetize_input(utxo: &UTXO, txin: &BitcoinTxIn) -> Vec<APDUCommand> {
+pub(crate) fn packetize_input(utxo: &Utxo, txin: &BitcoinTxIn) -> Vec<APDUCommand> {
     let mut buf = vec![0x02];
     txin.outpoint.write_to(&mut buf).unwrap();
     buf.extend(&utxo.value.to_le_bytes());
@@ -98,7 +96,7 @@ pub(crate) fn packetize_input(utxo: &UTXO, txin: &BitcoinTxIn) -> Vec<APDUComman
     vec![first, second]
 }
 
-pub(crate) fn packetize_input_for_signing(utxo: &UTXO, txin: &BitcoinTxIn) -> Vec<APDUCommand> {
+pub(crate) fn packetize_input_for_signing(utxo: &Utxo, txin: &BitcoinTxIn) -> Vec<APDUCommand> {
     let mut buf = vec![0x02];
     txin.outpoint.write_to(&mut buf).unwrap();
     buf.extend(&utxo.value.to_le_bytes());
@@ -167,7 +165,7 @@ pub(crate) fn should_sign(xpub: &DerivedXPub, signing_info: &[crate::app::Signin
         .filter(|s| s.deriv.is_some())  // filter no derivation
         .filter(|s| match s.prevout.script_pubkey.standard_type() {
             // filter SH types without spend scripts
-            ScriptType::SH(_) | ScriptType::WSH(_) => {
+            ScriptType::Sh(_) | ScriptType::Wsh(_) => {
                 s.prevout.spend_script() != &SpendScript::Missing
             },
             _ => true

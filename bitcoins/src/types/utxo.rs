@@ -31,15 +31,15 @@ impl SpendScript {
     /// or `None`.
     pub fn from_script_pubkey(script: &ScriptPubkey) -> SpendScript {
         match script.standard_type() {
-            ScriptType::SH(_) | ScriptType::WSH(_) => SpendScript::Missing,
+            ScriptType::Sh(_) | ScriptType::Wsh(_) => SpendScript::Missing,
             _ => SpendScript::None,
         }
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash)]
 /// Information necessary to spend an output.
-pub struct UTXO {
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Utxo {
     /// UTXO outpoint
     pub outpoint: BitcoinOutpoint,
     /// UTXO value
@@ -50,7 +50,7 @@ pub struct UTXO {
     spend_script: SpendScript,
 }
 
-impl UTXO {
+impl Utxo {
     /// Instantiate a new UTXO with the given arguments. If spend_script is provided, but the
     /// script_pubkey does not require a spend script, the spend_script will be discarded.
     pub fn new(
@@ -58,14 +58,14 @@ impl UTXO {
         value: u64,
         script_pubkey: ScriptPubkey,
         spend_script: SpendScript,
-    ) -> UTXO {
+    ) -> Utxo {
         // Forbid nonsensical states, e.g. a p2pkh address with a spend_script
         let spend_script = match SpendScript::from_script_pubkey(&script_pubkey) {
             SpendScript::None => SpendScript::None,
             SpendScript::Missing => spend_script,
             SpendScript::Known(_) => panic!("unreachable"),
         };
-        UTXO {
+        Utxo {
             outpoint,
             value,
             script_pubkey,
@@ -74,12 +74,12 @@ impl UTXO {
     }
 
     /// Produce a UTXO from a transaction output
-    pub fn from_tx_output<T>(tx: &T, idx: usize) -> UTXO
+    pub fn from_tx_output<T>(tx: &T, idx: usize) -> Utxo
     where
         T: BitcoinTransaction,
     {
         let output = &tx.outputs()[idx];
-        UTXO {
+        Utxo {
             outpoint: BitcoinOutpoint::new(tx.txid(), idx as u32),
             value: output.value,
             script_pubkey: output.script_pubkey.clone(),
@@ -88,8 +88,8 @@ impl UTXO {
     }
 
     /// Produce a UTXO from an output and the outpoint that identifies it
-    pub fn from_output_and_outpoint(output: &TxOut, outpoint: &BitcoinOutpoint) -> UTXO {
-        UTXO {
+    pub fn from_output_and_outpoint(output: &TxOut, outpoint: &BitcoinOutpoint) -> Utxo {
+        Utxo {
             outpoint: *outpoint,
             value: output.value,
             script_pubkey: output.script_pubkey.clone(),
@@ -114,9 +114,9 @@ impl UTXO {
             SpendScript::None => {
                 let spk = self.script_pubkey();
                 match spk.standard_type() {
-                    ScriptType::PKH(_) => Some(spk.into()),
+                    ScriptType::Pkh(_) => Some(spk.into()),
                     // TODO: break this out into a function
-                    ScriptType::WPKH(payload) => {
+                    ScriptType::Wpkh(payload) => {
                         let mut v = vec![0x76, 0xa9, 0x14];
                         v.extend(payload.as_slice());
                         v.extend(&[0x88, 0xac]);
@@ -140,13 +140,13 @@ impl UTXO {
     /// this will always fail for UTXOs with PKH or WPKH script pubkeys.
     pub fn set_spend_script(&mut self, script: Script) -> bool {
         match self.standard_type() {
-            ScriptType::SH(data) => {
+            ScriptType::Sh(data) => {
                 if data == Hash160::digest_marked(script.as_ref()) {
                     self.spend_script = SpendScript::Known(script);
                     return true;
                 }
             }
-            ScriptType::WSH(data) => {
+            ScriptType::Wsh(data) => {
                 if data.as_slice() == Sha256::digest(script.as_ref()).as_slice() {
                     self.spend_script = SpendScript::Known(script);
                     return true;

@@ -52,7 +52,7 @@ pub trait TxBuilder: std::marker::Sized {
     /// specified sequence number.
     fn spend<I>(self, prevout: I, sequence: u32) -> Self
     where
-        I: Into<<<Self::Transaction as Transaction>::TxIn as Input>::TXOIdentifier>;
+        I: Into<<<Self::Transaction as Transaction>::TxIn as Input>::TxoIdentifier>;
 
     /// Pay an Address. Adds an output paying `value` to `address.`
     fn pay(

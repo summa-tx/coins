@@ -69,6 +69,12 @@ pub struct XPriv {
     pub(crate) xkey_info: XKeyInfo,
 }
 
+impl PartialEq for XPriv {
+    fn eq(&self, other: &XPriv) -> bool {
+        self.fingerprint() == other.fingerprint() && self.xkey_info == other.xkey_info
+    }
+}
+
 impl Clone for XPriv {
     fn clone(&self) -> Self {
         Self {

@@ -5,16 +5,16 @@ This is a high-level guide to implementing a library for a new chain.
 ### Implementing Inputs
 An input consumes some TXO referenced by its ID.
 
-1. Select or create a struct to be your `TXOIdentifier`
+1. Select or create a struct to be your `TxoIdentifier`
   1. This is the unique in-protocol identifier for a TXO.
   1. In Bitcoin this is `bitcoins::types::txin::BitcoinOutpoint`.
-  1. Add the marker trait: `impl coins_core::types::tx::TXOIdentifier`
+  1. Add the marker trait: `impl coins_core::types::tx::TxoIdentifier`
 1. Implement a type to be your `Input`
   1. This represents the input TXOs consumed by a transaction.
-  1. This could be the same as `TXOIdentifier`, depending on your protocol.
+  1. This could be the same as `TxoIdentifier`, depending on your protocol.
   1. In Bitcoin this is `bitcoins::types::txin::BitcoinInput`.
   1. Add the marker trait: `impl coins_core::types::tx::Input`
-  1. Associate your `TXOIdentifier` type
+  1. Associate your `TxoIdentifier` type
 
 ### Implementing Outputs
 An output creates a new TXO with some value owned by some payee.

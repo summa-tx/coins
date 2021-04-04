@@ -7,14 +7,14 @@ use crate::{
     ser::{ByteFormat, SerError},
 };
 
-/// A `TXOIdentifier` represents the network's unique identifier an output. In Bitcoin this is an
+/// A `TxoIdentifier` represents the network's unique identifier an output. In Bitcoin this is an
 /// outpoint.
-pub trait TXOIdentifier {}
+pub trait TxoIdentifier {}
 
-/// An `Input` spends a specific TXO, and typically contains a `TXOIdentifier` for that TXO.
+/// An `Input` spends a specific TXO, and typically contains a `TxoIdentifier` for that TXO.
 pub trait Input {
     /// An input must define what type contains the TXO ID it is spending.
-    type TXOIdentifier: TXOIdentifier;
+    type TxoIdentifier: TxoIdentifier;
 }
 
 /// A RecipientIdentifier represents the network's identifier for a recipient. In Bitcoin this is

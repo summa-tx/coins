@@ -24,13 +24,13 @@ static ERR_NOT_FOUND: i64 = -1;
 
 /// A Bitcoin RPC connection
 #[derive(Debug)]
-pub struct BitcoindRPC<T: JsonRPCTransport> {
+pub struct BitcoinRpc<T: JsonRpcTransport> {
     transport: T,
     interval: Duration,
     scan_guard: Mutex<()>,
 }
 
-impl<T: JsonRPCTransport> Default for BitcoindRPC<T> {
+impl<T: JsonRpcTransport> Default for BitcoinRpc<T> {
     fn default() -> Self {
         Self {
             transport: Default::default(),
@@ -40,7 +40,7 @@ impl<T: JsonRPCTransport> Default for BitcoindRPC<T> {
     }
 }
 
-impl<T: JsonRPCTransport> From<T> for BitcoindRPC<T> {
+impl<T: JsonRpcTransport> From<T> for BitcoinRpc<T> {
     fn from(transport: T) -> Self {
         Self {
             transport,
@@ -49,7 +49,7 @@ impl<T: JsonRPCTransport> From<T> for BitcoindRPC<T> {
     }
 }
 
-impl BitcoindRPC<HttpTransport> {
+impl BitcoinRpc<HttpTransport> {
     /// Instantiate a transport with BasicAuth credentials
     pub fn with_credentials(username: SecretString, password: SecretString) -> Self {
         HttpTransport::with_credentials(username, password).into()
@@ -65,7 +65,7 @@ impl BitcoindRPC<HttpTransport> {
     }
 }
 
-impl<T: JsonRPCTransport> BitcoindRPC<T> {
+impl<T: JsonRpcTransport> BitcoinRpc<T> {
     async fn request<P: Serialize + Send + Sync, R: for<'a> Deserialize<'a>>(
         &self,
         method: &str,
@@ -129,7 +129,7 @@ impl<T: JsonRPCTransport> BitcoindRPC<T> {
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
+impl<T: JsonRpcTransport + Send + Sync> BtcProvider for BitcoinRpc<T> {
     async fn tip_hash(&self) -> Result<BlockHash, ProviderError> {
         Ok(BlockHash::from_be_hex(&self.get_best_block_hash().await?)?)
     }
@@ -234,9 +234,9 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
     }
 
     /// TODO: preflight to make sure scantxoutset is supported
-    async fn get_utxos_by_address(&self, address: &Address) -> Result<Vec<UTXO>, ProviderError> {
+    async fn get_utxos_by_address(&self, address: &Address) -> Result<Vec<Utxo>, ProviderError> {
         let resp = self.scan_tx_out_set_for_address_start(address).await?;
-        Ok(resp.unspents.into_iter().map(Into::<UTXO>::into).collect())
+        Ok(resp.unspents.into_iter().map(Into::<Utxo>::into).collect())
     }
 
     async fn get_merkle(
@@ -262,9 +262,9 @@ impl<T: JsonRPCTransport + Send + Sync> BTCProvider for BitcoindRPC<T> {
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl<T> PollingBTCProvider for BitcoindRPC<T>
+impl<T> PollingBtcProvider for BitcoinRpc<T>
 where
-    T: JsonRPCTransport + Send + Sync,
+    T: JsonRpcTransport + Send + Sync,
 {
     fn interval(&self) -> Duration {
         self.interval
@@ -287,7 +287,7 @@ where
 //     #[allow(unused_must_use)]
 //     fn it_prints_headers() {
 //         let fut = async move {
-//             let provider = BitcoindRPC::with_credentials_and_url(
+//             let provider = BitcoinRpc::with_credentials_and_url(
 //                 "x".parse().unwrap(),
 //                 "xxx".parse().unwrap(),
 //                 &"xxxxx",

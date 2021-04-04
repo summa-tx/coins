@@ -94,7 +94,7 @@ pub enum Bip32Error {
 
     /// Error bubbled up froom std::io
     #[error(transparent)]
-    IOError(#[from] std::io::Error),
+    IoError(#[from] std::io::Error),
 
     /// Error bubbled up froom Ser
     #[error(transparent)]
@@ -142,7 +142,7 @@ pub enum Bip32Error {
 
     /// Attempted to deserialize a DER signature to a recoverable signature.
     #[error("Attempted to deserialize a DER signature to a recoverable signature. Use deserialize_vrs instead")]
-    NoRecoveryID,
+    NoRecoveryId,
 
     /// Attempted to deserialize a very long path
     #[error("Invalid Bip32 Path.")]

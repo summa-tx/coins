@@ -30,7 +30,7 @@ pub fn encode_bech32(hrp: &str, v: &[u8]) -> EncodingResult<String> {
 }
 
 /// Decode a witness program from a bech32 string. Caller specifies an expected HRP. If a
-/// different HRP is found, returns `WrongHRP`.
+/// different HRP is found, returns `WrongHrp`.
 pub fn decode_bech32(expected_hrp: &str, s: &str) -> EncodingResult<Vec<u8>> {
     let (version, data) = b32_decode(expected_hrp, &s)?;
 
@@ -81,11 +81,11 @@ mod test {
     fn it_should_error_on_wrong_version_and_hrp_and_invalid_addrs() {
         match decode_bech32("ts", "hs1qrq7qkl3p4lvdhkeks3za344d8a2yzllzgjdmzk") {
             Ok(_) => assert!(false, "expected an error"),
-            Err(EncodingError::WrongHRP {
+            Err(EncodingError::WrongHrp {
                 got: _,
                 expected: _,
             }) => {}
-            _ => assert!(false, "Got the wrong error {:?}"),
+            _ => assert!(false, "Got the wrong error"),
         }
         match decode_bech32("hs", "hs1qrq7qkl3p4lvdhkeks3za34") {
             Ok(_) => assert!(false, "expected an error"),

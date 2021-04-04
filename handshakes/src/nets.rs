@@ -18,7 +18,7 @@
 //! b.version(2)
 //!  .spend(Outpoint::default(), 0xaabbccdd)
 //!  .pay(0x8888_8888_8888_8888, &address)
-//!  .pay(0x7777_7777_7777_7777, &Address::WSH("hs1qjhgt8dwvhwapf2a5v9865nmrrqhhqlz38w3zze".to_owned()))
+//!  .pay(0x7777_7777_7777_7777, &Address::Wsh("hs1qjhgt8dwvhwapf2a5v9865nmrrqhhqlz38w3zze".to_owned()))
 //!  .build()
 //!  .unwrap()
 //!  .serialize_hex();
@@ -83,11 +83,11 @@ mod test {
             .spend(HandshakeOutpoint::default(), 0xaabbccdd)
             .pay(
                 0x0000_0000_8888_8888,
-                &Address::WPKH("hs1qjhgt8dwvhwapf2a5v9865nmrrqhhqlz38w3zze".to_owned()),
+                &Address::Wpkh("hs1qjhgt8dwvhwapf2a5v9865nmrrqhhqlz38w3zze".to_owned()),
             )
             .pay(
                 0x0000_0000_7777_7777,
-                &Address::WPKH("hs1qjhgt8dwvhwapf2a5v9865nmrrqhhqlz38w3zze".to_owned()),
+                &Address::Wpkh("hs1qjhgt8dwvhwapf2a5v9865nmrrqhhqlz38w3zze".to_owned()),
             )
             .build()
             .unwrap()
@@ -103,7 +103,7 @@ mod test {
     #[test]
     fn it_exposes_encoder_interface() {
         let addr_string = "hs1qjhgt8dwvhwapf2a5v9865nmrrqhhqlz38w3zze".to_owned();
-        let address = Address::WPKH(addr_string.clone());
+        let address = Address::Wpkh(addr_string.clone());
         assert_eq!(
             &address,
             &HandshakeMainnet::string_to_address(&addr_string).unwrap()

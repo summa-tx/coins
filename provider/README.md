@@ -4,11 +4,11 @@ This crate provides a generic chain-data API for Bitcoin apps. It aims to give
 a simple consistent interface to chain data, so that wallets can easily support
 a wide range of backends out of the box.
 
-Apps that are generic over a `BTCProvider` can seamlessly accept different
-sources. We have implemented a `BTCProvider` calling the Blockstream Esplora
+Apps that are generic over a `BtcProvider` can seamlessly accept different
+sources. We have implemented a `BtcProvider` calling the Blockstream Esplora
 API, and more options are coming.
 
-The `PollingBTCProvider` trait can extend the `BTCProvider` with useful
+The `PollingBtcProvider` trait can extend the `BtcProvider` with useful
 functionality like a polling chain-tip stream, a pending tx that streams
 confirmations, and a UTXO watcher that streams spend notifications.
 
@@ -19,8 +19,8 @@ use futures_core::stream::StreamExt;
 use tokio::runtime;
 
 use bitcoins_provider::{
-  BTCProvider,
-  PollingBTCProvider,
+  BtcProvider,
+  PollingBtcProvider,
   esplora::EsploraProvider
 };
 

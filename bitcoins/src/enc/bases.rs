@@ -23,7 +23,7 @@ pub fn encode_bech32(hrp: &str, v: &[u8]) -> EncodingResult<String> {
 }
 
 /// Decode a witness program from a bech32 string. Caller specifies an expected HRP. If a
-/// different HRP is found, returns `WrongHRP`.
+/// different HRP is found, returns `WrongHrp`.
 pub fn decode_bech32(expected_hrp: &str, s: &str) -> EncodingResult<Vec<u8>> {
     let (version, data) = core_decode_bech32(expected_hrp, s)?;
 

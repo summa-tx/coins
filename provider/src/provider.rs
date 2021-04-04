@@ -21,7 +21,7 @@ pub enum ProviderError {
     /// Serde issue
     #[cfg(any(feature = "rpc", feature = "esplora"))]
     #[error(transparent)]
-    SerdeJSONError(#[from] serde_json::Error),
+    SerdeJsonError(#[from] serde_json::Error),
 
     /// Bubbled up from bitcoins
     #[error(transparent)]
@@ -38,7 +38,7 @@ pub enum ProviderError {
     /// RPC Error Response
     #[cfg(feature = "rpc")]
     #[error("RPC Error Response: {0}")]
-    RPCErrorResponse(crate::rpc::common::ErrorResponse),
+    RpcErrorResponse(crate::rpc::common::ErrorResponse),
 
     /// Custom provider error. Indicates whether the request should be retried
     #[error("Proivder error {e}")]
@@ -63,13 +63,14 @@ impl ProviderError {
     /// APIs to violate JSON RPC conventions, and return raw strings in this case.
     #[cfg(any(feature = "rpc", feature = "esplora"))]
     pub fn from_parsing(&self) -> bool {
-        matches!(self,
+        matches!(
+            self,
             ProviderError::Custom {
                 from_parsing: true,
                 e: _,
-            } | ProviderError::SerdeJSONError(_) |
-            ProviderError::CoinsSerError(_) |
-            ProviderError::EncoderError(_)
+            } | ProviderError::SerdeJsonError(_)
+                | ProviderError::CoinsSerError(_)
+                | ProviderError::EncoderError(_)
         )
     }
 
@@ -96,7 +97,7 @@ impl ProviderError {
 /// A Bitcoin Provider
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait BTCProvider: Sync + Send {
+pub trait BtcProvider: Sync + Send {
     /// Explicitly drop the provider, closing connections and freeing resources
     fn close(self)
     where
@@ -180,14 +181,14 @@ pub trait BTCProvider: Sync + Send {
     /// ## Note: some providers may not implement this functionality.
     ///
     /// ## Note: when using Bitcoin Core, this may take upwards of 40 second
-    async fn get_utxos_by_address(&self, address: &Address) -> Result<Vec<UTXO>, ProviderError>;
+    async fn get_utxos_by_address(&self, address: &Address) -> Result<Vec<Utxo>, ProviderError>;
 
     /// Fetch the UTXOs belonging to a script pubkey from the remote API
     ///
     /// Note: some providers may not implement this functionality.
     ///
     /// ## Note: when using Bitcoin Core, this may take upwards of 40 second
-    async fn get_utxos_by_script(&self, spk: &ScriptPubkey) -> Result<Vec<UTXO>, ProviderError> {
+    async fn get_utxos_by_script(&self, spk: &ScriptPubkey) -> Result<Vec<Utxo>, ProviderError> {
         self.get_utxos_by_address(&crate::Encoder::encode_address(spk)?)
             .await
     }
@@ -236,7 +237,7 @@ pub trait BTCProvider: Sync + Send {
 /// An extension trait that adds polling watchers for a provider
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait PollingBTCProvider: BTCProvider {
+pub trait PollingBtcProvider: BtcProvider {
     /// Return the polling duration of the provider
     fn interval(&self) -> Duration;
 
@@ -295,14 +296,14 @@ pub trait PollingBTCProvider: BTCProvider {
 }
 
 /// A provider that caches API responses whose values will never change.
-pub struct CachingProvider<T: BTCProvider> {
+pub struct CachingProvider<T: BtcProvider> {
     provider: T,
     tx_cache: Mutex<LruCache<TXID, BitcoinTx>>,
     header_cache: Mutex<LruCache<BlockHash, RawHeader>>,
     height_cache: Mutex<LruCache<BlockHash, usize>>,
 }
 
-impl<T: BTCProvider> From<T> for CachingProvider<T> {
+impl<T: BtcProvider> From<T> for CachingProvider<T> {
     fn from(provider: T) -> Self {
         Self {
             provider,
@@ -315,14 +316,14 @@ impl<T: BTCProvider> From<T> for CachingProvider<T> {
 
 impl<T> Default for CachingProvider<T>
 where
-    T: BTCProvider + Default,
+    T: BtcProvider + Default,
 {
     fn default() -> Self {
         T::default().into()
     }
 }
 
-impl<T: BTCProvider> CachingProvider<T> {
+impl<T: BtcProvider> CachingProvider<T> {
     /// Return a reference to the TX, if it's in the cache.
     pub async fn peek_tx(&self, txid: TXID) -> Option<BitcoinTx> {
         self.tx_cache.lock().await.peek(&txid).cloned()
@@ -346,9 +347,9 @@ impl<T: BTCProvider> CachingProvider<T> {
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl<T> BTCProvider for CachingProvider<T>
+impl<T> BtcProvider for CachingProvider<T>
 where
-    T: BTCProvider,
+    T: BtcProvider,
 {
     async fn tip_hash(&self) -> Result<BlockHash, ProviderError> {
         self.provider.tip_hash().await
@@ -436,7 +437,7 @@ where
         self.provider.get_outspend(outpoint).await
     }
 
-    async fn get_utxos_by_address(&self, address: &Address) -> Result<Vec<UTXO>, ProviderError> {
+    async fn get_utxos_by_address(&self, address: &Address) -> Result<Vec<Utxo>, ProviderError> {
         self.provider.get_utxos_by_address(address).await
     }
 
@@ -450,9 +451,9 @@ where
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl<T> PollingBTCProvider for CachingProvider<T>
+impl<T> PollingBtcProvider for CachingProvider<T>
 where
-    T: PollingBTCProvider,
+    T: PollingBtcProvider,
 {
     fn interval(&self) -> Duration {
         self.provider.interval()

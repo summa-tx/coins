@@ -1,4 +1,4 @@
-use crate::{input::InputKey, roles::PSTFinalizer, PSBTError, PSBTInput, PSTMap, PSBT, PST};
+use crate::{input::InputKey, roles::PstFinalizer, Psbt, PsbtError, PsbtInput, Pst, PstMap};
 use bitcoins::{
     enc::encoder::BitcoinEncoderMarker,
     prelude::Hash160Digest,
@@ -8,9 +8,9 @@ use coins_bip32::{self as bip32};
 use coins_core::prelude::{Digest, MarkedDigestOutput, Transaction};
 
 /// A finalizer that creates WPKH witnesses
-pub struct PSBTWPKHFinalizer();
+pub struct PsbtWpkhFinalizer();
 
-fn clear_input_map(input_map: &mut PSBTInput) {
+fn clear_input_map(input_map: &mut PsbtInput) {
     // clears the following keys:
     // PARTIAL_SIG = 2
     // SIGHASH_TYPE = 3
@@ -29,23 +29,23 @@ fn clear_input_map(input_map: &mut PSBTInput) {
 }
 
 /// Finalize an input, creating a ScriptSig and/or Witness for it as appropriate
-fn finalize_input(outpoint: &BitcoinOutpoint, input_map: &mut PSBTInput) -> Result<(), PSBTError> {
+fn finalize_input(outpoint: &BitcoinOutpoint, input_map: &mut PsbtInput) -> Result<(), PsbtError> {
     let non_witness_utxo = input_map.non_witness_utxo()?;
     let prevout = non_witness_utxo
         .txout_from_outpoint(outpoint)
         .ok_or_else(|| {
-            PSBTError::MissingInfo(format!(
+            PsbtError::MissingInfo(format!(
                 "Input TXO does not match while finalizing. Outpoint is {:?}",
                 outpoint
             ))
         })?;
 
     let pkh = match prevout.standard_type() {
-        ScriptType::WPKH(data) => data,
+        ScriptType::Wpkh(data) => data,
         other => {
-            return Err(PSBTError::WrongPrevoutScriptType {
+            return Err(PsbtError::WrongPrevoutScriptType {
                 got: other,
-                expected: vec![ScriptType::WPKH(Hash160Digest::default())],
+                expected: vec![ScriptType::Wpkh(Hash160Digest::default())],
             })
         }
     };
@@ -64,22 +64,22 @@ fn finalize_input(outpoint: &BitcoinOutpoint, input_map: &mut PSBTInput) -> Resu
         witness.push(pubkey.to_bytes().as_ref().into());
         witness.push(sig_bytes.into());
 
-        input_map.insert_witness(&witness);
+        input_map.insert_witness(witness);
         clear_input_map(input_map);
         Ok(())
     } else {
-        Err(PSBTError::MissingKey(InputKey::PARTIAL_SIG as u8))
+        Err(PsbtError::MissingKey(InputKey::PartialSig as u8))
     }
 }
 
-impl<A, E> PSTFinalizer<A, PSBT<A, E>> for PSBTWPKHFinalizer
+impl<A, E> PstFinalizer<A, Psbt<A, E>> for PsbtWpkhFinalizer
 where
     A: BitcoinEncoderMarker,
     E: bip32::enc::XKeyEncoder,
 {
-    type Error = PSBTError;
+    type Error = PsbtError;
 
-    fn finalize(&mut self, pst: &mut PSBT<A, E>) -> Result<(), PSBTError> {
+    fn finalize(&mut self, pst: &mut Psbt<A, E>) -> Result<(), PsbtError> {
         let outpoints: Vec<BitcoinOutpoint> = pst
             .tx()?
             .inputs()

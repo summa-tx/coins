@@ -10,14 +10,14 @@ pub mod finalizer;
 /// Provided tx extractors.
 pub mod extractor;
 
-use crate::PST;
+use crate::Pst;
 use bitcoins::types::tx::{BitcoinTx, Sighash};
 use coins_core::enc::AddressEncoder;
 
-pub trait PSTUpdater<A, P>
+pub trait PstUpdater<A, P>
 where
     A: AddressEncoder,
-    P: PST<A>,
+    P: Pst<A>,
 {
     /// An associated error type that can be instantiated from the PST's Error type. This may be
     /// the PST's Error type.
@@ -27,10 +27,10 @@ where
 }
 
 /// A PST Signer interface.
-pub trait PSTSigner<A, P>
+pub trait PstSigner<A, P>
 where
     A: AddressEncoder,
-    P: PST<A>,
+    P: Pst<A>,
 {
     /// An associated error type that can be instantiated from the PST's Error type. This may be
     /// the PST's Error type.
@@ -80,10 +80,10 @@ where
 
 /// A PST Finalizer. These will typically be specialized for some purpose, and a PST may need
 /// several rounds of finalization by different finalizers if it contains several types of input.
-pub trait PSTFinalizer<A, P>
+pub trait PstFinalizer<A, P>
 where
     A: AddressEncoder,
-    P: PST<A>,
+    P: Pst<A>,
 {
     /// An associated error type that can be instantiated from the PST's Error type. This may be
     /// the PST's Error type.
@@ -96,10 +96,10 @@ where
     fn finalize(&mut self, pst: &mut P) -> Result<(), Self::Error>;
 }
 
-pub trait PSTExtractor<A, P>
+pub trait PstExtractor<A, P>
 where
     A: AddressEncoder,
-    P: PST<A>,
+    P: Pst<A>,
 {
     /// An associated error type that can be instantiated from the PST's Error type. This may be
     /// the PST's Error type.

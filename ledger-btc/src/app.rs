@@ -3,7 +3,7 @@ use coins_core::{
     Transaction,
 };
 use coins_bip32::{path::DerivationPath, prelude::*};
-use bitcoins::types::{BitcoinTxIn, WitnessTx, UTXO};
+use bitcoins::types::{BitcoinTxIn, WitnessTx, Utxo};
 use coins_ledger::{
     common::{APDUAnswer, APDUCommand},
     transports::{Ledger, LedgerAsync},
@@ -16,7 +16,7 @@ pub struct SigningInfo {
     /// The input associated
     pub input_idx: usize,
     /// A reference to a UTXO
-    pub prevout: UTXO,
+    pub prevout: Utxo,
     /// A reference to a key derivation if this input should be signed
     pub deriv: Option<KeyDerivation>,
 }
@@ -66,7 +66,7 @@ impl LedgerBTC {
 
         let data = derivation_path_to_apdu_data(deriv);
         let command = APDUCommand {
-            ins: Commands::GET_WALLET_PUBLIC_KEY as u8,
+            ins: Commands::GetWalletPublicKey as u8,
             p1: 0x00,
             p2: 0x02, // always native segwit address
             data,
@@ -146,7 +146,7 @@ impl LedgerBTC {
         transport: &Ledger,
         first_packet: &APDUCommand,
         locktime: u32,
-        utxo: &UTXO,
+        utxo: &Utxo,
         txin: &BitcoinTxIn,
         deriv: &DerivationPath,
     ) -> Result<APDUAnswer, LedgerBTCError> {
@@ -165,7 +165,7 @@ impl LedgerBTC {
         transport: &Ledger,
         first_packet: &APDUCommand,
         locktime: u32,
-        utxo: &UTXO,
+        utxo: &Utxo,
         txin: &BitcoinTxIn,
         deriv: &DerivationPath,
     ) -> Result<Signature, LedgerBTCError> {

@@ -11,7 +11,7 @@ use pin_project::pin_project;
 use bitcoins::prelude::*;
 
 use crate::{
-    provider::BTCProvider,
+    provider::BtcProvider,
     utils::{new_interval, StreamLast},
     ProviderFut, DEFAULT_POLL_INTERVAL,
 };
@@ -44,12 +44,12 @@ pub struct PollingWatcher<'a> {
     confirmations: usize,
     state: WatcherStates<'a>,
     interval: Box<dyn Stream<Item = ()> + Send + Unpin>,
-    provider: &'a dyn BTCProvider,
+    provider: &'a dyn BtcProvider,
 }
 
 impl<'a> PollingWatcher<'a> {
     /// Creates a new outspend poller
-    pub fn new(outpoint: BitcoinOutpoint, provider: &'a dyn BTCProvider) -> Self {
+    pub fn new(outpoint: BitcoinOutpoint, provider: &'a dyn BtcProvider) -> Self {
         let fut = Box::pin(provider.get_outspend(outpoint));
         Self {
             outpoint,

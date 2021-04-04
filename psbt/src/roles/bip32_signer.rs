@@ -4,7 +4,7 @@ use bitcoins::prelude::*;
 use coins_bip32::prelude::*;
 use coins_core::types::Transaction;
 
-use crate::{input::PSBTInput, roles::PSTSigner, PSBTError, PSBT, PST};
+use crate::{input::PsbtInput, roles::PstSigner, Psbt, PsbtError, Pst};
 
 #[derive(Debug, Error)]
 pub enum Bip32SignerError {
@@ -12,9 +12,9 @@ pub enum Bip32SignerError {
     #[error(transparent)]
     Bip32Error(#[from] Bip32Error),
 
-    /// PSBTError bubbled up
+    /// PsbtError bubbled up
     #[error(transparent)]
-    PSBTError(#[from] crate::common::PSBTError),
+    PsbtError(#[from] crate::common::PsbtError),
 
     /// AlreadyFinalized
     #[error("Input at index {0} is already finalized")]
@@ -34,18 +34,18 @@ impl Bip32Signer {
         &self,
         tx: &LegacyTx,
         input_idx: usize,
-        input_map: &PSBTInput,
-    ) -> Result<(), PSBTError> {
+        input_map: &PsbtInput,
+    ) -> Result<(), PsbtError> {
         let prevout = input_map.as_utxo(&tx.inputs()[input_idx].outpoint)?;
         let prevout_type = prevout.standard_type();
 
         match prevout_type {
-            ScriptType::WPKH(_) | ScriptType::WSH(_) | ScriptType::OP_RETURN(_) => {
-                return Err(PSBTError::WrongPrevoutScriptType {
+            ScriptType::Wpkh(_) | ScriptType::Wsh(_) | ScriptType::OpReturn(_) => {
+                return Err(PsbtError::WrongPrevoutScriptType {
                     got: prevout.script_pubkey.standard_type(),
                     expected: vec![
-                        ScriptType::SH(Hash160Digest::default()),
-                        ScriptType::PKH(Hash160Digest::default()),
+                        ScriptType::Sh(Hash160Digest::default()),
+                        ScriptType::Pkh(Hash160Digest::default()),
                         ScriptType::NonStandard,
                     ],
                 });
@@ -54,8 +54,8 @@ impl Bip32Signer {
         }
 
         match prevout.spend_script() {
-            SpendScript::Missing => Err(PSBTError::MissingKey(
-                crate::input::InputKey::REDEEM_SCRIPT as u8,
+            SpendScript::Missing => Err(PsbtError::MissingKey(
+                crate::input::InputKey::RedeemScript as u8,
             )),
             _ => Ok(()),
         }
@@ -64,20 +64,20 @@ impl Bip32Signer {
     fn can_sign_witness(
         &self,
         outpoint: &BitcoinOutpoint,
-        input_map: &PSBTInput,
-    ) -> Result<(), PSBTError> {
+        input_map: &PsbtInput,
+    ) -> Result<(), PsbtError> {
         let prevout = input_map.as_utxo(&outpoint)?;
 
         let prevout_type = prevout.standard_type();
 
         match prevout_type {
-            ScriptType::WPKH(_) | ScriptType::WSH(_) => {}
+            ScriptType::Wpkh(_) | ScriptType::Wsh(_) => {}
             _ => {
-                return Err(PSBTError::WrongPrevoutScriptType {
+                return Err(PsbtError::WrongPrevoutScriptType {
                     got: prevout.script_pubkey.standard_type(),
                     expected: vec![
-                        ScriptType::WSH(Hash256Digest::default()),
-                        ScriptType::WPKH(Hash160Digest::default()),
+                        ScriptType::Wsh(Hash256Digest::default()),
+                        ScriptType::Wpkh(Hash160Digest::default()),
                     ],
                 })
             }
@@ -86,8 +86,8 @@ impl Bip32Signer {
         // TODO: Shortcut WPKH here
 
         match prevout.spend_script() {
-            SpendScript::Missing => Err(PSBTError::MissingKey(
-                crate::input::InputKey::WITNESS_SCRIPT as u8,
+            SpendScript::Missing => Err(PsbtError::MissingKey(
+                crate::input::InputKey::WitnessScript as u8,
             )),
             _ => Ok(()),
         }
@@ -98,8 +98,8 @@ impl Bip32Signer {
         &self,
         input_idx: usize,
         tx: &LegacyTx,
-        input_map: &mut PSBTInput,
-    ) -> Result<(), PSBTError> {
+        input_map: &mut PsbtInput,
+    ) -> Result<(), PsbtError> {
         let prevout_tx = input_map.non_witness_utxo()?;
         let paths: Vec<_> = input_map
             .parsed_pubkey_derivations()
@@ -132,8 +132,8 @@ impl Bip32Signer {
         &self,
         input_idx: usize,
         tx: &WitnessTx,
-        input_map: &mut PSBTInput,
-    ) -> Result<(), PSBTError> {
+        input_map: &mut PsbtInput,
+    ) -> Result<(), PsbtError> {
         let paths: Vec<_> = input_map
             .parsed_pubkey_derivations()
             .iter()
@@ -179,14 +179,14 @@ impl From<DerivedXPriv> for Bip32Signer {
     }
 }
 
-impl<A, E> PSTSigner<A, PSBT<A, E>> for Bip32Signer
+impl<A, E> PstSigner<A, Psbt<A, E>> for Bip32Signer
 where
     A: BitcoinEncoderMarker,
     E: XKeyEncoder,
 {
     type Error = Bip32SignerError;
 
-    fn is_change(&self, pst: &PSBT<A, E>, idx: usize) -> bool {
+    fn is_change(&self, pst: &Psbt<A, E>, idx: usize) -> bool {
         let output_map = &pst.output_maps()[idx];
 
         let pubkeys = output_map.parsed_pubkey_derivations();
@@ -206,8 +206,8 @@ where
         let script_type = script.standard_type();
 
         match script_type {
-            ScriptType::WPKH(v) => v == pubkey.pubkey_hash160(),
-            ScriptType::PKH(v) => v == pubkey.pubkey_hash160(),
+            ScriptType::Wpkh(v) => v == pubkey.pubkey_hash160(),
+            ScriptType::Pkh(v) => v == pubkey.pubkey_hash160(),
             _ => false,
         }
     }
@@ -216,7 +216,7 @@ where
         true
     }
 
-    fn can_sign_input(&self, psbt: &PSBT<A, E>, idx: usize) -> Result<(), Self::Error> {
+    fn can_sign_input(&self, psbt: &Psbt<A, E>, idx: usize) -> Result<(), Self::Error> {
         let input_map = &psbt.input_maps()[idx];
 
         let tx = psbt.tx()?;
@@ -228,7 +228,7 @@ where
     }
 
     /// Sign the specified input in the PST.
-    fn sign_input(&self, psbt: &mut PSBT<A, E>, idx: usize) -> Result<(), Self::Error> {
+    fn sign_input(&self, psbt: &mut Psbt<A, E>, idx: usize) -> Result<(), Self::Error> {
         let tx = psbt.tx()?;
         let input_map = &mut psbt.input_maps_mut()[idx];
 

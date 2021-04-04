@@ -59,7 +59,7 @@ macro_rules! wrap_prefixed_byte_vector {
             where
                 W: std::io::Write
             {
-                Ok(coins_core::ser::write_prefix_vec(writer, &self.0)?)
+                coins_core::ser::write_prefix_vec(writer, &self.0)
             }
         }
 

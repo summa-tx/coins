@@ -17,22 +17,22 @@ use crate::{
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub enum Address {
     /// Legacy Pay to Pubkeyhash
-    PKH(String),
+    Pkh(String),
     /// Legacy Pay to Scripthash
-    SH(String),
+    Sh(String),
     /// Witness Pay to Pubkeyhash
-    WPKH(String),
+    Wpkh(String),
     /// Witness Pay to Scripthash
-    WSH(String),
+    Wsh(String),
 }
 
 impl std::fmt::Display for Address {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let addr = match &self {
-            Address::PKH(s) => s,
-            Address::SH(s) => s,
-            Address::WPKH(s) => s,
-            Address::WSH(s) => s,
+            Address::Pkh(s) => s,
+            Address::Sh(s) => s,
+            Address::Wpkh(s) => s,
+            Address::Wsh(s) => s,
         };
         write!(f, "{}", addr)
     }
@@ -41,10 +41,10 @@ impl std::fmt::Display for Address {
 impl AsRef<str> for Address {
     fn as_ref(&self) -> &str {
         match &self {
-            Address::PKH(s) => &s,
-            Address::SH(s) => &s,
-            Address::WPKH(s) => &s,
-            Address::WSH(s) => &s,
+            Address::Pkh(s) => &s,
+            Address::Sh(s) => &s,
+            Address::Wpkh(s) => &s,
+            Address::Wsh(s) => &s,
         }
     }
 }
@@ -53,10 +53,10 @@ impl Address {
     /// Get a clone of the string underlying the address type.
     pub fn as_string(&self) -> String {
         match &self {
-            Address::PKH(s) => s.clone(),
-            Address::SH(s) => s.clone(),
-            Address::WPKH(s) => s.clone(),
-            Address::WSH(s) => s.clone(),
+            Address::Pkh(s) => s.clone(),
+            Address::Sh(s) => s.clone(),
+            Address::Wpkh(s) => s.clone(),
+            Address::Wsh(s) => s.clone(),
         }
     }
 
@@ -96,32 +96,32 @@ impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
 
     fn encode_address(s: &ScriptPubkey) -> EncodingResult<Address> {
         match s.standard_type() {
-            ScriptType::PKH(payload) => {
+            ScriptType::Pkh(payload) => {
                 // s.items contains the op codes. we want only the pkh
-                Ok(Address::PKH(encode_base58(
+                Ok(Address::Pkh(encode_base58(
                     P::PKH_VERSION,
                     payload.as_slice(),
                 )))
             }
-            ScriptType::SH(payload) => {
+            ScriptType::Sh(payload) => {
                 // s.items contains the op codes. we want only the sh
-                Ok(Address::SH(encode_base58(
+                Ok(Address::Sh(encode_base58(
                     P::SH_VERSION,
                     payload.as_slice(),
                 )))
             }
-            ScriptType::WSH(_) => Ok(Address::WSH(encode_bech32(P::HRP, &s.items())?)),
-            ScriptType::WPKH(_) => Ok(Address::WPKH(encode_bech32(P::HRP, &s.items())?)),
-            ScriptType::OP_RETURN(_) => Err(EncodingError::NullDataScript),
+            ScriptType::Wsh(_) => Ok(Address::Wsh(encode_bech32(P::HRP, &s.items())?)),
+            ScriptType::Wpkh(_) => Ok(Address::Wpkh(encode_bech32(P::HRP, &s.items())?)),
+            ScriptType::OpReturn(_) => Err(EncodingError::NullDataScript),
             ScriptType::NonStandard => Err(EncodingError::UnknownScriptType),
         }
     }
 
     fn decode_address(addr: &Address) -> ScriptPubkey {
         match &addr {
-            Address::PKH(s) => decode_base58(P::PKH_VERSION, s).unwrap().into(),
-            Address::SH(s) => decode_base58(P::SH_VERSION, s).unwrap().into(),
-            Address::WPKH(s) | Address::WSH(s) => decode_bech32(P::HRP, &s).unwrap().into(),
+            Address::Pkh(s) => decode_base58(P::PKH_VERSION, s).unwrap().into(),
+            Address::Sh(s) => decode_base58(P::SH_VERSION, s).unwrap().into(),
+            Address::Wpkh(s) | Address::Wsh(s) => decode_bech32(P::HRP, &s).unwrap().into(),
         }
     }
 
@@ -130,14 +130,14 @@ impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
         if s.starts_with(P::HRP) {
             let result = decode_bech32(P::HRP, &s)?;
             match result.len() {
-                22 => Ok(Address::WPKH(s)),
-                34 => Ok(Address::WSH(s)),
+                22 => Ok(Address::Wpkh(s)),
+                34 => Ok(Address::Wsh(s)),
                 _ => Err(EncodingError::UnknownScriptType),
             }
         } else if decode_base58(P::PKH_VERSION, &s).is_ok() {
-            Ok(Address::PKH(s))
+            Ok(Address::Pkh(s))
         } else if decode_base58(P::SH_VERSION, &s).is_ok() {
-            Ok(Address::SH(s))
+            Ok(Address::Sh(s))
         } else {
             Err(EncodingError::UnknownScriptType)
         }
@@ -194,21 +194,21 @@ mod test {
         let cases = [
             (
                 "bc1qza7dfgl2q83cf68fqkkdd754qx546h4u9vd9tg".to_owned(),
-                Address::WPKH("bc1qza7dfgl2q83cf68fqkkdd754qx546h4u9vd9tg".to_owned()),
+                Address::Wpkh("bc1qza7dfgl2q83cf68fqkkdd754qx546h4u9vd9tg".to_owned()),
             ),
             (
                 "bc1qwqdg6squsna38e46795at95yu9atm8azzmyvckulcc7kytlcckxswvvzej".to_owned(),
-                Address::WSH(
+                Address::Wsh(
                     "bc1qwqdg6squsna38e46795at95yu9atm8azzmyvckulcc7kytlcckxswvvzej".to_owned(),
                 ),
             ),
             (
                 "1AqE7oGF1EUoJviX1uuYrwpRBdEBTuGhES".to_owned(),
-                Address::PKH("1AqE7oGF1EUoJviX1uuYrwpRBdEBTuGhES".to_owned()),
+                Address::Pkh("1AqE7oGF1EUoJviX1uuYrwpRBdEBTuGhES".to_owned()),
             ),
             (
                 "3HXNFmJpxjgTVFN35Y9f6Waje5YFsLEQZ2".to_owned(),
-                Address::SH("3HXNFmJpxjgTVFN35Y9f6Waje5YFsLEQZ2".to_owned()),
+                Address::Sh("3HXNFmJpxjgTVFN35Y9f6Waje5YFsLEQZ2".to_owned()),
             ),
         ];
         for case in cases.iter() {
@@ -235,13 +235,13 @@ mod test {
                 ScriptPubkey::new(
                     hex::decode("a914e88869b88866281ab166541ad8aafba8f8aba47a87").unwrap(),
                 ),
-                Address::SH("3NtY7BrF3xrcb31JXXaYCKVcz1cH3Azo5y".to_owned()),
+                Address::Sh("3NtY7BrF3xrcb31JXXaYCKVcz1cH3Azo5y".to_owned()),
             ),
             (
                 ScriptPubkey::new(
                     hex::decode("76a9140e5c3c8d420c7f11e88d76f7b860d471e6517a4488ac").unwrap(),
                 ),
-                Address::PKH("12JvxPk4mT4PKMVHuHc1aQGBZpotQWQwF6".to_owned()),
+                Address::Pkh("12JvxPk4mT4PKMVHuHc1aQGBZpotQWQwF6".to_owned()),
             ),
             (
                 ScriptPubkey::new(
@@ -250,7 +250,7 @@ mod test {
                     )
                     .unwrap(),
                 ),
-                Address::WSH(
+                Address::Wsh(
                     "bc1qr0u2rqcak4zrks4yfuc2zgw3kctdqydtzh0k9dvgwg4ggkryejvsy49jvz".to_owned(),
                 ),
             ),
@@ -258,7 +258,7 @@ mod test {
                 ScriptPubkey::new(
                     hex::decode("00141bf8a1831db5443b42a44f30a121d1b616d011ab").unwrap(),
                 ),
-                Address::WPKH("bc1qr0u2rqcak4zrks4yfuc2zgw3kctdqydt3wy5yh".to_owned()),
+                Address::Wpkh("bc1qr0u2rqcak4zrks4yfuc2zgw3kctdqydt3wy5yh".to_owned()),
             ),
         ];
         for case in cases.iter() {
@@ -288,21 +288,21 @@ mod test {
         let cases = [
             (
                 "3NtY7BrF3xrcb31JXXaYCKVcz1cH3Azo5y".to_owned(),
-                Address::SH("3NtY7BrF3xrcb31JXXaYCKVcz1cH3Azo5y".to_owned()),
+                Address::Sh("3NtY7BrF3xrcb31JXXaYCKVcz1cH3Azo5y".to_owned()),
             ),
             (
                 "12JvxPk4mT4PKMVHuHc1aQGBZpotQWQwF6".to_owned(),
-                Address::PKH("12JvxPk4mT4PKMVHuHc1aQGBZpotQWQwF6".to_owned()),
+                Address::Pkh("12JvxPk4mT4PKMVHuHc1aQGBZpotQWQwF6".to_owned()),
             ),
             (
                 "bc1qr0u2rqcak4zrks4yfuc2zgw3kctdqydtzh0k9dvgwg4ggkryejvsy49jvz".to_owned(),
-                Address::WSH(
+                Address::Wsh(
                     "bc1qr0u2rqcak4zrks4yfuc2zgw3kctdqydtzh0k9dvgwg4ggkryejvsy49jvz".to_owned(),
                 ),
             ),
             (
                 "bc1qr0u2rqcak4zrks4yfuc2zgw3kctdqydt3wy5yh".to_owned(),
-                Address::WPKH("bc1qr0u2rqcak4zrks4yfuc2zgw3kctdqydt3wy5yh".to_owned()),
+                Address::Wpkh("bc1qr0u2rqcak4zrks4yfuc2zgw3kctdqydt3wy5yh".to_owned()),
             ),
         ];
         for case in cases.iter() {

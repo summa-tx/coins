@@ -2,7 +2,7 @@
 pub use crate::esplora::EsploraProvider;
 pub use crate::provider::*;
 #[cfg(feature = "rpc")]
-pub use crate::rpc::BitcoindRPC;
+pub use crate::rpc::BitcoinRpc;
 
 pub use crate::types::RawHeader;
 

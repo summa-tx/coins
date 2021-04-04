@@ -18,7 +18,7 @@ pub enum EncodingError {
 
     /// Bech32 HRP does not match the current network.
     #[error("Bech32 HRP does not match. \nGot {:?} expected {:?} Hint: Is this address for another network?", got, expected)]
-    WrongHRP {
+    WrongHrp {
         /// The actual HRP.
         got: String,
         /// The expected HRP.
@@ -35,11 +35,11 @@ pub enum EncodingError {
     },
 
     /// Bubbled up error from base58check library
-    #[error("FromBase58CheckError: {:?}", .0)]
+    #[error("FromBase58CheckError: {0:?}")]
     B58Error(FromBase58CheckError),
 
     /// Bubbled up error from bech32 library
-    #[error("BechError: {:?}", .0)]
+    #[error(transparent)]
     BechError(#[from] BechError),
 
     /// Op Return ScriptPubkey was passed to encoder
@@ -47,7 +47,7 @@ pub enum EncodingError {
     NullDataScript,
 
     /// Invalid Segwit Version
-    #[error("Invalid Segwit Version: {:?}", .0)]
+    #[error("Invalid Segwit Version: {0}")]
     SegwitVersionError(u8),
 
     /// Invalid Address Size
@@ -74,11 +74,11 @@ pub fn encode_bech32(hrp: &str, v: u8, h: &[u8]) -> EncodingResult<String> {
 }
 
 /// Decode a witness program from a bech32 string. Caller specifies an expected HRP. If a
-/// different HRP is found, returns `WrongHRP`.
+/// different HRP is found, returns `WrongHrp`.
 pub fn decode_bech32(expected_hrp: &str, s: &str) -> EncodingResult<(u8, Vec<u8>)> {
     let (hrp, data) = b32_decode(&s)?;
     if hrp != expected_hrp {
-        return Err(EncodingError::WrongHRP {
+        return Err(EncodingError::WrongHrp {
             got: hrp,
             expected: expected_hrp.to_owned(),
         });
@@ -180,11 +180,11 @@ mod test {
     fn it_should_error_on_wrong_version_and_hrp_and_invalid_addrs() {
         match decode_bech32("tb", "bc1q233q49ve8ysdsztqh9ue57m6227627j8ztscl9") {
             Ok(_) => assert!(false, "expected an error"),
-            Err(EncodingError::WrongHRP {
+            Err(EncodingError::WrongHrp {
                 got: _,
                 expected: _,
             }) => {}
-            _ => assert!(false, "Got the wrong error {:?}"),
+            _ => assert!(false, "Got the wrong error"),
         }
         match decode_base58(1, "3HXNFmJpxjgTVFN35Y9f6Waje5YFsLEQZ2") {
             Ok(_) => assert!(false, "expected an error"),

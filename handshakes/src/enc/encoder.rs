@@ -19,20 +19,19 @@ use crate::{
 #[derive(PartialEq, Eq, Clone, Debug, Hash)]
 pub enum Address {
     /// Witness Pay to Pubkeyhash
-    WPKH(String),
+    Wpkh(String),
     /// Witness Pay to Scripthash
-    WSH(String),
+    Wsh(String),
     /// Provably Unspendable OP_RETURN
-    #[allow(non_camel_case_types)]
-    OP_RETURN(String),
+    OpReturn(String),
 }
 
 impl AsRef<str> for Address {
     fn as_ref(&self) -> &str {
         match &self {
-            Address::WPKH(s) => &s,
-            Address::WSH(s) => &s,
-            Address::OP_RETURN(s) => &s,
+            Address::Wpkh(s) => &s,
+            Address::Wsh(s) => &s,
+            Address::OpReturn(s) => &s,
         }
     }
 }
@@ -41,9 +40,9 @@ impl Address {
     /// Get a clone of the string underlying the address type.
     pub fn as_string(&self) -> String {
         match &self {
-            Address::WPKH(s) => s.clone(),
-            Address::WSH(s) => s.clone(),
-            Address::OP_RETURN(s) => s.clone(),
+            Address::Wpkh(s) => s.clone(),
+            Address::Wsh(s) => s.clone(),
+            Address::OpReturn(s) => s.clone(),
         }
     }
 
@@ -81,18 +80,16 @@ impl<P: NetworkParams> AddressEncoder for HandshakeEncoder<P> {
         s.write_to(&mut data).unwrap();
 
         match s.standard_type().unwrap_or(LockingScriptType::NonStandard) {
-            LockingScriptType::WSH(_) => Ok(Address::WSH(encode_bech32(P::HRP, &data)?)),
-            LockingScriptType::WPKH(_) => Ok(Address::WPKH(encode_bech32(P::HRP, &data)?)),
-            LockingScriptType::OP_RETURN(_) => {
-                Ok(Address::OP_RETURN(encode_bech32(P::HRP, &data)?))
-            }
+            LockingScriptType::Wsh(_) => Ok(Address::Wsh(encode_bech32(P::HRP, &data)?)),
+            LockingScriptType::Wpkh(_) => Ok(Address::Wpkh(encode_bech32(P::HRP, &data)?)),
+            LockingScriptType::OpReturn(_) => Ok(Address::OpReturn(encode_bech32(P::HRP, &data)?)),
             LockingScriptType::NonStandard => Err(EncodingError::UnknownScriptType),
         }
     }
 
     fn decode_address(addr: &Address) -> LockingScript {
         match &addr {
-            Address::WPKH(s) | Address::WSH(s) | Address::OP_RETURN(s) => {
+            Address::Wpkh(s) | Address::Wsh(s) | Address::OpReturn(s) => {
                 decode_bech32(P::HRP, &s).unwrap().into()
             }
         }
@@ -107,7 +104,7 @@ impl<P: NetworkParams> AddressEncoder for HandshakeEncoder<P> {
         let len = version_and_len[1];
 
         if version == 31 {
-            return Ok(Address::OP_RETURN(s));
+            return Ok(Address::OpReturn(s));
         }
 
         if len as usize != data.len() {
@@ -117,8 +114,8 @@ impl<P: NetworkParams> AddressEncoder for HandshakeEncoder<P> {
         // Only segwit version 0 is currently defined.
         if version == 0 {
             match len {
-                20 => return Ok(Address::WPKH(s)),
-                32 => return Ok(Address::WSH(s)),
+                20 => return Ok(Address::Wpkh(s)),
+                32 => return Ok(Address::Wsh(s)),
                 _ => return Err(EncodingError::UnknownScriptType),
             }
         }
@@ -171,11 +168,11 @@ mod test {
         let cases = [
             (
                 "hs1qt7s3p8mdmunmq7tz7fjkvcjjvvhfg8c04pp2kh".to_owned(),
-                Address::WPKH("hs1qt7s3p8mdmunmq7tz7fjkvcjjvvhfg8c04pp2kh".to_owned()),
+                Address::Wpkh("hs1qt7s3p8mdmunmq7tz7fjkvcjjvvhfg8c04pp2kh".to_owned()),
             ),
             (
                 "hs1quf7hffg2v47umufuyd70hykex59gqx7ax4m8zyw72ycyfjns3dys5yath8".to_owned(),
-                Address::WSH(
+                Address::Wsh(
                     "hs1quf7hffg2v47umufuyd70hykex59gqx7ax4m8zyw72ycyfjns3dys5yath8".to_owned(),
                 ),
             ),
@@ -188,7 +185,7 @@ mod test {
         let errors = [
             "hello",                        // Err(BechError(InvalidLength))
             "this isn't a real address",    // Err(BechError(MissingSeparator))
-            "bc10pu8s7rc0pu8s7rc0putt44am", // Err(WrongHRP{})
+            "bc10pu8s7rc0pu8s7rc0putt44am", // Err(WrongHrp{})
             "hs10pu8s7rc0pu8s7rc0putt44am", // Err(BechError(InvalidChecksum)
         ];
         for case in errors.iter() {
@@ -208,37 +205,37 @@ mod test {
                 LockingScript::new(
                     hex::decode("0014847453b9831cdb3a873fb4b4084d94bc86f1c374").unwrap(),
                 ).unwrap(),
-                Address::WPKH("hs1qs3698wvrrndn4pelkj6qsnv5hjr0rsm5fhvcez".to_owned()),
+                Address::Wpkh("hs1qs3698wvrrndn4pelkj6qsnv5hjr0rsm5fhvcez".to_owned()),
             ),
             (
                 LockingScript::new(
                     hex::decode("0014ed32831a50e012539fe8dfb25b1494c66b1c365e").unwrap(),
                 ).unwrap(),
-                Address::WPKH("hs1qa5egxxjsuqf988lgm7e9k9y5ce43cdj74n38kc".to_owned()),
+                Address::Wpkh("hs1qa5egxxjsuqf988lgm7e9k9y5ce43cdj74n38kc".to_owned()),
             ),
             (
                 LockingScript::new(
                     hex::decode("0020630cfd3dac0228390daa7564c02005fbac05e43531e91918ac5b1350fb322db8").unwrap(),
                 ).unwrap(),
-                Address::WSH("hs1qvvx060dvqg5rjrd2w4jvqgq9lwkqtep4x853jx9vtvf4p7ej9kuqlwkutw".to_owned()),
+                Address::Wsh("hs1qvvx060dvqg5rjrd2w4jvqgq9lwkqtep4x853jx9vtvf4p7ej9kuqlwkutw".to_owned()),
             ),
             (
                 LockingScript::new(
                     hex::decode("002037789b4c88d9941afc9f9e5057b7bfee01ea3b92789484d8d95fabd6d1460721").unwrap(),
                 ).unwrap(),
-                Address::WSH("hs1qxaufknygmx2p4lylneg90dalacq75wuj0z2gfkxet74ad52xquss6xlsqp".to_owned()),
+                Address::Wsh("hs1qxaufknygmx2p4lylneg90dalacq75wuj0z2gfkxet74ad52xquss6xlsqp".to_owned()),
             ),
             (
                 LockingScript::new(
                     hex::decode("1f283692ea54f1a4a1b2d62e7764dad69a2f4d3621e69e89f0ff61ac3e5703a478b42c2ad21618b49541").unwrap(),
                 ).unwrap(),
-                Address::OP_RETURN("hs1lx6fw54835jsm943wwajd44569axnvg0xn6ylplmp4sl9wqay0z6zc2kjzcvtf92p76v9e0".to_owned()),
+                Address::OpReturn("hs1lx6fw54835jsm943wwajd44569axnvg0xn6ylplmp4sl9wqay0z6zc2kjzcvtf92p76v9e0".to_owned()),
             ),
             (
                 LockingScript::new(
                     hex::decode("1f2849f6d14cdd3ac95baefa5f3ab65990caaf2b2eca73527f2e7aa788403a6c3d73f5cd0a623b918703").unwrap(),
                 ).unwrap(),
-                Address::OP_RETURN("hs1lf8mdznxa8ty4hth6tuatvkvse2hjktk2wdf87tn657yyqwnv84eltng2vgaerpcr54ad4t".to_owned()),
+                Address::OpReturn("hs1lf8mdznxa8ty4hth6tuatvkvse2hjktk2wdf87tn657yyqwnv84eltng2vgaerpcr54ad4t".to_owned()),
             ),
         ];
         for case in cases.iter() {
@@ -269,13 +266,13 @@ mod test {
         let cases = [
             (
                 "bc1qr0u2rqcak4zrks4yfuc2zgw3kctdqydtzh0k9dvgwg4ggkryejvsy49jvz".to_owned(),
-                Address::WSH(
+                Address::Wsh(
                     "bc1qr0u2rqcak4zrks4yfuc2zgw3kctdqydtzh0k9dvgwg4ggkryejvsy49jvz".to_owned(),
                 ),
             ),
             (
                 "bc1qr0u2rqcak4zrks4yfuc2zgw3kctdqydt3wy5yh".to_owned(),
-                Address::WPKH("bc1qr0u2rqcak4zrks4yfuc2zgw3kctdqydt3wy5yh".to_owned()),
+                Address::Wpkh("bc1qr0u2rqcak4zrks4yfuc2zgw3kctdqydt3wy5yh".to_owned()),
             ),
         ];
         for case in cases.iter() {
