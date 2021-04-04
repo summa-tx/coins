@@ -32,7 +32,7 @@ impl fmt::Display for ErrorResponse {
 
 impl From<ErrorResponse> for ProviderError {
     fn from(e: ErrorResponse) -> Self {
-        ProviderError::RPCErrorResponse(e)
+        ProviderError::RpcErrorResponse(e)
     }
 }
 
@@ -103,7 +103,7 @@ impl<R> ResponseData<R> {
 /// A JSON RPC transport
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-pub trait JsonRPCTransport: Default {
+pub trait JsonRpcTransport: Default {
     /// Return a reference to the underlying AtomicU64 used for creating request IDs
     fn id(&self) -> &AtomicU64;
 

@@ -11,7 +11,7 @@ use bitcoins::prelude::*;
 use coins_core::hashes::MarkedDigestOutput;
 
 use crate::{
-    provider::{BTCProvider, PollingBTCProvider, ProviderError},
+    provider::{BtcProvider, PollingBtcProvider, ProviderError},
     types::RawHeader,
 };
 
@@ -48,7 +48,7 @@ impl EsploraProvider {
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl BTCProvider for EsploraProvider {
+impl BtcProvider for EsploraProvider {
     async fn tip_hash(&self) -> Result<BlockHash, ProviderError> {
         let url = format!("{}/blocks/tip/hash", self.api_root);
         let response = ez_fetch_string(&self.client, &url).await?;
@@ -175,9 +175,9 @@ impl BTCProvider for EsploraProvider {
         }
     }
 
-    async fn get_utxos_by_address(&self, address: &Address) -> Result<Vec<UTXO>, ProviderError> {
+    async fn get_utxos_by_address(&self, address: &Address) -> Result<Vec<Utxo>, ProviderError> {
         let res: Result<Vec<_>, _> =
-            EsploraUTXO::fetch_by_address(&self.client, &self.api_root, address)
+            EsploraUtxo::fetch_by_address(&self.client, &self.api_root, address)
                 .await?
                 .into_iter()
                 .map(|e| e.into_utxo(address))
@@ -209,7 +209,7 @@ impl BTCProvider for EsploraProvider {
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
-impl PollingBTCProvider for EsploraProvider {
+impl PollingBtcProvider for EsploraProvider {
     fn interval(&self) -> Duration {
         self.interval
     }

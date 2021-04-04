@@ -10,7 +10,7 @@ use pin_project::pin_project;
 
 use bitcoins::prelude::*;
 
-use crate::{provider::BTCProvider, utils::new_interval, ProviderFut, DEFAULT_POLL_INTERVAL};
+use crate::{provider::BtcProvider, utils::new_interval, ProviderFut, DEFAULT_POLL_INTERVAL};
 
 /// Polls the API for the chain tip. Updates every time the tip changes
 #[pin_project(project = TipsProj)]
@@ -18,14 +18,14 @@ use crate::{provider::BTCProvider, utils::new_interval, ProviderFut, DEFAULT_POL
 pub struct Tips<'a> {
     limit: usize,
     interval: Box<dyn Stream<Item = ()> + Send + Unpin>,
-    provider: &'a dyn BTCProvider,
+    provider: &'a dyn BtcProvider,
     fut_opt: Option<ProviderFut<'a, BlockHash>>,
     last: Option<BlockHash>,
 }
 
 impl<'a> Tips<'a> {
     /// Instantiate a new Tips. Return at most `limit` new chaintips.
-    pub fn new(limit: usize, provider: &'a dyn BTCProvider) -> Self {
+    pub fn new(limit: usize, provider: &'a dyn BtcProvider) -> Self {
         let fut = Box::pin(provider.tip_hash());
         Self {
             limit,

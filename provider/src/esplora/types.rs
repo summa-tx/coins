@@ -77,7 +77,7 @@ impl EsploraTx {
 }
 
 #[derive(serde::Deserialize, Clone, Debug)]
-pub(crate) struct EsploraUTXO {
+pub(crate) struct EsploraUtxo {
     /// TXID in BE format
     pub txid: String,
     /// Index in vout
@@ -86,24 +86,24 @@ pub(crate) struct EsploraUTXO {
     pub value: usize,
 }
 
-impl EsploraUTXO {
+impl EsploraUtxo {
     pub(crate) async fn fetch_by_address(
         client: &reqwest::Client,
         api_root: &str,
         addr: &Address,
-    ) -> Result<Vec<EsploraUTXO>, FetchError> {
+    ) -> Result<Vec<EsploraUtxo>, FetchError> {
         let url = format!("{}/address/{}/utxo", api_root, addr.as_string());
         Ok(reqwest_utils::ez_fetch_json(client, &url).await?)
     }
 
-    pub(crate) fn into_utxo(self, addr: &Address) -> Result<UTXO, ProviderError> {
+    pub(crate) fn into_utxo(self, addr: &Address) -> Result<Utxo, ProviderError> {
         let script_pubkey = bitcoins::Net::decode_address(addr);
         let outpoint = BitcoinOutpoint::from_explorer_format(
             TXID::deserialize_hex(&self.txid)?,
             self.vout as u32,
         );
         let spend_script = SpendScript::from_script_pubkey(&script_pubkey);
-        Ok(UTXO::new(
+        Ok(Utxo::new(
             outpoint,
             self.value as u64,
             script_pubkey,

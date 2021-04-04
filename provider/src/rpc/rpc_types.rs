@@ -52,7 +52,7 @@ pub struct ScanTxOutParams(pub String, pub Vec<String>);
 /// The RPC UTXO in the `ScanTxOutResponse` struct
 #[allow(non_snake_case)]
 #[derive(serde::Deserialize, Debug)]
-pub struct RPCUTXO {
+pub struct RpcUtxo {
     /// the id of the tx that created the utxo
     pub txid: String,
     /// the index of the utxo in the tx's vout
@@ -65,17 +65,17 @@ pub struct RPCUTXO {
     pub height: usize,
 }
 
-impl Into<UTXO> for RPCUTXO {
-    fn into(self) -> UTXO {
+impl From<RpcUtxo> for Utxo {
+    fn from(src: RpcUtxo) -> Utxo {
         let script_pubkey =
-            ScriptPubkey::deserialize_hex(&self.scriptPubKey).expect("valid API response");
+            ScriptPubkey::deserialize_hex(&src.scriptPubKey).expect("valid API response");
         let spend_script = SpendScript::from_script_pubkey(&script_pubkey);
-        UTXO::new(
+        Utxo::new(
             BitcoinOutpoint {
-                txid: TXID::from_be_hex(&self.txid).expect("valid API respopnse"),
-                idx: self.vout,
+                txid: TXID::from_be_hex(&src.txid).expect("valid API respopnse"),
+                idx: src.vout,
             },
-            self.amount,
+            src.amount,
             script_pubkey,
             spend_script,
         )
@@ -92,5 +92,5 @@ pub struct ScanTxOutResponse {
     /// The hash of the tip at the scan
     pub bestblock: String,
     /// The unspent txns
-    pub unspents: Vec<RPCUTXO>,
+    pub unspents: Vec<RpcUtxo>,
 }
