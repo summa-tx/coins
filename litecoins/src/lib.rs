@@ -5,24 +5,24 @@ use bitcoins::{
     nets::Bitcoin,
 };
 
-pub struct LTC;
+pub struct Ltc;
 
-impl NetworkParams for LTC {
+impl NetworkParams for Ltc {
     const HRP: &'static str = "ltc";
     const PKH_VERSION: u8 = 0x30;
     const SH_VERSION: u8 = 0x30;
 }
 
-pub struct LTCTest;
+pub struct LtcTest;
 
-impl NetworkParams for LTCTest {
+impl NetworkParams for LtcTest {
     const HRP: &'static str = "tltc";
     const PKH_VERSION: u8 = 0x6f;
     const SH_VERSION: u8 = 0x3a;
 }
 
-pub type LitecoinMainEncoder = BitcoinEncoder<LTC>;
-pub type LitecoinTestEncoder = BitcoinEncoder<LTCTest>;
+pub type LitecoinMainEncoder = BitcoinEncoder<Ltc>;
+pub type LitecoinTestEncoder = BitcoinEncoder<LtcTest>;
 
 pub type LitecoinMainnet = Bitcoin<LitecoinMainEncoder>;
 pub type LitecoinTestnet = Bitcoin<LitecoinTestEncoder>;
