@@ -9,7 +9,7 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 bitvec = "0.17.4"
-coins-bip32 = { path = "../bip32" }
+coins-bip32 = "0.2.0"
 hex = "0.4.2"
 hmac = "0.10.1"
 pbkdf2 = "0.7.3"
