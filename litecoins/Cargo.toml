@@ -5,6 +5,7 @@ authors = ["James Prestwich <james@prestwi.ch>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/summa-tx/bitcoins-rs"
+description = "Litecoin transaction construction in Rust"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
