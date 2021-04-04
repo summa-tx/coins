@@ -13,7 +13,7 @@ hmac = "0.7.1"
 sha2 = "0.8.0"
 bs58 = "0.3.0"
 lazy_static = "1.4.0"
-coins-core = { path = "../core"}
+coins-core = "0.2.0"
 serde = "1.0.105"
 
 k256 = { version = "0.7.1", features = ["std", "ecdsa", "arithmetic"] }
