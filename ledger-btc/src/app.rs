@@ -1,14 +1,12 @@
-use futures::lock::Mutex;
-use coins_core::{
-    Transaction,
-};
+use crate::{utils::*, LedgerBTCError};
+use bitcoins::types::{BitcoinTxIn, Utxo, WitnessTx};
 use coins_bip32::{path::DerivationPath, prelude::*};
-use bitcoins::types::{BitcoinTxIn, WitnessTx, Utxo};
+use coins_core::Transaction;
 use coins_ledger::{
     common::{APDUAnswer, APDUCommand},
     transports::{Ledger, LedgerAsync},
 };
-use crate::{LedgerBTCError, utils::*};
+use futures::lock::Mutex;
 
 /// Info required to sign an input on the ledger, including the KeyDerivation and the prevout
 #[derive(Clone, Debug)]
@@ -20,7 +18,6 @@ pub struct SigningInfo {
     /// A reference to a key derivation if this input should be signed
     pub deriv: Option<KeyDerivation>,
 }
-
 
 /// A Signature and the index of the input if signs.
 #[derive(Clone, Debug)]
@@ -82,10 +79,7 @@ impl LedgerBTC {
     }
 
     /// Get an XPub with as much derivation info as possible.
-    pub async fn get_xpub(
-        &self,
-        deriv: &DerivationPath,
-    ) -> Result<DerivedXPub, LedgerBTCError> {
+    pub async fn get_xpub(&self, deriv: &DerivationPath) -> Result<DerivedXPub, LedgerBTCError> {
         let transport = self.transport.lock().await;
 
         let child = self.get_key_info(&transport, deriv).await?;
@@ -198,8 +192,7 @@ impl LedgerBTC {
 
         // Lock the transport and start making packets for exchange
         let transport = self.transport.lock().await;
-        let first_packet =
-            packetize_version_and_vin_length(tx.version(), tx.inputs().len() as u64);
+        let first_packet = packetize_version_and_vin_length(tx.version(), tx.inputs().len() as u64);
         let mut packets = vec![first_packet.clone()];
 
         // Packetize each inputs
@@ -225,15 +218,21 @@ impl LedgerBTC {
         // For each input that we can sign, we call `get_sig`
         for (i, info) in signing_info.iter().enumerate() {
             if let Some(deriv) = &info.deriv {
-                let sig = self.get_sig(
-                    &transport,
-                    &first_packet,
-                    tx.locktime(),
-                    &info.prevout,
-                    &tx.inputs()[i],
-                    &deriv.path,
-                ).await?;
-                sigs.push(SigInfo{ input_idx: info.input_idx, sig, deriv: deriv.clone()});
+                let sig = self
+                    .get_sig(
+                        &transport,
+                        &first_packet,
+                        tx.locktime(),
+                        &info.prevout,
+                        &tx.inputs()[i],
+                        &deriv.path,
+                    )
+                    .await?;
+                sigs.push(SigInfo {
+                    input_idx: info.input_idx,
+                    sig,
+                    deriv: deriv.clone(),
+                });
             }
         }
         Ok(sigs)

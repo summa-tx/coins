@@ -3,7 +3,10 @@ use cfg_if::cfg_if;
 use lazy_static::lazy_static;
 use thiserror::Error;
 
-use crate::{errors::LedgerError, common::{APDUAnswer, APDUCommand}};
+use crate::{
+    common::{APDUAnswer, APDUCommand},
+    errors::LedgerError,
+};
 
 use std::{ffi::CString, io::Cursor};
 
@@ -29,7 +32,6 @@ cfg_if! {
     }
 }
 
-
 const LEDGER_VID: u16 = 0x2c97;
 const LEDGER_USAGE_PAGE: u16 = 0xFFA0;
 const LEDGER_CHANNEL: u16 = 0x0101;
@@ -46,11 +48,11 @@ pub enum NativeTransportError {
     DeviceNotFound,
     /// SequenceMismatch
     #[error("Sequence mismatch. Got {got} from device. Expected {expected}")]
-    SequenceMismatch{
+    SequenceMismatch {
         /// The sequence returned by the device
         got: u16,
         /// The expected sequence
-        expected: u16
+        expected: u16,
     },
     /// Communication error
     #[error("Ledger device: communication error `{0}`")]
@@ -195,7 +197,9 @@ impl TransportNativeHID {
     }
 
     /// Read the 5-byte response header.
-    fn read_response_header(rdr: &mut Cursor<&[u8]>) -> Result<(u16, u8, u16), NativeTransportError> {
+    fn read_response_header(
+        rdr: &mut Cursor<&[u8]>,
+    ) -> Result<(u16, u8, u16), NativeTransportError> {
         let rcv_channel = rdr.read_u16::<BigEndian>()?;
         let rcv_tag = rdr.read_u8()?;
         let rcv_seq_idx = rdr.read_u16::<BigEndian>()?;
@@ -212,7 +216,9 @@ impl TransportNativeHID {
         let mut answer_buf = vec![];
 
         loop {
-            let res = self.device.read_timeout(&mut response_buffer, LEDGER_TIMEOUT)?;
+            let res = self
+                .device
+                .read_timeout(&mut response_buffer, LEDGER_TIMEOUT)?;
 
             if (sequence_idx == 0 && res < 7) || res < 5 {
                 return Err(NativeTransportError::Comm("Read error. Incomplete header"));
@@ -230,7 +236,10 @@ impl TransportNativeHID {
             //        }
 
             if rcv_seq_idx != sequence_idx {
-                return Err(NativeTransportError::SequenceMismatch{ got: rcv_seq_idx, expected: sequence_idx });
+                return Err(NativeTransportError::SequenceMismatch {
+                    got: rcv_seq_idx,
+                    expected: sequence_idx,
+                });
             }
 
             // The header packet contains the number of bytes of response data

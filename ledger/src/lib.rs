@@ -12,5 +12,8 @@ pub mod errors;
 /// Ledger transports. Contains native HID and wasm-bindgen
 pub mod transports;
 
-
-pub use {common::{APDUAnswer, APDUCommand}, errors::LedgerError, transports::Ledger};
+pub use {
+    common::{APDUAnswer, APDUCommand},
+    errors::LedgerError,
+    transports::Ledger,
+};

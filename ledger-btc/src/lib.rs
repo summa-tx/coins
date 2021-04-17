@@ -17,7 +17,7 @@ pub(crate) mod utils;
 /// Core BTC APP.
 pub mod app;
 
-pub use app::{SigningInfo, LedgerBTC};
+pub use app::{LedgerBTC, SigningInfo};
 
 use thiserror::Error;
 

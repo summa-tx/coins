@@ -16,7 +16,10 @@ pub mod native;
 #[cfg(not(target_arch = "wasm32"))]
 pub use native::NativeTransport as DefaultTransport;
 
-use crate::{errors::LedgerError, common::{APDUAnswer, APDUCommand}};
+use crate::{
+    common::{APDUAnswer, APDUCommand},
+    errors::LedgerError,
+};
 
 use async_trait::async_trait;
 
@@ -59,9 +62,8 @@ impl LedgerAsync for Ledger {
         let res = self.0.exchange(packet).await;
         log::debug!("Got response: {:#?}", &res);
         res
-   }
+    }
 }
-
 
 /*******************************************************************************
 *   (c) 2020 ZondaX GmbH

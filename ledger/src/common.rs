@@ -27,7 +27,8 @@ impl APDUData {
 
     /// Resize the data, as a vec.
     pub fn resize(&mut self, new_size: usize, fill_with: u8) {
-        self.0.resize(std::cmp::min(new_size, MAX_DATA_SIZE), fill_with)
+        self.0
+            .resize(std::cmp::min(new_size, MAX_DATA_SIZE), fill_with)
     }
 
     /// Consume the struct and get the underlying data
@@ -110,12 +111,17 @@ impl APDUCommand {
 /// exposes the retcode and response data as getters.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct APDUAnswer {
-    response: Vec<u8>
+    response: Vec<u8>,
 }
 
 impl std::fmt::Display for APDUAnswer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "APDUAnswer: {{\n\tResponse: {} \n\tData: {:?}\n}}", self.response_status(), self.data())
+        write!(
+            f,
+            "APDUAnswer: {{\n\tResponse: {} \n\tData: {:?}\n}}",
+            self.response_status(),
+            self.data()
+        )
     }
 }
 
@@ -125,7 +131,7 @@ impl APDUAnswer {
         if response.len() < 2 {
             Err(LedgerError::ResponseTooShort(response.to_vec()))
         } else {
-            Ok(Self{response})
+            Ok(Self { response })
         }
     }
 
@@ -221,17 +227,31 @@ impl APDUResponseCodes {
     pub fn description(self) -> &'static str {
         match self {
             APDUResponseCodes::NoError => "[APDU_CODE_NOERROR]",
-            APDUResponseCodes::ExecutionError => "[APDU_CODE_EXECUTION_ERROR] No information given (NV-Ram not changed)",
+            APDUResponseCodes::ExecutionError => {
+                "[APDU_CODE_EXECUTION_ERROR] No information given (NV-Ram not changed)"
+            }
             APDUResponseCodes::WrongLength => "[APDU_CODE_WRONG_LENGTH] Wrong length",
             APDUResponseCodes::EmptyBuffer => "[APDU_CODE_EMPTY_BUFFER]",
             APDUResponseCodes::OutputBufferTooSmall => "[APDU_CODE_OUTPUT_BUFFER_TOO_SMALL]",
-            APDUResponseCodes::DataInvalid => "[APDU_CODE_DATA_INVALID] data reversibly blocked (invalidated)",
-            APDUResponseCodes::ConditionsNotSatisfied => "[APDU_CODE_CONDITIONS_NOT_SATISFIED] Conditions of use not satisfied",
-            APDUResponseCodes::CommandNotAllowed => "[APDU_CODE_COMMAND_NOT_ALLOWED] Command not allowed (no current EF)",
-            APDUResponseCodes::BadKeyHandle => "[APDU_CODE_BAD_KEY_HANDLE] The parameters in the data field are incorrect",
+            APDUResponseCodes::DataInvalid => {
+                "[APDU_CODE_DATA_INVALID] data reversibly blocked (invalidated)"
+            }
+            APDUResponseCodes::ConditionsNotSatisfied => {
+                "[APDU_CODE_CONDITIONS_NOT_SATISFIED] Conditions of use not satisfied"
+            }
+            APDUResponseCodes::CommandNotAllowed => {
+                "[APDU_CODE_COMMAND_NOT_ALLOWED] Command not allowed (no current EF)"
+            }
+            APDUResponseCodes::BadKeyHandle => {
+                "[APDU_CODE_BAD_KEY_HANDLE] The parameters in the data field are incorrect"
+            }
             APDUResponseCodes::InvalidP1P2 => "[APDU_CODE_INVALIDP1P2] Wrong parameter(s) P1-P2",
-            APDUResponseCodes::InsNotSupported => "[APDU_CODE_INS_NOT_SUPPORTED] Instruction code not supported or invalid",
-            APDUResponseCodes::ClaNotSupported => "[APDU_CODE_CLA_NOT_SUPPORTED] Class not supported",
+            APDUResponseCodes::InsNotSupported => {
+                "[APDU_CODE_INS_NOT_SUPPORTED] Instruction code not supported or invalid"
+            }
+            APDUResponseCodes::ClaNotSupported => {
+                "[APDU_CODE_CLA_NOT_SUPPORTED] Class not supported"
+            }
             APDUResponseCodes::Unknown => "[APDU_CODE_UNKNOWN]",
             APDUResponseCodes::SignVerifyError => "[APDU_CODE_SIGN_VERIFY_ERROR]",
         }
@@ -241,21 +261,23 @@ impl APDUResponseCodes {
 impl From<u16> for APDUResponseCodes {
     fn from(code: u16) -> Self {
         match code {
-         0x9000 => APDUResponseCodes::NoError,
-         0x6400 => APDUResponseCodes::ExecutionError,
-         0x6700 => APDUResponseCodes::WrongLength,
-         0x6982 => APDUResponseCodes::EmptyBuffer,
-         0x6983 => APDUResponseCodes::OutputBufferTooSmall,
-         0x6984 => APDUResponseCodes::DataInvalid,
-         0x6985 => APDUResponseCodes::ConditionsNotSatisfied,
-         0x6986 => APDUResponseCodes::CommandNotAllowed,
-         0x6A80 => APDUResponseCodes::BadKeyHandle,
-         0x6B00 => APDUResponseCodes::InvalidP1P2,
-         0x6D00 => APDUResponseCodes::InsNotSupported,
-         0x6E00 => APDUResponseCodes::ClaNotSupported,
-         0x6F00 => APDUResponseCodes::Unknown,
-         0x6F01 => APDUResponseCodes::SignVerifyError,
-         _ => { panic!("Unknown APDU response code {:x}", code) }
+            0x9000 => APDUResponseCodes::NoError,
+            0x6400 => APDUResponseCodes::ExecutionError,
+            0x6700 => APDUResponseCodes::WrongLength,
+            0x6982 => APDUResponseCodes::EmptyBuffer,
+            0x6983 => APDUResponseCodes::OutputBufferTooSmall,
+            0x6984 => APDUResponseCodes::DataInvalid,
+            0x6985 => APDUResponseCodes::ConditionsNotSatisfied,
+            0x6986 => APDUResponseCodes::CommandNotAllowed,
+            0x6A80 => APDUResponseCodes::BadKeyHandle,
+            0x6B00 => APDUResponseCodes::InvalidP1P2,
+            0x6D00 => APDUResponseCodes::InsNotSupported,
+            0x6E00 => APDUResponseCodes::ClaNotSupported,
+            0x6F00 => APDUResponseCodes::Unknown,
+            0x6F01 => APDUResponseCodes::SignVerifyError,
+            _ => {
+                panic!("Unknown APDU response code {:x}", code)
+            }
         }
     }
 }
@@ -293,7 +315,6 @@ mod test {
         assert_eq!(serialized_command, expected)
     }
 }
-
 
 /*******************************************************************************
 *   (c) 2020 ZondaX GmbH

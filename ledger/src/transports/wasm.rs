@@ -9,8 +9,14 @@ use crate::{
 
 // These conditional compilation blokcs ensure that we try to import the correct transport for our
 // environment.
-#[cfg_attr(feature = "node", wasm_bindgen(module = "@ledgerhq/hw-transport-node-hid"))]
-#[cfg_attr(feature = "browser", wasm_bindgen(module = "@ledgerhq/hw-transport-u2f"))]
+#[cfg_attr(
+    feature = "node",
+    wasm_bindgen(module = "@ledgerhq/hw-transport-node-hid")
+)]
+#[cfg_attr(
+    feature = "browser",
+    wasm_bindgen(module = "@ledgerhq/hw-transport-u2f")
+)]
 extern "C" {
     // NB:
     // This causes the JS glue to bind the variable `default1`
@@ -40,9 +46,7 @@ pub struct LedgerTransport(Transport);
 impl LedgerTransport {
     /// Send an APDU command to the device, and receive a response
     pub async fn exchange(&self, apdu_command: &APDUCommand) -> Result<APDUAnswer, LedgerError> {
-        let promise = self
-            .0
-            .exchange(&apdu_command.serialize());
+        let promise = self.0.exchange(&apdu_command.serialize());
 
         let future = JsFuture::from(promise);
 
@@ -84,16 +88,14 @@ impl LedgerTransport {
             response_len: None,
         };
 
-        let answer = self.exchange(&command)
+        let answer = self
+            .exchange(&command)
             .await
             .map_err(|e| JsValue::from_str(&format!("{:?}", e)))?;
         let payload = answer.data().unwrap_or(&[]);
         Ok(js_sys::Uint8Array::from(payload))
     }
 }
-
-
-
 
 /*******************************************************************************
 *   (c) 2020 ZondaX GmbH

@@ -2,7 +2,6 @@ use thiserror::Error;
 
 use crate::common::APDUResponseCodes;
 
-
 /// APDU-related errors
 #[derive(Debug, Error)]
 pub enum LedgerError {
@@ -22,7 +21,7 @@ pub enum LedgerError {
     /// Native transport error type.
     #[error(transparent)]
     #[cfg(not(target_arch = "wasm32"))]
-    NativeTransportError(#[from] crate::transports::hid::NativeTransportError)
+    NativeTransportError(#[from] crate::transports::hid::NativeTransportError),
 }
 
 #[cfg(target_arch = "wasm32")]

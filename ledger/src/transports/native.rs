@@ -1,6 +1,6 @@
 use crate::{
-    errors::LedgerError,
     common::{APDUAnswer, APDUCommand},
+    errors::LedgerError,
     transports::hid,
 };
 
@@ -15,12 +15,9 @@ impl NativeTransport {
 
     /// Send an APDU command to the device, and receive a response
     pub async fn exchange(&self, command: &APDUCommand) -> Result<APDUAnswer, LedgerError> {
-        self.0
-            .exchange(command)
-            .map_err(Into::into)
+        self.0.exchange(command).map_err(Into::into)
     }
 }
-
 
 /*******************************************************************************
 *   (c) 2020 ZondaX GmbH
