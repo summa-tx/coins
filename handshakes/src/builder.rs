@@ -4,11 +4,7 @@
 
 use std::marker::PhantomData;
 
-use coins_core::{
-    builder::TxBuilder,
-    enc::{AddressEncoder, EncodingResult},
-    types::tx::Transaction,
-};
+use coins_core::{builder::TxBuilder, enc::AddressEncoder, types::tx::Transaction};
 
 use crate::{
     enc::encoder::{Address, HandshakeEncoderMarker},
@@ -80,16 +76,11 @@ where
     }
 
     /// Add an output paying `value` to `address` with a covenant
-    pub fn pay_covenant(
-        mut self,
-        value: u64,
-        address: &Address,
-        covenant: Covenant,
-    ) -> EncodingResult<Self> {
+    pub fn pay_covenant(mut self, value: u64, address: &Address, covenant: Covenant) -> Self {
         let locking_script = T::decode_address(&address);
         let output = TxOut::new(value, locking_script, covenant);
         self.vout.push(output);
-        Ok(self)
+        self
     }
 }
 
@@ -200,5 +191,45 @@ where
             self.witnesses,
             self.locktime,
         )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use coins_core::{builder::TxBuilder, nets::Network, ByteFormat};
+    use std::convert::TryFrom;
+
+    use crate::{
+        types::{Covenant, CovenantData, CovenantType, HandshakeTx, Outpoint},
+        HandshakeMainnet,
+    };
+
+    #[test]
+    fn builder_api() {
+        // Create a covenant
+        let covenant = Covenant {
+            covenant_type: CovenantType::try_from("NONE").unwrap(),
+            covenant_data: CovenantData::null(),
+        };
+        // Create an address
+        let address =
+            HandshakeMainnet::string_to_address("hs1qcu0cff5ma6uxgy0ffkmgsj28ucqwtqt9eqnp06")
+                .unwrap();
+        // Build a transaction
+        let tx = HandshakeMainnet::tx_builder()
+            .spend(Outpoint::default(), 0x00000000)
+            .pay_covenant(0x8000_0000, &address, covenant)
+            .build()
+            .unwrap();
+
+        assert_eq!(tx.version, 0);
+        assert_eq!(tx.vin.len(), 1);
+        assert_eq!(tx.vout.len(), 1);
+        assert_eq!(tx.vout[0].value, 0x8000_0000);
+
+        let hex = tx.serialize_hex();
+        let serialized = HandshakeTx::deserialize_hex(&hex).unwrap();
+
+        assert_eq!(tx, serialized);
     }
 }
