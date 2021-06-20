@@ -11,8 +11,7 @@ use std::io::{Read, Write};
 /// The LockingScript encodes spending constraints.
 ///
 /// `TxOut::null()` and `TxOut::default()` return the "null" TxOut, which has a value of
-/// 0xffff_ffff_ffff_ffff, and an empty `script_pubkey`. This null output is used within legacy
-/// sighash calculations.
+/// 0x00, an empty `locking_script` and an empty `covenant`.
 #[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Eq, PartialEq)]
 pub struct TxOut {
     /// The value of the output in dollarydoos.
