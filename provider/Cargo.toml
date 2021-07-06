@@ -1,6 +1,6 @@
 [package]
 name = "bitcoins-provider"
-version = "0.2.2"
+version = "0.3.0"
 authors = ["James Prestwich <james@prestwi.ch>"]
 edition = "2018"
 repository = "https://github.com/summa-tx/bitcoins-rs"
@@ -18,7 +18,7 @@ pin-project = { version = "0.4.20", default-features = false }
 lru = { version = "0.5.2" }
 
 # other projects in this workspace
-coins-core = {version = "0.2.0", path = "../core"}
+coins-core = {version = "0.3.0", path = "../core"}
 bitcoins = {version = "0.3.0", path= "../bitcoins"}
 
 # RPC only

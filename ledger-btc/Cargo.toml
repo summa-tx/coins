@@ -1,6 +1,6 @@
 [package]
 name = "bitcoins-ledger"
-version = "0.2.2"
+version = "0.3.0"
 authors = ["James Prestwich <james@prestwi.ch>"]
 edition = "2018"
 categories  = ["authentication", "cryptography"]
@@ -20,7 +20,7 @@ tokio = {version = "0.2.22", features = ["rt-threaded", "macros"]}
 [dependencies]
 thiserror = "1.0.10"
 futures = "0.3.5"
-coins-core = "0.2.0"
+coins-core = {version = "0.3.0", path = "../core"}
 coins-bip32 = { version = "0.3.0", path = "../bip32",default-features =  false }
 bitcoins = { version = "0.3.0",path = "../bitcoins", default-features =  false }
 coins-ledger = { version = "0.2.0", default-features =  false }

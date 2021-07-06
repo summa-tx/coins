@@ -11,7 +11,7 @@ description = "Litecoin transaction construction in Rust"
 
 [dependencies]
 bitcoins = {version = "0.3.0", path= "../bitcoins"}
-coins-core = "0.2.0"
+coins-core = {version = "0.3.0", path = "../core"}
 
 # https://github.com/rustwasm/wasm-pack/issues/886#issuecomment-667669802
 [package.metadata.wasm-pack.profile.release]

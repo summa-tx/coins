@@ -14,7 +14,7 @@ base58check = "0.1.0"
 thiserror = "1.0"
 serde = "1.0.105"
 
-coins-core = {version ="0.2.2", path = "../core"}
+coins-core = {version ="0.3.0", path = "../core"}
 coins-bip32 = { version = "0.3.0", path = "../bip32", default-features =  false }
 
 [features]
