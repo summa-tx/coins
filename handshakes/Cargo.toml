@@ -1,6 +1,6 @@
 [package]
 name = "handshakes"
-version = "0.2.3"
+version = "0.2.4"
 authors = ["Mark Tyneway <mark.tyneway@gmail.com>"]
 edition = "2018"
 description = "Handshake transaction construction in Rust"
@@ -18,5 +18,5 @@ serde = "1.0.105"
 
 
 coins-core = "0.2.0"
-coins-bip32 = { version = "0.2.0", default-features =  false }
-bitcoins =  "0.2.0"
+coins-bip32 = { version = "0.3.0", path ="../bip32",default-features =  false }
+bitcoins =  {version = "0.3.0", path="../bitcoins"}

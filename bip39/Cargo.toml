@@ -1,6 +1,6 @@
 [package]
 name = "coins-bip39"
-version = "0.2.2"
+version = "0.3.0"
 authors = ["Rohit Narurkar <rohit.narurkar@protonmail.com>"]
 edition = "2018"
 description = "Bip39 in Rust"
@@ -9,10 +9,10 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 bitvec = "0.17.4"
-coins-bip32 = "0.2.0"
+coins-bip32 = {version ="0.3.0",path = "../bip32"}
 hex = "0.4.2"
-hmac = "0.10.1"
-pbkdf2 = "0.7.3"
-rand = "0.7.0"
+hmac = "0.11.0"
+pbkdf2 = "0.8.0"
+rand = "0.8.4"
 sha2 = "0.9.3"
 thiserror = "1.0"

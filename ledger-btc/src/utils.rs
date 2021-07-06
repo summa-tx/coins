@@ -1,6 +1,6 @@
-use bitcoins::types::{BitcoinTxIn, ScriptType, SpendScript, TxOut, Utxo};
+use bitcoins::{prelude::ByteFormat, types::{BitcoinTxIn, ScriptType, SpendScript, TxOut, Utxo}};
 use coins_bip32::{path::DerivationPath, prelude::*};
-use coins_core::ser::{self, ByteFormat};
+use coins_core::ser;
 use coins_ledger::common::{APDUAnswer, APDUCommand, APDUData};
 
 use crate::LedgerBTCError;
@@ -151,7 +151,7 @@ pub(crate) fn parse_sig(answer: &APDUAnswer) -> Result<Signature, LedgerBTCError
         .ok_or(LedgerBTCError::UnexpectedNullResponse)?
         .to_vec();
     sig[0] &= 0xfe;
-    Ok(Signature::from_asn1(&sig[..sig.len() - 1]).map_err(Bip32Error::from)?)
+    Ok(Signature::from_der(&sig[..sig.len() - 1]).map_err(Bip32Error::from)?)
 }
 
 pub(crate) fn should_sign(xpub: &DerivedXPub, signing_info: &[crate::app::SigningInfo]) -> bool {

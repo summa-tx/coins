@@ -10,7 +10,7 @@ description = "Litecoin transaction construction in Rust"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bitcoins = "0.2.0"
+bitcoins = {version = "0.3.0", path= "../bitcoins"}
 coins-core = "0.2.0"
 
 # https://github.com/rustwasm/wasm-pack/issues/886#issuecomment-667669802

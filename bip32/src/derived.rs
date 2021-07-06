@@ -544,11 +544,11 @@ mod test {
             88, 150, 169, 207, 206, 194, 195, 181, 114, 208, 131, 113, 168, 68, 23, 157, 22, 133,
             212, 235, 131, 6, 145, 26, 162, 81, 0,
         ];
-        assert_eq!(Signature::from(sig.clone()).to_asn1().as_bytes(), der_sig);
+        assert_eq!(Signature::from(sig.clone()).to_der().as_bytes(), der_sig);
         assert_eq!(sig.as_ref(), rsv);
         assert_eq!(
             Signature::from(sig),
-            Signature::from_asn1(&der_sig).unwrap(),
+            Signature::from_der(&der_sig).unwrap(),
         );
         assert_eq!(sig, RecoverableSignature::from_bytes(&rsv).unwrap());
     }
