@@ -1,7 +1,6 @@
-use bitcoins::types::{BitcoinTxIn, Script, ScriptPubkey, SpendScript, Utxo, WitnessTx};
+use bitcoins::{prelude::ByteFormat, types::{BitcoinTxIn, Script, ScriptPubkey, SpendScript, Utxo, WitnessTx}};
 use bitcoins_ledger::*;
 use coins_bip32::{derived::DerivedKey, enc::XKeyEncoder, path::KeyDerivation};
-use coins_core::ser::ByteFormat;
 
 use serial_test::serial;
 

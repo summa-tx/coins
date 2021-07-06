@@ -23,9 +23,9 @@ fn hmac_and_split(
     seed: &[u8],
     data: &[u8],
 ) -> Result<(k256::NonZeroScalar, ChainCode), Bip32Error> {
-    let mut mac = Hmac::<Sha512>::new_varkey(seed).expect("key length is ok");
-    mac.input(data);
-    let result = mac.result().code();
+    let mut mac:Hmac::<Sha512> = hmac::NewMac::new_from_slice(seed).expect("key length is ok");
+    mac.update(data);
+    let result = mac.finalize().into_bytes();
 
     let left = k256::NonZeroScalar::try_from(&result[..32])?;
 
@@ -122,7 +122,7 @@ impl XPriv {
     /// Derive the associated XPub
     pub fn verify_key(&self) -> XPub {
         XPub {
-            key: self.key.verify_key(),
+            key: self.key.verifying_key(),
             xkey_info: self.xkey_info,
         }
     }
@@ -224,7 +224,7 @@ impl Parent for XPriv {
             data.extend(&key.to_bytes());
             data.extend(&index.to_be_bytes());
         } else {
-            data.extend(&key.verify_key().to_bytes());
+            data.extend(&key.verifying_key().to_bytes());
             data.extend(&index.to_be_bytes());
         };
 
