@@ -16,3 +16,8 @@ pbkdf2 = "0.8.0"
 rand = "0.8.4"
 sha2 = "0.9.3"
 thiserror = "1.0"
+
+[target.'cfg(target_arch = "wasm32")'.dependencies.getrandom]
+version = "0.2.3"
+default-features = false
+features=["js"]
