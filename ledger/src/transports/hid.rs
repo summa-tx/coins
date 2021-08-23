@@ -283,10 +283,10 @@ impl TransportNativeHID {
         let answer_buf = self.read_response_apdu(LEDGER_CHANNEL)?;
 
         let apdu_answer = APDUAnswer::from_answer(answer_buf)?;
-        if apdu_answer.is_success() {
-            Ok(apdu_answer)
-        } else {
-            Err(apdu_answer.response_status().into())
+
+        match apdu_answer.response_status() {
+            None => Ok(apdu_answer),
+            Some(response) => Err(response.into()),
         }
     }
 

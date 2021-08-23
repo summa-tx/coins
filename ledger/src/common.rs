@@ -1,3 +1,5 @@
+use std::convert::{TryFrom, TryInto};
+
 use crate::errors::LedgerError;
 
 const MAX_DATA_SIZE: usize = 255;
@@ -118,7 +120,7 @@ impl std::fmt::Display for APDUAnswer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "APDUAnswer: {{\n\tResponse: {} \n\tData: {:?}\n}}",
+            "APDUAnswer: {{\n\tResponse: {:?} \n\tData: {:?}\n}}",
             self.response_status(),
             self.data()
         )
@@ -147,7 +149,10 @@ impl APDUAnswer {
 
     /// Return false if the response status is an error.
     pub fn is_success(&self) -> bool {
-        self.response_status().is_success()
+        match self.response_status() {
+            Some(opcode) => opcode.is_success(),
+            None => false,
+        }
     }
 
     /// Get the integer response code from the response packet.
@@ -162,8 +167,8 @@ impl APDUAnswer {
     /// Return the Response code
     ///
     /// Panics on unknown retcode.
-    pub fn response_status(&self) -> APDUResponseCodes {
-        self.retcode().into()
+    pub fn response_status(&self) -> Option<APDUResponseCodes> {
+        self.retcode().try_into().ok()
     }
 
     /// Return a reference to the response data, or None if the response errored
@@ -263,27 +268,27 @@ impl APDUResponseCodes {
     }
 }
 
-impl From<u16> for APDUResponseCodes {
-    fn from(code: u16) -> Self {
+impl TryFrom<u16> for APDUResponseCodes {
+    type Error = LedgerError;
+
+    fn try_from(code: u16) -> Result<Self, Self::Error> {
         match code {
-            0x9000 => APDUResponseCodes::NoError,
-            0x6400 => APDUResponseCodes::ExecutionError,
-            0x6700 => APDUResponseCodes::WrongLength,
-            0x6804 => APDUResponseCodes::UnlockDeviceError,
-            0x6982 => APDUResponseCodes::EmptyBuffer,
-            0x6983 => APDUResponseCodes::OutputBufferTooSmall,
-            0x6984 => APDUResponseCodes::DataInvalid,
-            0x6985 => APDUResponseCodes::ConditionsNotSatisfied,
-            0x6986 => APDUResponseCodes::CommandNotAllowed,
-            0x6A80 => APDUResponseCodes::BadKeyHandle,
-            0x6B00 => APDUResponseCodes::InvalidP1P2,
-            0x6D00 => APDUResponseCodes::InsNotSupported,
-            0x6E00 => APDUResponseCodes::ClaNotSupported,
-            0x6F00 => APDUResponseCodes::Unknown,
-            0x6F01 => APDUResponseCodes::SignVerifyError,
-            _ => {
-                panic!("Unknown APDU response code {:x}", code)
-            }
+            0x9000 => Ok(APDUResponseCodes::NoError),
+            0x6400 => Ok(APDUResponseCodes::ExecutionError),
+            0x6700 => Ok(APDUResponseCodes::WrongLength),
+            0x6804 => Ok(APDUResponseCodes::UnlockDeviceError),
+            0x6982 => Ok(APDUResponseCodes::EmptyBuffer),
+            0x6983 => Ok(APDUResponseCodes::OutputBufferTooSmall),
+            0x6984 => Ok(APDUResponseCodes::DataInvalid),
+            0x6985 => Ok(APDUResponseCodes::ConditionsNotSatisfied),
+            0x6986 => Ok(APDUResponseCodes::CommandNotAllowed),
+            0x6A80 => Ok(APDUResponseCodes::BadKeyHandle),
+            0x6B00 => Ok(APDUResponseCodes::InvalidP1P2),
+            0x6D00 => Ok(APDUResponseCodes::InsNotSupported),
+            0x6E00 => Ok(APDUResponseCodes::ClaNotSupported),
+            0x6F00 => Ok(APDUResponseCodes::Unknown),
+            0x6F01 => Ok(APDUResponseCodes::SignVerifyError),
+            _ => Err(LedgerError::UnknownAPDUCode(code)),
         }
     }
 }

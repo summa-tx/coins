@@ -13,6 +13,10 @@ pub enum LedgerError {
     #[error("Ledger device: APDU Response error `{0}`")]
     BadRetcode(APDUResponseCodes),
 
+    /// Ledger returned an unknown APDU
+    #[error("Ledger returned an unknown response status code {0:x}. This is a bug. Please file an issue at https://github.com/summa-tx/bitcoins-rs/issues")]
+    UnknownAPDUCode(u16),
+
     /// JsValue Error
     #[error("JsValue Error: {0}")]
     #[cfg(target_arch = "wasm32")]
