@@ -187,6 +187,8 @@ pub enum APDUResponseCodes {
     ExecutionError = 0x6400,
     /// WrongLength
     WrongLength = 0x6700,
+    /// UnlockDeviceError
+    UnlockDeviceError = 0x6804,
     /// EmptyBuffer
     EmptyBuffer = 0x6982,
     /// OutputBufferTooSmall
@@ -231,6 +233,9 @@ impl APDUResponseCodes {
                 "[APDU_CODE_EXECUTION_ERROR] No information given (NV-Ram not changed)"
             }
             APDUResponseCodes::WrongLength => "[APDU_CODE_WRONG_LENGTH] Wrong length",
+            APDUResponseCodes::UnlockDeviceError => {
+                "[APDU_CODE_UNLOCK_DEVICE_ERROR] Device is locked"
+            }
             APDUResponseCodes::EmptyBuffer => "[APDU_CODE_EMPTY_BUFFER]",
             APDUResponseCodes::OutputBufferTooSmall => "[APDU_CODE_OUTPUT_BUFFER_TOO_SMALL]",
             APDUResponseCodes::DataInvalid => {
@@ -264,6 +269,7 @@ impl From<u16> for APDUResponseCodes {
             0x9000 => APDUResponseCodes::NoError,
             0x6400 => APDUResponseCodes::ExecutionError,
             0x6700 => APDUResponseCodes::WrongLength,
+            0x6804 => APDUResponseCodes::UnlockDeviceError,
             0x6982 => APDUResponseCodes::EmptyBuffer,
             0x6983 => APDUResponseCodes::OutputBufferTooSmall,
             0x6984 => APDUResponseCodes::DataInvalid,
