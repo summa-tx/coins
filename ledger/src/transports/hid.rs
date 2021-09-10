@@ -286,7 +286,13 @@ impl TransportNativeHID {
 
         match apdu_answer.response_status() {
             None => Ok(apdu_answer),
-            Some(response) => Err(response.into()),
+            Some(response) => {
+                if response.is_success() {
+                    Ok(apdu_answer)
+                } else {
+                    Err(response.into())
+                }
+            }
         }
     }
 
