@@ -8,8 +8,6 @@ Windows is not yet supported.
 
 ### Native
 - Install dependencies
-  - Linux
-    - `$ sudo apt-get install libudev-dev libusb-1.0-0-dev`
   - OSX
     - TODO
     - please file an issue if you know. I don't have a macbook :)

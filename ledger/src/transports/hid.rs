@@ -11,7 +11,7 @@ use crate::{
 use std::{ffi::CString, io::Cursor};
 
 use byteorder::{BigEndian, ReadBytesExt};
-use hidapi::HidDevice;
+use hidapi_rusb::HidDevice;
 use std::cell::RefCell;
 use std::sync::{Arc, Mutex, Weak};
 
@@ -65,21 +65,21 @@ pub enum NativeTransportError {
     Io(#[from] std::io::Error),
     /// HID error
     #[error(transparent)]
-    Hid(#[from] hidapi::HidError),
+    Hid(#[from] hidapi_rusb::HidError),
     /// UT8F error
     #[error(transparent)]
     UTF8(#[from] std::str::Utf8Error),
 }
 
 struct HidApiWrapper {
-    _api: RefCell<Weak<Mutex<hidapi::HidApi>>>,
+    _api: RefCell<Weak<Mutex<hidapi_rusb::HidApi>>>,
 }
 
 #[allow(dead_code)]
 /// The transport struct. Holds a `Mutex` on the underlying `HidAPI` instance. Instantiate with
 /// `new`.
 pub struct TransportNativeHID {
-    api_mutex: Arc<Mutex<hidapi::HidApi>>,
+    api_mutex: Arc<Mutex<hidapi_rusb::HidApi>>,
     device: HidDevice,
     guard: Mutex<i32>,
 }
@@ -98,13 +98,13 @@ impl HidApiWrapper {
         }
     }
 
-    fn get(&self) -> Result<Arc<Mutex<hidapi::HidApi>>, NativeTransportError> {
+    fn get(&self) -> Result<Arc<Mutex<hidapi_rusb::HidApi>>, NativeTransportError> {
         let tmp = self._api.borrow().upgrade();
         if let Some(api_mutex) = tmp {
             return Ok(api_mutex);
         }
 
-        let hidapi = hidapi::HidApi::new()?;
+        let hidapi = hidapi_rusb::HidApi::new()?;
         let tmp = Arc::new(Mutex::new(hidapi));
         self._api.replace(Arc::downgrade(&tmp));
         Ok(tmp)
@@ -113,7 +113,7 @@ impl HidApiWrapper {
 
 impl TransportNativeHID {
     #[cfg(not(target_os = "linux"))]
-    fn find_ledger_device_path(api: &hidapi::HidApi) -> Result<CString, NativeTransportError> {
+    fn find_ledger_device_path(api: &hidapi_rusb::HidApi) -> Result<CString, NativeTransportError> {
         for device in api.device_list() {
             if device.vendor_id() == LEDGER_VID && device.usage_page() == LEDGER_USAGE_PAGE {
                 return Ok(device.path().into());
@@ -123,7 +123,7 @@ impl TransportNativeHID {
     }
 
     #[cfg(target_os = "linux")]
-    fn find_ledger_device_path(api: &hidapi::HidApi) -> Result<CString, NativeTransportError> {
+    fn find_ledger_device_path(api: &hidapi_rusb::HidApi) -> Result<CString, NativeTransportError> {
         for device in api.device_list() {
             if device.vendor_id() == LEDGER_VID {
                 let usage_page = get_usage_page(&device.path())?;
@@ -141,7 +141,7 @@ impl TransportNativeHID {
         Self::find_ledger_device_path(&self.api_mutex.lock().unwrap())
     }
 
-    /// Get a new TransportNativeHID by acquiring a lock on the global `hidapi::HidAPI`.
+    /// Get a new TransportNativeHID by acquiring a lock on the global `hidapi_rusb::HidAPI`.
     /// Note that this may block forever if the resource is in use.
     pub fn new() -> Result<Self, NativeTransportError> {
         let apiwrapper = HIDAPIWRAPPER.lock().expect("Could not lock api wrapper");
