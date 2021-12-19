@@ -33,6 +33,8 @@ cfg_if! {
 }
 
 const LEDGER_VID: u16 = 0x2c97;
+
+#[cfg(not(target_os = "linux"))]
 const LEDGER_USAGE_PAGE: u16 = 0xFFA0;
 const LEDGER_CHANNEL: u16 = 0x0101;
 const LEDGER_PACKET_SIZE: u8 = 64;
@@ -126,10 +128,7 @@ impl TransportNativeHID {
     fn find_ledger_device_path(api: &hidapi_rusb::HidApi) -> Result<CString, NativeTransportError> {
         for device in api.device_list() {
             if device.vendor_id() == LEDGER_VID {
-                let usage_page = get_usage_page(&device.path())?;
-                if usage_page == LEDGER_USAGE_PAGE {
-                    return Ok(device.path().into());
-                }
+                return Ok(device.path().into());
             }
         }
         Err(NativeTransportError::DeviceNotFound)
@@ -313,6 +312,7 @@ if #[cfg(target_os = "linux")] {
         value: [u8; HID_MAX_DESCRIPTOR_SIZE],
     }
 
+    #[cfg(not(target_os = "linux"))]
     fn get_usage_page(device_path: &CStr) -> Result<u16, NativeTransportError>
     {
         // #define HIDIOCGRDESCSIZE	_IOR('H', 0x01, int)
