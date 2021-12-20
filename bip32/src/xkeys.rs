@@ -237,7 +237,7 @@ impl Parent for XPriv {
         let parent_key = k256::NonZeroScalar::from_repr(key.to_bytes()).unwrap();
         let tweaked = tweak.clone().add(&parent_key);
 
-        let tweaked = k256::NonZeroScalar::new(tweaked).ok_or(Bip32Error::BadTweak)?;
+        let tweaked: k256::NonZeroScalar = Option::from(k256::NonZeroScalar::new(tweaked)).ok_or(Bip32Error::BadTweak)?;
 
         Ok(Self {
             key: ecdsa::SigningKey::from(tweaked),
