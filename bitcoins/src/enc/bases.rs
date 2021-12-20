@@ -19,7 +19,7 @@ pub fn encode_bech32(hrp: &str, v: &[u8]) -> EncodingResult<String> {
         return Err(EncodingError::UnknownScriptType);
     };
 
-    core_encode_bech32(hrp, version_and_len[0], &payload)
+    core_encode_bech32(hrp, version_and_len[0], payload)
 }
 
 /// Decode a witness program from a bech32 string. Caller specifies an expected HRP. If a

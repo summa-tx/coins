@@ -93,7 +93,7 @@ impl APDUCommand {
         w.write_all(&[0xE0, self.ins, self.p1, self.p2])?;
         if !self.data.is_empty() {
             w.write_all(&[self.data.len() as u8])?;
-            w.write_all(&self.data.as_ref())?;
+            w.write_all(self.data.as_ref())?;
         }
         if let Some(response_len) = self.response_len {
             w.write_all(&[response_len])?;

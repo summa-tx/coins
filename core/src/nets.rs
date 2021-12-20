@@ -76,12 +76,12 @@ pub trait Network {
 
     /// Encode an address using the network's `Address` semantics
     fn encode_address(a: &Self::RecipientIdentifier) -> Result<Self::Address, Self::Error> {
-        Self::Encoder::encode_address(&a)
+        Self::Encoder::encode_address(a)
     }
 
     /// Decode an address using the network's `Address` semantics
     fn decode_address(addr: &Self::Address) -> Self::RecipientIdentifier {
-        Self::Encoder::decode_address(&addr)
+        Self::Encoder::decode_address(addr)
     }
 
     /// Attempt to convert a string into an `Address`.

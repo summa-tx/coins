@@ -174,7 +174,7 @@ impl<W: Wordlist> Mnemonic<W> {
         let mut seed = vec![0u8; PBKDF2_BYTES];
         let salt = format!("mnemonic{}", password.unwrap_or(""));
         pbkdf2::<Hmac<Sha512>>(
-            &self.to_phrase()?.as_bytes(),
+            self.to_phrase()?.as_bytes(),
             salt.as_bytes(),
             PBKDF2_ROUNDS,
             &mut seed,

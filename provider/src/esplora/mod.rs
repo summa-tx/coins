@@ -196,7 +196,7 @@ impl BtcProvider for EsploraProvider {
                     .merkle
                     .iter()
                     .map(|s| {
-                        Hash256Digest::from_be_hex(&s).expect("No malformed txids in api response")
+                        Hash256Digest::from_be_hex(s).expect("No malformed txids in api response")
                     })
                     .collect();
                 Ok(Some((proof.pos, ids)))

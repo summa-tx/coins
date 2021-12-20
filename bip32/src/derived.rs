@@ -18,7 +18,7 @@ pub trait DerivedKey {
     /// `true` if the keys share a root fingerprint, `false` otherwise. Note that on key
     /// fingerprints, which may collide accidentally, or be intentionally collided.
     fn same_root<K: DerivedKey>(&self, other: &K) -> bool {
-        self.derivation().same_root(&other.derivation())
+        self.derivation().same_root(other.derivation())
     }
 
     /// `true` if this key is a possible ancestor of the argument, `false` otherwise.
@@ -30,7 +30,7 @@ pub trait DerivedKey {
     /// `DerivedXPub::is_public_ancestor_of()`
     fn is_possible_ancestor_of<K: DerivedKey>(&self, other: &K) -> bool {
         self.derivation()
-            .is_possible_ancestor_of(&other.derivation())
+            .is_possible_ancestor_of(other.derivation())
     }
 
     /// Returns the path to the descendant, or `None` if the argument is definitely not a
@@ -38,7 +38,7 @@ pub trait DerivedKey {
     ///
     /// This is useful for determining the path to reach some descendant from some ancestor.
     fn path_to_descendant<K: DerivedKey>(&self, other: &K) -> Option<DerivationPath> {
-        self.derivation().path_to_descendant(&other.derivation())
+        self.derivation().path_to_descendant(other.derivation())
     }
 }
 
@@ -546,10 +546,7 @@ mod test {
         ];
         assert_eq!(Signature::from(sig.clone()).to_der().as_bytes(), der_sig);
         assert_eq!(sig.as_ref(), rsv);
-        assert_eq!(
-            Signature::from(sig),
-            Signature::from_der(&der_sig).unwrap(),
-        );
+        assert_eq!(Signature::from(sig), Signature::from_der(&der_sig).unwrap(),);
         assert_eq!(sig, RecoverableSignature::from_bytes(&rsv).unwrap());
     }
 

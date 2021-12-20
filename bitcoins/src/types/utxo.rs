@@ -162,15 +162,12 @@ impl Utxo {
     /// It is safe to unwrap this Option if the signing script is PKH, or WPKH, or if the
     /// underlying witness or redeem script is `Known`.
     pub fn sighash_args(&self, index: usize, flag: Sighash) -> Option<LegacySighashArgs> {
-        if let Some(prevout_script) = self.signing_script() {
-            Some(LegacySighashArgs {
+        self.signing_script()
+            .map(|prevout_script| LegacySighashArgs {
                 index,
                 sighash_flag: flag,
                 prevout_script,
             })
-        } else {
-            None
-        }
     }
 
     /// Construct `WitnessSighashArgs` from this UTXO. Returns `None` if the prevout is WSH or SH
@@ -178,15 +175,12 @@ impl Utxo {
     /// It is safe to unwrap this Option if the signing script is PKH, or WPKH, or if the
     /// underlying witness or redeem script is `Known`.
     pub fn witness_sighash_args(&self, index: usize, flag: Sighash) -> Option<WitnessSighashArgs> {
-        if let Some(prevout_script) = self.signing_script() {
-            Some(WitnessSighashArgs {
+        self.signing_script()
+            .map(|prevout_script| WitnessSighashArgs {
                 index,
                 sighash_flag: flag,
                 prevout_script,
                 prevout_value: self.value,
             })
-        } else {
-            None
-        }
     }
 }

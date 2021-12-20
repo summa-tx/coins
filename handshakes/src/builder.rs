@@ -77,7 +77,7 @@ where
 
     /// Add an output paying `value` to `address` with a covenant
     pub fn pay_covenant(mut self, value: u64, address: &Address, covenant: Covenant) -> Self {
-        let locking_script = T::decode_address(&address);
+        let locking_script = T::decode_address(address);
         let output = TxOut::new(value, locking_script, covenant);
         self.vout.push(output);
         self
@@ -138,7 +138,7 @@ where
     }
 
     fn pay(self, value: u64, address: &Address) -> Self {
-        let locking_script = T::decode_address(&address);
+        let locking_script = T::decode_address(address);
         self.pay_locking_script(value, locking_script)
     }
 

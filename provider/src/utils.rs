@@ -116,7 +116,7 @@ pub fn create_tree(leaves: &[TXID]) -> Vec<TXID> {
 /// Create a merkle branch from an index and a txid list.
 pub fn create_branch(index: usize, leaves: &[TXID]) -> Vec<Hash256Digest> {
     let mut size = leaves.len();
-    let nodes = create_tree(&leaves);
+    let nodes = create_tree(leaves);
 
     let mut idx = index;
     let mut branch: Vec<Hash256Digest> = vec![];

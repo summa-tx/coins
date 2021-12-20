@@ -167,7 +167,7 @@ where
     }
 
     fn pay(self, value: u64, address: &Address) -> Self {
-        let script_pubkey = T::decode_address(&address);
+        let script_pubkey = T::decode_address(address);
         self.pay_script_pubkey(value, script_pubkey)
     }
 

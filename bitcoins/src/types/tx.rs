@@ -276,7 +276,7 @@ impl BitcoinTransaction for BitcoinTx {
     fn as_legacy(&self) -> &LegacyTx {
         match self {
             BitcoinTx::Witness(tx) => tx.as_legacy(),
-            BitcoinTx::Legacy(tx) => &tx,
+            BitcoinTx::Legacy(tx) => tx,
         }
     }
 

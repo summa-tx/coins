@@ -1,4 +1,7 @@
-use bitcoins::{prelude::ByteFormat, types::{BitcoinTxIn, ScriptType, SpendScript, TxOut, Utxo}};
+use bitcoins::{
+    prelude::ByteFormat,
+    types::{BitcoinTxIn, ScriptType, SpendScript, TxOut, Utxo},
+};
 use coins_bip32::{path::DerivationPath, prelude::*};
 use coins_core::ser;
 use coins_ledger::common::{APDUAnswer, APDUCommand, APDUData};
@@ -35,8 +38,7 @@ pub(crate) fn parse_pubkey_response(deriv: &DerivationPath, data: &[u8]) -> Inte
 
 // Convert a derivation path to its apdu data format
 pub(crate) fn derivation_path_to_apdu_data(deriv: &DerivationPath) -> APDUData {
-    let mut buf = vec![];
-    buf.push(deriv.len() as u8);
+    let mut buf = vec![deriv.len() as u8];
     for idx in deriv.iter() {
         buf.extend(&idx.to_be_bytes());
     }
@@ -99,7 +101,7 @@ pub(crate) fn packetize_input_for_signing(utxo: &Utxo, txin: &BitcoinTxIn) -> Ve
     buf.extend(utxo.signing_script().unwrap()); // should have been preflighted by `should_sign`
 
     buf.chunks(50)
-        .map(|d| untrusted_hash_tx_input_start(&d, false))
+        .map(|d| untrusted_hash_tx_input_start(d, false))
         .collect()
 }
 
@@ -115,7 +117,7 @@ pub(crate) fn packetize_vout(outputs: &[TxOut]) -> Vec<APDUCommand> {
     let mut chunks = buf.chunks(50).peekable();
     while let Some(chunk) = chunks.next() {
         packets.push(untrusted_hash_tx_input_finalize(
-            &chunk,
+            chunk,
             chunks.peek().is_none(),
         ))
     }
@@ -124,7 +126,7 @@ pub(crate) fn packetize_vout(outputs: &[TxOut]) -> Vec<APDUCommand> {
 
 pub(crate) fn transaction_final_packet(lock_time: u32, path: &DerivationPath) -> APDUCommand {
     let mut buf = vec![];
-    buf.extend(derivation_path_to_apdu_data(&path).data());
+    buf.extend(derivation_path_to_apdu_data(path).data());
     buf.push(0x00); // deprecated
     buf.extend(&lock_time.to_le_bytes());
     buf.push(0x01); // SIGHASH_ALL

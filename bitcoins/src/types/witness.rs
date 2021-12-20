@@ -445,7 +445,7 @@ impl ByteFormat for WitnessTx {
         len += ser::write_prefix_vec(writer, &self.legacy_tx.vin)?;
         len += ser::write_prefix_vec(writer, &self.legacy_tx.vout)?;
         for wit in self.witnesses.iter() {
-            len += ser::write_prefix_vec(writer, &wit)?;
+            len += ser::write_prefix_vec(writer, wit)?;
         }
         len += ser::write_u32_le(writer, self.locktime())?;
         Ok(len)

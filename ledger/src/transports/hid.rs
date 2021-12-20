@@ -164,7 +164,7 @@ impl TransportNativeHID {
         let mut in_data = Vec::with_capacity(command_length + 2);
         in_data.push(((command_length >> 8) & 0xFF) as u8);
         in_data.push((command_length & 0xFF) as u8);
-        in_data.extend_from_slice(&apdu_command);
+        in_data.extend_from_slice(apdu_command);
 
         let mut buffer = [0u8; LEDGER_PACKET_SIZE as usize];
         buffer[0] = ((channel >> 8) & 0xFF) as u8; // channel big endian

@@ -59,7 +59,7 @@ pub trait HandshakeTransaction: Transaction {
 }
 
 /// A struct that represents a Handshake Transaction
-#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Eq, PartialEq)]
+#[derive(serde::Serialize, serde::Deserialize, Clone, Debug, Eq, PartialEq, Default)]
 pub struct HandshakeTx {
     /// The version number. Usually 1 or 2.
     pub(crate) version: u32,
@@ -71,18 +71,6 @@ pub struct HandshakeTx {
     pub(crate) locktime: u32,
     /// The vector of witnesses.
     pub(crate) witnesses: Vec<Witness>,
-}
-
-impl Default for HandshakeTx {
-    fn default() -> Self {
-        Self {
-            version: 0,
-            vin: vec![],
-            vout: vec![],
-            locktime: 0,
-            witnesses: vec![],
-        }
-    }
 }
 
 impl ByteFormat for HandshakeTx {
@@ -160,7 +148,7 @@ impl ByteFormat for HandshakeTx {
 
             match witness {
                 Some(wit) => {
-                    len += ser::write_prefix_vec(writer, &wit)?;
+                    len += ser::write_prefix_vec(writer, wit)?;
                 }
                 None => {
                     let wit = Witness::default();
@@ -236,7 +224,7 @@ impl HandshakeTransaction for HandshakeTx {
         let mut witness_hash = Blake2b256::default();
 
         for wit in self.witnesses.iter() {
-            ser::write_prefix_vec(&mut witness_hash, &wit)?;
+            ser::write_prefix_vec(&mut witness_hash, wit)?;
         }
 
         let hash: Blake2b256Digest = witness_hash.finalize_marked();

@@ -218,7 +218,7 @@ impl Transaction for LegacyTx {
 
 impl BitcoinTransaction for LegacyTx {
     fn as_legacy(&self) -> &LegacyTx {
-        &self
+        self
     }
 
     fn into_witness(self) -> WitnessTx {

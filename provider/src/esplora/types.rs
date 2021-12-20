@@ -3,6 +3,7 @@ use bitcoins::prelude::*;
 use crate::esplora::*;
 use crate::{provider::ProviderError, reqwest_utils};
 
+#[allow(dead_code)]
 #[derive(serde::Deserialize, Clone, Debug)]
 pub(crate) struct MerkleProof {
     pub block_height: usize,
@@ -21,6 +22,7 @@ impl MerkleProof {
     }
 }
 
+#[allow(dead_code)]
 #[derive(serde::Deserialize, Clone, Debug)]
 pub(crate) struct BlockStatus {
     pub in_best_chain: bool,
@@ -59,6 +61,7 @@ impl EsploraTxStatus {
     }
 }
 
+#[allow(dead_code)]
 #[derive(serde::Deserialize, Clone, Debug)]
 pub(crate) struct EsploraTx {
     pub status: EsploraTxStatus,
@@ -112,6 +115,7 @@ impl EsploraUtxo {
     }
 }
 
+#[allow(dead_code)]
 #[derive(serde::Deserialize, Clone, Debug)]
 pub(crate) struct Outspend {
     /// Whether the output has been spent
@@ -156,6 +160,7 @@ impl Outspend {
     }
 }
 
+#[allow(dead_code)]
 #[derive(serde::Deserialize, Clone, Debug)]
 pub(crate) struct EsploraBlock {
     pub(crate) id: String,

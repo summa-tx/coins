@@ -41,10 +41,10 @@ impl std::fmt::Display for Address {
 impl AsRef<str> for Address {
     fn as_ref(&self) -> &str {
         match &self {
-            Address::Pkh(s) => &s,
-            Address::Sh(s) => &s,
-            Address::Wpkh(s) => &s,
-            Address::Wsh(s) => &s,
+            Address::Pkh(s) => s,
+            Address::Sh(s) => s,
+            Address::Wpkh(s) => s,
+            Address::Wsh(s) => s,
         }
     }
 }
@@ -110,8 +110,8 @@ impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
                     payload.as_slice(),
                 )))
             }
-            ScriptType::Wsh(_) => Ok(Address::Wsh(encode_bech32(P::HRP, &s.items())?)),
-            ScriptType::Wpkh(_) => Ok(Address::Wpkh(encode_bech32(P::HRP, &s.items())?)),
+            ScriptType::Wsh(_) => Ok(Address::Wsh(encode_bech32(P::HRP, s.items())?)),
+            ScriptType::Wpkh(_) => Ok(Address::Wpkh(encode_bech32(P::HRP, s.items())?)),
             ScriptType::OpReturn(_) => Err(EncodingError::NullDataScript),
             ScriptType::NonStandard => Err(EncodingError::UnknownScriptType),
         }
@@ -121,7 +121,7 @@ impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
         match &addr {
             Address::Pkh(s) => decode_base58(P::PKH_VERSION, s).unwrap().into(),
             Address::Sh(s) => decode_base58(P::SH_VERSION, s).unwrap().into(),
-            Address::Wpkh(s) | Address::Wsh(s) => decode_bech32(P::HRP, &s).unwrap().into(),
+            Address::Wpkh(s) | Address::Wsh(s) => decode_bech32(P::HRP, s).unwrap().into(),
         }
     }
 

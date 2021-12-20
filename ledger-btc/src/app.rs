@@ -74,7 +74,7 @@ impl LedgerBTC {
             .data()
             .ok_or(LedgerBTCError::UnexpectedNullResponse)?;
 
-        Ok(parse_pubkey_response(deriv, &data))
+        Ok(parse_pubkey_response(deriv, data))
     }
 
     /// Get an XPub with as much derivation info as possible.
@@ -146,7 +146,7 @@ impl LedgerBTC {
         let mut packets = vec![modify_tx_start_packet(first_packet)];
         packets.extend(packetize_input_for_signing(utxo, txin));
         for packet in packets.iter() {
-            transport.exchange(&packet).await?;
+            transport.exchange(packet).await?;
         }
         let last_packet = transaction_final_packet(locktime, deriv);
         Ok(transport.exchange(&last_packet).await?)
@@ -200,7 +200,7 @@ impl LedgerBTC {
                 .iter()
                 .map(|s| &s.prevout)
                 .zip(tx.inputs())
-                .map(|(u, i)| packetize_input(&u, i))
+                .map(|(u, i)| packetize_input(u, i))
                 .flatten()
                 .collect::<Vec<_>>(),
         );
@@ -209,7 +209,7 @@ impl LedgerBTC {
         packets.extend(packetize_vout(tx.outputs()));
         // Exchange all packets
         for packet in packets.iter() {
-            transport.exchange(&packet).await?;
+            transport.exchange(packet).await?;
         }
 
         let mut sigs = vec![];

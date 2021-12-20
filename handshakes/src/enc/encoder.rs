@@ -29,9 +29,9 @@ pub enum Address {
 impl AsRef<str> for Address {
     fn as_ref(&self) -> &str {
         match &self {
-            Address::Wpkh(s) => &s,
-            Address::Wsh(s) => &s,
-            Address::OpReturn(s) => &s,
+            Address::Wpkh(s) => s,
+            Address::Wsh(s) => s,
+            Address::OpReturn(s) => s,
         }
     }
 }
@@ -90,7 +90,7 @@ impl<P: NetworkParams> AddressEncoder for HandshakeEncoder<P> {
     fn decode_address(addr: &Address) -> LockingScript {
         match &addr {
             Address::Wpkh(s) | Address::Wsh(s) | Address::OpReturn(s) => {
-                decode_bech32(P::HRP, &s).unwrap().into()
+                decode_bech32(P::HRP, s).unwrap().into()
             }
         }
     }
