@@ -1,6 +1,6 @@
 [package]
 name = "litecoins"
-version = "0.2.2"
+version = "0.6.0"
 authors = ["James Prestwich <james@prestwi.ch>"]
 edition = "2018"
 license = "MIT OR Apache-2.0"
@@ -10,8 +10,8 @@ description = "Litecoin transaction construction in Rust"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bitcoins = {version = "0.3.0", path= "../bitcoins"}
-coins-core = {version = "0.3.0", path = "../core"}
+bitcoins = {version = "0.6.0", path= "../bitcoins"}
+coins-core = {version = "0.6.0", path = "../core"}
 
 # https://github.com/rustwasm/wasm-pack/issues/886#issuecomment-667669802
 [package.metadata.wasm-pack.profile.release]
