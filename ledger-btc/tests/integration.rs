@@ -6,7 +6,7 @@ use serial_test::serial;
 
 #[tokio::test]
 #[serial]
-#[ignore]
+// #[ignore]
 async fn it_retrieves_key_info() {
     let app = LedgerBTC::init().await.expect("No device");
     let result = app
@@ -22,7 +22,7 @@ async fn it_retrieves_key_info() {
 
 #[tokio::test]
 #[serial]
-#[ignore]
+// #[ignore]
 async fn it_doesnt_sign_without_the_key() {
     let app = LedgerBTC::init().await.expect("No device");
 
@@ -47,7 +47,7 @@ async fn it_doesnt_sign_without_the_key() {
 
 #[tokio::test]
 #[serial]
-#[ignore]
+// #[ignore]
 async fn it_signs() {
     let app = LedgerBTC::init().await.expect("No device");
     let xpub = app.get_xpub(&(vec![]).into()).await.unwrap();
