@@ -2,13 +2,14 @@ macro_rules! inherit_signer {
     ($struct_name:ident.$attr:ident) => {
         impl<D> k256::ecdsa::signature::DigestSigner<D, k256::ecdsa::Signature> for $struct_name
         where
-            D: digest::BlockInput
-                + digest::FixedOutput<
-                    OutputSize = k256::elliptic_curve::consts::U32,
-                > + Clone
+            D: digest::FixedOutput<OutputSize = k256::elliptic_curve::consts::U32>
+                + Clone
                 + Default
                 + digest::Reset
-                + digest::Update,
+                + digest::Update
+                + k256::ecdsa::digest::FixedOutput
+                + k256::ecdsa::digest::HashMarker
+                + std::default::Default,
         {
             fn try_sign_digest(
                 &self,
@@ -21,13 +22,14 @@ macro_rules! inherit_signer {
         impl<D> k256::ecdsa::signature::DigestSigner<D, k256::ecdsa::recoverable::Signature>
             for $struct_name
         where
-            D: digest::BlockInput
-                + digest::FixedOutput<
-                    OutputSize = k256::elliptic_curve::consts::U32,
-                > + Clone
+            D: digest::FixedOutput<OutputSize = k256::elliptic_curve::consts::U32>
+                + Clone
                 + Default
                 + digest::Reset
-                + digest::Update,
+                + digest::Update
+                + k256::ecdsa::digest::FixedOutput
+                + k256::ecdsa::digest::HashMarker
+                + std::default::Default,
         {
             fn try_sign_digest(
                 &self,
@@ -48,13 +50,15 @@ macro_rules! inherit_verifier {
                 let generic_array = self.$attr.to_bytes();
                 data.copy_from_slice(&generic_array);
                 data
-
             }
         }
 
         impl<D> k256::ecdsa::signature::DigestVerifier<D, k256::ecdsa::Signature> for $struct_name
         where
-            D: digest::Digest<OutputSize = k256::elliptic_curve::consts::U32>,
+            D: digest::Digest<OutputSize = k256::elliptic_curve::consts::U32>
+                + k256::ecdsa::digest::FixedOutput
+                + k256::ecdsa::digest::HashMarker
+                + std::default::Default,
         {
             fn verify_digest(
                 &self,
@@ -68,7 +72,10 @@ macro_rules! inherit_verifier {
         impl<D> k256::ecdsa::signature::DigestVerifier<D, k256::ecdsa::recoverable::Signature>
             for $struct_name
         where
-            D: digest::Digest<OutputSize = k256::elliptic_curve::consts::U32>,
+            D: digest::Digest<OutputSize = k256::elliptic_curve::consts::U32>
+                + k256::ecdsa::digest::FixedOutput
+                + k256::ecdsa::digest::HashMarker
+                + std::default::Default,
         {
             fn verify_digest(
                 &self,

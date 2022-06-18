@@ -23,7 +23,7 @@ fn hmac_and_split(
     seed: &[u8],
     data: &[u8],
 ) -> Result<(k256::NonZeroScalar, ChainCode), Bip32Error> {
-    let mut mac:Hmac::<Sha512> = hmac::NewMac::new_from_slice(seed).expect("key length is ok");
+    let mut mac: Hmac<Sha512> = hmac::NewMac::new_from_slice(seed).expect("key length is ok");
     mac.update(data);
     let result = mac.finalize().into_bytes();
 
@@ -237,7 +237,8 @@ impl Parent for XPriv {
         let parent_key = k256::NonZeroScalar::from_repr(key.to_bytes()).unwrap();
         let tweaked = tweak.clone().add(&parent_key);
 
-        let tweaked: k256::NonZeroScalar = Option::from(k256::NonZeroScalar::new(tweaked)).ok_or(Bip32Error::BadTweak)?;
+        let tweaked: k256::NonZeroScalar =
+            Option::from(k256::NonZeroScalar::new(tweaked)).ok_or(Bip32Error::BadTweak)?;
 
         Ok(Self {
             key: ecdsa::SigningKey::from(tweaked),
@@ -346,11 +347,11 @@ impl Parent for XPub {
 
         let parent_key =
             k256::ProjectivePoint::from_encoded_point(&self.key.to_encoded_point(true)).unwrap();
-        let mut tweak_point = k256::ProjectivePoint::generator().mul(*tweak);
+        let mut tweak_point = k256::ProjectivePoint::GENERATOR.mul(*tweak);
         tweak_point.add_assign(parent_key);
 
         Ok(Self {
-            key: ecdsa::VerifyingKey::from(&tweak_point.to_affine()),
+            key: ecdsa::VerifyingKey::try_from(&tweak_point.to_affine())?,
             xkey_info: XKeyInfo {
                 depth: self.xkey_info.depth + 1,
                 parent: self.fingerprint(),
