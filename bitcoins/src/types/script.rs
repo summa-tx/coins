@@ -267,6 +267,7 @@ mod test {
     }
 
     #[test]
+    #[allow(unused_must_use)]
     fn it_converts_between_bitcoin_script_types() {
         let si = WitnessStackItem::new(
             hex::decode("0014758ce550380d964051086798d6546bebdca27a73").unwrap(),

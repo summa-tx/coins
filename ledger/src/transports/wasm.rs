@@ -21,6 +21,7 @@ extern "C" {
     // NB:
     // This causes the JS glue to bind the variable `default1`
     // This took hours to figure out -_-
+    #[allow(non_camel_case_types)]
     pub type default;
 
     #[wasm_bindgen(static_method_of = default)]
@@ -31,9 +32,9 @@ extern "C" {
 extern "C" {
     pub type Transport;
 
-    /// `transport.exchange(apdu: Buffer): Promise<Buffer>`
-    ///
-    /// Seed [here](https://github.com/LedgerHQ/ledgerjs#an-unified-transport-interface)
+    // `transport.exchange(apdu: Buffer): Promise<Buffer>`
+    //
+    // Seed [here](https://github.com/LedgerHQ/ledgerjs#an-unified-transport-interface)
     #[wasm_bindgen(method)]
     fn exchange(t: &Transport, buf: &[u8]) -> js_sys::Promise;
 }
