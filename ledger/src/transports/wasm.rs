@@ -17,11 +17,11 @@ use crate::{
     feature = "browser",
     wasm_bindgen(module = "@ledgerhq/hw-transport-u2f")
 )]
-#[allow(non_camel_case_types)]
 extern "C" {
     // NB:
     // This causes the JS glue to bind the variable `default1`
     // This took hours to figure out -_-
+    #[allow(non_camel_case_types)]
     pub type default;
 
     #[wasm_bindgen(static_method_of = default)]
