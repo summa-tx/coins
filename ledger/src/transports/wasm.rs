@@ -17,6 +17,7 @@ use crate::{
     feature = "browser",
     wasm_bindgen(module = "@ledgerhq/hw-transport-u2f")
 )]
+#[allow(non_camel_case_types)]
 extern "C" {
     // NB:
     // This causes the JS glue to bind the variable `default1`
@@ -31,9 +32,9 @@ extern "C" {
 extern "C" {
     pub type Transport;
 
-    /// `transport.exchange(apdu: Buffer): Promise<Buffer>`
-    ///
-    /// Seed [here](https://github.com/LedgerHQ/ledgerjs#an-unified-transport-interface)
+    // `transport.exchange(apdu: Buffer): Promise<Buffer>`
+    //
+    // Seed [here](https://github.com/LedgerHQ/ledgerjs#an-unified-transport-interface)
     #[wasm_bindgen(method)]
     fn exchange(t: &Transport, buf: &[u8]) -> js_sys::Promise;
 }

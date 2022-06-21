@@ -18,7 +18,7 @@ impl MerkleProof {
         txid: TXID,
     ) -> Result<Self, FetchError> {
         let url = format!("{}/tx/{}/MerkleProof", api_root, txid.to_be_hex());
-        Ok(reqwest_utils::ez_fetch_json(client, &url).await?)
+        reqwest_utils::ez_fetch_json(client, &url).await
     }
 }
 
@@ -37,7 +37,7 @@ impl BlockStatus {
         digest: BlockHash,
     ) -> Result<Self, FetchError> {
         let url = format!("{}/block/{}/status", api_root, digest.to_be_hex());
-        Ok(reqwest_utils::ez_fetch_json(client, &url).await?)
+        reqwest_utils::ez_fetch_json(client, &url).await
     }
 }
 
@@ -57,7 +57,7 @@ impl EsploraTxStatus {
         txid: TXID,
     ) -> Result<Self, FetchError> {
         let url = format!("{}/tx/{}/status", api_root, txid.to_be_hex());
-        Ok(reqwest_utils::ez_fetch_json(client, &url).await?)
+        reqwest_utils::ez_fetch_json(client, &url).await
     }
 }
 
@@ -75,7 +75,7 @@ impl EsploraTx {
         txid: TXID,
     ) -> Result<Self, FetchError> {
         let url = format!("{}/tx/{}", api_root, txid.to_be_hex());
-        Ok(reqwest_utils::ez_fetch_json(client, &url).await?)
+        reqwest_utils::ez_fetch_json(client, &url).await
     }
 }
 
@@ -96,7 +96,7 @@ impl EsploraUtxo {
         addr: &Address,
     ) -> Result<Vec<EsploraUtxo>, FetchError> {
         let url = format!("{}/address/{}/utxo", api_root, addr.as_string());
-        Ok(reqwest_utils::ez_fetch_json(client, &url).await?)
+        reqwest_utils::ez_fetch_json(client, &url).await
     }
 
     pub(crate) fn into_utxo(self, addr: &Address) -> Result<Utxo, ProviderError> {
@@ -203,7 +203,7 @@ impl EsploraBlock {
         digest: BlockHash,
     ) -> Result<Self, FetchError> {
         let url = format!("{}/block/{}", api_root, digest.to_be_hex());
-        Ok(reqwest_utils::ez_fetch_json(client, &url).await?)
+        reqwest_utils::ez_fetch_json(client, &url).await
     }
 
     // pub(crate) async fn fetch_from_height(

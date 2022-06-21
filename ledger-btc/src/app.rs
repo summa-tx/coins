@@ -127,7 +127,7 @@ impl LedgerBTC {
 
     /// Get the master xpub
     pub async fn get_master_xpub<'a>(&self) -> Result<DerivedXPub, LedgerBTCError> {
-        Ok(self.get_xpub(&Default::default()).await?)
+        self.get_xpub(&Default::default()).await
     }
 }
 
@@ -200,8 +200,7 @@ impl LedgerBTC {
                 .iter()
                 .map(|s| &s.prevout)
                 .zip(tx.inputs())
-                .map(|(u, i)| packetize_input(u, i))
-                .flatten()
+                .flat_map(|(u, i)| packetize_input(u, i))
                 .collect::<Vec<_>>(),
         );
 

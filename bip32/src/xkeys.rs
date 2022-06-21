@@ -346,7 +346,7 @@ impl Parent for XPub {
 
         let parent_key =
             k256::ProjectivePoint::from_encoded_point(&self.key.to_encoded_point(true)).unwrap();
-        let mut tweak_point = k256::ProjectivePoint::generator().mul(*tweak);
+        let mut tweak_point = k256::ProjectivePoint::GENERATOR.mul(*tweak);
         tweak_point.add_assign(parent_key);
 
         Ok(Self {
