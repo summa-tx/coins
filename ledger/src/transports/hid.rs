@@ -71,6 +71,8 @@ pub enum NativeTransportError {
     /// UT8F error
     #[error(transparent)]
     UTF8(#[from] std::str::Utf8Error),
+    #[error("Invalid TERMUX_USB_FD variable. Are you using termux-usb?")]
+    InvalidTermuxUsbFd,
 }
 
 struct HidApiWrapper {
@@ -147,8 +149,33 @@ impl TransportNativeHID {
         let api_mutex = apiwrapper.get().expect("Error getting api_mutex");
         let api = api_mutex.lock().expect("Could not lock");
 
-        let device_path = TransportNativeHID::find_ledger_device_path(&api)?;
-        let device = api.open_path(&device_path)?;
+        #[cfg(target_os = "android")]
+        let device = {
+            // Using runtime detection since it's impossible to statically target Termux.
+            let is_termux = match std::env::var("PREFIX") {
+                Ok(prefix_var) => prefix_var.contains("/com.termux/"),
+                Err(_) => false,
+            };
+
+            if is_termux {
+                // Termux uses a special environment vairable TERMUX_USB_FD for this
+                let usb_fd = std::env::var("TERMUX_USB_FD")
+                    .map_err(|_| NativeTransportError::InvalidTermuxUsbFd)?
+                    .parse::<i32>()
+                    .map_err(|_| NativeTransportError::InvalidTermuxUsbFd)?;
+                api.wrap_sys_device(usb_fd, -1)?
+            } else {
+                // Not sure how we should handle non-Termux Android here. This likely won't work.
+                let device_path = TransportNativeHID::find_ledger_device_path(&api)?;
+                api.open_path(&device_path)?
+            }
+        };
+
+        #[cfg(not(target_os = "android"))]
+        let device = {
+            let device_path = TransportNativeHID::find_ledger_device_path(&api)?;
+            api.open_path(&device_path)?
+        };
 
         let ledger = TransportNativeHID {
             device,
