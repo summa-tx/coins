@@ -71,6 +71,9 @@ pub enum NativeTransportError {
     /// UT8F error
     #[error(transparent)]
     UTF8(#[from] std::str::Utf8Error),
+    /// Termux USB FD env var does not exist or fails to parse. This error is
+    /// only returned by androd-specific code paths, and may be safely ignored
+    /// by non-android users
     #[error("Invalid TERMUX_USB_FD variable. Are you using termux-usb?")]
     InvalidTermuxUsbFd,
 }
