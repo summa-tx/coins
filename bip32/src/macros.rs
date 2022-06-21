@@ -3,9 +3,8 @@ macro_rules! inherit_signer {
         impl<D> k256::ecdsa::signature::DigestSigner<D, k256::ecdsa::Signature> for $struct_name
         where
             D: digest::BlockInput
-                + digest::FixedOutput<
-                    OutputSize = k256::elliptic_curve::consts::U32,
-                > + Clone
+                + digest::FixedOutput<OutputSize = k256::elliptic_curve::consts::U32>
+                + Clone
                 + Default
                 + digest::Reset
                 + digest::Update,
@@ -22,9 +21,8 @@ macro_rules! inherit_signer {
             for $struct_name
         where
             D: digest::BlockInput
-                + digest::FixedOutput<
-                    OutputSize = k256::elliptic_curve::consts::U32,
-                > + Clone
+                + digest::FixedOutput<OutputSize = k256::elliptic_curve::consts::U32>
+                + Clone
                 + Default
                 + digest::Reset
                 + digest::Update,
@@ -48,7 +46,6 @@ macro_rules! inherit_verifier {
                 let generic_array = self.$attr.to_bytes();
                 data.copy_from_slice(&generic_array);
                 data
-
             }
         }
 

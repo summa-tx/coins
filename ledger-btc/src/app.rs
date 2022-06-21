@@ -1,5 +1,8 @@
 use crate::{utils::*, LedgerBTCError};
-use bitcoins::{prelude::Transaction, types::{BitcoinTxIn, Utxo, WitnessTx}};
+use bitcoins::{
+    prelude::Transaction,
+    types::{BitcoinTxIn, Utxo, WitnessTx},
+};
 use coins_bip32::{path::DerivationPath, prelude::*};
 use coins_ledger::{
     common::{APDUAnswer, APDUCommand},
