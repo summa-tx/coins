@@ -1,6 +1,6 @@
 [package]
 name = "bitcoins-ledger"
-version = "0.6.0"
+version = "0.6.1"
 authors = ["James Prestwich <james@prestwi.ch>"]
 edition = "2018"
 categories  = ["authentication", "cryptography"]
@@ -23,7 +23,7 @@ futures = "0.3.5"
 coins-core = {version = "0.6.0", path = "../core"}
 coins-bip32 = { version = "0.6.0", path = "../bip32",default-features =  false }
 bitcoins = { version = "0.6.0", path = "../bitcoins", default-features =  false }
-coins-ledger = { version = "0.6.0", path = "../ledger", default-features =  false }
+coins-ledger = { version = "0.6.1", path = "../ledger", default-features =  false }
 
 # For wasm targets
 [target.'cfg(target_arch = "wasm32")'.dependencies]
