@@ -3,7 +3,7 @@ use crate::Wordlist;
 /// The list of words as supported in the English language.
 pub const ENGLISH: &str = include_str!("./words/english.txt");
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 /// The English wordlist that implements the Wordlist trait.
 pub struct English;
 
