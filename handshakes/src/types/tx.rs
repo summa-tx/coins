@@ -610,14 +610,9 @@ mod tests {
         let vout = vec![TxOut::default()];
         let witnesses = vec![Witness::default(), Witness::default()];
 
-        let tx = <HandshakeTx as HandshakeTransaction>::new(
-            0,
-            vin.clone(),
-            vout.clone(),
-            witnesses,
-            0,
-        )
-        .unwrap();
+        let tx =
+            <HandshakeTx as HandshakeTransaction>::new(0, vin.clone(), vout.clone(), witnesses, 0)
+                .unwrap();
 
         assert_eq!(tx.version, 0);
         assert_eq!(tx.vin.len(), vin.len());
@@ -632,14 +627,9 @@ mod tests {
         let vout = vec![TxOut::default()];
         let witnesses = vec![];
 
-        let tx = <HandshakeTx as HandshakeTransaction>::new(
-            0,
-            vin.clone(),
-            vout.clone(),
-            witnesses,
-            0,
-        )
-        .unwrap();
+        let tx =
+            <HandshakeTx as HandshakeTransaction>::new(0, vin.clone(), vout.clone(), witnesses, 0)
+                .unwrap();
 
         assert_eq!(tx.version, 0);
         assert_eq!(tx.vin.len(), vin.len());
