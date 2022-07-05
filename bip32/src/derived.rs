@@ -314,14 +314,14 @@ mod test {
         let result = m.is_private_ancestor_of(&xpub).expect("should work");
 
         if !result {
-            assert!(false, "failed validate_descendant is_private_ancestor_of");
+            panic!("failed validate_descendant is_private_ancestor_of");
         }
 
         let result = m_pub.is_public_ancestor_of(&xpub);
 
         match result {
             Ok(true) => {}
-            Ok(false) => assert!(false, "failed validate_descendant is_public_ancestor_of"),
+            Ok(false) => panic!("failed validate_descendant is_public_ancestor_of"),
             Err(_) => {
                 let path: crate::path::DerivationPath = d.path.into();
                 assert!(
@@ -345,24 +345,24 @@ mod test {
 
         let descendants = [
             KeyDeriv {
-                path: &[0 + BIP32_HARDEN],
+                path: &[BIP32_HARDEN],
             },
             KeyDeriv {
-                path: &[0 + BIP32_HARDEN, 1],
+                path: &[BIP32_HARDEN, 1],
             },
             KeyDeriv {
-                path: &[0 + BIP32_HARDEN, 1, 2 + BIP32_HARDEN],
+                path: &[BIP32_HARDEN, 1, 2 + BIP32_HARDEN],
             },
             KeyDeriv {
-                path: &[0 + BIP32_HARDEN, 1, 2 + BIP32_HARDEN, 2],
+                path: &[BIP32_HARDEN, 1, 2 + BIP32_HARDEN, 2],
             },
             KeyDeriv {
-                path: &[0 + BIP32_HARDEN, 1, 2 + BIP32_HARDEN, 2, 1000000000],
+                path: &[BIP32_HARDEN, 1, 2 + BIP32_HARDEN, 2, 1000000000],
             },
         ];
 
         for case in descendants.iter() {
-            validate_descendant(&case, &xpriv);
+            validate_descendant(case, &xpriv);
         }
     }
 
@@ -395,7 +395,7 @@ mod test {
         ];
 
         for case in descendants.iter() {
-            validate_descendant(&case, &xpriv);
+            validate_descendant(case, &xpriv);
         }
     }
 
@@ -406,11 +406,11 @@ mod test {
         let xpriv = DerivedXPriv::root_from_seed(&seed, Some(Hint::Legacy)).unwrap();
 
         let descendants = [KeyDeriv {
-            path: &[0 + BIP32_HARDEN],
+            path: &[BIP32_HARDEN],
         }];
 
         for case in descendants.iter() {
-            validate_descendant(&case, &xpriv);
+            validate_descendant(case, &xpriv);
         }
     }
 
@@ -437,7 +437,7 @@ mod test {
         let err_bad_sig = key_pub.verify_digest(wrong_digest.clone(), &sig);
         match err_bad_sig {
             Err(_) => {}
-            _ => assert!(false, "expected signature validation error"),
+            _ => panic!("expected signature validation error"),
         }
 
         let sig: RecoverableSignature = key.sign_digest(digest.clone());
@@ -446,7 +446,7 @@ mod test {
         let err_bad_sig = key_pub.verify_digest(wrong_digest.clone(), &sig);
         match err_bad_sig {
             Err(_) => {}
-            _ => assert!(false, "expected signature validation error"),
+            _ => panic!("expected signature validation error"),
         }
     }
 
@@ -483,7 +483,7 @@ mod test {
             .verify_digest(wrong_digest.clone(), &sig);
         match err_bad_sig {
             Err(_) => {}
-            _ => assert!(false, "expected signature validation error"),
+            _ => panic!("expected signature validation error"),
         }
 
         let sig: RecoverableSignature = key.derive_path(&path).unwrap().sign_digest(digest.clone());
@@ -499,7 +499,7 @@ mod test {
             .verify_digest(wrong_digest.clone(), &sig);
         match err_bad_sig {
             Err(_) => {}
-            _ => assert!(false, "expected signature validation error"),
+            _ => panic!("expected signature validation error"),
         }
 
         // sign + verify
@@ -516,7 +516,7 @@ mod test {
             .verify_digest(wrong_digest.clone(), &sig);
         match err_bad_sig {
             Err(_) => {}
-            _ => assert!(false, "expected signature validation error"),
+            _ => panic!("expected signature validation error"),
         }
 
         // sign_recoverable + verify_recoverable
@@ -524,7 +524,7 @@ mod test {
         key_pub
             .derive_path(&path)
             .unwrap()
-            .verify_digest(digest.clone(), &sig)
+            .verify_digest(digest, &sig)
             .unwrap();
 
         let err_bad_sig = key_pub
@@ -533,7 +533,7 @@ mod test {
             .verify_digest(wrong_digest.clone(), &sig);
         match err_bad_sig {
             Err(_) => {}
-            _ => assert!(false, "expected signature validation error"),
+            _ => panic!("expected signature validation error"),
         }
 
         // Sig serialize/deserialize
@@ -544,7 +544,7 @@ mod test {
             88, 150, 169, 207, 206, 194, 195, 181, 114, 208, 131, 113, 168, 68, 23, 157, 22, 133,
             212, 235, 131, 6, 145, 26, 162, 81, 0,
         ];
-        assert_eq!(Signature::from(sig.clone()).to_der().as_bytes(), der_sig);
+        assert_eq!(Signature::from(sig).to_der().as_bytes(), der_sig);
         assert_eq!(sig.as_ref(), rsv);
         assert_eq!(Signature::from(sig), Signature::from_der(&der_sig).unwrap(),);
         assert_eq!(sig, RecoverableSignature::from_bytes(&rsv).unwrap());
@@ -557,13 +557,13 @@ mod test {
         let err_too_short = DerivedXPriv::custom_root_from_seed(&[0u8; 2][..], None);
         match err_too_short {
             Err(Bip32Error::SeedTooShort) => {}
-            _ => assert!(false, "expected err too short"),
+            _ => panic!("expected err too short"),
         }
 
         let err_too_short = DerivedXPriv::custom_root_from_seed(&[0u8; 2][..], None);
         match err_too_short {
             Err(Bip32Error::SeedTooShort) => {}
-            _ => assert!(false, "expected err too short"),
+            _ => panic!("expected err too short"),
         }
     }
 
