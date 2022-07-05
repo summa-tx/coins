@@ -18,8 +18,8 @@ serde = { version = "1.0.106", features = ["derive"] }
 
 # update in parallel
 generic-array = "0.14.4"
-digest = "0.9.0"
-blake2 = "0.9.0"
-sha2 = "0.9.1"
-sha3 = "0.9.1"
-ripemd160 = "0.9.1"
+digest = "0.10"
+blake2 = { version = "0.10", features = ["reset"] }
+sha2 = "0.10"
+sha3 = "0.10"
+ripemd = "0.1"

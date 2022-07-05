@@ -23,7 +23,7 @@ fn hmac_and_split(
     seed: &[u8],
     data: &[u8],
 ) -> Result<(k256::NonZeroScalar, ChainCode), Bip32Error> {
-    let mut mac: Hmac<Sha512> = hmac::NewMac::new_from_slice(seed).expect("key length is ok");
+    let mut mac = Hmac::<Sha512>::new_from_slice(seed).expect("key length is ok");
     mac.update(data);
     let result = mac.finalize().into_bytes();
 
@@ -350,8 +350,9 @@ impl Parent for XPub {
         let mut tweak_point = k256::ProjectivePoint::GENERATOR.mul(*tweak);
         tweak_point.add_assign(parent_key);
 
+        let key = ecdsa::VerifyingKey::try_from(&tweak_point.to_affine())?;
         Ok(Self {
-            key: ecdsa::VerifyingKey::from(&tweak_point.to_affine()),
+            key,
             xkey_info: XKeyInfo {
                 depth: self.xkey_info.depth + 1,
                 parent: self.fingerprint(),
@@ -384,7 +385,7 @@ mod test {
         pub xpriv: String,
     }
 
-    fn validate_descendant<'a>(d: &KeyDeriv, m: &XPriv) {
+    fn validate_descendant(d: &KeyDeriv, m: &XPriv) {
         let xpriv = m.derive_path(d.path).unwrap();
         let xpub = xpriv.verify_key();
 
@@ -411,8 +412,8 @@ mod test {
         let expected_xpub = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
         let expected_xpriv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
 
-        let deser_xpub = MainnetEncoder::xpub_from_base58(&expected_xpub).unwrap();
-        let deser_xpriv = MainnetEncoder::xpriv_from_base58(&expected_xpriv).unwrap();
+        let deser_xpub = MainnetEncoder::xpub_from_base58(expected_xpub).unwrap();
+        let deser_xpriv = MainnetEncoder::xpriv_from_base58(expected_xpriv).unwrap();
 
         assert_eq!(&xpriv.key.to_bytes(), &deser_xpriv.key.to_bytes());
         assert_eq!(
@@ -427,34 +428,34 @@ mod test {
 
         let descendants = [
             KeyDeriv {
-                path: &[0 + BIP32_HARDEN],
+                path: &[BIP32_HARDEN],
                 xpub: "xpub68Gmy5EdvgibQVfPdqkBBCHxA5htiqg55crXYuXoQRKfDBFA1WEjWgP6LHhwBZeNK1VTsfTFUHCdrfp1bgwQ9xv5ski8PX9rL2dZXvgGDnw".to_owned(),
                 xpriv: "xprv9uHRZZhk6KAJC1avXpDAp4MDc3sQKNxDiPvvkX8Br5ngLNv1TxvUxt4cV1rGL5hj6KCesnDYUhd7oWgT11eZG7XnxHrnYeSvkzY7d2bhkJ7".to_owned(),
             },
             KeyDeriv {
-                path: &[0 + BIP32_HARDEN, 1],
+                path: &[BIP32_HARDEN, 1],
                 xpub: "xpub6ASuArnXKPbfEwhqN6e3mwBcDTgzisQN1wXN9BJcM47sSikHjJf3UFHKkNAWbWMiGj7Wf5uMash7SyYq527Hqck2AxYysAA7xmALppuCkwQ".to_owned(),
                 xpriv: "xprv9wTYmMFdV23N2TdNG573QoEsfRrWKQgWeibmLntzniatZvR9BmLnvSxqu53Kw1UmYPxLgboyZQaXwTCg8MSY3H2EU4pWcQDnRnrVA1xe8fs".to_owned(),
             },
             KeyDeriv {
-                path: &[0 + BIP32_HARDEN, 1, 2 + BIP32_HARDEN],
+                path: &[BIP32_HARDEN, 1, 2 + BIP32_HARDEN],
                 xpub: "xpub6D4BDPcP2GT577Vvch3R8wDkScZWzQzMMUm3PWbmWvVJrZwQY4VUNgqFJPMM3No2dFDFGTsxxpG5uJh7n7epu4trkrX7x7DogT5Uv6fcLW5".to_owned(),
                 xpriv: "xprv9z4pot5VBttmtdRTWfWQmoH1taj2axGVzFqSb8C9xaxKymcFzXBDptWmT7FwuEzG3ryjH4ktypQSAewRiNMjANTtpgP4mLTj34bhnZX7UiM".to_owned(),
             },
             KeyDeriv {
-                path: &[0 + BIP32_HARDEN, 1, 2 + BIP32_HARDEN, 2],
+                path: &[BIP32_HARDEN, 1, 2 + BIP32_HARDEN, 2],
                 xpub: "xpub6FHa3pjLCk84BayeJxFW2SP4XRrFd1JYnxeLeU8EqN3vDfZmbqBqaGJAyiLjTAwm6ZLRQUMv1ZACTj37sR62cfN7fe5JnJ7dh8zL4fiyLHV".to_owned(),
                 xpriv: "xprvA2JDeKCSNNZky6uBCviVfJSKyQ1mDYahRjijr5idH2WwLsEd4Hsb2Tyh8RfQMuPh7f7RtyzTtdrbdqqsunu5Mm3wDvUAKRHSC34sJ7in334".to_owned(),
             },
             KeyDeriv {
-                path: &[0 + BIP32_HARDEN, 1, 2 + BIP32_HARDEN, 2, 1000000000],
+                path: &[BIP32_HARDEN, 1, 2 + BIP32_HARDEN, 2, 1000000000],
                 xpub: "xpub6H1LXWLaKsWFhvm6RVpEL9P4KfRZSW7abD2ttkWP3SSQvnyA8FSVqNTEcYFgJS2UaFcxupHiYkro49S8yGasTvXEYBVPamhGW6cFJodrTHy".to_owned(),
                 xpriv: "xprvA41z7zogVVwxVSgdKUHDy1SKmdb533PjDz7J6N6mV6uS3ze1ai8FHa8kmHScGpWmj4WggLyQjgPie1rFSruoUihUZREPSL39UNdE3BBDu76".to_owned(),
             },
         ];
 
         for case in descendants.iter() {
-            validate_descendant(&case, &xpriv);
+            validate_descendant(case, &xpriv);
         }
     }
 
@@ -468,8 +469,8 @@ mod test {
         let expected_xpub = "xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB";
         let expected_xpriv = "xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U";
 
-        let deser_xpub = MainnetEncoder::xpub_from_base58(&expected_xpub).unwrap();
-        let deser_xpriv = MainnetEncoder::xpriv_from_base58(&expected_xpriv).unwrap();
+        let deser_xpub = MainnetEncoder::xpub_from_base58(expected_xpub).unwrap();
+        let deser_xpriv = MainnetEncoder::xpriv_from_base58(expected_xpriv).unwrap();
 
         assert_eq!(&xpriv.key.to_bytes(), &deser_xpriv.key.to_bytes());
         assert_eq!(
@@ -511,7 +512,7 @@ mod test {
         ];
 
         for case in descendants.iter() {
-            validate_descendant(&case, &xpriv);
+            validate_descendant(case, &xpriv);
         }
     }
 
@@ -525,8 +526,8 @@ mod test {
         let expected_xpub = "xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13";
         let expected_xpriv = "xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6";
 
-        let deser_xpub = MainnetEncoder::xpub_from_base58(&expected_xpub).unwrap();
-        let deser_xpriv = MainnetEncoder::xpriv_from_base58(&expected_xpriv).unwrap();
+        let deser_xpub = MainnetEncoder::xpub_from_base58(expected_xpub).unwrap();
+        let deser_xpriv = MainnetEncoder::xpriv_from_base58(expected_xpriv).unwrap();
 
         assert_eq!(&xpriv.key.to_bytes(), &deser_xpriv.key.to_bytes());
         assert_eq!(
@@ -541,14 +542,14 @@ mod test {
 
         let descendants = [
             KeyDeriv {
-                path: &[0 + BIP32_HARDEN],
+                path: &[BIP32_HARDEN],
                 xpub: "xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y".to_owned(),
                 xpriv: "xprv9uPDJpEQgRQfDcW7BkF7eTya6RPxXeJCqCJGHuCJ4GiRVLzkTXBAJMu2qaMWPrS7AANYqdq6vcBcBUdJCVVFceUvJFjaPdGZ2y9WACViL4L".to_owned(),
             },
         ];
 
         for case in descendants.iter() {
-            validate_descendant(&case, &xpriv);
+            validate_descendant(case, &xpriv);
         }
     }
 
@@ -579,7 +580,7 @@ mod test {
         let child_xpub = child.verify_key();
         child_xpub.verify_digest(digest.clone(), &sig).unwrap();
 
-        let recovered = sig.recover_verify_key_from_digest(digest).unwrap();
+        let recovered = sig.recover_verifying_key_from_digest(digest).unwrap();
 
         assert_eq!(&recovered.to_bytes(), &child_xpub.key.to_bytes());
     }

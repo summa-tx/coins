@@ -13,7 +13,7 @@ const PBKDF2_BYTES: usize = 64;
 
 /// Mnemonic represents entropy that can be represented as a phrase. A mnemonic can be used to
 /// deterministically generate an extended private key or derive its child keys.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Mnemonic<W: Wordlist> {
     /// Entropy used to generate mnemonic.
     entropy: Vec<u8>,
@@ -379,7 +379,7 @@ mod tests {
     #[test]
     fn test_from_phrase() {
         TESTCASES.iter().for_each(|(entropy_str, phrase, _, _)| {
-            let expected_entropy: Vec<u8> = Vec::from(hex::decode(entropy_str).unwrap());
+            let expected_entropy: Vec<u8> = hex::decode(entropy_str).unwrap();
             let mnemonic = Mnemonic::<W>::new_from_phrase(phrase).unwrap();
             assert_eq!(mnemonic.entropy, expected_entropy);
             assert_eq!(mnemonic.to_phrase().unwrap(), phrase.to_string());
@@ -391,7 +391,7 @@ mod tests {
         TESTCASES
             .iter()
             .for_each(|(entropy_str, expected_phrase, _, _)| {
-                let entropy: Vec<u8> = Vec::from(hex::decode(entropy_str).unwrap());
+                let entropy: Vec<u8> = hex::decode(entropy_str).unwrap();
                 let mnemonic = Mnemonic::<W> {
                     entropy: entropy.clone(),
                     _wordlist: PhantomData,
@@ -406,7 +406,7 @@ mod tests {
         TESTCASES
             .iter()
             .for_each(|(entropy_str, _, expected_seed, _)| {
-                let entropy: Vec<u8> = Vec::from(hex::decode(entropy_str).unwrap());
+                let entropy: Vec<u8> = hex::decode(entropy_str).unwrap();
                 let mnemonic = Mnemonic::<W> {
                     entropy,
                     _wordlist: PhantomData,

@@ -4,6 +4,10 @@
 //! We want to wrap hashes in marked newtypes in order to prevent type-confusion between TXIDs,
 //! sighashes, and other digests with the same length.
 
+use digest::{
+    core_api::{BlockSizeUser, OutputSizeUser},
+    HashMarker, Output, VariableOutput,
+};
 use std::io::Write;
 
 use crate::ser::{ByteFormat, SerError, SerResult};
@@ -11,12 +15,12 @@ use crate::ser::{ByteFormat, SerError, SerResult};
 // Useful re-exports
 pub use digest::Digest;
 pub use generic_array::GenericArray;
-pub use ripemd160::Ripemd160;
+pub use ripemd::Ripemd160;
 pub use sha2::Sha256;
 pub use sha3::Sha3_256;
 
 /// Output of a Digest function
-pub type DigestOutput<D> = GenericArray<u8, <D as Digest>::OutputSize>;
+pub type DigestOutput<D> = GenericArray<u8, <D as OutputSizeUser>::OutputSize>;
 
 /// Convenience interface for hash function outputs, particularly marked digest outputs
 pub trait MarkedDigestOutput:
@@ -84,20 +88,26 @@ impl std::io::Write for Hash256 {
     }
 }
 
-impl digest::BlockInput for Hash256 {
-    type BlockSize = <Sha256 as digest::BlockInput>::BlockSize;
+impl HashMarker for Hash256 {}
+
+impl BlockSizeUser for Hash256 {
+    type BlockSize = <Sha256 as BlockSizeUser>::BlockSize;
+}
+
+impl OutputSizeUser for Hash256 {
+    type OutputSize = <Sha256 as digest::OutputSizeUser>::OutputSize;
 }
 
 impl digest::FixedOutput for Hash256 {
-    type OutputSize = <Sha256 as digest::FixedOutput>::OutputSize;
-
     fn finalize_into(self, out: &mut GenericArray<u8, Self::OutputSize>) {
         let mut hasher = sha2::Sha256::default();
         hasher.update(self.0.finalize());
-        hasher.finalize_into(out);
+        Digest::finalize_into(hasher, out)
     }
+}
 
-    fn finalize_into_reset(&mut self, out: &mut GenericArray<u8, Self::OutputSize>) {
+impl digest::FixedOutputReset for Hash256 {
+    fn finalize_into_reset(&mut self, out: &mut Output<Self>) {
         let other = self.clone();
         other.finalize_into(out);
         self.0.reset();
@@ -111,7 +121,7 @@ impl digest::Reset for Hash256 {
 }
 
 impl digest::Update for Hash256 {
-    fn update(&mut self, data: impl AsRef<[u8]>) {
+    fn update(&mut self, data: &[u8]) {
         Digest::update(&mut self.0, data);
     }
 }
@@ -131,20 +141,26 @@ impl std::io::Write for Hash160 {
     }
 }
 
-impl digest::BlockInput for Hash160 {
-    type BlockSize = <Ripemd160 as digest::BlockInput>::BlockSize;
+impl HashMarker for Hash160 {}
+
+impl BlockSizeUser for Hash160 {
+    type BlockSize = <Ripemd160 as BlockSizeUser>::BlockSize;
+}
+
+impl OutputSizeUser for Hash160 {
+    type OutputSize = <Ripemd160 as digest::OutputSizeUser>::OutputSize;
 }
 
 impl digest::FixedOutput for Hash160 {
-    type OutputSize = <Ripemd160 as digest::FixedOutput>::OutputSize;
-
     fn finalize_into(self, out: &mut GenericArray<u8, Self::OutputSize>) {
-        let mut hasher = ripemd160::Ripemd160::default();
+        let mut hasher = ripemd::Ripemd160::default();
         hasher.update(self.0.finalize());
-        hasher.finalize_into(out);
+        Digest::finalize_into(hasher, out)
     }
+}
 
-    fn finalize_into_reset(&mut self, out: &mut GenericArray<u8, Self::OutputSize>) {
+impl digest::FixedOutputReset for Hash160 {
+    fn finalize_into_reset(&mut self, out: &mut Output<Self>) {
         let other = self.clone();
         other.finalize_into(out);
         self.0.reset();
@@ -158,14 +174,14 @@ impl digest::Reset for Hash160 {
 }
 
 impl digest::Update for Hash160 {
-    fn update(&mut self, data: impl AsRef<[u8]>) {
+    fn update(&mut self, data: &[u8]) {
         Digest::update(&mut self.0, data);
     }
 }
 
 #[derive(Clone)]
 /// A `Digest` implementation that performs Bitcoin style double-sha256
-pub struct Blake2b256(blake2::VarBlake2b);
+pub struct Blake2b256(blake2::Blake2bVar);
 
 impl std::io::Write for Blake2b256 {
     fn flush(&mut self) -> std::io::Result<()> {
@@ -180,31 +196,36 @@ impl std::io::Write for Blake2b256 {
 
 impl Default for Blake2b256 {
     fn default() -> Self {
-        Self(<blake2::VarBlake2b as digest::VariableOutput>::new(32).unwrap())
+        Self(<blake2::Blake2bVar as digest::VariableOutput>::new(32).unwrap())
     }
 }
 
 // there is a blanket implementation for Digest: Update + FixedOutput + Reset + Default + Clone
 impl digest::Update for Blake2b256 {
-    fn update(&mut self, data: impl AsRef<[u8]>) {
-        self.0.update(data)
+    fn update(&mut self, data: &[u8]) {
+        self.0.update(data.as_ref())
     }
 }
 
+impl HashMarker for Blake2b256 {}
+
+impl OutputSizeUser for Blake2b256 {
+    type OutputSize = <sha2::Sha256 as OutputSizeUser>::OutputSize; // cheating
+}
+
 impl digest::FixedOutput for Blake2b256 {
-    type OutputSize = <sha2::Sha256 as Digest>::OutputSize; // cheating
-
     fn finalize_into(self, out: &mut DigestOutput<Self>) {
-        digest::VariableOutput::finalize_variable(self.0, |res| {
-            AsMut::<[u8]>::as_mut(out).copy_from_slice(&res[..32])
-        });
+        let _ = self.0.finalize_variable(out.as_mut());
+        // digest::VariableOutput::finalize_variable(self.0, |res| {
+        //     AsMut::<[u8]>::as_mut(out).copy_from_slice(&res[..32])
+        // });
     }
+}
 
+impl digest::FixedOutputReset for Blake2b256 {
     // TODO: see if we can avoid cloning hasher state?
-    fn finalize_into_reset(&mut self, out: &mut DigestOutput<Self>) {
-        digest::VariableOutput::finalize_variable(self.0.clone(), |res| {
-            AsMut::<[u8]>::as_mut(out).copy_from_slice(&res[..32])
-        });
+    fn finalize_into_reset(&mut self, out: &mut Output<Self>) {
+        let _ = self.0.clone().finalize_variable(out.as_mut());
         self.reset();
     }
 }

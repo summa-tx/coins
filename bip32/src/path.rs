@@ -286,9 +286,9 @@ pub mod test {
     fn it_parses_index_strings() {
         let cases = [("32", 32), ("32h", 32 + BIP32_HARDEN), ("0h", BIP32_HARDEN)];
         for case in cases.iter() {
-            match try_parse_index(&case.0) {
+            match try_parse_index(case.0) {
                 Ok(v) => assert_eq!(v, case.1),
-                Err(e) => assert!(false, "unexpected error {}", e),
+                Err(e) => panic!("unexpected error {}", e),
             }
         }
     }
@@ -297,10 +297,10 @@ pub mod test {
     fn it_handles_malformatted_indices() {
         let cases = ["-", "h", "toast", "憂鬱"];
         for case in cases.iter() {
-            match try_parse_index(&case) {
-                Ok(_) => assert!(false, "expected an error"),
+            match try_parse_index(case) {
+                Ok(_) => panic!("expected an error"),
                 Err(Bip32Error::MalformattedDerivation(e)) => assert_eq!(&e, case),
-                Err(e) => assert!(false, "unexpected error {}", e),
+                Err(e) => panic!("unexpected error {}", e),
             }
         }
     }
@@ -316,9 +316,9 @@ pub mod test {
             ("0'/32/5/5/5", vec![BIP32_HARDEN, 32, 5, 5, 5]),
         ];
         for case in cases.iter() {
-            match try_parse_path(&case.0) {
+            match try_parse_path(case.0) {
                 Ok(v) => assert_eq!(v, case.1),
-                Err(e) => assert!(false, "unexpected error {}", e),
+                Err(e) => panic!("unexpected error {}", e),
             }
         }
     }
@@ -327,10 +327,10 @@ pub mod test {
     fn it_handles_malformatted_derivations() {
         let cases = ["//", "m/", "-", "h", "toast", "憂鬱"];
         for case in cases.iter() {
-            match try_parse_path(&case) {
-                Ok(_) => assert!(false, "expected an error"),
+            match try_parse_path(case) {
+                Ok(_) => panic!("expected an error"),
                 Err(Bip32Error::MalformattedDerivation(e)) => assert_eq!(&e, case),
-                Err(e) => assert!(false, "unexpected error {}", e),
+                Err(e) => panic!("unexpected error {}", e),
             }
         }
     }
@@ -368,9 +368,9 @@ pub mod test {
         for case in cases.iter() {
             let path: Result<DerivationPath, _> = case.parse().map_err(Into::into);
             match path {
-                Ok(_) => assert!(false, "expected an error"),
+                Ok(_) => panic!("expected an error"),
                 Err(Bip32Error::MalformattedDerivation(e)) => assert_eq!(&e, case),
-                Err(e) => assert!(false, "unexpected error {}", e),
+                Err(e) => panic!("unexpected error {}", e),
             }
         }
     }

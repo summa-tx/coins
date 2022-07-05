@@ -128,8 +128,8 @@ mod test {
         ];
 
         for case in cases.iter() {
-            let (version, data) = decode_bech32(&case.0, case.1).unwrap();
-            let reencoded = encode_bech32(&case.0, version, &data).unwrap();
+            let (version, data) = decode_bech32(case.0, case.1).unwrap();
+            let reencoded = encode_bech32(case.0, version, &data).unwrap();
             assert_eq!(case.1, reencoded);
         }
     }
@@ -179,30 +179,30 @@ mod test {
     #[test]
     fn it_should_error_on_wrong_version_and_hrp_and_invalid_addrs() {
         match decode_bech32("tb", "bc1q233q49ve8ysdsztqh9ue57m6227627j8ztscl9") {
-            Ok(_) => assert!(false, "expected an error"),
+            Ok(_) => panic!("expected an error"),
             Err(EncodingError::WrongHrp {
                 got: _,
                 expected: _,
             }) => {}
-            _ => assert!(false, "Got the wrong error"),
+            _ => panic!("Got the wrong error"),
         }
         match decode_base58(1, "3HXNFmJpxjgTVFN35Y9f6Waje5YFsLEQZ2") {
-            Ok(_) => assert!(false, "expected an error"),
+            Ok(_) => panic!("expected an error"),
             Err(EncodingError::WrongVersion {
                 got: _,
                 expected: _,
             }) => {}
-            _ => assert!(false, "Got the wrong error"),
+            _ => panic!("Got the wrong error"),
         }
         match decode_bech32("bc", "bc1qqh9ue57m6227627j8ztscl9") {
-            Ok(_) => assert!(false, "expected an error"),
+            Ok(_) => panic!("expected an error"),
             Err(EncodingError::BechError(_)) => {}
-            _ => assert!(false, "Got the wrong error"),
+            _ => panic!("Got the wrong error"),
         }
         match decode_base58(5, "3HXNf6Waje5YFsLEQZ2") {
-            Ok(_) => assert!(false, "expected an error"),
+            Ok(_) => panic!( "expected an error"),
             Err(EncodingError::B58Error(_)) => {}
-            _ => assert!(false, "Got the wrong error"),
+            _ => panic!( "Got the wrong error"),
         }
     }
 }

@@ -3,7 +3,7 @@ pub use self::english::*;
 
 use thiserror::Error;
 
-#[derive(Debug, Error, PartialEq)]
+#[derive(Debug, Error, PartialEq, Eq)]
 /// The error type returned while interacting with wordists.
 pub enum WordlistError {
     /// Describes the error when the wordlist is queried at an invalid index.
