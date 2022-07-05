@@ -52,7 +52,7 @@ jobs:
       - uses: Swatinem/rust-cache@v1
 
       - name: Rustfmt
-        run: cargo +nightly fmt --all -- --check
+        run: cargo fmt --all -- --check
 
       - name: Clippy
         run: cargo clippy --tests --workspace -- -D warnings
