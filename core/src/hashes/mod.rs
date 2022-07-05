@@ -215,17 +215,20 @@ impl OutputSizeUser for Blake2b256 {
 
 impl digest::FixedOutput for Blake2b256 {
     fn finalize_into(self, out: &mut DigestOutput<Self>) {
-        let _ = self.0.finalize_variable(out.as_mut());
-        // digest::VariableOutput::finalize_variable(self.0, |res| {
-        //     AsMut::<[u8]>::as_mut(out).copy_from_slice(&res[..32])
-        // });
+        // variable output size is set to 32 matches `out`
+        self.0
+            .finalize_variable(out.as_mut())
+            .expect("correct output size")
     }
 }
 
 impl digest::FixedOutputReset for Blake2b256 {
     // TODO: see if we can avoid cloning hasher state?
     fn finalize_into_reset(&mut self, out: &mut Output<Self>) {
-        let _ = self.0.clone().finalize_variable(out.as_mut());
+        self.0
+            .clone()
+            .finalize_variable(out.as_mut())
+            .expect("correct output size");
         self.reset();
     }
 }

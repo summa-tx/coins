@@ -200,9 +200,9 @@ mod test {
             _ => panic!("Got the wrong error"),
         }
         match decode_base58(5, "3HXNf6Waje5YFsLEQZ2") {
-            Ok(_) => panic!( "expected an error"),
+            Ok(_) => panic!("expected an error"),
             Err(EncodingError::B58Error(_)) => {}
-            _ => panic!( "Got the wrong error"),
+            _ => panic!("Got the wrong error"),
         }
     }
 }
