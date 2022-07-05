@@ -192,7 +192,7 @@ mod test {
             match MainnetEncoder::string_to_address(case) {
                 Err(_) => {}
                 _ => {
-                    assert!(false, "expected err");
+                    panic!("expected err");
                 }
             }
         }
@@ -253,9 +253,9 @@ mod test {
         ];
 
         for case in errors.iter() {
-            match MainnetEncoder::encode_address(&case) {
+            match MainnetEncoder::encode_address(case) {
                 Err(EncodingError::UnknownScriptType) => {}
-                _ => assert!(false, "expected err UnknownScriptType"),
+                _ => panic!("expected err UnknownScriptType"),
             }
         }
     }

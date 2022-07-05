@@ -567,7 +567,7 @@ mod tests {
         let vin = vec![];
         let vout = vec![TxOut::default()];
 
-        let tx = <HandshakeTx as Transaction>::new(0, vin.clone(), vout.clone(), 0);
+        let tx = <HandshakeTx as Transaction>::new(0, vin, vout, 0);
 
         assert!(tx.is_err());
     }
@@ -577,7 +577,7 @@ mod tests {
         let vin = vec![TxInput::default()];
         let vout = vec![];
 
-        let tx = <HandshakeTx as Transaction>::new(0, vin.clone(), vout.clone(), 0);
+        let tx = <HandshakeTx as Transaction>::new(0, vin, vout, 0);
 
         assert!(tx.is_err());
     }
@@ -614,7 +614,7 @@ mod tests {
             0,
             vin.clone(),
             vout.clone(),
-            witnesses.clone(),
+            witnesses,
             0,
         )
         .unwrap();
@@ -636,7 +636,7 @@ mod tests {
             0,
             vin.clone(),
             vout.clone(),
-            witnesses.clone(),
+            witnesses,
             0,
         )
         .unwrap();
