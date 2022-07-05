@@ -23,7 +23,7 @@ fn hmac_and_split(
     seed: &[u8],
     data: &[u8],
 ) -> Result<(k256::NonZeroScalar, ChainCode), Bip32Error> {
-    let mut mac: Hmac<Sha512> = hmac::NewMac::new_from_slice(seed).expect("key length is ok");
+    let mut mac = Hmac::<Sha512>::new_from_slice(seed).expect("key length is ok");
     mac.update(data);
     let result = mac.finalize().into_bytes();
 
@@ -350,8 +350,9 @@ impl Parent for XPub {
         let mut tweak_point = k256::ProjectivePoint::GENERATOR.mul(*tweak);
         tweak_point.add_assign(parent_key);
 
+        let key = ecdsa::VerifyingKey::try_from(&tweak_point.to_affine())?;
         Ok(Self {
-            key: ecdsa::VerifyingKey::from(&tweak_point.to_affine()),
+            key,
             xkey_info: XKeyInfo {
                 depth: self.xkey_info.depth + 1,
                 parent: self.fingerprint(),
@@ -579,7 +580,7 @@ mod test {
         let child_xpub = child.verify_key();
         child_xpub.verify_digest(digest.clone(), &sig).unwrap();
 
-        let recovered = sig.recover_verify_key_from_digest(digest).unwrap();
+        let recovered = sig.recover_verifying_key_from_digest(digest).unwrap();
 
         assert_eq!(&recovered.to_bytes(), &child_xpub.key.to_bytes());
     }

@@ -9,16 +9,16 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 thiserror = "1.0"
-hmac = "0.11.0"
-sha2 = "0.9.5"
+hmac = "0.12"
+sha2 = "0.10"
 bs58 = "0.4.0"
 lazy_static = "1.4.0"
-coins-core = "0.2.0"
+coins-core = { path = "../core" }
 serde = "1.0.105"
 bincode = "1.3.3"
 
-k256 = { version = "0.10", features = ["std", "arithmetic"] }
-digest = "0.9.0"
+k256 = { version = "0.11", features = ["std", "arithmetic"] }
+digest = "0.10"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 getrandom = { version = "0.2", features = ["js"] }

@@ -2,12 +2,12 @@ macro_rules! inherit_signer {
     ($struct_name:ident.$attr:ident) => {
         impl<D> k256::ecdsa::signature::DigestSigner<D, k256::ecdsa::Signature> for $struct_name
         where
-            D: digest::BlockInput
-                + digest::FixedOutput<OutputSize = k256::elliptic_curve::consts::U32>
+            D: digest::FixedOutput<OutputSize = k256::elliptic_curve::consts::U32>
                 + Clone
                 + Default
                 + digest::Reset
-                + digest::Update,
+                + digest::Update
+                + digest::HashMarker
         {
             fn try_sign_digest(
                 &self,
@@ -20,12 +20,12 @@ macro_rules! inherit_signer {
         impl<D> k256::ecdsa::signature::DigestSigner<D, k256::ecdsa::recoverable::Signature>
             for $struct_name
         where
-            D: digest::BlockInput
-                + digest::FixedOutput<OutputSize = k256::elliptic_curve::consts::U32>
+            D: digest::FixedOutput<OutputSize = k256::elliptic_curve::consts::U32>
                 + Clone
                 + Default
                 + digest::Reset
-                + digest::Update,
+                + digest::Update
+                + digest::HashMarker
         {
             fn try_sign_digest(
                 &self,
@@ -51,7 +51,7 @@ macro_rules! inherit_verifier {
 
         impl<D> k256::ecdsa::signature::DigestVerifier<D, k256::ecdsa::Signature> for $struct_name
         where
-            D: digest::Digest<OutputSize = k256::elliptic_curve::consts::U32>,
+            D: digest::Digest + digest::FixedOutput<OutputSize = k256::elliptic_curve::consts::U32>,
         {
             fn verify_digest(
                 &self,
@@ -65,7 +65,7 @@ macro_rules! inherit_verifier {
         impl<D> k256::ecdsa::signature::DigestVerifier<D, k256::ecdsa::recoverable::Signature>
             for $struct_name
         where
-            D: digest::Digest<OutputSize = k256::elliptic_curve::consts::U32>,
+             D: digest::Digest + digest::FixedOutput<OutputSize = k256::elliptic_curve::consts::U32>,
         {
             fn verify_digest(
                 &self,

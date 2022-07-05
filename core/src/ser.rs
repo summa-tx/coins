@@ -452,7 +452,7 @@ mod test {
             &mut buf.clone().as_slice(),
             ReadSeqMode::Exactly(buf.len() + 1),
         );
-        assert_eq!(exact_too_long.is_err(), true);
+        assert!(exact_too_long.is_err());
 
         // Read exactly the first element
         let exact_first =
