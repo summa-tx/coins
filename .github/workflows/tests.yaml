@@ -53,7 +53,8 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --verbose --target wasm32-unknown-unknown --no-default-features --features="browser"
+          args: --verbose --target wasm32-unknown-unknown --no-default-features --features "browser"
+
   test:
     runs-on: ubuntu-latest
     steps:
