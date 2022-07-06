@@ -24,7 +24,7 @@ use crate::{
 ///
 /// It is parameterized with an address encoder, so that the same struct and logic can be used on
 /// mainnet and testnet.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HandshakeTxBuilder<T: AddressEncoder> {
     version: u32,
     vin: Vec<HandshakeTxIn>,

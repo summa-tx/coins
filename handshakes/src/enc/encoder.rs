@@ -67,7 +67,7 @@ pub trait HandshakeEncoderMarker:
 
 /// The standard encoder for Bitcoin networks. Parameterized by a `NetworkParams` type and an
 /// `coins_bip32::Encoder`. It exposes
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HandshakeEncoder<P: NetworkParams>(PhantomData<fn(P) -> P>);
 
 impl<P: NetworkParams> AddressEncoder for HandshakeEncoder<P> {

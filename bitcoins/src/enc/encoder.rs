@@ -86,7 +86,7 @@ pub trait BitcoinEncoderMarker:
 
 /// The standard encoder for Bitcoin networks. Parameterized by a `NetworkParams` type and an
 /// `coins_bip32::Encoder`. It exposes
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BitcoinEncoder<P: NetworkParams>(PhantomData<fn(P) -> P>);
 
 impl<P: NetworkParams> AddressEncoder for BitcoinEncoder<P> {
