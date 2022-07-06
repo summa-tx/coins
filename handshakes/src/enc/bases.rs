@@ -71,8 +71,8 @@ mod test {
             "hs1l8axd3n4esdkn6v68k9a2suuhw204ef0sgsctj4l4yw0z6x8n38an64fzp8wym5w4zr36un",
         ];
         for addr in addrs.iter() {
-            let s = decode_bech32(&hrp, addr).unwrap();
-            let reencoded = encode_bech32(&hrp, &s).unwrap();
+            let s = decode_bech32(hrp, addr).unwrap();
+            let reencoded = encode_bech32(hrp, &s).unwrap();
             assert_eq!(*addr, reencoded);
         }
     }
@@ -80,17 +80,17 @@ mod test {
     #[test]
     fn it_should_error_on_wrong_version_and_hrp_and_invalid_addrs() {
         match decode_bech32("ts", "hs1qrq7qkl3p4lvdhkeks3za344d8a2yzllzgjdmzk") {
-            Ok(_) => assert!(false, "expected an error"),
+            Ok(_) => panic!("expected an error"),
             Err(EncodingError::WrongHrp {
                 got: _,
                 expected: _,
             }) => {}
-            _ => assert!(false, "Got the wrong error"),
+            _ => panic!("Got the wrong error"),
         }
         match decode_bech32("hs", "hs1qrq7qkl3p4lvdhkeks3za34") {
-            Ok(_) => assert!(false, "expected an error"),
+            Ok(_) => panic!("expected an error"),
             Err(EncodingError::BechError(_)) => {}
-            _ => assert!(false, "Got the wrong error"),
+            _ => panic!("Got the wrong error"),
         }
     }
 }

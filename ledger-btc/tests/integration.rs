@@ -42,7 +42,7 @@ async fn it_doesnt_sign_without_the_key() {
     };
     let info = SigningInfo {
         input_idx: 0,
-        prevout: prevout,
+        prevout,
         deriv: Some(deriv),
     };
     println!("{:?}", app.get_tx_signatures(&tx, &[info]).await.unwrap());
@@ -68,11 +68,11 @@ async fn it_signs() {
     };
     let info = SigningInfo {
         input_idx: 0,
-        prevout: prevout,
+        prevout,
         deriv: Some(deriv),
     };
-    println!("");
-    println!("");
+    println!();
+    println!();
     println!("WAITING FOR CONFIRMATION");
     println!("{:?}", app.get_tx_signatures(&tx, &[info]).await.unwrap());
 }

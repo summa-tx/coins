@@ -53,8 +53,8 @@ mod test {
             "bc1qwqdg6squsna38e46795at95yu9atm8azzmyvckulcc7kytlcckxswvvzej",
         ];
         for addr in addrs.iter() {
-            let s = decode_bech32(&hrp, addr).unwrap();
-            let reencoded = encode_bech32(&hrp, &s).unwrap();
+            let s = decode_bech32(hrp, addr).unwrap();
+            let reencoded = encode_bech32(hrp, &s).unwrap();
             assert_eq!(*addr, reencoded);
         }
     }

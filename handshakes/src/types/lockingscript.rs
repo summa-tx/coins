@@ -454,7 +454,7 @@ mod test {
 
         let expected = LockingScript {
             version,
-            witness_program: WitnessProgram::from(raw_witness_program.clone()),
+            witness_program: WitnessProgram::from(raw_witness_program),
         };
 
         let actual = LockingScript::from(raw_locking_script);

@@ -596,7 +596,7 @@ mod tests {
 
         match tx.sighash(&args) {
             Err(TxError::NoneUnsupported) => {}
-            _ => assert!(false, "expected sighash none unsupported"),
+            _ => panic!("expected sighash none unsupported"),
         }
     }
 
@@ -614,7 +614,7 @@ mod tests {
 
         match tx.sighash(&args) {
             Err(TxError::SighashSingleBug) => {}
-            _ => assert!(false, "expected sighash single bug unsupported"),
+            _ => panic!("expected sighash single bug unsupported"),
         }
     }
 
@@ -697,7 +697,7 @@ mod tests {
         for case in errors.iter() {
             match Sighash::from_u8(case.0) {
                 Err(TxError::UnknownSighash(v)) => assert_eq!(case.0, v),
-                _ => assert!(false, "expected err unknown sighash"),
+                _ => panic!("expected err unknown sighash"),
             }
         }
     }
