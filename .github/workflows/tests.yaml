@@ -27,9 +27,9 @@ jobs:
           cache-on-failure: true
 
       - name: Build
-        run: cargo build --locked --workspace --verbose
+        run: cargo build --verbose
       - name: Build (no default features)
-        run: cargo build --locked --workspace --verbose --no-default-features
+        run: cargo build --verbose --no-default-features
   
   wasm:
     name: Build WASM
@@ -67,7 +67,7 @@ jobs:
           cache-on-failure: true
 
       - name: Run tests
-        run: cargo test --locked --workspace --verbose
+        run: cargo test --verbose
 
   lint:
     runs-on: ubuntu-latest
