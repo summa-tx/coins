@@ -560,4 +560,12 @@ mod tests {
                 );
             });
     }
+
+    #[test]
+    fn test_derive_key_try_into_derivation() {
+        let phrase = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+        let mnemonic = Mnemonic::<W>::new_from_phrase(phrase).unwrap();
+        mnemonic.derive_key(0, None).unwrap();
+        mnemonic.derive_key("m/44'/61'/0'/0", None).unwrap();
+    }
 }
