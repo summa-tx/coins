@@ -170,7 +170,7 @@ impl<W: Wordlist> Mnemonic<W> {
         Ok(self.master_key(password)?.derive_path(path)?)
     }
 
-    fn to_seed(&self, password: Option<&str>) -> Result<Vec<u8>, MnemonicError> {
+    pub fn to_seed(&self, password: Option<&str>) -> Result<Vec<u8>, MnemonicError> {
         let mut seed = vec![0u8; PBKDF2_BYTES];
         let salt = format!("mnemonic{}", password.unwrap_or(""));
         pbkdf2::<Hmac<Sha512>>(
