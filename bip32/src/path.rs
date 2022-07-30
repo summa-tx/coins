@@ -1,4 +1,5 @@
 use std::{
+    convert::TryFrom,
     io::{Read, Write},
     iter::{FromIterator, IntoIterator},
     slice::Iter,
@@ -169,6 +170,22 @@ impl From<&Vec<u32>> for DerivationPath {
 impl From<&[u32]> for DerivationPath {
     fn from(v: &[u32]) -> Self {
         Self(Vec::from(v))
+    }
+}
+
+impl TryFrom<u32> for DerivationPath {
+    type Error = Bip32Error;
+
+    fn try_from(v: u32) -> Result<Self, Self::Error> {
+        Ok(Self(vec![v]))
+    }
+}
+
+impl TryFrom<&str> for DerivationPath {
+    type Error = Bip32Error;
+
+    fn try_from(v: &str) -> Result<Self, Self::Error> {
+        try_parse_path(v).map(Into::into)
     }
 }
 
