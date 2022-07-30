@@ -285,7 +285,8 @@ where
         Ok(self.master_key(password)?.derive_path(path)?)
     }
 
-    fn to_seed(&self, password: Option<&str>) -> Result<[u8; PBKDF2_BYTES], MnemonicError> {
+    /// Convert to a bip23 seed
+    pub fn to_seed(&self, password: Option<&str>) -> Result<[u8; PBKDF2_BYTES], MnemonicError> {
         let mut seed = [0u8; PBKDF2_BYTES];
         let salt = format!("mnemonic{}", password.unwrap_or(""));
         pbkdf2::<Hmac<Sha512>>(
