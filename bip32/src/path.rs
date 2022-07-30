@@ -20,7 +20,7 @@ fn try_parse_index(s: &str) -> Result<u32, Bip32Error> {
 
     index_str
         .parse::<u32>()
-        .map(|v| if harden { v + BIP32_HARDEN } else { v })
+        .map(|v| if harden { harden_index(v) } else { v })
         .map_err(|_| Bip32Error::MalformattedDerivation(s.to_owned()))
 }
 
@@ -39,6 +39,11 @@ fn encode_index(idx: u32, harden: char) -> String {
         s.push(harden);
     }
     s
+}
+
+/// Converts an raw index to hardened
+pub fn harden_index(index: u32) -> u32 {
+    index | (1 << 31)
 }
 
 /// A Bip32 derivation path
