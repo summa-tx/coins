@@ -25,15 +25,6 @@ fn try_parse_index(s: &str) -> Result<u32, Bip32Error> {
         .map_err(|_| Bip32Error::MalformattedDerivation(s.to_owned()))
 }
 
-fn try_parse_path(path: &str) -> Result<Vec<u32>, Bip32Error> {
-    path.to_owned()
-        .split('/')
-        .filter(|v| v != &"m")
-        .map(try_parse_index)
-        .collect::<Result<Vec<u32>, Bip32Error>>()
-        .map_err(|_| Bip32Error::MalformattedDerivation(path.to_owned()))
-}
-
 fn encode_index(idx: u32, harden: char) -> String {
     let mut s = (idx % BIP32_HARDEN).to_string();
     if idx >= BIP32_HARDEN {
@@ -185,7 +176,7 @@ impl TryFrom<&str> for DerivationPath {
     type Error = Bip32Error;
 
     fn try_from(v: &str) -> Result<Self, Self::Error> {
-        try_parse_path(v).map(Into::into)
+        v.parse()
     }
 }
 
@@ -202,7 +193,13 @@ impl FromStr for DerivationPath {
     type Err = Bip32Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        try_parse_path(s).map(Into::into)
+        s.to_owned()
+            .split('/')
+            .filter(|v| v != &"m")
+            .map(try_parse_index)
+            .collect::<Result<Vec<u32>, Bip32Error>>()
+            .map(|v| v.into())
+            .map_err(|_| Bip32Error::MalformattedDerivation(s.to_owned()))
     }
 }
 
@@ -338,8 +335,8 @@ pub mod test {
             ("0'/32/5/5/5", vec![BIP32_HARDEN, 32, 5, 5, 5]),
         ];
         for case in cases.iter() {
-            match try_parse_path(case.0) {
-                Ok(v) => assert_eq!(v, case.1),
+            match case.0.parse::<DerivationPath>() {
+                Ok(v) => assert_eq!(v.0, case.1),
                 Err(e) => panic!("unexpected error {}", e),
             }
         }
@@ -349,7 +346,7 @@ pub mod test {
     fn it_handles_malformatted_derivations() {
         let cases = ["//", "m/", "-", "h", "toast", "憂鬱"];
         for case in cases.iter() {
-            match try_parse_path(case) {
+            match case.parse::<DerivationPath>() {
                 Ok(_) => panic!("expected an error"),
                 Err(Bip32Error::MalformattedDerivation(e)) => assert_eq!(&e, case),
                 Err(e) => panic!("unexpected error {}", e),
