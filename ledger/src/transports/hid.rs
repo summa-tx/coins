@@ -248,14 +248,6 @@ impl TransportNativeHID {
             let mut rdr = Cursor::new(&response_buffer[..]);
             let (_, _, rcv_seq_idx) = Self::read_response_header(&mut rdr)?;
 
-            // TODO: Check why windows returns a different channel/tag
-            //        if rcv_channel != channel {
-            //            return Err(Box::from(format!("Invalid channel: {}!={}", rcv_channel, channel )));
-            //        }
-            //        if rcv_tag != 0x05u8 {
-            //            return Err(Box::from("Invalid tag"));
-            //        }
-
             if rcv_seq_idx != sequence_idx {
                 return Err(NativeTransportError::SequenceMismatch {
                     got: rcv_seq_idx,

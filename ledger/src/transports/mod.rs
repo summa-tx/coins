@@ -16,6 +16,11 @@ pub mod native;
 #[cfg(not(target_arch = "wasm32"))]
 pub use native::NativeTransport as DefaultTransport;
 
+#[cfg(target_arch = "wasm32")]
+use log::{debug, error};
+#[cfg(not(target_arch = "wasm32"))]
+use tracing::{debug, error};
+
 use crate::{
     common::{APDUAnswer, APDUCommand},
     errors::LedgerError,
@@ -40,6 +45,8 @@ pub trait LedgerAsync: Sized {
     async fn exchange(&self, packet: &APDUCommand) -> Result<APDUAnswer, LedgerError>;
 
     /// Consume the connection, and release the resources it holds.
+    ///
+    /// By default this function simply drops the struct.
     fn close(self) {}
 }
 
@@ -57,14 +64,35 @@ impl LedgerAsync for Ledger {
         Ok(Self(res?))
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     async fn exchange(&self, packet: &APDUCommand) -> Result<APDUAnswer, LedgerError> {
-        log::debug!("Exchanging Packet {:#?}", packet);
-        let res = self.0.exchange(packet).await;
-        log::debug!("Got response: {:#?}", &res);
-        res
+        debug!(command = %packet, "dispatching APDU to device");
+
+        let resp = self.0.exchange(packet).await;
+        match &resp {
+            Ok(resp) => {
+                debug!(
+                    retcode = resp.retcode(),
+                    response = hex::encode(resp.data().unwrap()),
+                    "Received response from device"
+                )
+            }
+            Err(e) => error!(err = format!("{}", &e), "Received error from device"),
+        }
+        resp
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    async fn exchange(&self, packet: &APDUCommand) -> Result<APDUAnswer, LedgerError> {
+        debug!("Exchanging Packet {:#?}", packet);
+        let resp = self.0.exchange(packet).await;
+        match &resp {
+            Ok(resp) => debug!("Got response: {:#?}", &resp),
+            Err(e) => error!("Got error: {}", e),
+        }
+        resp
     }
 }
-
 /*******************************************************************************
 *   (c) 2020 ZondaX GmbH
 *

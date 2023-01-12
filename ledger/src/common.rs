@@ -9,22 +9,20 @@ const MAX_DATA_SIZE: usize = 255;
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct APDUData(Vec<u8>);
 
+impl std::ops::Deref for APDUData {
+    type Target = Vec<u8>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl APDUData {
     /// Instantiate a APDUData from a slice. If the slice contains more than 255 bytes, only the
     /// first 255 are used.
     pub fn new(buf: &[u8]) -> Self {
         let length = std::cmp::min(buf.len(), MAX_DATA_SIZE);
         APDUData(buf[..length].to_vec())
-    }
-
-    /// Return the data length in bytes
-    pub fn len(&self) -> usize {
-        self.0.len()
-    }
-
-    /// True if the underlying slice is empty, else false.
-    pub fn is_empty(&self) -> bool {
-        self.0.is_empty()
     }
 
     /// Resize the data, as a vec.
@@ -76,6 +74,18 @@ pub struct APDUCommand {
     pub response_len: Option<u8>,
 }
 
+impl std::fmt::Display for APDUCommand {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("APDUCommand")
+            .field("ins", &self.ins)
+            .field("p1", &self.p1)
+            .field("p2", &self.p2)
+            .field("data", &hex::encode(&*self.data))
+            .field("response_len", &self.response_len)
+            .finish()
+    }
+}
+
 impl APDUCommand {
     /// Return the serialized length of the APDU packet
     pub fn serialized_length(&self) -> usize {
@@ -116,6 +126,14 @@ pub struct APDUAnswer {
     response: Vec<u8>,
 }
 
+impl std::ops::Deref for APDUAnswer {
+    type Target = Vec<u8>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.response
+    }
+}
+
 impl std::fmt::Display for APDUAnswer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
@@ -135,16 +153,6 @@ impl APDUAnswer {
         } else {
             Ok(Self { response })
         }
-    }
-
-    /// Return the response length in bytes
-    pub fn len(&self) -> usize {
-        self.response.len()
-    }
-
-    /// True if the underlying slice is empty, else false.
-    pub fn is_empty(&self) -> bool {
-        self.response.is_empty()
     }
 
     /// Return false if the response status is an error.

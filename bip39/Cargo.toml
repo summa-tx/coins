@@ -16,6 +16,7 @@ pbkdf2 = "0.11"
 rand = "0.8.4"
 sha2 = "0.10"
 thiserror = "1.0"
+tracing = "0.1.37"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.getrandom]
 version = "0.2.3"
