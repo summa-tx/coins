@@ -3,15 +3,5 @@ members = [
     "core",
     "bip32",
     "bip39",
-    "bitcoins",
-    "litecoins",
-    "handshakes",
     "ledger",
-    "ledger-btc",
-    "provider",
-]
-
-exclude = [
-  "ledger",  # Excluded until we can figure out how to build hidapi on travis
-  "ledger-btc", # Excluded until we can figure out how to build hidapi on travis
 ]

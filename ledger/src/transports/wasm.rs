@@ -34,7 +34,7 @@ extern "C" {
 
     // `transport.exchange(apdu: Buffer): Promise<Buffer>`
     //
-    // Seed [here](https://github.com/LedgerHQ/ledgerjs#an-unified-transport-interface)
+    // See [here](https://github.com/LedgerHQ/ledgerjs#an-unified-transport-interface)
     #[wasm_bindgen(method)]
     fn exchange(t: &Transport, buf: &[u8]) -> js_sys::Promise;
 }

@@ -266,6 +266,7 @@ mod test {
         }
     }
 
+    #[allow(unused_must_use)]
     #[test]
     #[allow(unused_must_use)]
     fn it_converts_between_bitcoin_script_types() {

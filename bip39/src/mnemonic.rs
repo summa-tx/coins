@@ -11,14 +11,57 @@ use thiserror::Error;
 const PBKDF2_ROUNDS: u32 = 2048;
 const PBKDF2_BYTES: usize = 64;
 
+pub struct Words12;
+pub struct Words15;
+pub struct Words18;
+pub struct Words21;
+pub struct Words24;
+
+pub trait WordCount {
+    const COUNT: usize;
+    const ENTROPY_BYTES: usize;
+}
+
+impl WordCount for Words12 {
+    const COUNT: usize = 12;
+    const ENTROPY_BYTES: usize = 128;
+}
+
+impl WordCount for Words15 {
+    const COUNT: usize = 15;
+    const ENTROPY_BYTES: usize = 160;
+}
+
+impl WordCount for Words18 {
+    const COUNT: usize = 18;
+    const ENTROPY_BYTES: usize = 192;
+}
+
+impl WordCount for Words21 {
+    const COUNT: usize = 21;
+    const ENTROPY_BYTES: usize = 224;
+}
+
+impl WordCount for Words24 {
+    const COUNT: usize = 24;
+    const ENTROPY_BYTES: usize = 256;
+}
+
 /// Mnemonic represents entropy that can be represented as a phrase. A mnemonic can be used to
 /// deterministically generate an extended private key or derive its child keys.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Mnemonic<W: Wordlist> {
+pub struct Mnemonic<W, /*C*/>
+where
+    W: Wordlist,
+    // C: WordCount,
+{
     /// Entropy used to generate mnemonic.
     entropy: Vec<u8>,
+    // entropy: [u8; C::ENTROPY_BYTES],
     /// Wordlist used to produce phrases from entropy.
     _wordlist: PhantomData<W>,
+    // /// Number of words in the mnemonic
+    // _word_count: PhantomData<C>,
 }
 
 #[derive(Debug, Error)]
@@ -99,15 +142,15 @@ impl<W: Wordlist> Mnemonic<W> {
         };
 
         // Ensures the checksum word matches the checksum word in the given phrase.
-        match phrase == mnemonic.to_phrase()? {
+        match phrase == mnemonic.to_phrase() {
             true => Ok(mnemonic),
             false => Err(MnemonicError::InvalidPhrase(phrase.into())),
         }
     }
 
     /// Converts the mnemonic into phrase.
-    pub fn to_phrase(&self) -> Result<String, MnemonicError> {
-        let length = self.word_count()?;
+    pub fn to_phrase(&self) -> String {
+        let length = self.word_count().expect("always valid in memory");
 
         // Compute checksum. Checksum is the most significant (ENTROPY_BYTES/4) bits. That is also
         // equivalent to (WORD_COUNT/3).
@@ -137,7 +180,7 @@ impl<W: Wordlist> Mnemonic<W> {
             })
             .collect::<Vec<&str>>();
 
-        Ok(phrase.join(" "))
+        phrase.join(" ")
     }
 
     fn word_count(&self) -> Result<usize, MnemonicError> {
@@ -174,7 +217,7 @@ impl<W: Wordlist> Mnemonic<W> {
         let mut seed = vec![0u8; PBKDF2_BYTES];
         let salt = format!("mnemonic{}", password.unwrap_or(""));
         pbkdf2::<Hmac<Sha512>>(
-            self.to_phrase()?.as_bytes(),
+            self.to_phrase().as_bytes(),
             salt.as_bytes(),
             PBKDF2_ROUNDS,
             &mut seed,
@@ -382,7 +425,7 @@ mod tests {
             let expected_entropy: Vec<u8> = hex::decode(entropy_str).unwrap();
             let mnemonic = Mnemonic::<W>::new_from_phrase(phrase).unwrap();
             assert_eq!(mnemonic.entropy, expected_entropy);
-            assert_eq!(mnemonic.to_phrase().unwrap(), phrase.to_string());
+            assert_eq!(mnemonic.to_phrase(), phrase.to_string());
         })
     }
 
@@ -397,7 +440,7 @@ mod tests {
                     _wordlist: PhantomData,
                 };
                 assert_eq!(mnemonic.entropy, entropy);
-                assert_eq!(mnemonic.to_phrase().unwrap(), expected_phrase.to_string())
+                assert_eq!(mnemonic.to_phrase(), expected_phrase.to_string())
             })
     }
 
