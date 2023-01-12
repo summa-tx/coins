@@ -11,57 +11,17 @@ use thiserror::Error;
 const PBKDF2_ROUNDS: u32 = 2048;
 const PBKDF2_BYTES: usize = 64;
 
-pub struct Words12;
-pub struct Words15;
-pub struct Words18;
-pub struct Words21;
-pub struct Words24;
-
-pub trait WordCount {
-    const COUNT: usize;
-    const ENTROPY_BYTES: usize;
-}
-
-impl WordCount for Words12 {
-    const COUNT: usize = 12;
-    const ENTROPY_BYTES: usize = 128;
-}
-
-impl WordCount for Words15 {
-    const COUNT: usize = 15;
-    const ENTROPY_BYTES: usize = 160;
-}
-
-impl WordCount for Words18 {
-    const COUNT: usize = 18;
-    const ENTROPY_BYTES: usize = 192;
-}
-
-impl WordCount for Words21 {
-    const COUNT: usize = 21;
-    const ENTROPY_BYTES: usize = 224;
-}
-
-impl WordCount for Words24 {
-    const COUNT: usize = 24;
-    const ENTROPY_BYTES: usize = 256;
-}
-
 /// Mnemonic represents entropy that can be represented as a phrase. A mnemonic can be used to
 /// deterministically generate an extended private key or derive its child keys.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Mnemonic<W, /*C*/>
+pub struct Mnemonic<W>
 where
     W: Wordlist,
-    // C: WordCount,
 {
     /// Entropy used to generate mnemonic.
     entropy: Vec<u8>,
-    // entropy: [u8; C::ENTROPY_BYTES],
     /// Wordlist used to produce phrases from entropy.
     _wordlist: PhantomData<W>,
-    // /// Number of words in the mnemonic
-    // _word_count: PhantomData<C>,
 }
 
 #[derive(Debug, Error)]
