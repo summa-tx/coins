@@ -78,7 +78,7 @@ impl PartialEq for XPriv {
 impl Clone for XPriv {
     fn clone(&self) -> Self {
         Self {
-            key: ecdsa::SigningKey::from_bytes(&self.key.to_bytes()).unwrap(),
+            key: ecdsa::SigningKey::from_bytes(self.key.to_bytes()).unwrap(),
             xkey_info: self.xkey_info,
         }
     }
@@ -595,6 +595,6 @@ mod test {
     fn print_key() {
         let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
         let xpriv: XPriv = MainnetEncoder::xpriv_from_base58(&xpriv_str).unwrap();
-        println!("{:?}", xpriv);
+        println!("{xpriv:?}");
     }
 }

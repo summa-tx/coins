@@ -13,7 +13,7 @@ fn ledger_device_path() {
 
     // TODO: Extend to discover two devices
     let ledger_path = transport.device_path().expect("Could not find a device");
-    println!("{:?}", ledger_path);
+    println!("{ledger_path:?}");
 }
 
 #[tokio::test]
@@ -33,5 +33,5 @@ async fn exchange() {
         response_len: None,
     };
     let result = transport.exchange(&command).await.unwrap();
-    println!("{}", result);
+    println!("{result}");
 }
