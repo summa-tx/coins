@@ -95,7 +95,7 @@ where
         None => writer.write(&[number as u8])?,
         Some(prefix) => {
             let mut written = writer.write(&[prefix])?;
-            let body = (number as u64).to_le_bytes();
+            let body = number.to_le_bytes();
             written += writer.write(&body[..prefix_len as usize - 1])?;
             written
         }

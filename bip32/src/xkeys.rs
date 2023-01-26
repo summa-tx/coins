@@ -221,11 +221,11 @@ impl Parent for XPriv {
         let mut data: Vec<u8> = vec![];
         if hardened {
             data.push(0);
-            data.extend(&key.to_bytes());
-            data.extend(&index.to_be_bytes());
+            data.extend(key.to_bytes());
+            data.extend(index.to_be_bytes());
         } else {
-            data.extend(&key.verifying_key().to_bytes());
-            data.extend(&index.to_be_bytes());
+            data.extend(key.verifying_key().to_bytes());
+            data.extend(index.to_be_bytes());
         };
 
         let res = hmac_and_split(&self.xkey_info.chain_code.0, &data);
@@ -264,7 +264,7 @@ inherit_verifier!(XPub.key);
 impl Clone for XPub {
     fn clone(&self) -> Self {
         Self {
-            key: ecdsa::VerifyingKey::from_sec1_bytes(&self.key.to_bytes()).unwrap(),
+            key: ecdsa::VerifyingKey::from_sec1_bytes(self.key.to_bytes().as_ref()).unwrap(),
             xkey_info: self.xkey_info,
         }
     }
@@ -315,7 +315,7 @@ impl XPub {
 
     /// Return the bitcoin HASH160 of the serialized public key
     pub fn pubkey_hash160(&self) -> Hash160Digest {
-        Hash160::digest_marked(&self.key.to_bytes())
+        Hash160::digest_marked(self.key.to_bytes().as_ref())
     }
 }
 
@@ -331,8 +331,8 @@ impl Parent for XPub {
             return Err(Bip32Error::HardenedDerivationFailed);
         }
         let mut data = vec![];
-        data.extend(&self.key.to_bytes());
-        data.extend(&index.to_be_bytes());
+        data.extend(self.key.to_bytes());
+        data.extend(index.to_be_bytes());
 
         let res = hmac_and_split(&self.xkey_info.chain_code.0, &data);
 
@@ -461,7 +461,7 @@ mod test {
 
     #[test]
     fn bip32_vector_2() {
-        let seed = hex::decode(&"fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542").unwrap();
+        let seed = hex::decode("fffcf9f6f3f0edeae7e4e1dedbd8d5d2cfccc9c6c3c0bdbab7b4b1aeaba8a5a29f9c999693908d8a8784817e7b7875726f6c696663605d5a5754514e4b484542").unwrap();
 
         let xpriv = XPriv::root_from_seed(&seed, Some(Hint::Legacy)).unwrap();
         let xpub = xpriv.verify_key();
@@ -518,7 +518,7 @@ mod test {
 
     #[test]
     fn bip32_vector_3() {
-        let seed = hex::decode(&"4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be").unwrap();
+        let seed = hex::decode("4b381541583be4423346c643850da4b320e46a87ae3d2a4e6da11eba819cd4acba45d239319ac14f863b8d5ab5a0d0c64d2e8a1e7d1457df2e5a3c51c73235be").unwrap();
 
         let xpriv = XPriv::root_from_seed(&seed, Some(Hint::Legacy)).unwrap();
         let xpub = xpriv.verify_key();

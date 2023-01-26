@@ -182,7 +182,7 @@ impl TransportNativeHID {
     }
 
     fn write_apdu(&self, channel: u16, apdu_command: &[u8]) -> Result<i32, NativeTransportError> {
-        let command_length = apdu_command.len() as usize;
+        let command_length = apdu_command.len();
         let mut in_data = Vec::with_capacity(command_length + 2);
         in_data.push(((command_length >> 8) & 0xFF) as u8);
         in_data.push((command_length & 0xFF) as u8);

@@ -18,7 +18,7 @@ pub use k256::ecdsa::{
 /// shortcut for easy usage
 pub fn fingerprint_of(k: &k256::ecdsa::VerifyingKey) -> KeyFingerprint {
     use coins_core::hashes::Digest;
-    let digest = coins_core::hashes::Hash160::digest(&k.to_bytes());
+    let digest = coins_core::hashes::Hash160::digest(k.to_bytes());
     let mut fingerprint = [0u8; 4];
     fingerprint.copy_from_slice(&digest[..4]);
     fingerprint.into()

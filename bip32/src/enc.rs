@@ -34,7 +34,7 @@ pub fn encode_b58_check(v: &[u8]) -> String {
     checksum.copy_from_slice(&digest.as_slice()[..4]);
 
     let mut data = v.to_vec();
-    data.extend(&checksum);
+    data.extend(checksum);
 
     bs58::encode(data).into_string()
 }

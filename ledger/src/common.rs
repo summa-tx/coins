@@ -94,7 +94,7 @@ impl APDUCommand {
             length += 1;
             length += self.data.len();
         }
-        length += if self.response_len.is_some() { 1 } else { 0 };
+        length += self.response_len.is_some() as usize;
         length
     }
 
