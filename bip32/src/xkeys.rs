@@ -78,7 +78,7 @@ impl PartialEq for XPriv {
 impl Clone for XPriv {
     fn clone(&self) -> Self {
         Self {
-            key: ecdsa::SigningKey::from_bytes(self.key.to_bytes()).unwrap(),
+            key: ecdsa::SigningKey::from_bytes(&self.key.to_bytes()).unwrap(),
             xkey_info: self.xkey_info,
         }
     }

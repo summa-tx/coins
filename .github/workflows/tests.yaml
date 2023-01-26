@@ -29,8 +29,8 @@ jobs:
       - name: Build
         run: cargo build --verbose
       - name: Build (no default features)
-        run: cargo build --verbose --no-default-features
-  
+        run: cargo build --verbose --no-default-features --locked
+
   wasm:
     name: Build WASM
     runs-on: ubuntu-latest
@@ -43,7 +43,7 @@ jobs:
           toolchain: stable
           target: wasm32-unknown-unknown
           profile: minimal
-          override: true  
+          override: true
 
       - uses: Swatinem/rust-cache@v1
         with:
@@ -53,7 +53,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --verbose --target wasm32-unknown-unknown --no-default-features --features "browser"
+          args: --verbose --target wasm32-unknown-unknown --no-default-features --features "browser" --locked
 
   test:
     runs-on: ubuntu-latest

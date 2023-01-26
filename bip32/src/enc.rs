@@ -174,7 +174,7 @@ pub trait XKeyEncoder {
 
         let mut buf = [0u8; 32];
         reader.read_exact(&mut buf)?;
-        let key = ecdsa::SigningKey::from_bytes(buf)?;
+        let key = ecdsa::SigningKey::from_bytes(&buf)?;
 
         Ok(XPriv {
             key,
