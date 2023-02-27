@@ -17,7 +17,7 @@
 #![warn(missing_docs)]
 #![warn(unused_extern_crates)]
 
-#[cfg_attr(tarpaulin, skip)]
+#[cfg(not(tarpaulin_include))]
 #[macro_use]
 pub mod macros;
 
