@@ -285,7 +285,8 @@ where
         Ok(self.master_key(password)?.derive_path(path)?)
     }
 
-    fn to_seed(&self, password: Option<&str>) -> Result<[u8; PBKDF2_BYTES], MnemonicError> {
+    /// Convert to a bip23 seed
+    pub fn to_seed(&self, password: Option<&str>) -> Result<[u8; PBKDF2_BYTES], MnemonicError> {
         let mut seed = [0u8; PBKDF2_BYTES];
         let salt = format!("mnemonic{}", password.unwrap_or(""));
         pbkdf2::<Hmac<Sha512>>(
@@ -558,5 +559,13 @@ mod tests {
                     master_key,
                 );
             });
+    }
+
+    #[test]
+    fn test_derive_key_try_into_derivation() {
+        let phrase = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+        let mnemonic = Mnemonic::<W>::new_from_phrase(phrase).unwrap();
+        mnemonic.derive_key(0, None).unwrap();
+        mnemonic.derive_key("m/44'/61'/0'/0", None).unwrap();
     }
 }

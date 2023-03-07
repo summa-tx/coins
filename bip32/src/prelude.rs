@@ -9,10 +9,14 @@ pub use crate::Bip32Error;
 pub use crate::defaults::*;
 
 /// Re-exported signer traits
-pub use k256::ecdsa::{
-    recoverable::Signature as RecoverableSignature,
-    signature::{DigestSigner, DigestVerifier, Signature as SigTrait},
-    Signature, SigningKey, VerifyingKey,
+pub use k256;
+pub use k256::{
+    ecdsa::{
+        recoverable::Signature as RecoverableSignature,
+        signature::{DigestSigner as _, DigestVerifier as _, Signature as _},
+        Signature, SigningKey, VerifyingKey,
+    },
+    elliptic_curve::sec1::ToEncodedPoint as _,
 };
 
 /// shortcut for easy usage
