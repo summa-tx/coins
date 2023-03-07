@@ -32,7 +32,7 @@ pub enum MnemonicError {
 }
 
 /// Holds valid entropy lengths for a mnemonic
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum Entropy {
     /// Sixteen bytes of entropy
     Sixteen([u8; 16]),
@@ -44,6 +44,18 @@ pub enum Entropy {
     TwentyEight([u8; 28]),
     /// ThirtyTwo bytes of entropy
     ThirtyTwo([u8; 32]),
+}
+
+impl std::fmt::Debug for Entropy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Sixteen(_) => f.debug_tuple("Sixteen bytes").finish(),
+            Self::Twenty(_) => f.debug_tuple("Twenty bytes").finish(),
+            Self::TwentyFour(_) => f.debug_tuple("Twenty-four bytes").finish(),
+            Self::TwentyEight(_) => f.debug_tuple("Twenty-eight bytes").finish(),
+            Self::ThirtyTwo(_) => f.debug_tuple("Thirty-two bytes").finish(),
+        }
+    }
 }
 
 impl std::convert::TryFrom<&[u8]> for Entropy {
