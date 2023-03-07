@@ -1,3 +1,4 @@
+/// The English wordlist
 pub mod english;
 pub use self::english::*;
 
@@ -14,29 +15,25 @@ pub enum WordlistError {
     InvalidWord(String),
 }
 
-// The Wordlist trait that every language's wordlist must implement.
+/// The Wordlist trait that every language's wordlist must implement.
 pub trait Wordlist {
-    /// The wordlist in original form.
-    const WORDLIST: &'static str;
+    /// Returns the word list as a string.
+    ///
+    /// Implementor's note: this MUST be sorted
+    fn get_all() -> &'static [&'static str];
 
     /// Returns the word of a given index from the word list.
-    fn get(index: usize) -> Result<String, WordlistError> {
-        if index >= 2048 {
-            return Err(WordlistError::InvalidIndex(index));
-        }
-        Ok(Self::get_all()[index].into())
+    fn get(index: usize) -> Result<&'static str, WordlistError> {
+        Self::get_all()
+            .get(index)
+            .map(std::ops::Deref::deref)
+            .ok_or(crate::WordlistError::InvalidIndex(index))
     }
 
     /// Returns the index of a given word from the word list.
     fn get_index(word: &str) -> Result<usize, WordlistError> {
-        match Self::get_all().iter().position(|element| element == &word) {
-            Some(index) => Ok(index),
-            None => Err(WordlistError::InvalidWord(word.into())),
-        }
-    }
-
-    /// Returns the word list as a string.
-    fn get_all() -> Vec<&'static str> {
-        Self::WORDLIST.lines().collect::<Vec<&str>>()
+        Self::get_all()
+            .binary_search(&word)
+            .map_err(|_| crate::WordlistError::InvalidWord(word.to_string()))
     }
 }
