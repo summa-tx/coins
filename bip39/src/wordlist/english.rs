@@ -1,14 +1,20 @@
 use crate::Wordlist;
+use once_cell::sync::Lazy;
 
 /// The list of words as supported in the English language.
-pub const ENGLISH: &str = include_str!("./words/english.txt");
+pub const RAW_ENGLISH: &str = include_str!("./words/english.txt");
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+/// English word list, split into words
+pub static PARSED: Lazy<Vec<&'static str>> = Lazy::new(|| RAW_ENGLISH.lines().collect());
+
+#[derive(Clone, Debug, PartialEq, Eq, Copy)]
 /// The English wordlist that implements the Wordlist trait.
 pub struct English;
 
 impl Wordlist for English {
-    const WORDLIST: &'static str = ENGLISH;
+    fn get_all() -> &'static [&'static str] {
+        PARSED.as_slice()
+    }
 }
 
 #[cfg(test)]
@@ -19,8 +25,8 @@ mod tests {
 
     #[test]
     fn test_get() {
-        assert_eq!(English::get(3), Ok("about".to_string()));
-        assert_eq!(English::get(2044), Ok("zebra".to_string()));
+        assert_eq!(English::get(3), Ok("about"));
+        assert_eq!(English::get(2044), Ok("zebra"));
         assert_eq!(English::get(2048), Err(WordlistError::InvalidIndex(2048)));
     }
 
