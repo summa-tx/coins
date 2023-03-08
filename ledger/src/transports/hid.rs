@@ -312,7 +312,7 @@ impl TransportNativeHID {
     // TODO: why does this exist?
     #[doc(hidden)]
     #[allow(dead_code)]
-    pub fn close() {}
+    pub fn close(self) {}
 }
 
 /*******************************************************************************

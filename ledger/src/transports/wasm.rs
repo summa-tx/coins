@@ -15,7 +15,7 @@ use crate::{
 )]
 #[cfg_attr(
     feature = "browser",
-    wasm_bindgen(module = "@ledgerhq/hw-transport-u2f")
+    wasm_bindgen(module = "@ledgerhq/hw-transport-webusb")
 )]
 extern "C" {
     // NB:
