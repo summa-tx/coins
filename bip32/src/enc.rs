@@ -174,7 +174,7 @@ pub trait XKeyEncoder {
 
         let mut buf = [0u8; 32];
         reader.read_exact(&mut buf)?;
-        let key = ecdsa::SigningKey::from_bytes(&buf)?;
+        let key = ecdsa::SigningKey::from_bytes(&buf.into())?;
 
         Ok(XPriv {
             key,
@@ -339,7 +339,7 @@ impl<P: NetworkParams> XKeyEncoder for BitcoinEncoder<P> {
         };
         let mut written = writer.write(&version.to_be_bytes())?;
         written += Self::write_key_details(writer, key.as_ref())?;
-        written += writer.write(key.as_ref().key.to_bytes().as_ref())?;
+        written += writer.write(key.as_ref().key.to_sec1_bytes().as_ref())?;
         Ok(written)
     }
 

@@ -238,7 +238,7 @@ pub struct DerivedPubkey {
 impl std::fmt::Debug for DerivedPubkey {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DerivedPubkey")
-            .field("public key", &self.key.to_bytes())
+            .field("public key", &self.key.to_sec1_bytes())
             .field("key fingerprint", &self.fingerprint())
             .field("derivation", &self.derivation)
             .finish()
@@ -267,7 +267,7 @@ impl DerivedPubkey {
 
     /// Return the hash of the compressed (Sec1) pubkey.
     pub fn pubkey_hash160(&self) -> Hash160Digest {
-        Hash160::digest_marked(self.key.to_bytes().as_ref())
+        Hash160::digest_marked(self.key.to_sec1_bytes().as_ref())
     }
 
     /// The fingerprint is the first 4 bytes of the HASH160 of the serialized
@@ -323,7 +323,7 @@ mod test {
             Ok(true) => {}
             Ok(false) => panic!("failed validate_descendant is_public_ancestor_of"),
             Err(_) => {
-                let path: crate::path::DerivationPath = d.path.into();
+                let path: DerivationPath = d.path.into();
                 assert!(
                     path.last_hardened().1.is_some(),
                     "is_public_ancestor_of failed for unhardened path"
@@ -440,7 +440,7 @@ mod test {
             _ => panic!("expected signature validation error"),
         }
 
-        let sig: RecoverableSignature = key.sign_digest(digest.clone());
+        let (sig, _): (Signature, RecoveryId) = key.sign_digest(digest.clone());
         key_pub.verify_digest(digest, &sig).unwrap();
 
         let err_bad_sig = key_pub.verify_digest(wrong_digest.clone(), &sig);
@@ -486,7 +486,8 @@ mod test {
             _ => panic!("expected signature validation error"),
         }
 
-        let sig: RecoverableSignature = key.derive_path(&path).unwrap().sign_digest(digest.clone());
+        let (sig, _): (Signature, RecoveryId) =
+            key.derive_path(&path).unwrap().sign_digest(digest.clone());
         key_pub
             .derive_path(&path)
             .unwrap()
@@ -520,7 +521,8 @@ mod test {
         }
 
         // sign_recoverable + verify_recoverable
-        let sig: RecoverableSignature = key.derive_path(&path).unwrap().sign_digest(digest.clone());
+        let (sig, recovery_id): (Signature, RecoveryId) =
+            key.derive_path(&path).unwrap().sign_digest(digest.clone());
         key_pub
             .derive_path(&path)
             .unwrap()
@@ -538,16 +540,17 @@ mod test {
 
         // Sig serialize/deserialize
         let der_sig = hex::decode("304402200cc613393c11889ed1384388c9213b7778cfa0c7c2b6fcc080f0296fc8ac87d202205788d8994d61ce901d1ee22c5210994c235f17ddb3c31e0fc0ec9730ecf084ce").unwrap();
-        let rsv = [
+        let rsv: [u8; 65] = [
             12, 198, 19, 57, 60, 17, 136, 158, 209, 56, 67, 136, 201, 33, 59, 119, 120, 207, 160,
             199, 194, 182, 252, 192, 128, 240, 41, 111, 200, 172, 135, 210, 87, 136, 216, 153, 77,
             97, 206, 144, 29, 30, 226, 44, 82, 16, 153, 76, 35, 95, 23, 221, 179, 195, 30, 15, 192,
             236, 151, 48, 236, 240, 132, 206, 1,
         ];
-        assert_eq!(Signature::from(sig).to_der().as_bytes(), der_sig);
-        assert_eq!(sig.as_ref(), rsv);
-        assert_eq!(Signature::from(sig), Signature::from_der(&der_sig).unwrap(),);
-        assert_eq!(sig, RecoverableSignature::from_bytes(&rsv).unwrap());
+        assert_eq!(sig.to_der().as_bytes(), der_sig);
+        assert_eq!(&sig, &Signature::from_der(&der_sig).unwrap());
+        assert_eq!(sig.r().to_bytes().as_slice(), &rsv[..32]);
+        assert_eq!(sig.s().to_bytes().as_slice(), &rsv[32..64]);
+        assert_eq!(recovery_id.to_byte(), rsv[64]);
     }
 
     #[test]
