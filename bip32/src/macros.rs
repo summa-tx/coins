@@ -17,8 +17,11 @@ macro_rules! inherit_signer {
             }
         }
 
-        impl<D> k256::ecdsa::signature::DigestSigner<D, k256::ecdsa::recoverable::Signature>
-            for $struct_name
+        impl<D>
+            k256::ecdsa::signature::DigestSigner<
+                D,
+                (k256::ecdsa::Signature, k256::ecdsa::RecoveryId),
+            > for $struct_name
         where
             D: digest::FixedOutput<OutputSize = k256::elliptic_curve::consts::U32>
                 + Clone
@@ -30,8 +33,27 @@ macro_rules! inherit_signer {
             fn try_sign_digest(
                 &self,
                 digest: D,
-            ) -> Result<k256::ecdsa::recoverable::Signature, k256::ecdsa::Error> {
-                self.$attr.try_sign_digest(digest)
+            ) -> Result<(k256::ecdsa::Signature, k256::ecdsa::RecoveryId), k256::ecdsa::Error> {
+                self.$attr.sign_digest_recoverable(digest)
+            }
+        }
+
+        impl $struct_name {
+            /// Sign the given message digest, returning a signature and recovery ID.
+            /// See https://docs.rs/ecdsa/latest/ecdsa/struct.SigningKey.html#method.sign_digest_recoverable
+            pub fn sign_digest_recoverable<D>(
+                &self,
+                digest: D,
+            ) -> Result<(k256::ecdsa::Signature, k256::ecdsa::RecoveryId), k256::ecdsa::Error>
+            where
+                D: digest::FixedOutput<OutputSize = k256::elliptic_curve::consts::U32>
+                    + Clone
+                    + Default
+                    + digest::Reset
+                    + digest::Update
+                    + digest::HashMarker,
+            {
+                self.$attr.sign_digest_recoverable(digest)
             }
         }
     };
@@ -40,10 +62,10 @@ macro_rules! inherit_signer {
 macro_rules! inherit_verifier {
     ($struct_name:ident.$attr:ident) => {
         impl $struct_name {
-            /// Get the sec1 representation of the public key
-            pub fn to_bytes(&self) -> [u8; 33] {
+            /// Get the compressed sec1 representation of the public key.
+            pub fn to_sec1_bytes(&self) -> [u8; 33] {
                 let mut data = [0u8; 33];
-                let generic_array = self.$attr.to_bytes();
+                let generic_array = self.$attr.to_sec1_bytes();
                 data.copy_from_slice(&generic_array);
                 data
             }
@@ -57,20 +79,6 @@ macro_rules! inherit_verifier {
                 &self,
                 digest: D,
                 signature: &k256::ecdsa::Signature,
-            ) -> Result<(), k256::ecdsa::Error> {
-                self.$attr.verify_digest(digest, signature)
-            }
-        }
-
-        impl<D> k256::ecdsa::signature::DigestVerifier<D, k256::ecdsa::recoverable::Signature>
-            for $struct_name
-        where
-            D: digest::Digest + digest::FixedOutput<OutputSize = k256::elliptic_curve::consts::U32>,
-        {
-            fn verify_digest(
-                &self,
-                digest: D,
-                signature: &k256::ecdsa::recoverable::Signature,
             ) -> Result<(), k256::ecdsa::Error> {
                 self.$attr.verify_digest(digest, signature)
             }

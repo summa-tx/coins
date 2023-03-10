@@ -28,11 +28,11 @@
 //! let xpriv: XPriv = xpriv_str.parse().unwrap();
 //!
 //! let child_xpriv = xpriv.derive_child(33)?;
-//! let sig: RecoverableSignature = child_xpriv.sign_digest(digest.clone());
+//! let (sig, _recovery_id): (Signature, RecoveryId) = child_xpriv.sign_digest(digest.clone());
 //!
 //! // Signing key types are associated with verifying key types. You can always derive a pubkey
 //! let child_xpub = child_xpriv.verify_key();
-//! child_xpub.verify_digest(digest.clone(), &sig);
+//! child_xpub.verify_digest(digest.clone(), &sig)?;
 //!
 //! MainnetEncoder::xpub_to_base58(&child_xpub)?;
 //! # Ok(())
