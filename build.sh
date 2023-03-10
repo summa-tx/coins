@@ -4,6 +4,7 @@ set -e
 
 cargo build --verbose
 cargo test --verbose --lib
+cargo test --verbose --doc
 
 ### BIP32 ###
 cd bip32
