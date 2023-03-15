@@ -306,7 +306,8 @@ where
             salt.as_bytes(),
             PBKDF2_ROUNDS,
             &mut seed,
-        );
+        )
+        .expect("cannot have invalid length");
 
         Ok(seed)
     }

@@ -8,18 +8,17 @@ repository = "https://github.com/summa-tx/bitcoins-rs"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-base58check = "0.1.0"
 bech32 = "0.7.2"
 hex = "0.4.2"
 thiserror = "1.0"
-base64 = "0.12.0"
+base64 = "0.21.0"
 serde_derive = "1.0.106"
 serde = { version = "1.0.106", features = ["derive"] }
+bs58 = { version = "0.4.0", features = ["check"] }
 
 # update in parallel
 generic-array = "0.14.4"
 digest = "0.10"
-blake2 = { version = "0.10", features = ["reset"] }
 sha2 = "0.10"
 sha3 = "0.10"
 ripemd = "0.1"

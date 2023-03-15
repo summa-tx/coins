@@ -13,7 +13,7 @@ coins-bip32 = { version ="0.8.1", path = "../bip32" }
 hex = "0.4.2"
 hmac = "0.12"
 once_cell = "1.17.1"
-pbkdf2 = "0.11"
+pbkdf2 = "0.12"
 rand = "0.8.4"
 sha2 = "0.10"
 thiserror = "1.0"

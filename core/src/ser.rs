@@ -1,6 +1,6 @@
 //! A simple trait for binary (de)Serialization using std `Read` and `Write` traits.
 
-use base64::DecodeError;
+use base64::{prelude::*, DecodeError};
 use hex::FromHexError;
 use std::{
     convert::TryInto,
@@ -332,7 +332,7 @@ pub trait ByteFormat {
     where
         Self: std::marker::Sized,
     {
-        let v: Vec<u8> = base64::decode(s).map_err(SerError::from)?;
+        let v: Vec<u8> = BASE64_STANDARD.decode(s).map_err(SerError::from)?;
         let mut cursor = Cursor::new(v);
         Self::read_from(&mut cursor)
     }
@@ -348,7 +348,7 @@ pub trait ByteFormat {
     fn serialize_base64(&self) -> String {
         let mut v: Vec<u8> = vec![];
         self.write_to(&mut v).expect("No error on heap write");
-        base64::encode(v)
+        BASE64_STANDARD.encode(v)
     }
 }
 

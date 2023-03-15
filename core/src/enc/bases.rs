@@ -5,7 +5,10 @@ use bech32::{
     decode as b32_decode, encode as b32_encode, u5, Error as BechError, FromBase32, ToBase32,
 };
 
-use base58check::{FromBase58Check, FromBase58CheckError, ToBase58Check};
+use bs58::{
+    decode as bs58_decode, decode::Error as Bs58DecodeError, encode as bs58_encode,
+    encode::Error as Bs58EncodeError,
+};
 
 use thiserror::Error;
 
@@ -35,8 +38,12 @@ pub enum EncodingError {
     },
 
     /// Bubbled up error from base58check library
-    #[error("FromBase58CheckError: {0:?}")]
-    B58Error(FromBase58CheckError),
+    #[error("{0}")]
+    Bs58Decode(#[from] Bs58DecodeError),
+
+    /// Bubbled up error from base58check library
+    #[error("{0}")]
+    Bs58Encode(#[from] Bs58EncodeError),
 
     /// Bubbled up error from bech32 library
     #[error(transparent)]
@@ -53,13 +60,6 @@ pub enum EncodingError {
     /// Invalid Address Size
     #[error("Invalid Address Size")]
     InvalidSizeError,
-}
-
-/// Impl explicitly because FromBase58CheckError doesn't implement the std error format
-impl From<FromBase58CheckError> for EncodingError {
-    fn from(e: FromBase58CheckError) -> Self {
-        EncodingError::B58Error(e)
-    }
 }
 
 /// A simple result type alias
@@ -92,21 +92,25 @@ pub fn decode_bech32(expected_hrp: &str, s: &str) -> EncodingResult<(u8, Vec<u8>
 }
 
 /// Encodes a byte slice to base58check with the specified version byte.
-pub fn encode_base58(version: u8, v: &[u8]) -> String {
-    v.to_base58check(version)
+pub fn encode_base58(v: &[u8]) -> String {
+    bs58_encode(v).with_check().into_string()
 }
 
-/// Decodes base58check into a byte string. Returns a `FromBase58CheckError` if the checksum or
-/// encoding is wrong. Returns a `WrongVersion` if it decodes an unexpected version.
-pub fn decode_base58(expected_version: u8, s: &str) -> EncodingResult<Vec<u8>> {
-    let (version, data) = s.from_base58check()?;
-    if version != expected_version {
-        return Err(EncodingError::WrongVersion {
-            got: version,
-            expected: expected_version,
-        });
-    };
-    Ok(data)
+/// Decodes base58check into a byte string. Returns a
+/// `EncodingError::Bs58Decode` if unsuccesful
+pub fn decode_base58(expected_prefix: u8, s: &str) -> EncodingResult<Vec<u8>> {
+    let res = bs58_decode(s).with_check(None).into_vec()?;
+
+    if let Some(version) = res.first() {
+        if version != &expected_prefix {
+            return Err(EncodingError::Bs58Decode(Bs58DecodeError::InvalidVersion {
+                ver: *version,
+                expected_ver: expected_prefix,
+            }));
+        }
+    }
+
+    Ok(res)
 }
 
 #[cfg(test)]
@@ -150,7 +154,7 @@ mod test {
         ];
         for addr in addrs.iter() {
             let s = decode_base58(version, addr).unwrap();
-            let reencoded = encode_base58(version, &s);
+            let reencoded = encode_base58(&s);
             assert_eq!(*addr, reencoded);
         }
     }
@@ -171,7 +175,7 @@ mod test {
         ];
         for addr in addrs.iter() {
             let s = decode_base58(version, addr).unwrap();
-            let reencoded = encode_base58(version, &s);
+            let reencoded = encode_base58(&s);
             assert_eq!(*addr, reencoded);
         }
     }
@@ -188,10 +192,10 @@ mod test {
         }
         match decode_base58(1, "3HXNFmJpxjgTVFN35Y9f6Waje5YFsLEQZ2") {
             Ok(_) => panic!("expected an error"),
-            Err(EncodingError::WrongVersion {
-                got: _,
-                expected: _,
-            }) => {}
+            Err(EncodingError::Bs58Decode(Bs58DecodeError::InvalidVersion {
+                ver: 5,
+                expected_ver: 1,
+            })) => {}
             _ => panic!("Got the wrong error"),
         }
         match decode_bech32("bc", "bc1qqh9ue57m6227627j8ztscl9") {
@@ -201,7 +205,7 @@ mod test {
         }
         match decode_base58(5, "3HXNf6Waje5YFsLEQZ2") {
             Ok(_) => panic!("expected an error"),
-            Err(EncodingError::B58Error(_)) => {}
+            Err(EncodingError::Bs58Decode(_)) => {}
             _ => panic!("Got the wrong error"),
         }
     }

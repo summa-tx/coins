@@ -6,7 +6,7 @@
 
 use digest::{
     core_api::{BlockSizeUser, OutputSizeUser},
-    HashMarker, Output, VariableOutput,
+    HashMarker, Output,
 };
 use std::io::Write;
 
@@ -176,66 +176,6 @@ impl digest::Reset for Hash160 {
 impl digest::Update for Hash160 {
     fn update(&mut self, data: &[u8]) {
         Digest::update(&mut self.0, data);
-    }
-}
-
-#[derive(Clone)]
-/// A `Digest` implementation that performs Bitcoin style double-sha256
-pub struct Blake2b256(blake2::Blake2bVar);
-
-impl std::io::Write for Blake2b256 {
-    fn flush(&mut self) -> std::io::Result<()> {
-        Ok(())
-    }
-
-    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-        self.update(buf);
-        Ok(buf.len())
-    }
-}
-
-impl Default for Blake2b256 {
-    fn default() -> Self {
-        Self(<blake2::Blake2bVar as digest::VariableOutput>::new(32).unwrap())
-    }
-}
-
-// there is a blanket implementation for Digest: Update + FixedOutput + Reset + Default + Clone
-impl digest::Update for Blake2b256 {
-    fn update(&mut self, data: &[u8]) {
-        self.0.update(data.as_ref())
-    }
-}
-
-impl HashMarker for Blake2b256 {}
-
-impl OutputSizeUser for Blake2b256 {
-    type OutputSize = <sha2::Sha256 as OutputSizeUser>::OutputSize; // cheating
-}
-
-impl digest::FixedOutput for Blake2b256 {
-    fn finalize_into(self, out: &mut DigestOutput<Self>) {
-        // variable output size is set to 32 matches `out`
-        self.0
-            .finalize_variable(out.as_mut())
-            .expect("correct output size")
-    }
-}
-
-impl digest::FixedOutputReset for Blake2b256 {
-    // TODO: see if we can avoid cloning hasher state?
-    fn finalize_into_reset(&mut self, out: &mut Output<Self>) {
-        self.0
-            .clone()
-            .finalize_variable(out.as_mut())
-            .expect("correct output size");
-        self.reset();
-    }
-}
-
-impl digest::Reset for Blake2b256 {
-    fn reset(&mut self) {
-        self.0.reset()
     }
 }
 
