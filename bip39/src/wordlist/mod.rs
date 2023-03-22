@@ -1,6 +1,33 @@
+/// The Chinese (Simplified) wordlist
+pub mod chinese_simplified;
+/// The Chinese (Traditional) wordlist
+pub mod chinese_traditional;
+/// The Czech wordlist
+pub mod czech;
 /// The English wordlist
 pub mod english;
+/// The French wordlist
+pub mod french;
+/// The Italian wordlist
+pub mod italian;
+/// The Japanese wordlist
+pub mod japanese;
+/// The Korean wordlist
+pub mod korean;
+/// The Portuguese wordlist
+pub mod portuguese;
+/// The Spanish wordlist
+pub mod spanish;
+pub use self::chinese_simplified::*;
+pub use self::chinese_traditional::*;
+pub use self::czech::*;
 pub use self::english::*;
+pub use self::french::*;
+pub use self::italian::*;
+pub use self::japanese::*;
+pub use self::korean::*;
+pub use self::portuguese::*;
+pub use self::spanish::*;
 
 use thiserror::Error;
 
@@ -33,7 +60,8 @@ pub trait Wordlist {
     /// Returns the index of a given word from the word list.
     fn get_index(word: &str) -> Result<usize, WordlistError> {
         Self::get_all()
-            .binary_search(&word)
-            .map_err(|_| crate::WordlistError::InvalidWord(word.to_string()))
+            .iter()
+            .position(|&x| x == word)
+            .ok_or(crate::WordlistError::InvalidWord(word.to_string()))
     }
 }
