@@ -1,3 +1,7 @@
+<a href = "https://docs.rs/coins-bip32/latest/coins_bip32/" ><img alt="docs.rs" src="https://img.shields.io/docsrs/coins-bip32?label=bip32%20docs"></a>
+<a href = "https://docs.rs/coins-bip39/latest/coins_bip39/" ><img alt="docs.rs" src="https://img.shields.io/docsrs/coins-bip39?label=bip39%20docs"></a>
+<a href = "https://docs.rs/coins-ledger/latest/coins_ledger/" ><img alt="docs.rs" src="https://img.shields.io/docsrs/coins-ledger?label=ledger%20docs"></a>
+
 # coins & bitcoins
 
 `coins` aims to provide high-quality tooling for bip32, bip39, and ledger
