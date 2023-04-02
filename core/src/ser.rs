@@ -237,7 +237,8 @@ pub trait ByteFormat {
     where
         W: Write;
 
-    /// Read a sequence of exactly `limit` objects from the reader.
+    /// Read a sequence of objects from the reader. The mode argument specifies
+    /// how many objects to read.
     fn read_seq_from<R>(reader: &mut R, mode: ReadSeqMode) -> Result<Vec<Self>, Self::Error>
     where
         R: Read,

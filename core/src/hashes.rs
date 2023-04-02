@@ -1,8 +1,9 @@
-//! Holds utilites for working with cryptographic digests, and disambiguating digests via marker
-//! traits.
+//! Holds utilites for working with cryptographic digests, and disambiguating
+//! digests via marker traits.
 //!
-//! We want to wrap hashes in marked newtypes in order to prevent type-confusion between TXIDs,
-//! sighashes, and other digests with the same length.
+//! We want to wrap hashes in marked newtypes in order to prevent
+//! type-confusion between TXIDs, sighashes, and other digests with the same
+//! length.
 
 use digest::{
     core_api::{BlockSizeUser, OutputSizeUser},
