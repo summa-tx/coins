@@ -3,7 +3,7 @@ name = "coins-bip32"
 version = "0.8.3"
 authors = ["James Prestwich <james@prestwi.ch>"]
 edition = "2018"
-description = "Bip32 (and related BIPs) in Rust"
+description = "Bip32 in Rust"
 repository = "https://github.com/summa-tx/bitcoins-rs"
 license = "MIT OR Apache-2.0"
 

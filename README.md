@@ -1,7 +1,5 @@
 # coins & bitcoins
 
-[![Coverage Status](https://coveralls.io/repos/github/summa-tx/riemann-rs/badge.svg?branch=master)](https://coveralls.io/github/summa-tx/riemann-rs?branch=master)
-
 `coins` aims to provide high-quality tooling for bip32, bip39, and ledger
 device communication. It is a toolbox for building signers for blockchain
 applications. `coins` runs natively and supports wasm targets for browser and

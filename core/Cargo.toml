@@ -3,7 +3,7 @@ name = "coins-core"
 version = "0.8.3"
 authors = ["James Prestwich <james@prestwi.ch>"]
 edition = "2018"
-description = "Abstract UTXO transactions to enable code reuse across chains"
+description = "Core library for coins-bip32 and coins-bip39"
 repository = "https://github.com/summa-tx/bitcoins-rs"
 license = "MIT OR Apache-2.0"
 
