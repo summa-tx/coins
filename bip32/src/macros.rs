@@ -40,7 +40,7 @@ macro_rules! inherit_signer {
 
         impl $struct_name {
             /// Sign the given message digest, returning a signature and recovery ID.
-            /// See https://docs.rs/ecdsa/latest/ecdsa/struct.SigningKey.html#method.sign_digest_recoverable
+            /// See [ECDSA docs here](https://docs.rs/ecdsa/latest/ecdsa/struct.SigningKey.html#method.sign_digest_recoverable)
             pub fn sign_digest_recoverable<D>(
                 &self,
                 digest: D,

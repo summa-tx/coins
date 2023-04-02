@@ -2,51 +2,34 @@
 
 [![Coverage Status](https://coveralls.io/repos/github/summa-tx/riemann-rs/badge.svg?branch=master)](https://coveralls.io/github/summa-tx/riemann-rs?branch=master)
 
-`coins` is a set of transaction construction libraries for UTXO-based
-chains. It aims to provide high-quality tooling for constructing
-transactions, and to enable use in the browser via `wasm-bindgen`.
+`coins` aims to provide high-quality tooling for bip32, bip39, and ledger
+device communication. It is a toolbox for building signers for blockchain
+applications. `coins` runs natively and supports wasm targets for browser and
+node.
+
+This repo previously hosted a set of transaction construction libraries for
+UTXO-based chains. You can find much of that work in the archive folder (for
+now). [This is the last commit with that code in the main packages.](https://github.com/summa-tx/bitcoins-rs/tree/db28df1fb0d8dc71f149735bfa9a955d25b54f19)
 
 ## Building & running tests
 
 - install [rustup](https://rustup.rs/)
 - Run _all_ the tests `$ ./build.sh`
-- build the docs: `$ cargo rustdoc`
+- build the docs: `$ cargo doc`
 
 ## Project Goals
 
-- Easy to use Bitcoin tooling
-- Generic traits supporting multiple networks
+- Support bip32, bip39, and Ledger device comms
+- Provide basic tooling to support these use cases
 - WASM compatibility in all packages
-- Support essential BIPs
-
-## Project Architecture
-
-The project is built around the `coins-core` crate which defines high-level
-traits and interfaces. Chain-specific libraries use these traits to provide
-a consistent developer experience across chains.
-
-We have provided a `bitcoins` crate with a Bitcoin-targeted implementation. See
-its documentation for usage instruction and details.
-
-Other than that:
-
-- `coins-bip32` provides tooling for BIP32 HDKey derivation
-- `bitcoins-provider` gives a simple consistent interface to chain data with
-  swappable backends.
 
 ## Project Status
 
-While this is feature-complete, and there are some tests, **much of it is
-alpha software**. There will be rough edges, and the interfaces are subject to
-change.
-
-Specificallly:
-
-- `core`, `bip32`, and `bitcoins` are relatively stable.
-- `provider` is working, but does not yet have a stable API
-- `ledger`, and `ledger-btc` are essentially alpha
+This project is used extensively in the ethers-rs ecosystem. However, much of
+it is in an alpha/beta state. There will be rough edges, and the interfaces are
+subject to change.
 
 # License Notes
 
 Some work in the `ledger` crate is reproduced under the APACHE 2.0 license. See
-the readme for documentation
+that README for specific info
