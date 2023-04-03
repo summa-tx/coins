@@ -2,16 +2,16 @@
 <a href = "https://docs.rs/coins-bip39/latest/coins_bip39/" ><img alt="docs.rs" src="https://img.shields.io/docsrs/coins-bip39?label=bip39%20docs"></a>
 <a href = "https://docs.rs/coins-ledger/latest/coins_ledger/" ><img alt="docs.rs" src="https://img.shields.io/docsrs/coins-ledger?label=ledger%20docs"></a>
 
-# coins & bitcoins
+# coins
 
-`coins` aims to provide high-quality tooling for bip32, bip39, and ledger
+This project aims to provide high-quality tooling for bip32, bip39, and ledger
 device communication. It is a toolbox for building signers for blockchain
-applications. `coins` runs natively and supports wasm targets for browser and
+applications. The code runs both natively and in wasm targets for browser and
 node.
 
 This repo previously hosted a set of transaction construction libraries for
 UTXO-based chains. You can find much of that work in the archive folder (for
-now). [This is the last commit with that code in the main packages.](https://github.com/summa-tx/bitcoins-rs/tree/db28df1fb0d8dc71f149735bfa9a955d25b54f19)
+now). [This is the last commit with that code in the main packages.](https://github.com/summa-tx/coins-rs/tree/db28df1fb0d8dc71f149735bfa9a955d25b54f19)
 
 ## Building & running tests
 
