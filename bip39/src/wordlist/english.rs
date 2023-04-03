@@ -1,4 +1,4 @@
-use crate::Wordlist;
+use crate::{Wordlist, WordlistError};
 use once_cell::sync::Lazy;
 
 /// The list of words as supported in the English language.
@@ -14,6 +14,13 @@ pub struct English;
 impl Wordlist for English {
     fn get_all() -> &'static [&'static str] {
         PARSED.as_slice()
+    }
+
+    /// Returns the index of a given word from the word list.
+    fn get_index(word: &str) -> Result<usize, WordlistError> {
+        Self::get_all()
+            .binary_search(&word)
+            .map_err(|_| crate::WordlistError::InvalidWord(word.to_string()))
     }
 }
 
