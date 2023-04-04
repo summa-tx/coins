@@ -18,16 +18,16 @@ pub mod korean;
 pub mod portuguese;
 /// The Spanish wordlist
 pub mod spanish;
-pub use self::chinese_simplified::*;
-pub use self::chinese_traditional::*;
-pub use self::czech::*;
-pub use self::english::*;
-pub use self::french::*;
-pub use self::italian::*;
-pub use self::japanese::*;
-pub use self::korean::*;
-pub use self::portuguese::*;
-pub use self::spanish::*;
+pub use self::chinese_simplified::ChineseSimplified;
+pub use self::chinese_traditional::ChineseTraditional;
+pub use self::czech::Czech;
+pub use self::english::English;
+pub use self::french::French;
+pub use self::italian::Italian;
+pub use self::japanese::Japanese;
+pub use self::korean::Korean;
+pub use self::portuguese::Portuguese;
+pub use self::spanish::Spanish;
 
 use thiserror::Error;
 
