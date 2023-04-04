@@ -1,33 +1,55 @@
+/// The English wordlist
+#[cfg(feature = "english")]
+pub mod english;
+#[cfg(feature = "english")]
+pub use self::english::English;
+
 /// The Chinese (Simplified) wordlist
+#[cfg(feature = "chinese-simplified")]
 pub mod chinese_simplified;
+#[cfg(feature = "chinese-simplified")]
+pub use self::chinese_simplified::ChineseSimplified;
+
+#[cfg(feature = "chinese_traditional")]
 /// The Chinese (Traditional) wordlist
 pub mod chinese_traditional;
+#[cfg(feature = "chinese_traditional")]
+pub use super::chinese_traditional::ChineseTraditional;
+#[cfg(feature = "czech")]
 /// The Czech wordlist
 pub mod czech;
-/// The English wordlist
-pub mod english;
+#[cfg(feature = "czech")]
+pub use super::czech::Czech;
+#[cfg(feature = "french")]
 /// The French wordlist
 pub mod french;
+#[cfg(feature = "french")]
+pub use super::french::French;
+#[cfg(feature = "italian")]
 /// The Italian wordlist
 pub mod italian;
+#[cfg(feature = "italian")]
+pub use super::italian::Italian;
+#[cfg(feature = "japanese")]
 /// The Japanese wordlist
 pub mod japanese;
+#[cfg(feature = "japanese")]
+pub use super::japanese::Japanese;
+#[cfg(feature = "korean")]
 /// The Korean wordlist
 pub mod korean;
+#[cfg(feature = "korean")]
+pub use super::korean::Korean;
+#[cfg(feature = "portuguese")]
 /// The Portuguese wordlist
 pub mod portuguese;
+#[cfg(feature = "portuguese")]
+pub use super::portuguese::Portuguese;
+#[cfg(feature = "spanish")]
 /// The Spanish wordlist
 pub mod spanish;
-pub use self::chinese_simplified::ChineseSimplified;
-pub use self::chinese_traditional::ChineseTraditional;
-pub use self::czech::Czech;
-pub use self::english::English;
-pub use self::french::French;
-pub use self::italian::Italian;
-pub use self::japanese::Japanese;
-pub use self::korean::Korean;
-pub use self::portuguese::Portuguese;
-pub use self::spanish::Spanish;
+#[cfg(feature = "spanish")]
+pub use super::spanish::Spanish;
 
 use thiserror::Error;
 
