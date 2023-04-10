@@ -1,7 +1,10 @@
 #![warn(
     missing_docs,
     missing_copy_implementations,
-    missing_debug_implementations
+    missing_debug_implementations,
+    unreachable_pub,
+    unused_crate_dependencies,
+    clippy::missing_const_for_fn
 )]
 
 //! The bip39 crate is heavily inspired by and reuses code from
@@ -18,3 +21,6 @@ pub use self::mnemonic::*;
 /// Wordlists
 pub mod wordlist;
 pub use self::wordlist::*;
+
+#[cfg(target_arch = "wasm32")]
+use getrandom as _;

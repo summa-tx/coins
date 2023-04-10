@@ -34,7 +34,7 @@ fn encode_index(idx: u32, harden: char) -> String {
 }
 
 /// Converts an raw index to hardened
-pub fn harden_index(index: u32) -> u32 {
+pub const fn harden_index(index: u32) -> u32 {
     index + BIP32_HARDEN
 }
 

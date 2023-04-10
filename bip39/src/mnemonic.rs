@@ -8,6 +8,9 @@ use sha2::{Digest, Sha256, Sha512};
 use std::{convert::TryInto, marker::PhantomData};
 use thiserror::Error;
 
+#[cfg(target_arch = "wasm32")]
+use getrandom as _;
+
 const PBKDF2_ROUNDS: u32 = 2048;
 const PBKDF2_BYTES: usize = 64;
 
@@ -142,7 +145,7 @@ impl Entropy {
     }
 
     /// Computes the number of words in the mnemonic
-    pub fn words(&self) -> usize {
+    pub const fn words(&self) -> usize {
         match self {
             Entropy::Sixteen(_) => 12,
             Entropy::Twenty(_) => 15,
@@ -154,7 +157,7 @@ impl Entropy {
 
     /// Returns the length of the entropy array
     #[allow(clippy::len_without_is_empty)]
-    pub fn len(&self) -> usize {
+    pub const fn len(&self) -> usize {
         match self {
             Entropy::Sixteen(_) => 16,
             Entropy::Twenty(_) => 20,
@@ -276,7 +279,7 @@ where
         phrase.join(" ")
     }
 
-    fn word_count(&self) -> usize {
+    const fn word_count(&self) -> usize {
         self.entropy.words()
     }
 

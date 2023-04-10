@@ -1,3 +1,14 @@
+#![forbid(unsafe_code)]
+#![warn(
+    missing_docs,
+    missing_copy_implementations,
+    missing_debug_implementations,
+    unreachable_pub,
+    unused_crate_dependencies,
+    clippy::missing_const_for_fn,
+    unused_extern_crates
+)]
+
 //! This crate provides a basic implementation of BIP32, BIP49, and BIP84.
 //! It can be easily adapted to support other networks, using the
 //! paramaterizable encoder.
@@ -38,10 +49,6 @@
 //! # Ok(())
 //! # }
 //! ```
-
-#![forbid(unsafe_code)]
-#![warn(missing_docs)]
-#![warn(unused_extern_crates)]
 
 pub use k256::ecdsa;
 
@@ -166,3 +173,7 @@ impl From<std::convert::Infallible> for Bip32Error {
         unimplemented!("unreachable, but required by type system")
     }
 }
+
+// We need to specify the getrandom JS feature, but don't need the crate.
+#[cfg(target_arch = "wasm32")]
+use getrandom as _;

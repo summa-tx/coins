@@ -99,7 +99,7 @@ macro_rules! params {
         }
     ) => {
         $(#[$outer])*
-        #[derive(Debug, Clone)]
+        #[derive(Debug, Clone, Copy)]
         pub struct $name;
 
         impl crate::enc::NetworkParams for $name {

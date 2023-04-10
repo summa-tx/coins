@@ -250,6 +250,7 @@ impl Parent for XPriv {
     }
 }
 
+#[derive(Copy)]
 /// A BIP32 eXtended Public key
 pub struct XPub {
     pub(crate) key: ecdsa::VerifyingKey,
@@ -297,7 +298,7 @@ impl AsRef<ecdsa::VerifyingKey> for XPub {
 
 impl XPub {
     /// Instantiate a new XPub
-    pub fn new(key: ecdsa::VerifyingKey, xkey_info: XKeyInfo) -> Self {
+    pub const fn new(key: ecdsa::VerifyingKey, xkey_info: XKeyInfo) -> Self {
         Self { key, xkey_info }
     }
 
@@ -376,9 +377,9 @@ mod test {
     use hex;
 
     struct KeyDeriv<'a> {
-        pub path: &'a [u32],
-        pub xpub: String,
-        pub xpriv: String,
+        pub(crate) path: &'a [u32],
+        pub(crate) xpub: String,
+        pub(crate) xpriv: String,
     }
 
     fn validate_descendant(d: &KeyDeriv, m: &XPriv) {

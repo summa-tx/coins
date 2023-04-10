@@ -82,7 +82,7 @@ impl DerivedKey for DerivedXPriv {
 impl DerivedXPriv {
     /// Instantiate a derived XPub from the XPub and derivatin. This usually
     /// should not be called directly. Prefer deriving keys from parents.
-    pub fn new(xpriv: XPriv, derivation: KeyDerivation) -> Self {
+    pub const fn new(xpriv: XPriv, derivation: KeyDerivation) -> Self {
         Self { xpriv, derivation }
     }
 
@@ -214,7 +214,7 @@ impl DerivedKey for DerivedXPub {
 impl DerivedXPub {
     /// Instantiate a derived XPub from the XPub and derivatin. This usually
     /// should not be called directly. Prefer deriving keys from parents.
-    pub fn new(xpub: XPub, derivation: KeyDerivation) -> Self {
+    pub const fn new(xpub: XPub, derivation: KeyDerivation) -> Self {
         Self { xpub, derivation }
     }
 
@@ -261,7 +261,7 @@ impl AsRef<ecdsa::VerifyingKey> for DerivedPubkey {
 
 impl DerivedPubkey {
     /// Instantiate a new `DerivedPubkey`
-    pub fn new(key: ecdsa::VerifyingKey, derivation: KeyDerivation) -> Self {
+    pub const fn new(key: ecdsa::VerifyingKey, derivation: KeyDerivation) -> Self {
         Self { key, derivation }
     }
 
@@ -296,7 +296,7 @@ mod test {
     use hex;
 
     struct KeyDeriv<'a> {
-        pub path: &'a [u32],
+        pub(crate) path: &'a [u32],
     }
 
     fn validate_descendant(d: &KeyDeriv, m: &DerivedXPriv) {

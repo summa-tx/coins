@@ -12,10 +12,8 @@ thiserror = "1.0"
 hmac = "0.12"
 sha2 = "0.10"
 bs58 = "0.4.0"
-lazy_static = "1.4.0"
 coins-core = { version = "0.8.3", path = "../core" }
 serde = "1.0.105"
-bincode = "1.3.3"
 
 k256 = { version = "0.13", features = ["std", "arithmetic"] }
 digest = "0.10"
@@ -25,7 +23,6 @@ getrandom = { version = "0.2", features = ["js"] }
 
 [dev-dependencies]
 hex = "0.4.2"
-criterion = "0.3.1"
 
 [features]
 default = ["mainnet"]

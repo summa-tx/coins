@@ -9,15 +9,18 @@ license = "MIT OR Apache-2.0"
 
 [dependencies]
 bitvec = "0.17.4"
-coins-bip32 = { version ="0.8.3", path = "../bip32" }
-hex = "0.4.2"
+coins-bip32 = { version = "0.8.3", path = "../bip32" }
 hmac = "0.12"
-once_cell = "1.17.1"
 pbkdf2 = "0.12"
 rand = "0.8.4"
 sha2 = "0.10"
 thiserror = "1.0"
-tracing = "0.1.37"
+
+# used by all wordlists
+once_cell = { version = "1.17.1", optional = true}
+
+[dev-dependencies]
+hex = "0.4.2"
 
 [target.'cfg(target_arch = "wasm32")'.dependencies.getrandom]
 version = "0.2.3"
@@ -38,13 +41,13 @@ all-langs = [
     "portuguese",
     "spanish",
 ]
-chinese-simplified = []
-chinese-traditional = []
-czech = []
-english = []
-french = []
-italian = []
-japanese = []
-korean = []
-portuguese = []
-spanish = []
+chinese-simplified = ["dep:once_cell"]
+chinese-traditional = ["dep:once_cell"]
+czech = ["dep:once_cell"]
+english = ["dep:once_cell"]
+french = ["dep:once_cell"]
+italian = ["dep:once_cell"]
+japanese = ["dep:once_cell"]
+korean = ["dep:once_cell"]
+portuguese = ["dep:once_cell"]
+spanish = ["dep:once_cell"]
