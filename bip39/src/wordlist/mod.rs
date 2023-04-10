@@ -10,10 +10,10 @@ pub mod chinese_simplified;
 #[cfg(feature = "chinese-simplified")]
 pub use self::chinese_simplified::ChineseSimplified;
 
-#[cfg(feature = "chinese_traditional")]
+#[cfg(feature = "chinese-traditional")]
 /// The Chinese (Traditional) wordlist
 pub mod chinese_traditional;
-#[cfg(feature = "chinese_traditional")]
+#[cfg(feature = "chinese-traditional")]
 pub use super::chinese_traditional::ChineseTraditional;
 #[cfg(feature = "czech")]
 /// The Czech wordlist
