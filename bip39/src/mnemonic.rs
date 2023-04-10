@@ -8,9 +8,6 @@ use sha2::{Digest, Sha256, Sha512};
 use std::{convert::TryInto, marker::PhantomData};
 use thiserror::Error;
 
-#[cfg(target_arch = "wasm32")]
-use getrandom as _;
-
 const PBKDF2_ROUNDS: u32 = 2048;
 const PBKDF2_BYTES: usize = 64;
 

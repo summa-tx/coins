@@ -22,5 +22,6 @@ pub use self::mnemonic::*;
 pub mod wordlist;
 pub use self::wordlist::*;
 
+// We need to specify the getrandom JS feature, but don't need the crate.
 #[cfg(target_arch = "wasm32")]
 use getrandom as _;
