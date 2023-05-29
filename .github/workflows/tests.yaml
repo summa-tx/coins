@@ -15,75 +15,66 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  test:
+    name: test ${{ matrix.features }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        features: ["", "--no-default-features"]
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-      - uses: Swatinem/rust-cache@v1
-        with:
-          cache-on-failure: true
-
-      - name: Build
-        run: cargo build --verbose
-      - name: Build (no default features)
-        run: cargo build --verbose --no-default-features --locked
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo test ${{ matrix.features }}
 
   wasm:
-    name: Build WASM
+    name: check WASM
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout sources
-        uses: actions/checkout@v2
-      - name: Install rust
-        uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
           target: wasm32-unknown-unknown
-          profile: minimal
-          override: true
+      - uses: Swatinem/rust-cache@v2
+      - name: check
+        run: |
+          cargo check \
+          --target wasm32-unknown-unknown \
+          --no-default-features \
+          --features browser
 
-      - uses: Swatinem/rust-cache@v1
-        with:
-          cache-on-failure: true
-
-      - name: Check
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --verbose --target wasm32-unknown-unknown --no-default-features --features "browser"
-
-  test:
+  clippy:
+    name: clippy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-      - uses: Swatinem/rust-cache@v1
-        with:
-          cache-on-failure: true
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@clippy
+      - name: clippy
+        run: cargo clippy --workspace --all-targets
+        env:
+          RUSTFLAGS: "-D warnings"
 
-      - name: Run tests
-        run: cargo test --verbose
-
-  lint:
+  docs:
+    name: docs
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@nightly
         with:
-          toolchain: nightly
-          profile: minimal
-          components: rustfmt, clippy
-          override: true
-      - uses: Swatinem/rust-cache@v1
-        with:
-          cache-on-failure: true
+          components: rust-docs
+      - name: doc
+        run: cargo doc --workspace --no-deps --document-private-items
+        env:
+          RUSTDOCFLAGS: "--cfg docsrs -D warnings"
 
-      - name: cargo fmt
-        run: cargo +nightly fmt -- --check
-      - name: cargo clippy
-        run: cargo +nightly clippy -- -D warnings
+  fmt:
+    name: fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt
+      - name: fmt --check
+        run: cargo fmt --all --check

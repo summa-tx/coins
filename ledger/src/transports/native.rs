@@ -8,9 +8,9 @@ use crate::{
 pub struct NativeTransport(hid::TransportNativeHID);
 
 impl NativeTransport {
-    /// Instantiate
+    /// Instantiate a new transport
     pub fn new() -> Result<Self, hid::NativeTransportError> {
-        Ok(Self(hid::TransportNativeHID::new()?))
+        hid::TransportNativeHID::new().map(Self)
     }
 
     /// Send an APDU command to the device, and receive a response

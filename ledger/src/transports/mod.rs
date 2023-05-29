@@ -1,32 +1,30 @@
 //! Abstract ledger tranport trait with WASM and native HID instantiations.
 
-#[doc(hidden)]
-#[cfg(not(target_arch = "wasm32"))]
-pub mod hid;
-
-/// APDU Transport wrapper for JS/WASM transports
-#[cfg(all(target_arch = "wasm32"))]
-pub mod wasm;
-#[cfg(all(target_arch = "wasm32"))]
-pub use wasm::LedgerTransport as DefaultTransport;
-
-/// APDU Transport for native HID
-#[cfg(not(target_arch = "wasm32"))]
-pub mod native;
-#[cfg(not(target_arch = "wasm32"))]
-pub use native::NativeTransport as DefaultTransport;
-
-#[cfg(target_arch = "wasm32")]
-use log::{debug, error};
-#[cfg(not(target_arch = "wasm32"))]
-use tracing::{debug, error};
-
 use crate::{
     common::{APDUAnswer, APDUCommand},
     errors::LedgerError,
 };
-
 use async_trait::async_trait;
+
+cfg_if::cfg_if! {
+    if #[cfg(target_arch = "wasm32")] {
+        /// APDU Transport wrapper for JS/WASM transports.
+        pub mod wasm;
+        pub use wasm::LedgerTransport as DefaultTransport;
+
+        use log::{debug, error};
+    } else {
+        /// APDU Transport for native HID.
+        pub mod hid;
+
+        /// APDU Transport for native HID. Wraps [`hid`]'s
+        /// [`TransportNativeHID`][hid::TransportNativeHID].
+        pub mod native;
+        pub use native::NativeTransport as DefaultTransport;
+
+        use tracing::{debug, error};
+    }
+}
 
 /// A Ledger device connection. This wraps the default transport type. In native code, this is
 /// the `hidapi` library. When the `node` or `browser` feature is selected, it is a Ledger JS
@@ -93,6 +91,7 @@ impl LedgerAsync for Ledger {
         resp
     }
 }
+
 /*******************************************************************************
 *   (c) 2020 ZondaX GmbH
 *

@@ -1,31 +1,31 @@
 [package]
 name = "coins-bip39"
 version = "0.8.6"
-authors = ["Rohit Narurkar <rohit.narurkar@protonmail.com>", "James Prestwich <james@prestwi.ch>", "0xYYY <0xYYY@pm.me>"]
+authors = [
+    "Rohit Narurkar <rohit.narurkar@protonmail.com>",
+    "James Prestwich <james@prestwi.ch>",
+    "0xYYY <0xYYY@pm.me>",
+]
 edition = "2018"
 description = "Bip39 in Rust"
-repository = "https://github.com/summa-tx/bitcoins-rs"
+repository = "https://github.com/summa-tx/coins"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-bitvec = "0.17.4"
 coins-bip32 = { version = "0.8.3", path = "../bip32" }
+
+bitvec = "1.0"
 hmac = "0.12"
 pbkdf2 = "0.12"
-rand = "0.8.4"
+rand = "0.8"
 sha2 = "0.10"
 thiserror = "1.0"
 
 # used by all wordlists
-once_cell = { version = "1.17.1", optional = true}
+once_cell = { version = "1.17", optional = true }
 
 [dev-dependencies]
-hex = "0.4.2"
-
-[target.'cfg(target_arch = "wasm32")'.dependencies.getrandom]
-version = "0.2.3"
-default-features = false
-features=["js"]
+hex = "0.4"
 
 [features]
 default = ["all-langs"]
