@@ -14,8 +14,8 @@ use hidapi_rusb::HidDevice;
 use std::cell::RefCell;
 use std::sync::{Arc, Mutex, Weak};
 
-#[cfg(not(target_os = "linux"))]
 // Mock the type in other target_os
+#[cfg(not(target_os = "linux"))]
 mod nix {
     #[derive(thiserror::Error, Debug)]
     pub enum Error {
@@ -34,7 +34,6 @@ const LEDGER_PACKET_SIZE: u8 = 64;
 const LEDGER_TIMEOUT: i32 = 10_000_000;
 
 /// Ledger transport errors
-#[cfg(not(target_arch = "wasm32"))]
 #[derive(Error, Debug)]
 pub enum NativeTransportError {
     /// Device not found error
@@ -74,9 +73,9 @@ struct HidApiWrapper {
     _api: RefCell<Weak<Mutex<hidapi_rusb::HidApi>>>,
 }
 
-#[allow(dead_code)]
-/// The transport struct. Holds a `Mutex` on the underlying `HidAPI` instance. Instantiate with
-/// `new`.
+/// The transport struct. Holds a `Mutex` on the underlying `HidAPI` instance.
+///
+/// Instantiate with [`new`][TransportNativeHID::new].
 pub struct TransportNativeHID {
     api_mutex: Arc<Mutex<hidapi_rusb::HidApi>>,
     device: HidDevice,

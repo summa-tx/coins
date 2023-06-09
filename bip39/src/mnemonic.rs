@@ -224,7 +224,7 @@ where
     pub fn new_from_phrase(phrase: &str) -> Result<Self, MnemonicError> {
         let words = phrase.split(' ').collect::<Vec<&str>>();
 
-        let mut entropy: BitVec<Msb0, u8> = BitVec::new();
+        let mut entropy: BitVec<u8, Msb0> = BitVec::new();
         for word in words {
             let index = W::get_index(word)?;
             let index_u8: [u8; 2] = (index as u16).to_be_bytes();
@@ -232,11 +232,11 @@ where
             // 11-bits per word as per BIP-39, and max index (2047) can be represented in 11-bits.
             let index_slice = &BitVec::from_slice(&index_u8)[5..];
 
-            entropy.append(&mut BitVec::<Msb0, u8>::from_bitslice(index_slice));
+            entropy.append(&mut BitVec::<u8, Msb0>::from_bitslice(index_slice));
         }
 
         let mnemonic = Self {
-            entropy: Entropy::from_slice(entropy)?,
+            entropy: Entropy::from_slice(entropy.as_raw_slice())?,
             _wordlist: PhantomData,
         };
 
@@ -256,12 +256,12 @@ where
         let mut hasher = Sha256::new();
         hasher.update(self.entropy.as_ref());
         let hash = hasher.finalize();
-        let hash_0 = BitVec::<Msb0, u8>::from_element(hash[0]);
+        let hash_0 = BitVec::<u8, Msb0>::from_element(hash[0]);
         let (checksum, _) = hash_0.split_at(length / 3);
 
         // Convert the entropy bytes into bits and append the checksum.
-        let mut encoding = BitVec::<Msb0, u8>::from_slice(self.entropy.as_ref());
-        encoding.append(&mut checksum.to_vec());
+        let mut encoding = BitVec::<u8, Msb0>::from_slice(self.entropy.as_ref());
+        encoding.append(&mut checksum.to_bitvec());
 
         // Compute the phrase in 11 bit chunks which encode an index into the word list
         let wordlist = W::get_all();
@@ -313,7 +313,7 @@ where
     }
 }
 
-#[cfg(test)]
+#[cfg(all(test, feature = "english"))]
 mod tests {
     use crate::English;
     use coins_bip32::enc::{MainnetEncoder, XKeyEncoder};

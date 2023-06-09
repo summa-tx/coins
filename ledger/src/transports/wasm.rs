@@ -1,4 +1,3 @@
-use js_sys;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::JsFuture;
 
@@ -7,8 +6,13 @@ use crate::{
     errors::LedgerError,
 };
 
-// These conditional compilation blokcs ensure that we try to import the correct transport for our
-// environment.
+// Compilation would fail either way, since the following `extern "C"` block
+// would not be linked to anything
+#[cfg(not(any(feature = "node", feature = "browser")))]
+compile_error!("Either `node` or `browser` feature must be enabled for WASM transport");
+
+// These conditional compilation blocks ensure that we try to import the correct
+// transport for our environment.
 #[cfg_attr(
     feature = "node",
     wasm_bindgen(module = "@ledgerhq/hw-transport-node-hid")

@@ -70,13 +70,13 @@ pub type EncodingResult<T> = Result<T, EncodingError>;
 pub fn encode_bech32(hrp: &str, v: u8, h: &[u8]) -> EncodingResult<String> {
     let mut v = vec![u5::try_from_u8(v)?];
     v.extend(&h.to_base32());
-    b32_encode(hrp, &v).map_err(|v| v.into())
+    b32_encode(hrp, &v, bech32::Variant::Bech32).map_err(|v| v.into())
 }
 
 /// Decode a witness program from a bech32 string. Caller specifies an expected HRP. If a
 /// different HRP is found, returns `WrongHrp`.
 pub fn decode_bech32(expected_hrp: &str, s: &str) -> EncodingResult<(u8, Vec<u8>)> {
-    let (hrp, data) = b32_decode(s)?;
+    let (hrp, data, _variant) = b32_decode(s)?;
     if hrp != expected_hrp {
         return Err(EncodingError::WrongHrp {
             got: hrp,

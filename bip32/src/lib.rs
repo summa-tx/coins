@@ -173,7 +173,3 @@ impl From<std::convert::Infallible> for Bip32Error {
         unimplemented!("unreachable, but required by type system")
     }
 }
-
-// We need to specify the getrandom JS feature, but don't need the crate.
-#[cfg(target_arch = "wasm32")]
-use getrandom as _;
