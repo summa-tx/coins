@@ -1,6 +1,6 @@
 [package]
 name = "coins-bip32"
-version = "0.8.3"
+version = "0.8.7"
 authors = ["James Prestwich <james@prestwi.ch>"]
 edition = "2018"
 description = "Bip32 in Rust"

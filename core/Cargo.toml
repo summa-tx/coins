@@ -1,6 +1,6 @@
 [package]
 name = "coins-core"
-version = "0.8.3"
+version = "0.8.7"
 authors = ["James Prestwich <james@prestwi.ch>"]
 edition = "2018"
 description = "Core library for coins-bip32 and coins-bip39"

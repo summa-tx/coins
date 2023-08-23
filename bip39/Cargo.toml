@@ -1,6 +1,6 @@
 [package]
 name = "coins-bip39"
-version = "0.8.6"
+version = "0.8.7"
 authors = [
     "Rohit Narurkar <rohit.narurkar@protonmail.com>",
     "James Prestwich <james@prestwi.ch>",
