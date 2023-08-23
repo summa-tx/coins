@@ -261,10 +261,7 @@ inherit_verifier!(XPub.key);
 
 impl Clone for XPub {
     fn clone(&self) -> Self {
-        Self {
-            key: ecdsa::VerifyingKey::from_sec1_bytes(self.key.to_sec1_bytes().as_ref()).unwrap(),
-            xkey_info: self.xkey_info,
-        }
+        *self
     }
 }
 
