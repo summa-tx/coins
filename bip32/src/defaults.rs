@@ -1,12 +1,18 @@
 use crate::enc::XKeyEncoder;
 
-/// The default encoder, selected by feature flag
-#[cfg(feature = "mainnet")]
-pub type Encoder = crate::enc::MainnetEncoder;
-
-/// The default encoder, selected by feature flag
-#[cfg(feature = "testnet")]
-pub type Encoder = crate::enc::TestnetEncoder;
+#[cfg(all(feature = "mainnet", feature = "testnet"))]
+compile_error!("feature \"mainnet\" and feature \"testnet\" cannot be enabled at the same time");
+cfg_if::cfg_if! {
+    if #[cfg(feature = "mainnet")] {
+        /// The default encoder, selected by feature flag
+        pub type Encoder = crate::enc::MainnetEncoder;
+    } else if #[cfg(feature = "testnet")] {
+        /// The default encoder, selected by feature flag
+        pub type Encoder = crate::enc::TestnetEncoder;
+    } else {
+        compile_error!("Must select one of the feature flags: `mainnet` or `testnet`");
+    }
+}
 
 impl std::str::FromStr for crate::xkeys::XPriv {
     type Err = crate::Bip32Error;
