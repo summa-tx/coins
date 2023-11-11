@@ -78,7 +78,7 @@ struct HidApiWrapper {
 /// Instantiate with [`new`][TransportNativeHID::new].
 pub struct TransportNativeHID {
     api_mutex: Arc<Mutex<hidapi_rusb::HidApi>>,
-    device: HidDevice,
+    device: Arc<Mutex<HidDevice>>,
     guard: Mutex<i32>,
 }
 
@@ -172,7 +172,7 @@ impl TransportNativeHID {
         };
 
         let ledger = TransportNativeHID {
-            device,
+            device: Arc::new(Mutex::new(device)),
             guard: Mutex::new(0),
             api_mutex: api_mutex.clone(),
         };
@@ -200,7 +200,8 @@ impl TransportNativeHID {
             buffer[4] = (sequence_idx & 0xFF) as u8; // sequence_idx big endian
             buffer[5..5 + chunk.len()].copy_from_slice(chunk);
 
-            let result = self.device.write(&buffer);
+            let device = self.device.lock().unwrap();
+            let result = device.write(&buffer);
 
             match result {
                 Ok(size) => {
@@ -236,9 +237,8 @@ impl TransportNativeHID {
         let mut answer_buf = vec![];
 
         loop {
-            let res = self
-                .device
-                .read_timeout(&mut response_buffer, LEDGER_TIMEOUT)?;
+            let device = self.device.lock().unwrap();
+            let res = device.read_timeout(&mut response_buffer, LEDGER_TIMEOUT)?;
 
             if (sequence_idx == 0 && res < 7) || res < 5 {
                 return Err(NativeTransportError::Comm("Read error. Incomplete header"));

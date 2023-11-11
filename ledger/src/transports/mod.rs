@@ -31,7 +31,7 @@ cfg_if::cfg_if! {
 /// transport library.
 pub struct Ledger(DefaultTransport);
 
-#[async_trait(?Send)]
+#[async_trait]
 /// An asynchronous interface to the Ledger device. It is critical that the device have only one
 /// connection active, so the `init` function acquires a lock on the device.
 pub trait LedgerAsync: Sized {
@@ -48,7 +48,7 @@ pub trait LedgerAsync: Sized {
     fn close(self) {}
 }
 
-#[async_trait(?Send)]
+#[async_trait]
 impl LedgerAsync for Ledger {
     #[cfg(not(target_arch = "wasm32"))]
     async fn init() -> Result<Self, LedgerError> {
