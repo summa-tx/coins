@@ -14,8 +14,9 @@ cfg_if::cfg_if! {
 
         use log::{debug, error};
     } else {
-        /// APDU Transport for native HID. Wraps [`hid`]'s
-        /// [`TransportNativeHID`][hid::TransportNativeHID].
+        /// APDU Transport for native HID. Wraps
+        /// [`TransportNativeHID`][native::hid::TransportNativeHID] in a
+        /// thread managing the IO.
         pub mod native;
         pub use native::LedgerHandle as DefaultTransport;
 
