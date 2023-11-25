@@ -2,7 +2,7 @@ use serial_test::serial;
 
 use coins_ledger::{
     common::*,
-    transports::{self, hid, LedgerAsync},
+    transports::{self, native::hid, LedgerAsync},
 };
 
 #[test]

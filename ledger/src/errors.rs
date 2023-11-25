@@ -14,8 +14,12 @@ pub enum LedgerError {
     BadRetcode(APDUResponseCodes),
 
     /// Ledger returned an unknown APDU
-    #[error("Ledger returned an unknown response status code {0:x}. This is a bug. Please file an issue at https://github.com/summa-tx/bitcoins-rs/issues")]
+    #[error("Ledger returned an unknown response status code {0:x}. This is a bug. Please file an issue at https://github.com/summa-tx/coins-rs/issues")]
     UnknownAPDUCode(u16),
+
+    /// The backend has been disconnected.
+    #[error("The backend has been disconnected.")]
+    BackendGone,
 
     /// JsValue Error
     #[error("JsValue Error: {0}")]
@@ -25,7 +29,7 @@ pub enum LedgerError {
     /// Native transport error type.
     #[error(transparent)]
     #[cfg(not(target_arch = "wasm32"))]
-    NativeTransportError(#[from] crate::transports::hid::NativeTransportError),
+    NativeTransportError(#[from] crate::transports::native::NativeTransportError),
 }
 
 #[cfg(target_arch = "wasm32")]

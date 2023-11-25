@@ -4,8 +4,8 @@ use crate::errors::LedgerError;
 
 const MAX_DATA_SIZE: usize = 255;
 
-/// APDU data blob, limited to 255 bytes. For simplicity, this data does not support 3-byte APDU
-/// prefixes.
+/// APDU data blob, limited to 255 bytes. For simplicity, this data does not
+/// support 3-byte APDU prefixes.
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct APDUData(Vec<u8>);
 

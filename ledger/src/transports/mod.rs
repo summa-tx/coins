@@ -14,26 +14,26 @@ cfg_if::cfg_if! {
 
         use log::{debug, error};
     } else {
-        /// APDU Transport for native HID.
-        pub mod hid;
-
-        /// APDU Transport for native HID. Wraps [`hid`]'s
-        /// [`TransportNativeHID`][hid::TransportNativeHID].
+        /// APDU Transport for native HID. Wraps
+        /// [`TransportNativeHID`][native::hid::TransportNativeHID] in a
+        /// thread managing the IO.
         pub mod native;
-        pub use native::NativeTransport as DefaultTransport;
+        pub use native::LedgerHandle as DefaultTransport;
 
         use tracing::{debug, error};
     }
 }
 
-/// A Ledger device connection. This wraps the default transport type. In native code, this is
-/// the `hidapi` library. When the `node` or `browser` feature is selected, it is a Ledger JS
-/// transport library.
+/// A Ledger device connection. This wraps the default transport type. In
+/// native code, this is the `hidapi` library. When the `node` or `browser`
+/// feature is selected, it is a Ledger JS transport library.
 pub struct Ledger(DefaultTransport);
 
-#[async_trait(?Send)]
-/// An asynchronous interface to the Ledger device. It is critical that the device have only one
-/// connection active, so the `init` function acquires a lock on the device.
+#[cfg_attr(not(target_arch = "wasm32"), async_trait)]
+#[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
+/// An asynchronous interface to the Ledger device. It is critical that the
+/// device have only one connection active, so the `init` funnction acquires a
+/// lock on the device.
 pub trait LedgerAsync: Sized {
     /// Init the connection to the device. This may fail if the device is already in use by some
     /// other process.
@@ -48,25 +48,18 @@ pub trait LedgerAsync: Sized {
     fn close(self) {}
 }
 
-#[async_trait(?Send)]
+#[cfg(not(target_arch = "wasm32"))]
+#[async_trait]
 impl LedgerAsync for Ledger {
-    #[cfg(not(target_arch = "wasm32"))]
     async fn init() -> Result<Self, LedgerError> {
-        Ok(Self(DefaultTransport::new()?))
+        Ok(Self(DefaultTransport::init()?))
     }
 
-    #[cfg(target_arch = "wasm32")]
-    async fn init() -> Result<Self, LedgerError> {
-        let res: Result<DefaultTransport, wasm_bindgen::JsValue> = DefaultTransport::create().await;
-        let res: Result<DefaultTransport, LedgerError> = res.map_err(|err| err.into());
-        Ok(Self(res?))
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
     async fn exchange(&self, packet: &APDUCommand) -> Result<APDUAnswer, LedgerError> {
         debug!(command = %packet, "dispatching APDU to device");
 
-        let resp = self.0.exchange(packet).await;
+        // TODO: remove clone
+        let resp = self.0.exchange(packet.clone()).await;
         match &resp {
             Ok(resp) => {
                 debug!(
@@ -79,8 +72,17 @@ impl LedgerAsync for Ledger {
         }
         resp
     }
+}
 
-    #[cfg(target_arch = "wasm32")]
+#[cfg(target_arch = "wasm32")]
+#[async_trait(?Send)]
+impl LedgerAsync for Ledger {
+    async fn init() -> Result<Self, LedgerError> {
+        let res: Result<DefaultTransport, wasm_bindgen::JsValue> = DefaultTransport::create().await;
+        let res: Result<DefaultTransport, LedgerError> = res.map_err(|err| err.into());
+        Ok(Self(res?))
+    }
+
     async fn exchange(&self, packet: &APDUCommand) -> Result<APDUAnswer, LedgerError> {
         debug!("Exchanging Packet {:#?}", packet);
         let resp = self.0.exchange(packet).await;
