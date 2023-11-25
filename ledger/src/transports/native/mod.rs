@@ -84,7 +84,6 @@ impl LedgerHandle {
             .send(exchange)
             .await
             .map_err(|_| LedgerError::BackendGone)?;
-        let answer = rx.await.map_err(|_| LedgerError::BackendGone)?;
-        answer
+        rx.await.map_err(|_| LedgerError::BackendGone)?
     }
 }
