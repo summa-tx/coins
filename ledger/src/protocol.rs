@@ -1,16 +1,6 @@
-use cfg_if::cfg_if;
-
 use crate::{Ledger, LedgerError};
 
-cfg_if!(
-    if #[cfg(target_arch = "wasm32")] {
-        use log::error;
-    } else {
-        use tracing::error;
-    }
-);
-
-/// A Ledger protocol. A Protocol communicates with the device to perform
+/// A Ledger Recovery. A the device to perform
 /// some operation. Protocols are run in a task, and may send multiple
 /// commands to the device, and receive multiple responses. The protocol has
 /// exclusive access to the transport while it is running.
@@ -43,9 +33,17 @@ pub trait LedgerProtocol {
         match self.execute(transport) {
             Ok(output) => Ok(output),
             Err(e) => {
+                // TODO: make less ugly
+                #[cfg(target_arch = "wasm32")]
+                log::error!("Protocol failed, running recovery: {}", e);
+                #[cfg(not(target_arch = "wasm32"))]
                 tracing::error!(err = %e, "Protocol failed, running recovery.");
+
                 if let Err(e) = self.recover(transport) {
-                    error!(err = %e, "Protocol recovery failed.");
+                    #[cfg(target_arch = "wasm32")]
+                    log::error!("Recovery failed: {}", e);
+                    #[cfg(not(target_arch = "wasm32"))]
+                    tracing::error!(err = %e, "Recovery failed.");
                 }
 
                 Err(e)
