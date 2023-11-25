@@ -17,3 +17,5 @@ pub use {
     errors::LedgerError,
     transports::Ledger,
 };
+
+mod protocol;
