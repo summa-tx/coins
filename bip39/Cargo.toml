@@ -22,7 +22,7 @@ sha2 = "0.10"
 thiserror = "1.0"
 
 # used by all wordlists
-once_cell = { version = "1.17", optional = true }
+once_cell = { version = "1.18", optional = true }
 
 [dev-dependencies]
 hex = "0.4"
