@@ -27,12 +27,12 @@ thiserror = "1.0"
 # native
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 lazy_static = "1.4"
-byteorder = "1.4"
+byteorder = "1.5"
 libc = "0.2"
 matches = "0.1"
 tracing = "0.1"
 hidapi-rusb = "1.3"
-tokio = { version = "1.28", features = ["sync"] }
+tokio = { version = "1.34", features = ["sync", "rt"] }
 
 # linux native only
 [target.'cfg(target_os = "linux")'.dependencies]
@@ -40,15 +40,15 @@ nix = "0.26"
 
 # WASM
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-wasm-bindgen = "0.2.86"
-wasm-bindgen-futures = "0.4.36"
-js-sys = "0.3.63"
+wasm-bindgen = "0.2.88"
+wasm-bindgen-futures = "0.4.38"
+js-sys = "0.3.65"
 log = "0.4"
 getrandom = { version = "0.2", features = ["js"] }
 
 [dev-dependencies]
 serial_test = "2"
-tokio = { version = "1.28", features = ["rt-multi-thread", "macros"] }
+tokio = { version = "1.34", features = ["rt-multi-thread", "macros"] }
 
 [features]
 browser = []
