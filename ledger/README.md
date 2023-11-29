@@ -1,4 +1,4 @@
-# bitcoins-ledger
+# coins-ledger
 
 Communication library between Rust and Ledger Nano S/X devices
 
@@ -7,6 +7,7 @@ Communication library between Rust and Ledger Nano S/X devices
 Windows is not yet supported.
 
 ### Native
+
 - Install dependencies
   - OSX
     - TODO
@@ -15,6 +16,7 @@ Windows is not yet supported.
   - `cargo build`
 
 ### WASM
+
 - Install wasm-pack
   - [Link here](https://rustwasm.github.io/wasm-pack/installer/)
 - MUST pass `--disable-default-features`
@@ -57,6 +59,7 @@ notice at the bottom of the file.
 Further work by Summa is available under the GNU LGPLv3 license.
 
 These changes are as follows:
+
 - Remove bip44 crates
 - Significant refactoring to all other crates
 - Crates have been moved to be modules of a single crate
