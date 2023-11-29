@@ -40,6 +40,7 @@ wasm-bindgen = "0.2.88"
 wasm-bindgen-futures = "0.4.38"
 js-sys = "0.3.65"
 log = "0.4"
+getrandom = { version = "0.2", features = ["js"] }
 
 [dev-dependencies]
 serial_test = "2"
