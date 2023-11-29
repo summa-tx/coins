@@ -20,17 +20,12 @@ crate-type = ["cdylib", "rlib"]
 async-trait = "0.1"
 cfg-if = "1.0"
 hex = "0.4"
-once_cell = "1.18.0"
-serde = { version = "1.0", features = ["derive"] }
-tap = "1.0"
 thiserror = "1.0"
 
 # native
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-lazy_static = "1.4"
+once_cell = "1.18.0"
 byteorder = "1.5"
-libc = "0.2"
-matches = "0.1"
 tracing = "0.1"
 hidapi-rusb = "1.3"
 tokio = { version = "1.34", features = ["sync", "rt"] }
@@ -45,7 +40,6 @@ wasm-bindgen = "0.2.88"
 wasm-bindgen-futures = "0.4.38"
 js-sys = "0.3.65"
 log = "0.4"
-getrandom = { version = "0.2", features = ["js"] }
 
 [dev-dependencies]
 serial_test = "2"

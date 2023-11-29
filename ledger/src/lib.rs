@@ -1,7 +1,18 @@
 //! Ledger utilites and transports
 
-#![warn(missing_docs)]
-#![warn(unused_extern_crates)]
+#![warn(
+    missing_copy_implementations,
+    missing_debug_implementations,
+    missing_docs,
+    unreachable_pub,
+    clippy::missing_const_for_fn,
+    rustdoc::all
+)]
+#![deny(unused_must_use, rust_2018_idioms)]
+
+#![cfg_attr(not(test), warn(unused_crate_dependencies))]
+#![cfg_attr(docsrs, feature(doc_cfg, doc_auto_cfg))]
+
 
 /// APDU utilities.
 pub mod common;
@@ -19,3 +30,4 @@ pub use {
 };
 
 mod protocol;
+pub use protocol::LedgerProtocol;

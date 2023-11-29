@@ -3,7 +3,7 @@ use thiserror::Error;
 // Mock the type in other target_os
 #[cfg(not(target_os = "linux"))]
 mod nix {
-    #[derive(thiserror::Error, Debug)]
+    #[derive(thiserror::Error, Debug, Copy, Clone)]
     pub enum Error {
         #[error("")]
         Unimplemented,

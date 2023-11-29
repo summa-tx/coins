@@ -31,6 +31,12 @@ pub struct TransportNativeHID {
     device: Mutex<HidDevice>,
 }
 
+impl std::fmt::Debug for TransportNativeHID {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("TransportNativeHID").finish()
+    }
+}
+
 #[cfg(not(target_os = "linux"))]
 fn is_ledger(dev: &DeviceInfo) -> bool {
     dev.vendor_id() == LEDGER_VID && dev.usage_page() == LEDGER_USAGE_PAGE
@@ -253,11 +259,6 @@ impl TransportNativeHID {
             }
         }
     }
-
-    // TODO: why does this exist?
-    #[doc(hidden)]
-    #[allow(dead_code)]
-    pub fn close(self) {}
 }
 
 /*******************************************************************************

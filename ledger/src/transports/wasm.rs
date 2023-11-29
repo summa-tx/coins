@@ -88,6 +88,7 @@ impl LedgerTransport {
     }
 
     /// Instantiate from a js transport object
+    #[allow(clippy::missing_const_for_fn)] // not allowed on wasm bindgen fns
     pub fn from_js_transport(transport: Transport) -> Self {
         Self(transport)
     }

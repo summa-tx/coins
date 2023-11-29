@@ -32,6 +32,7 @@ impl APDUData {
     }
 
     /// Consume the struct and get the underlying data
+    #[allow(clippy::missing_const_for_fn)] // false positive
     pub fn data(self) -> Vec<u8> {
         self.0
     }
@@ -234,12 +235,12 @@ impl std::fmt::Display for APDUResponseCodes {
 
 impl APDUResponseCodes {
     /// True if the response is a success, else false.
-    pub fn is_success(self) -> bool {
-        self == APDUResponseCodes::NoError
+    pub const fn is_success(self) -> bool {
+        matches!(self, APDUResponseCodes::NoError)
     }
 
     /// Return a description of the response code.
-    pub fn description(self) -> &'static str {
+    pub const fn description(self) -> &'static str {
         match self {
             APDUResponseCodes::NoError => "[APDU_CODE_NOERROR]",
             APDUResponseCodes::ExecutionError => {
