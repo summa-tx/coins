@@ -265,7 +265,7 @@ impl APDUResponseCodes {
             }
             APDUResponseCodes::InvalidP1P2 => "[APDU_CODE_INVALIDP1P2] Wrong parameter(s) P1-P2",
             APDUResponseCodes::InsNotSupported => {
-                "[APDU_CODE_INS_NOT_SUPPORTED] Instruction code not supported or invalid"
+                "[APDU_CODE_INS_NOT_SUPPORTED] Instruction code not supported or invalid. Hint: Is the correct application open on the device?"
             }
             APDUResponseCodes::ClaNotSupported => {
                 "[APDU_CODE_CLA_NOT_SUPPORTED] Class not supported"

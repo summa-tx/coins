@@ -2,8 +2,11 @@ use tokio::sync::{mpsc, oneshot};
 
 use crate::{APDUAnswer, APDUCommand, LedgerError};
 
+mod error;
+pub use error::NativeTransportError;
+
 pub mod hid;
-pub use hid::{NativeTransportError, TransportNativeHID};
+use hid::TransportNativeHID;
 
 /// A packet exchange request.
 struct APDUExchange {
@@ -46,7 +49,10 @@ impl LedgerTask {
             while let Some(exchange) = self.rx.recv().await {
                 // blocking IO
                 let answer = self.ledger.exchange(&exchange.command);
-                let _ = exchange.answer.send(answer);
+                let answer = exchange.answer.send(answer);
+                if let Err(Err(err)) = answer {
+                    tracing::error!(err = %err, "could not send answer to exchange");
+                }
             }
         };
 

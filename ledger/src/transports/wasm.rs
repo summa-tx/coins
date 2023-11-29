@@ -47,6 +47,19 @@ extern "C" {
 #[wasm_bindgen]
 pub struct LedgerTransport(Transport);
 
+impl std::fmt::Debug for LedgerTransport {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        #[cfg(feature = "node")]
+        let transport_type = "@ledgerhq/hw-transport-node-hid";
+        #[cfg(feature = "browser")]
+        let transport_type = "@ledgerhq/hw-transport-webusb";
+
+        f.debug_struct("LedgerTransport")
+            .field("transport_library", &transport_type)
+            .finish()
+    }
+}
+
 /// Transport Impl for wasm
 impl LedgerTransport {
     /// Send an APDU command to the device, and receive a response
