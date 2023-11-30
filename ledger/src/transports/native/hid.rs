@@ -8,7 +8,10 @@ use crate::{
 use byteorder::{BigEndian, ReadBytesExt};
 use hidapi_rusb::{DeviceInfo, HidApi, HidDevice};
 use once_cell::sync::Lazy;
-use std::{io::Cursor, sync::Mutex};
+use std::{
+    io::Cursor,
+    sync::{Mutex, MutexGuard},
+};
 
 use super::NativeTransportError;
 
@@ -67,6 +70,99 @@ fn read_response_header(rdr: &mut Cursor<&[u8]>) -> Result<(u16, u8, u16), Nativ
     let rcv_tag = rdr.read_u8()?;
     let rcv_seq_idx = rdr.read_u16::<BigEndian>()?;
     Ok((rcv_channel, rcv_tag, rcv_seq_idx))
+}
+
+fn write_apdu(
+    device: &mut MutexGuard<'_, HidDevice>,
+    channel: u16,
+    apdu_command: &[u8],
+) -> Result<i32, NativeTransportError> {
+    let command_length = apdu_command.len();
+    let mut in_data = Vec::with_capacity(command_length + 2);
+    in_data.push(((command_length >> 8) & 0xFF) as u8);
+    in_data.push((command_length & 0xFF) as u8);
+    in_data.extend_from_slice(apdu_command);
+
+    let mut buffer = [0u8; LEDGER_PACKET_WRITE_SIZE as usize];
+    buffer[0] = ((channel >> 8) & 0xFF) as u8; // channel big endian
+    buffer[1] = (channel & 0xFF) as u8; // channel big endian
+    buffer[2] = 0x05u8;
+
+    for (sequence_idx, chunk) in in_data
+        .chunks((LEDGER_PACKET_WRITE_SIZE - 5) as usize)
+        .enumerate()
+    {
+        buffer[3] = ((sequence_idx >> 8) & 0xFF) as u8; // sequence_idx big endian
+        buffer[4] = (sequence_idx & 0xFF) as u8; // sequence_idx big endian
+        buffer[5..5 + chunk.len()].copy_from_slice(chunk);
+
+        let result = device.write(&buffer);
+
+        match result {
+            Ok(size) => {
+                if size < buffer.len() {
+                    return Err(NativeTransportError::Comm(
+                        "USB write error. Could not send whole message",
+                    ));
+                }
+            }
+            Err(x) => return Err(NativeTransportError::Hid(x)),
+        }
+    }
+    Ok(1)
+}
+
+/// Read a response APDU from the ledger channel.
+fn read_response_apdu(
+    device: &mut MutexGuard<'_, HidDevice>,
+    _channel: u16,
+) -> Result<Vec<u8>, NativeTransportError> {
+    let mut response_buffer = [0u8; LEDGER_PACKET_READ_SIZE as usize];
+    let mut sequence_idx = 0u16;
+    let mut expected_response_len = 0usize;
+    let mut offset = 0;
+
+    let mut answer_buf = vec![];
+
+    loop {
+        let res = device.read_timeout(&mut response_buffer, LEDGER_TIMEOUT)?;
+
+        if (sequence_idx == 0 && res < 7) || res < 5 {
+            return Err(NativeTransportError::Comm("Read error. Incomplete header"));
+        }
+
+        let mut rdr = Cursor::new(&response_buffer[..]);
+        let (_, _, rcv_seq_idx) = read_response_header(&mut rdr)?;
+
+        if rcv_seq_idx != sequence_idx {
+            return Err(NativeTransportError::SequenceMismatch {
+                got: rcv_seq_idx,
+                expected: sequence_idx,
+            });
+        }
+
+        // The header packet contains the number of bytes of response data
+        if rcv_seq_idx == 0 {
+            expected_response_len = rdr.read_u16::<BigEndian>()? as usize;
+        }
+
+        let remaining_in_buf = response_buffer.len() - rdr.position() as usize;
+        let missing = expected_response_len - offset;
+        let end_p = rdr.position() as usize + std::cmp::min(remaining_in_buf, missing);
+
+        let new_chunk = &response_buffer[rdr.position() as usize..end_p];
+
+        // Copy the response to the answer
+        answer_buf.extend(new_chunk);
+        // answer_buf[offset..offset + new_chunk.len()].copy_from_slice(new_chunk);
+        offset += new_chunk.len();
+
+        if offset >= expected_response_len {
+            return Ok(answer_buf);
+        }
+
+        sequence_idx += 1;
+    }
 }
 
 /// Open a specific ledger device
@@ -143,96 +239,6 @@ impl TransportNativeHID {
         first_ledger(api).map(Self::from_device)
     }
 
-    fn write_apdu(&self, channel: u16, apdu_command: &[u8]) -> Result<i32, NativeTransportError> {
-        let device = self.device.lock().unwrap();
-
-        let command_length = apdu_command.len();
-        let mut in_data = Vec::with_capacity(command_length + 2);
-        in_data.push(((command_length >> 8) & 0xFF) as u8);
-        in_data.push((command_length & 0xFF) as u8);
-        in_data.extend_from_slice(apdu_command);
-
-        let mut buffer = [0u8; LEDGER_PACKET_WRITE_SIZE as usize];
-        buffer[0] = ((channel >> 8) & 0xFF) as u8; // channel big endian
-        buffer[1] = (channel & 0xFF) as u8; // channel big endian
-        buffer[2] = 0x05u8;
-
-        for (sequence_idx, chunk) in in_data
-            .chunks((LEDGER_PACKET_WRITE_SIZE - 5) as usize)
-            .enumerate()
-        {
-            buffer[3] = ((sequence_idx >> 8) & 0xFF) as u8; // sequence_idx big endian
-            buffer[4] = (sequence_idx & 0xFF) as u8; // sequence_idx big endian
-            buffer[5..5 + chunk.len()].copy_from_slice(chunk);
-
-            let result = device.write(&buffer);
-
-            match result {
-                Ok(size) => {
-                    if size < buffer.len() {
-                        return Err(NativeTransportError::Comm(
-                            "USB write error. Could not send whole message",
-                        ));
-                    }
-                }
-                Err(x) => return Err(NativeTransportError::Hid(x)),
-            }
-        }
-        Ok(1)
-    }
-
-    /// Read a response APDU from the ledger channel.
-    fn read_response_apdu(&self, _channel: u16) -> Result<Vec<u8>, NativeTransportError> {
-        let device = self.device.lock().unwrap();
-
-        let mut response_buffer = [0u8; LEDGER_PACKET_READ_SIZE as usize];
-        let mut sequence_idx = 0u16;
-        let mut expected_response_len = 0usize;
-        let mut offset = 0;
-
-        let mut answer_buf = vec![];
-
-        loop {
-            let res = device.read_timeout(&mut response_buffer, LEDGER_TIMEOUT)?;
-
-            if (sequence_idx == 0 && res < 7) || res < 5 {
-                return Err(NativeTransportError::Comm("Read error. Incomplete header"));
-            }
-
-            let mut rdr = Cursor::new(&response_buffer[..]);
-            let (_, _, rcv_seq_idx) = read_response_header(&mut rdr)?;
-
-            if rcv_seq_idx != sequence_idx {
-                return Err(NativeTransportError::SequenceMismatch {
-                    got: rcv_seq_idx,
-                    expected: sequence_idx,
-                });
-            }
-
-            // The header packet contains the number of bytes of response data
-            if rcv_seq_idx == 0 {
-                expected_response_len = rdr.read_u16::<BigEndian>()? as usize;
-            }
-
-            let remaining_in_buf = response_buffer.len() - rdr.position() as usize;
-            let missing = expected_response_len - offset;
-            let end_p = rdr.position() as usize + std::cmp::min(remaining_in_buf, missing);
-
-            let new_chunk = &response_buffer[rdr.position() as usize..end_p];
-
-            // Copy the response to the answer
-            answer_buf.extend(new_chunk);
-            // answer_buf[offset..offset + new_chunk.len()].copy_from_slice(new_chunk);
-            offset += new_chunk.len();
-
-            if offset >= expected_response_len {
-                return Ok(answer_buf);
-            }
-
-            sequence_idx += 1;
-        }
-    }
-
     /// Exchange an APDU with the device. The response data will be written to `answer_buf`, and a
     /// `APDUAnswer` struct will be created with a reference to `answer_buf`.
     ///
@@ -242,9 +248,11 @@ impl TransportNativeHID {
     /// If the method errors, the buf may contain a partially written response. It is not advised
     /// to read this.
     pub fn exchange(&self, command: &APDUCommand) -> Result<APDUAnswer, LedgerError> {
-        self.write_apdu(LEDGER_CHANNEL, &command.serialize())?;
-
-        let answer_buf = self.read_response_apdu(LEDGER_CHANNEL)?;
+        let answer_buf = {
+            let mut device = self.device.lock().unwrap();
+            write_apdu(&mut device, LEDGER_CHANNEL, &command.serialize())?;
+            read_response_apdu(&mut device, LEDGER_CHANNEL)?
+        };
 
         let apdu_answer = APDUAnswer::from_answer(answer_buf)?;
 
