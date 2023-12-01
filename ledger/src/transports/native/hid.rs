@@ -228,7 +228,7 @@ impl TransportNativeHID {
                     .map_err(|_| NativeTransportError::InvalidTermuxUsbFd)?
                     .parse::<i32>()
                     .map_err(|_| NativeTransportError::InvalidTermuxUsbFd)?;
-                api.wrap_sys_device(usb_fd, -1).map(Self::from_device)?
+                Ok(api.wrap_sys_device(usb_fd, -1).map(Self::from_device)?)
             } else {
                 // Not sure how we should handle non-Termux Android here. This likely won't work.
                 first_ledger(api).map(Self::from_device)
