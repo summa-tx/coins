@@ -2,15 +2,18 @@ use tokio::sync::{mpsc, oneshot};
 
 use crate::{APDUAnswer, APDUCommand, LedgerError};
 
+mod error;
+pub use error::NativeTransportError;
+
 pub mod hid;
-pub use hid::{NativeTransportError, TransportNativeHID};
+use hid::TransportNativeHID;
 
 /// A packet exchange request.
 struct APDUExchange {
     /// The command to send to the device.
-    pub command: APDUCommand,
+    command: APDUCommand,
     /// The channel to send the answer back on.
-    pub answer: oneshot::Sender<Result<APDUAnswer, LedgerError>>,
+    answer: oneshot::Sender<Result<APDUAnswer, LedgerError>>,
 }
 
 impl APDUExchange {
@@ -41,12 +44,15 @@ impl LedgerTask {
     }
 
     /// Spawn the task that will run Ledger protocols.
-    pub fn spawn(mut self) {
+    fn spawn(mut self) {
         let fut = async move {
             while let Some(exchange) = self.rx.recv().await {
                 // blocking IO
                 let answer = self.ledger.exchange(&exchange.command);
-                let _ = exchange.answer.send(answer);
+                let answer = exchange.answer.send(answer);
+                if let Err(Err(err)) = answer {
+                    tracing::error!(err = %err, "could not send answer to exchange");
+                }
             }
         };
 

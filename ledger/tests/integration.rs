@@ -12,8 +12,8 @@ fn ledger_device_path() {
     let transport = hid::TransportNativeHID::new().unwrap();
 
     // TODO: Extend to discover two devices
-    let ledger_path = transport.device_path().expect("Could not find a device");
-    println!("{ledger_path:?}");
+    let manufacturer = transport.get_manufacturer_string();
+    println!("{manufacturer:?}");
 }
 
 #[tokio::test]

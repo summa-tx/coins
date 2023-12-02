@@ -27,6 +27,7 @@ cfg_if::cfg_if! {
 /// A Ledger device connection. This wraps the default transport type. In
 /// native code, this is the `hidapi` library. When the `node` or `browser`
 /// feature is selected, it is a Ledger JS transport library.
+#[derive(Debug)]
 pub struct Ledger(DefaultTransport);
 
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -68,7 +69,7 @@ impl LedgerAsync for Ledger {
                     "Received response from device"
                 )
             }
-            Err(e) => error!(err = format!("{}", &e), "Received error from device"),
+            Err(err) => error!(%err, "Error during communication"),
         }
         resp
     }

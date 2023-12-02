@@ -9,6 +9,7 @@ use crate::{Ledger, LedgerError};
 /// be invoked. The protocol may also fail to recover, in which case future
 /// uses of the device may fail.
 pub trait LedgerProtocol {
+    /// The output of the protocol.
     type Output;
 
     /// Run the protocol. This sends commands to the device, and receives
@@ -29,6 +30,8 @@ pub trait LedgerProtocol {
         Ok(())
     }
 
+    /// Run the protocol. This sends commands to the device, and receives
+    /// responses. The transport is locked while this function is running.
     fn run(&mut self, transport: &mut Ledger) -> Result<Self::Output, LedgerError> {
         match self.execute(transport) {
             Ok(output) => Ok(output),
