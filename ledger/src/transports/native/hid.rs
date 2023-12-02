@@ -77,7 +77,7 @@ fn write_apdu(
     channel: u16,
     apdu_command: &[u8],
 ) -> Result<(), NativeTransportError> {
-    tracing::debug!(apdu = %hex::encode(&apdu_command), bytes = apdu_command.len(), "Writing APDU to device");
+    tracing::debug!(apdu = %hex::encode(apdu_command), bytes = apdu_command.len(), "Writing APDU to device");
 
     let command_length = apdu_command.len();
 
@@ -103,7 +103,7 @@ fn write_apdu(
         buffer[6..6 + chunk.len()].copy_from_slice(chunk);
 
         tracing::trace!(
-            buffer = hex::encode(&buffer),
+            buffer = hex::encode(buffer),
             sequence_idx,
             bytes = chunk.len(),
             "Writing chunk to device",
