@@ -76,40 +76,46 @@ fn write_apdu(
     device: &mut MutexGuard<'_, HidDevice>,
     channel: u16,
     apdu_command: &[u8],
-) -> Result<i32, NativeTransportError> {
+) -> Result<(), NativeTransportError> {
+    tracing::debug!(apdu = %hex::encode(&apdu_command), bytes = apdu_command.len(), "Writing APDU to device");
+
     let command_length = apdu_command.len();
+
+    // TODO: allocation-free method
     let mut in_data = Vec::with_capacity(command_length + 2);
     in_data.push(((command_length >> 8) & 0xFF) as u8);
     in_data.push((command_length & 0xFF) as u8);
     in_data.extend_from_slice(apdu_command);
 
     let mut buffer = [0u8; LEDGER_PACKET_WRITE_SIZE as usize];
-    buffer[0] = ((channel >> 8) & 0xFF) as u8; // channel big endian
-    buffer[1] = (channel & 0xFF) as u8; // channel big endian
-    buffer[2] = 0x05u8;
+    // Windows platform requires 0x00 prefix and Linux/Mac tolerate this as
+    // well. So we leave buffer[0] as 0x00
+    buffer[1] = ((channel >> 8) & 0xFF) as u8; // channel big endian
+    buffer[2] = (channel & 0xFF) as u8; // channel big endian
+    buffer[3] = 0x05u8;
 
     for (sequence_idx, chunk) in in_data
-        .chunks((LEDGER_PACKET_WRITE_SIZE - 5) as usize)
+        .chunks((LEDGER_PACKET_WRITE_SIZE - 6) as usize)
         .enumerate()
     {
-        buffer[3] = ((sequence_idx >> 8) & 0xFF) as u8; // sequence_idx big endian
-        buffer[4] = (sequence_idx & 0xFF) as u8; // sequence_idx big endian
-        buffer[5..5 + chunk.len()].copy_from_slice(chunk);
+        buffer[4] = ((sequence_idx >> 8) & 0xFF) as u8; // sequence_idx big endian
+        buffer[5] = (sequence_idx & 0xFF) as u8; // sequence_idx big endian
+        buffer[6..6 + chunk.len()].copy_from_slice(chunk);
 
-        let result = device.write(&buffer);
-
-        match result {
-            Ok(size) => {
-                if size < buffer.len() {
-                    return Err(NativeTransportError::Comm(
-                        "USB write error. Could not send whole message",
-                    ));
-                }
-            }
-            Err(x) => return Err(NativeTransportError::Hid(x)),
+        tracing::trace!(
+            buffer = hex::encode(&buffer),
+            sequence_idx,
+            bytes = chunk.len(),
+            "Writing chunk to device",
+        );
+        let result = device.write(&buffer).map_err(NativeTransportError::Hid)?;
+        if result < buffer.len() {
+            return Err(NativeTransportError::Comm(
+                "USB write error. Could not send whole message",
+            ));
         }
     }
-    Ok(1)
+    Ok(())
 }
 
 /// Read a response APDU from the ledger channel.
@@ -125,15 +131,30 @@ fn read_response_apdu(
     let mut answer_buf = vec![];
 
     loop {
+        let remaining = expected_response_len
+            .checked_sub(offset)
+            .unwrap_or_default();
+
+        tracing::trace!(
+            sequence_idx,
+            expected_response_len,
+            remaining,
+            answer_size = answer_buf.len(),
+            "Reading response from device.",
+        );
+
         let res = device.read_timeout(&mut response_buffer, LEDGER_TIMEOUT)?;
 
+        // The first packet contains the response length as u16, successive
+        // packets do not.
         if (sequence_idx == 0 && res < 7) || res < 5 {
             return Err(NativeTransportError::Comm("Read error. Incomplete header"));
         }
 
-        let mut rdr = Cursor::new(&response_buffer[..]);
+        let mut rdr: Cursor<&[u8]> = Cursor::new(&response_buffer[..]);
         let (_, _, rcv_seq_idx) = read_response_header(&mut rdr)?;
 
+        // Check sequence index. A mismatch means someone else read a packet.s
         if rcv_seq_idx != sequence_idx {
             return Err(NativeTransportError::SequenceMismatch {
                 got: rcv_seq_idx,
@@ -144,8 +165,14 @@ fn read_response_apdu(
         // The header packet contains the number of bytes of response data
         if rcv_seq_idx == 0 {
             expected_response_len = rdr.read_u16::<BigEndian>()? as usize;
+            tracing::trace!(
+                expected_response_len,
+                "Received response length from device",
+            );
         }
 
+        // Read either until the end of the buffer, or until we have read the
+        // expected response length
         let remaining_in_buf = response_buffer.len() - rdr.position() as usize;
         let missing = expected_response_len - offset;
         let end_p = rdr.position() as usize + std::cmp::min(remaining_in_buf, missing);
@@ -154,7 +181,6 @@ fn read_response_apdu(
 
         // Copy the response to the answer
         answer_buf.extend(new_chunk);
-        // answer_buf[offset..offset + new_chunk.len()].copy_from_slice(new_chunk);
         offset += new_chunk.len();
 
         if offset >= expected_response_len {
@@ -190,12 +216,6 @@ impl TransportNativeHID {
         }
     }
 
-    /// Get manufacturer string. Returns None on error, or on no string.
-    pub fn get_manufacturer_string(&self) -> Option<String> {
-        let device = self.device.lock().unwrap();
-        device.get_manufacturer_string().unwrap_or_default()
-    }
-
     /// Open all ledger devices.
     pub fn open_all_devices() -> Result<Vec<Self>, NativeTransportError> {
         let api = &HIDAPI;
@@ -228,15 +248,17 @@ impl TransportNativeHID {
                     .map_err(|_| NativeTransportError::InvalidTermuxUsbFd)?
                     .parse::<i32>()
                     .map_err(|_| NativeTransportError::InvalidTermuxUsbFd)?;
-                Ok(api.wrap_sys_device(usb_fd, -1).map(Self::from_device)?)
-            } else {
-                // Not sure how we should handle non-Termux Android here. This likely won't work.
-                first_ledger(api).map(Self::from_device)
+                return Ok(api.wrap_sys_device(usb_fd, -1).map(Self::from_device)?);
             }
         }
 
-        #[cfg(not(target_os = "android"))]
         first_ledger(api).map(Self::from_device)
+    }
+
+    /// Get manufacturer string. Returns None on error, or on no string.
+    pub fn get_manufacturer_string(&self) -> Option<String> {
+        let device = self.device.lock().unwrap();
+        device.get_manufacturer_string().unwrap_or_default()
     }
 
     /// Exchange an APDU with the device. The response data will be written to `answer_buf`, and a
@@ -248,19 +270,19 @@ impl TransportNativeHID {
     /// If the method errors, the buf may contain a partially written response. It is not advised
     /// to read this.
     pub fn exchange(&self, command: &APDUCommand) -> Result<APDUAnswer, LedgerError> {
-        let answer_buf = {
+        let answer = {
             let mut device = self.device.lock().unwrap();
             write_apdu(&mut device, LEDGER_CHANNEL, &command.serialize())?;
             read_response_apdu(&mut device, LEDGER_CHANNEL)?
         };
 
-        let apdu_answer = APDUAnswer::from_answer(answer_buf)?;
+        let answer = APDUAnswer::from_answer(answer)?;
 
-        match apdu_answer.response_status() {
-            None => Ok(apdu_answer),
+        match answer.response_status() {
+            None => Ok(answer),
             Some(response) => {
                 if response.is_success() {
-                    Ok(apdu_answer)
+                    Ok(answer)
                 } else {
                     Err(response.into())
                 }

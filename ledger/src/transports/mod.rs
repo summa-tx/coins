@@ -69,7 +69,7 @@ impl LedgerAsync for Ledger {
                     "Received response from device"
                 )
             }
-            Err(e) => error!(err = format!("{}", &e), "Received error from device"),
+            Err(err) => error!(%err, "Error during communication"),
         }
         resp
     }
