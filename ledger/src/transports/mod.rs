@@ -65,7 +65,7 @@ impl LedgerAsync for Ledger {
             Ok(resp) => {
                 debug!(
                     retcode = resp.retcode(),
-                    response = hex::encode(resp.data().unwrap()),
+                    response = resp.data().map(hex::encode),
                     "Received response from device"
                 )
             }
