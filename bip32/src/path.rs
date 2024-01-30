@@ -193,8 +193,7 @@ impl FromStr for DerivationPath {
     type Err = Bip32Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        s.to_owned()
-            .split('/')
+        s.split('/')
             .filter(|v| v != &"m")
             .map(try_parse_index)
             .collect::<Result<Vec<u32>, Bip32Error>>()
