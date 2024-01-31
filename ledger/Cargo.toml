@@ -1,6 +1,6 @@
 [package]
 name = "coins-ledger"
-version = "0.9.3"
+version = "0.10.0"
 authors = [
     "Summa <team@summa.one>",
     "James Prestwich <james@summa.one>",
