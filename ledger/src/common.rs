@@ -213,8 +213,8 @@ pub enum APDUResponseCodes {
     ConditionsNotSatisfied = 0x6985,
     /// CommandNotAllowed
     CommandNotAllowed = 0x6986,
-    /// BadKeyHandle
-    BadKeyHandle = 0x6A80,
+    /// InvalidData
+    InvalidData = 0x6A80,
     /// InvalidP1P2
     InvalidP1P2 = 0x6B00,
     /// InsNotSupported
@@ -261,8 +261,8 @@ impl APDUResponseCodes {
             APDUResponseCodes::CommandNotAllowed => {
                 "[APDU_CODE_COMMAND_NOT_ALLOWED] Command not allowed (no current EF)"
             }
-            APDUResponseCodes::BadKeyHandle => {
-                "[APDU_CODE_BAD_KEY_HANDLE] The parameters in the data field are incorrect"
+            APDUResponseCodes::InvalidData => {
+                "[APDU_CODE_INBALID_DATA] The parameters in the data field are incorrect"
             }
             APDUResponseCodes::InvalidP1P2 => "[APDU_CODE_INVALIDP1P2] Wrong parameter(s) P1-P2",
             APDUResponseCodes::InsNotSupported => {
@@ -291,7 +291,7 @@ impl TryFrom<u16> for APDUResponseCodes {
             0x6984 => Ok(APDUResponseCodes::DataInvalid),
             0x6985 => Ok(APDUResponseCodes::ConditionsNotSatisfied),
             0x6986 => Ok(APDUResponseCodes::CommandNotAllowed),
-            0x6A80 => Ok(APDUResponseCodes::BadKeyHandle),
+            0x6A80 => Ok(APDUResponseCodes::InvalidData),
             0x6B00 => Ok(APDUResponseCodes::InvalidP1P2),
             0x6D00 => Ok(APDUResponseCodes::InsNotSupported),
             0x6E00 => Ok(APDUResponseCodes::ClaNotSupported),
