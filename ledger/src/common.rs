@@ -262,7 +262,7 @@ impl APDUResponseCodes {
                 "[APDU_CODE_COMMAND_NOT_ALLOWED] Command not allowed (no current EF)"
             }
             APDUResponseCodes::InvalidData => {
-                "[APDU_CODE_INBALID_DATA] The parameters in the data field are incorrect"
+                "[APDU_CODE_INVALID_DATA] The parameters in the data field are incorrect"
             }
             APDUResponseCodes::InvalidP1P2 => "[APDU_CODE_INVALIDP1P2] Wrong parameter(s) P1-P2",
             APDUResponseCodes::InsNotSupported => {
