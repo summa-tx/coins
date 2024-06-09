@@ -5,7 +5,7 @@ members = [
 resolver = "2"
 
 [workspace.package]
-version = "0.11.0"
+version = "0.11.1"
 edition = "2021"
 rust-version = "1.65"
 authors = [
@@ -17,10 +17,10 @@ homepage = "https://github.com/summa-tx/coins"
 repository = "https://github.com/summa-tx/coins"
 
 [workspace.dependencies]
-coins-bip32 = { path = "crates/bip32" }
-coins-bip39 = { path = "crates/bip39" }
-coins-core = { path = "crates/core" }
-coins-ledger = { path = "crates/ledger" }
+coins-bip32 = { path = "crates/bip32", version = "0.11.1" }
+coins-bip39 = { path = "crates/bip39", version = "0.11.1" }
+coins-core = { path = "crates/core", version = "0.11.1" }
+coins-ledger = { path = "crates/ledger", version = "0.11.1" }
 
 # core
 base64 = "0.21"
