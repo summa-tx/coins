@@ -202,6 +202,14 @@ where
         }
     }
 
+    /// Returns a new mnemonic instantiated from an existing entropy.
+    pub const fn new_from_entropy(entropy: Entropy) -> Self {
+        Self {
+            entropy,
+            _wordlist: PhantomData,
+        }
+    }
+
     /// Returns a new mnemonic given the word count, generated using the provided random number
     /// generator.
     pub fn new_with_count<R: Rng>(rng: &mut R, count: usize) -> Result<Self, MnemonicError> {
