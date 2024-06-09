@@ -1,0 +1,21 @@
+[package]
+name = "coins-core"
+version = "0.8.7"
+authors = ["James Prestwich <james@prestwi.ch>"]
+edition = "2018"
+description = "Core library for coins-bip32 and coins-bip39"
+repository = "https://github.com/summa-tx/coins"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+base64.workspace = true
+bech32.workspace = true
+bs58 = { workspace = true, features = ["check"] }
+digest.workspace = true
+generic-array.workspace = true
+hex.workspace = true
+ripemd.workspace = true
+serde = { workspace = true, features = ["derive"] }
+sha2.workspace = true
+sha3.workspace = true
+thiserror.workspace = true

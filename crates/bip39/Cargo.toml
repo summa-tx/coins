@@ -12,22 +12,23 @@ repository = "https://github.com/summa-tx/coins"
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-coins-bip32 = { version = "0.8.3", path = "../bip32" }
+coins-bip32.workspace = true
 
-bitvec = "1.0"
-hmac = "0.12"
-pbkdf2 = "0.12"
-rand = "0.8"
-sha2 = "0.10"
-thiserror = "1.0"
+hmac.workspace = true
+bitvec.workspace = true
+pbkdf2.workspace = true
+rand.workspace = true
+sha2.workspace = true
+thiserror.workspace = true
 
 # used by all wordlists
-once_cell = { version = "1.18", optional = true }
+once_cell = { workspace = true, optional = true }
 
 [dev-dependencies]
-hex = "0.4"
+hex.workspace = true
 
 [features]
+once_cell = ["dep:once_cell"]
 default = ["all-langs"]
 all-langs = [
     "chinese-simplified",
