@@ -1,14 +1,16 @@
 [package]
 name = "coins-bip32"
-version.workspace =  true
-authors.workspace =  true
-edition.workspace =  true
-repository.workspace = true
-license.workspace = true
-
-categories = ["cryptography"]
+categories = ["cryptography::cryptocurrencies"]
 keywords = ["bip32", "bitcoin", "cryptocurrency", "blockchain"]
 description = "Bip32 in Rust"
+
+version.workspace =  true
+edition.workspace =  true
+rust-version.workspace = true
+authors.workspace =  true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
 
 [dependencies]
 coins-core.workspace = true
@@ -22,7 +24,7 @@ sha2.workspace = true
 thiserror.workspace = true
 
 [dev-dependencies]
-hex = "0.4"
+hex.workspace = true
 
 [features]
 default = ["mainnet"]

@@ -1,15 +1,21 @@
 [package]
 name = "coins-bip39"
-version = "0.8.7"
+description = "BIP39 implementation for coins"
+keywords = ["bip39", "coins", "crypto", "wallet"]
+categories = ["cryptography::cryptocurrencies"]
 authors = [
     "Rohit Narurkar <rohit.narurkar@protonmail.com>",
     "James Prestwich <james@prestwi.ch>",
     "0xYYY <0xYYY@pm.me>",
 ]
-edition = "2018"
-description = "Bip39 in Rust"
-repository = "https://github.com/summa-tx/coins"
-license = "MIT OR Apache-2.0"
+
+version.workspace =  true
+edition.workspace =  true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+
 
 [dependencies]
 coins-bip32.workspace = true

@@ -1,11 +1,16 @@
 [package]
 name = "coins-core"
-version = "0.8.7"
-authors = ["James Prestwich <james@prestwi.ch>"]
-edition = "2018"
+categories = ["cryptography::cryptocurrencies"]
+keywords = ["bitcoin", "cryptocurrency", "blockchain"]
 description = "Core library for coins-bip32 and coins-bip39"
-repository = "https://github.com/summa-tx/coins"
-license = "MIT OR Apache-2.0"
+
+version.workspace =  true
+edition.workspace =  true
+rust-version.workspace = true
+authors.workspace =  true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
 
 [dependencies]
 base64.workspace = true

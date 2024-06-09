@@ -6,14 +6,15 @@ resolver = "2"
 
 [workspace.package]
 version = "0.11.0"
+edition = "2021"
+rust-version = "1.65"
 authors = [
     "Summa <team@summa.one>",
     "James Prestwich <james@prestwi.ch>",
 ]
-edition = "2021"
-repository = "https://github.com/summa-tx/coins"
 license = "MIT OR Apache-2.0"
-rust-version = "1.65"
+homepage = "https://github.com/summa-tx/coins"
+repository = "https://github.com/summa-tx/coins"
 
 [workspace.dependencies]
 coins-bip32 = { path = "crates/bip32" }

@@ -1,11 +1,5 @@
 [package]
 name = "coins-ledger"
-
-version.workspace = true
-edition.workspace = true
-repository.workspace = true
-license.workspace = true
-
 authors = [
     "Summa <team@summa.one>",
     "James Prestwich <james@prestwi.ch>",
@@ -14,6 +8,13 @@ authors = [
 categories = ["authentication", "cryptography"]
 keywords = ["ledger", "apdu", "cryptocurrency"]
 description = "Ledger Nano X/S connection and communication management library"
+
+version.workspace =  true
+edition.workspace =  true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
 
 [lib]
 crate-type = ["cdylib", "rlib"]
