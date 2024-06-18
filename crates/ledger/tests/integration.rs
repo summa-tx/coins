@@ -26,6 +26,7 @@ async fn exchange() {
     let buf: &[u8] = &[];
     // Ethereum `get_app_version`
     let command = APDUCommand {
+        cla: 0xe0,
         ins: 0x06,
         p1: 0x00,
         p2: 0x00,
