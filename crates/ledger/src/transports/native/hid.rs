@@ -210,7 +210,7 @@ fn open_device(api: &HidApi, device: &DeviceInfo) -> Result<HidDevice, NativeTra
 
 impl TransportNativeHID {
     /// Instantiate from a device.
-    fn from_device(device: HidDevice) -> Self {
+    const fn from_device(device: HidDevice) -> Self {
         Self {
             device: Mutex::new(device),
         }
