@@ -63,6 +63,8 @@ impl AsRef<[u8]> for APDUData {
 /// additional format details
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct APDUCommand {
+    /// The application identifier.
+    pub cla: u8,
     /// The instruction code.
     pub ins: u8,
     /// Instruction parameter 1
@@ -78,6 +80,7 @@ pub struct APDUCommand {
 impl std::fmt::Display for APDUCommand {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("APDUCommand")
+            .field("cla", &self.cla)
             .field("ins", &self.ins)
             .field("p1", &self.p1)
             .field("p2", &self.p2)
@@ -101,7 +104,7 @@ impl APDUCommand {
 
     /// Write the APDU packet to the specified Write interface
     pub fn write_to<W: std::io::Write>(&self, w: &mut W) -> Result<usize, std::io::Error> {
-        w.write_all(&[0xE0, self.ins, self.p1, self.p2])?;
+        w.write_all(&[self.cla, self.ins, self.p1, self.p2])?;
         if !self.data.is_empty() {
             w.write_all(&[self.data.len() as u8])?;
             w.write_all(self.data.as_ref())?;
@@ -311,6 +314,7 @@ mod test {
         let data: &[u8] = &[0, 0, 0, 1, 0, 0, 0, 1];
 
         let command = APDUCommand {
+            cla: 0xe0,
             ins: 0x01,
             p1: 0x00,
             p2: 0x00,
@@ -323,6 +327,7 @@ mod test {
         assert_eq!(serialized_command, expected);
 
         let command = APDUCommand {
+            cla: 0xe0,
             ins: 0x01,
             p1: 0x00,
             p2: 0x00,

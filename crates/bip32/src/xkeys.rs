@@ -112,7 +112,7 @@ impl AsRef<ecdsa::SigningKey> for XPriv {
 
 impl XPriv {
     /// Instantiate a new XPriv.
-    pub fn new(key: ecdsa::SigningKey, xkey_info: XKeyInfo) -> Self {
+    pub const fn new(key: ecdsa::SigningKey, xkey_info: XKeyInfo) -> Self {
         Self { key, xkey_info }
     }
 
