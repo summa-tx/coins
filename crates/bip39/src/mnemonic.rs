@@ -132,11 +132,11 @@ impl Entropy {
     /// not a valid entropy length
     pub fn from_rng<R: Rng>(bytes: usize, rng: &mut R) -> Result<Self, MnemonicError> {
         match bytes {
-            16 => Ok(Entropy::Sixteen(rng.gen())),
-            20 => Ok(Entropy::Twenty(rng.gen())),
-            24 => Ok(Entropy::TwentyFour(rng.gen())),
-            28 => Ok(Entropy::TwentyEight(rng.gen())),
-            32 => Ok(Entropy::ThirtyTwo(rng.gen())),
+            16 => Ok(Entropy::Sixteen(rng.random())),
+            20 => Ok(Entropy::Twenty(rng.random())),
+            24 => Ok(Entropy::TwentyFour(rng.random())),
+            28 => Ok(Entropy::TwentyEight(rng.random())),
+            32 => Ok(Entropy::ThirtyTwo(rng.random())),
             _ => Err(MnemonicError::InvalidEntropyLength(bytes)),
         }
     }
@@ -195,7 +195,7 @@ where
 {
     /// Returns a new mnemonic generated using the provided random number generator.
     pub fn new<R: Rng>(rng: &mut R) -> Self {
-        let entropy: [u8; 16] = rng.gen();
+        let entropy: [u8; 16] = rng.random();
         Self {
             entropy: entropy.into(),
             _wordlist: PhantomData,
@@ -333,7 +333,7 @@ mod tests {
     #[test]
     #[should_panic(expected = "InvalidWordCount(11)")]
     fn test_invalid_word_count() {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let _mnemonic = Mnemonic::<W>::new_with_count(&mut rng, 11usize).unwrap();
     }
 

@@ -297,7 +297,7 @@ impl ByteFormat for KeyDerivation {
 }
 
 #[cfg(test)]
-pub mod test {
+mod test {
     use super::*;
 
     #[test]
