@@ -1,17 +1,30 @@
-//! `coins-core` is an abstract description of UTXO transactions. It provides a collection of
-//! traits that provide consistent interfaces to UTXO transaction construction. Coins's traits
-//! ensure that types are consistent across all steps in the tx construction process, and allow
-//! for code reuse when building transactions on multiple chains (e.g. Bitcoin Mainnet and Bitcoin
-//! Testnet).
+//! # Coins Core
 //!
-//! Many concepts familiar to UTXO chain developers have been genericized. Transactions are
-//! modeled as a collection of `Input`s and `Output`s. Rather than addresses or scripts, the
-//! `Output` trait has an associated `RecipientIdentifier`. Similarly, rather than an outpoint,
-//! the `Input` trait has an associated `TXOIdentfier`.
+//! `coins-core` contains utilities and traits used by the `coins-bip32` and
+//! `coins-bip39` crates.
 //!
-//! Support for other chains may be added by implementing these traits. We have provided an
-//! implementation suitable for Bitcoin chains (mainnet, testnet, and signet) in the
-//! `bitcoins` crate.
+//! ## Crate Layout
+//!
+//! ### Hashes
+//!
+//! The hashes module provides utilities for newtyping hash outputs, including
+//! sha2, sha3, and ripemd160. These newtypes are called `Marked__` and are
+//! intended to be used for a specific purpose. E.g. `Hash256` is a marked type
+//! for Bitcoin's double-sha2, while `Hash160` is a marked type for Bitcoin's
+//! `ripemd160(sha2(x))`.
+//!
+//! #### Ser trait
+//!
+//! The `Ser` trait is a simple serialization API using
+//! `std::io::{Read, Write}`. Implementers define the binary serialization
+//! format of the type, as well as the JSON serialization. The transaction type
+//! must implement `Ser`, as the provided `txid` logic assumes access to the
+//! `serialize` method.
+//!
+//! `Ser` has an associated `Error` type. Most basic types can simply use the
+//! provided `SerError`. However, more complex (de)serialization will want to
+//! implement a custom error type to handle (e.g.) invalid transactions. These
+//! types must be easily instantiated from a `SerError` or an `std::io::Error`.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -20,12 +33,5 @@
 #[macro_use]
 pub mod macros;
 
-// pub mod builder;
-pub mod enc;
 pub mod hashes;
-// pub mod nets;
-pub mod prelude;
 pub mod ser;
-// pub mod types;
-
-pub use prelude::*;

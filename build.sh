@@ -2,24 +2,24 @@
 
 set -e
 
-cargo build --verbose
-cargo test --verbose --lib
-cargo test --verbose --doc
+cargo build
+cargo test --lib
+cargo test --doc
 
 ### BIP32 ###
-cd bip32
-cargo --verbose build
-cargo --verbose build --no-default-features
-cargo --verbose build --target wasm32-unknown-unknown
+cd crates/bip32
+cargo build
+cargo build --no-default-features
+cargo build --target wasm32-unknown-unknown
 
 ### BIP39 ###
 cd ../bip39
-cargo --verbose build
-cargo --verbose build --no-default-features
-cargo --verbose build --target wasm32-unknown-unknown
+cargo build
+cargo build --no-default-features
+cargo build --target wasm32-unknown-unknown
 
 ### Ledger ###
 cd ../ledger
 # #  broken on travis
-# cargo build --verbose
-cargo build --verbose --target wasm32-unknown-unknown --no-default-features --features="browser"
+# cargo build
+cargo build --target wasm32-unknown-unknown --no-default-features --features="browser"

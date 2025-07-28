@@ -32,7 +32,7 @@
 //! use coins_bip32::prelude::*;
 //!
 //! # fn main() -> Result<(), Bip32Error> {
-//! let digest = coins_core::Hash256::default();
+//! let digest = coins_core::hashes::Hash256::default();
 //!
 //! let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
 //!

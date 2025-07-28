@@ -306,7 +306,7 @@ mod test {
         for case in cases.iter() {
             match try_parse_index(case.0) {
                 Ok(v) => assert_eq!(v, case.1),
-                Err(e) => panic!("unexpected error {}", e),
+                Err(e) => panic!("unexpected error {e}"),
             }
         }
     }
@@ -318,7 +318,7 @@ mod test {
             match try_parse_index(case) {
                 Ok(_) => panic!("expected an error"),
                 Err(Bip32Error::MalformattedDerivation(e)) => assert_eq!(&e, case),
-                Err(e) => panic!("unexpected error {}", e),
+                Err(e) => panic!("unexpected error {e}"),
             }
         }
     }
@@ -336,7 +336,7 @@ mod test {
         for case in cases.iter() {
             match case.0.parse::<DerivationPath>() {
                 Ok(v) => assert_eq!(v.0, case.1),
-                Err(e) => panic!("unexpected error {}", e),
+                Err(e) => panic!("unexpected error {e}"),
             }
         }
     }
@@ -348,7 +348,7 @@ mod test {
             match case.parse::<DerivationPath>() {
                 Ok(_) => panic!("expected an error"),
                 Err(Bip32Error::MalformattedDerivation(e)) => assert_eq!(&e, case),
-                Err(e) => panic!("unexpected error {}", e),
+                Err(e) => panic!("unexpected error {e}"),
             }
         }
     }
@@ -384,11 +384,11 @@ mod test {
         let cases = ["//", "m/", "-", "h", "toast", "憂鬱"];
 
         for case in cases.iter() {
-            let path: Result<DerivationPath, _> = case.parse().map_err(Into::into);
+            let path: Result<DerivationPath, _> = case.parse();
             match path {
                 Ok(_) => panic!("expected an error"),
                 Err(Bip32Error::MalformattedDerivation(e)) => assert_eq!(&e, case),
-                Err(e) => panic!("unexpected error {}", e),
+                Err(e) => panic!("unexpected error {e}"),
             }
         }
     }
