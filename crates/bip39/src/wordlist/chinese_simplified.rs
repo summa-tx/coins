@@ -1,11 +1,12 @@
 use crate::Wordlist;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 /// The list of words as supported in the Chinese (Simplified) language.
 pub const RAW_CHINESE_SIMPLIFIED: &str = include_str!("./words/chinese_simplified.txt");
 
 /// ChineseSimplified word list, split into words
-pub static PARSED: Lazy<Vec<&'static str>> = Lazy::new(|| RAW_CHINESE_SIMPLIFIED.lines().collect());
+pub static PARSED: LazyLock<Vec<&'static str>> =
+    LazyLock::new(|| RAW_CHINESE_SIMPLIFIED.lines().collect());
 
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
 /// The ChineseSimplified wordlist that implements the Wordlist trait.

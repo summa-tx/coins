@@ -1,12 +1,12 @@
 use crate::Wordlist;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 /// The list of words as supported in the Chinese (Traditional) language.
 pub const RAW_CHINESE_TRADITIONAL: &str = include_str!("./words/chinese_traditional.txt");
 
 /// ChineseTraditional word list, split into words
-pub static PARSED: Lazy<Vec<&'static str>> =
-    Lazy::new(|| RAW_CHINESE_TRADITIONAL.lines().collect());
+pub static PARSED: LazyLock<Vec<&'static str>> =
+    LazyLock::new(|| RAW_CHINESE_TRADITIONAL.lines().collect());
 
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
 /// The ChineseTraditional wordlist that implements the Wordlist trait.

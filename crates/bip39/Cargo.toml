@@ -26,14 +26,13 @@ rand.workspace = true
 sha2.workspace = true
 thiserror.workspace = true
 
-# used by all wordlists
-once_cell = { workspace = true, optional = true }
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.3", features = ["wasm_js"] }
 
 [dev-dependencies]
 hex.workspace = true
 
 [features]
-once_cell = ["dep:once_cell"]
 default = ["all-langs"]
 all-langs = [
     "chinese-simplified",
@@ -47,13 +46,13 @@ all-langs = [
     "portuguese",
     "spanish",
 ]
-chinese-simplified = ["dep:once_cell"]
-chinese-traditional = ["dep:once_cell"]
-czech = ["dep:once_cell"]
-english = ["dep:once_cell"]
-french = ["dep:once_cell"]
-italian = ["dep:once_cell"]
-japanese = ["dep:once_cell"]
-korean = ["dep:once_cell"]
-portuguese = ["dep:once_cell"]
-spanish = ["dep:once_cell"]
+chinese-simplified = []
+chinese-traditional = []
+czech = []
+english = []
+french = []
+italian = []
+japanese = []
+korean = []
+portuguese = []
+spanish = []

@@ -1,11 +1,11 @@
 use crate::Wordlist;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 /// The list of words as supported in the Czech language.
 pub const RAW_CZECH: &str = include_str!("./words/czech.txt");
 
 /// Czech word list, split into words
-pub static PARSED: Lazy<Vec<&'static str>> = Lazy::new(|| RAW_CZECH.lines().collect());
+pub static PARSED: LazyLock<Vec<&'static str>> = LazyLock::new(|| RAW_CZECH.lines().collect());
 
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
 /// The Czech wordlist that implements the Wordlist trait.

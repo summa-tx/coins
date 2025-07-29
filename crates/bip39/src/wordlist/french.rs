@@ -1,11 +1,11 @@
 use crate::Wordlist;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 /// The list of words as supported in the French language.
 pub const RAW_FRENCH: &str = include_str!("./words/french.txt");
 
 /// French word list, split into words
-pub static PARSED: Lazy<Vec<&'static str>> = Lazy::new(|| RAW_FRENCH.lines().collect());
+pub static PARSED: LazyLock<Vec<&'static str>> = LazyLock::new(|| RAW_FRENCH.lines().collect());
 
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
 /// The French wordlist that implements the Wordlist trait.
