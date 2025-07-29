@@ -3,7 +3,7 @@ use bitvec::prelude::*;
 use coins_bip32::{path::DerivationPath, xkeys::XPriv, Bip32Error};
 use hmac::Hmac;
 use pbkdf2::pbkdf2;
-use rand::Rng;
+use rand::{CryptoRng, Fill, Rng};
 use sha2::{Digest, Sha256, Sha512};
 use std::{convert::TryInto, marker::PhantomData};
 use thiserror::Error;
@@ -130,13 +130,13 @@ impl Entropy {
 
     /// Instantiates new entropy from an RNG. Fails if the specified bytes is
     /// not a valid entropy length
-    pub fn from_rng<R: Rng>(bytes: usize, rng: &mut R) -> Result<Self, MnemonicError> {
+    pub fn from_rng<R: Rng + CryptoRng>(bytes: usize, rng: &mut R) -> Result<Self, MnemonicError> {
         match bytes {
-            16 => Ok(Entropy::Sixteen(rng.gen())),
-            20 => Ok(Entropy::Twenty(rng.gen())),
-            24 => Ok(Entropy::TwentyFour(rng.gen())),
-            28 => Ok(Entropy::TwentyEight(rng.gen())),
-            32 => Ok(Entropy::ThirtyTwo(rng.gen())),
+            16 => Ok(Entropy::Sixteen(rng.random())),
+            20 => Ok(Entropy::Twenty(rng.random())),
+            24 => Ok(Entropy::TwentyFour(rng.random())),
+            28 => Ok(Entropy::TwentyEight(rng.random())),
+            32 => Ok(Entropy::ThirtyTwo(rng.random())),
             _ => Err(MnemonicError::InvalidEntropyLength(bytes)),
         }
     }
@@ -165,6 +165,18 @@ impl Entropy {
     }
 }
 
+impl Fill for Entropy {
+    fn fill<R: Rng + ?Sized>(&mut self, rng: &mut R) {
+        match self {
+            Entropy::Sixteen(arr) => arr.fill(rng),
+            Entropy::Twenty(arr) => arr.fill(rng),
+            Entropy::TwentyFour(arr) => arr.fill(rng),
+            Entropy::TwentyEight(arr) => arr.fill(rng),
+            Entropy::ThirtyTwo(arr) => arr.fill(rng),
+        }
+    }
+}
+
 /// Mnemonic represents entropy that can be represented as a phrase. A mnemonic can be used to
 /// deterministically generate an extended private key or derive its child keys.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -176,6 +188,12 @@ where
     entropy: Entropy,
     /// Wordlist used to produce phrases from entropy.
     _wordlist: PhantomData<W>,
+}
+
+impl<W: Wordlist> Fill for Mnemonic<W> {
+    fn fill<R: Rng + ?Sized>(&mut self, rng: &mut R) {
+        self.entropy.fill(rng);
+    }
 }
 
 impl<W> std::str::FromStr for Mnemonic<W>
@@ -194,8 +212,8 @@ where
     W: Wordlist,
 {
     /// Returns a new mnemonic generated using the provided random number generator.
-    pub fn new<R: Rng>(rng: &mut R) -> Self {
-        let entropy: [u8; 16] = rng.gen();
+    pub fn from_rng<R: Rng + CryptoRng>(rng: &mut R) -> Self {
+        let entropy: [u8; 16] = rng.random();
         Self {
             entropy: entropy.into(),
             _wordlist: PhantomData,
@@ -212,7 +230,10 @@ where
 
     /// Returns a new mnemonic given the word count, generated using the provided random number
     /// generator.
-    pub fn new_with_count<R: Rng>(rng: &mut R, count: usize) -> Result<Self, MnemonicError> {
+    pub fn from_rng_with_count<R: Rng + CryptoRng>(
+        rng: &mut R,
+        count: usize,
+    ) -> Result<Self, MnemonicError> {
         let bytes: usize = match count {
             12 => 16,
             15 => 20,
@@ -333,8 +354,8 @@ mod tests {
     #[test]
     #[should_panic(expected = "InvalidWordCount(11)")]
     fn test_invalid_word_count() {
-        let mut rng = rand::thread_rng();
-        let _mnemonic = Mnemonic::<W>::new_with_count(&mut rng, 11usize).unwrap();
+        let mut rng = rand::rng();
+        let _mnemonic = Mnemonic::<W>::from_rng_with_count(&mut rng, 11usize).unwrap();
     }
 
     #[test]

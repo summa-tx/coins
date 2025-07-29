@@ -1,11 +1,11 @@
 use crate::Wordlist;
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 /// The list of words as supported in the Japanese language.
 pub const RAW_JAPANESE: &str = include_str!("./words/japanese.txt");
 
 /// Japanese word list, split into words
-pub static PARSED: Lazy<Vec<&'static str>> = Lazy::new(|| RAW_JAPANESE.lines().collect());
+pub static PARSED: LazyLock<Vec<&'static str>> = LazyLock::new(|| RAW_JAPANESE.lines().collect());
 
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
 /// The Japanese wordlist that implements the Wordlist trait.

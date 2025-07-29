@@ -21,3 +21,9 @@ pub use self::mnemonic::*;
 /// Wordlists
 pub mod wordlist;
 pub use self::wordlist::*;
+
+#[cfg(target_arch = "wasm32")]
+mod _silence_warnings {
+    use gr02 as _;
+    use gr03 as _;
+}

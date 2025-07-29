@@ -1,13 +1,11 @@
-use k256::ecdsa;
-
-use coins_core::prelude::{Hash160, Hash160Digest, MarkedDigest, MarkedDigestOutput};
-
 use crate::{
     path::{DerivationPath, KeyDerivation},
     primitives::{Hint, KeyFingerprint, XKeyInfo},
     xkeys::{Parent, XPriv, XPub, SEED},
     Bip32Error,
 };
+use coins_core::hashes::{Hash160, Hash160Digest, MarkedDigest, MarkedDigestOutput};
+use k256::ecdsa;
 
 /// Derived keys are keys coupled with their derivation. We use this trait to
 /// check ancestry relationships between keys.

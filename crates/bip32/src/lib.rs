@@ -32,7 +32,7 @@
 //! use coins_bip32::prelude::*;
 //!
 //! # fn main() -> Result<(), Bip32Error> {
-//! let digest = coins_core::Hash256::default();
+//! let digest = coins_core::hashes::Hash256::default();
 //!
 //! let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
 //!
@@ -172,4 +172,10 @@ impl From<std::convert::Infallible> for Bip32Error {
     fn from(_i: std::convert::Infallible) -> Self {
         unimplemented!("unreachable, but required by type system")
     }
+}
+
+#[cfg(target_arch = "wasm32")]
+mod _silence_warnings {
+    use gr02 as _;
+    use gr03 as _;
 }

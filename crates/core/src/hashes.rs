@@ -5,13 +5,12 @@
 //! type-confusion between TXIDs, sighashes, and other digests with the same
 //! length.
 
+use crate::ser::{ByteFormat, SerError, SerResult};
 use digest::{
     core_api::{BlockSizeUser, OutputSizeUser},
     HashMarker, Output,
 };
 use std::io::Write;
-
-use crate::ser::{ByteFormat, SerError, SerResult};
 
 // Useful re-exports
 pub use digest::Digest;

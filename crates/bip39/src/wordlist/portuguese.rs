@@ -1,11 +1,11 @@
 use crate::{Wordlist, WordlistError};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 /// The list of words as supported in the Portuguese language.
 pub const RAW_PORTUGUESE: &str = include_str!("./words/portuguese.txt");
 
 /// Portuguese word list, split into words
-pub static PARSED: Lazy<Vec<&'static str>> = Lazy::new(|| RAW_PORTUGUESE.lines().collect());
+pub static PARSED: LazyLock<Vec<&'static str>> = LazyLock::new(|| RAW_PORTUGUESE.lines().collect());
 
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
 /// The Portuguese wordlist that implements the Wordlist trait.

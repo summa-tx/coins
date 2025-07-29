@@ -6,6 +6,7 @@ use std::{
     convert::TryInto,
     fmt::Debug,
     io::{Cursor, Error as IOError, Read, Write},
+    vec,
 };
 use thiserror::Error;
 
@@ -174,7 +175,7 @@ where
     I: ByteFormat<Error = E>,
 {
     let items = read_compact_int(reader)?;
-    I::read_seq_from(reader, ReadSeqMode::Exactly(items.try_into().unwrap())).map_err(Into::into)
+    I::read_seq_from(reader, ReadSeqMode::Exactly(items.try_into().unwrap()))
 }
 
 /// Convenience function to write a Bitcoin-style length-prefixed vector.
@@ -377,7 +378,11 @@ impl ByteFormat for u8 {
                 v.truncate(n);
                 Ok(v)
             }
-            ReadSeqMode::UntilEnd => Ok(reader.bytes().collect::<Result<Vec<u8>, _>>()?),
+            ReadSeqMode::UntilEnd => {
+                let mut buf = vec![];
+                reader.read_to_end(&mut buf)?;
+                Ok(buf)
+            }
         }
     }
 

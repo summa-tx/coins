@@ -1,11 +1,11 @@
 use crate::{Wordlist, WordlistError};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 /// The list of words as supported in the Italian language.
 pub const RAW_ITALIAN: &str = include_str!("./words/italian.txt");
 
 /// Italian word list, split into words
-pub static PARSED: Lazy<Vec<&'static str>> = Lazy::new(|| RAW_ITALIAN.lines().collect());
+pub static PARSED: LazyLock<Vec<&'static str>> = LazyLock::new(|| RAW_ITALIAN.lines().collect());
 
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
 /// The Italian wordlist that implements the Wordlist trait.

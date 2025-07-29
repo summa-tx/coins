@@ -39,7 +39,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - name: check
         run: |
-          cargo check \
+          RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo check \
           --target wasm32-unknown-unknown \
           --no-default-features \
           --features browser

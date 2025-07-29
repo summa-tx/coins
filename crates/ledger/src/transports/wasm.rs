@@ -22,18 +22,19 @@ compile_error!("Either `node` or `browser` feature must be enabled for WASM tran
     wasm_bindgen(module = "@ledgerhq/hw-transport-webusb")
 )]
 extern "C" {
-    // NB:
-    // This causes the JS glue to bind the variable `default1`
-    // This took hours to figure out -_-
+    /// This causes the JS glue to bind the variable `default1`
+    /// This took hours to figure out -_-
     #[allow(non_camel_case_types)]
     pub type default;
 
+    /// Create a new transport instance.
     #[wasm_bindgen(static_method_of = default)]
     fn create() -> js_sys::Promise;
 }
 
 #[wasm_bindgen]
 extern "C" {
+    /// Our ledger Transport
     pub type Transport;
 
     // `transport.exchange(apdu: Buffer): Promise<Buffer>`

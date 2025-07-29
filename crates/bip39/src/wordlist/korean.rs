@@ -1,11 +1,11 @@
 use crate::{Wordlist, WordlistError};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 
 /// The list of words as supported in the Korean language.
 pub const RAW_KOREAN: &str = include_str!("./words/korean.txt");
 
 /// Korean word list, split into words
-pub static PARSED: Lazy<Vec<&'static str>> = Lazy::new(|| RAW_KOREAN.lines().collect());
+pub static PARSED: LazyLock<Vec<&'static str>> = LazyLock::new(|| RAW_KOREAN.lines().collect());
 
 #[derive(Clone, Debug, PartialEq, Eq, Copy)]
 /// The Korean wordlist that implements the Wordlist trait.
