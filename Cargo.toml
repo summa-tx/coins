@@ -17,10 +17,10 @@ homepage = "https://github.com/summa-tx/coins"
 repository = "https://github.com/summa-tx/coins"
 
 [workspace.dependencies]
-coins-bip32 = { path = "crates/bip32", version = "0.12" }
-coins-bip39 = { path = "crates/bip39", version = "0.12" }
-coins-core = { path = "crates/core", version = "0.12" }
-coins-ledger = { path = "crates/ledger", version = "0.12" }
+coins-bip32 = { path = "crates/bip32", version = "0.13" }
+coins-bip39 = { path = "crates/bip39", version = "0.13" }
+coins-core = { path = "crates/core", version = "0.13" }
+coins-ledger = { path = "crates/ledger", version = "0.13" }
 
 # core
 base64 = "0.21"

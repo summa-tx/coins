@@ -230,7 +230,7 @@ where
 
     /// Returns a new mnemonic given the word count, generated using the provided random number
     /// generator.
-    pub fn new_with_count<R: Rng + CryptoRng>(
+    pub fn from_rng_with_count<R: Rng + CryptoRng>(
         rng: &mut R,
         count: usize,
     ) -> Result<Self, MnemonicError> {
@@ -355,7 +355,7 @@ mod tests {
     #[should_panic(expected = "InvalidWordCount(11)")]
     fn test_invalid_word_count() {
         let mut rng = rand::rng();
-        let _mnemonic = Mnemonic::<W>::new_with_count(&mut rng, 11usize).unwrap();
+        let _mnemonic = Mnemonic::<W>::from_rng_with_count(&mut rng, 11usize).unwrap();
     }
 
     #[test]
