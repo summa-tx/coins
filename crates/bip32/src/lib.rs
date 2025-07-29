@@ -173,3 +173,9 @@ impl From<std::convert::Infallible> for Bip32Error {
         unimplemented!("unreachable, but required by type system")
     }
 }
+
+#[cfg(target_arch = "wasm32")]
+mod _silence_warnings {
+    use gr02 as _;
+    use gr03 as _;
+}

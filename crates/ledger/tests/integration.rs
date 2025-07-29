@@ -16,9 +16,9 @@ fn ledger_device_path() {
     println!("{manufacturer:?}");
 }
 
-#[tokio::test]
-#[serial]
 #[ignore]
+#[serial]
+#[tokio::test]
 async fn exchange() {
     let transport = transports::Ledger::init()
         .await
