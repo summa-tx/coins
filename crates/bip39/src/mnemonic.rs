@@ -32,7 +32,7 @@ pub enum MnemonicError {
 }
 
 /// Holds valid entropy lengths for a mnemonic
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum Entropy {
     /// Sixteen bytes of entropy
     Sixteen([u8; 16]),
@@ -173,6 +173,18 @@ impl Fill for Entropy {
             Entropy::TwentyFour(arr) => arr.fill(rng),
             Entropy::TwentyEight(arr) => arr.fill(rng),
             Entropy::ThirtyTwo(arr) => arr.fill(rng),
+        }
+    }
+}
+
+impl Drop for Entropy {
+    fn drop(&mut self) {
+        match self {
+            Entropy::Sixteen(arr) => arr.as_mut_slice().fill(0),
+            Entropy::Twenty(arr) => arr.as_mut_slice().fill(0),
+            Entropy::TwentyFour(arr) => arr.as_mut_slice().fill(0),
+            Entropy::TwentyEight(arr) => arr.as_mut_slice().fill(0),
+            Entropy::ThirtyTwo(arr) => arr.as_mut_slice().fill(0),
         }
     }
 }
@@ -560,7 +572,7 @@ mod tests {
                     .try_into()
                     .unwrap();
                 let mnemonic = Mnemonic::<W> {
-                    entropy,
+                    entropy: entropy.clone(),
                     _wordlist: PhantomData,
                 };
                 assert_eq!(mnemonic.entropy, entropy);
