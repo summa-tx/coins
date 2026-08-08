@@ -19,10 +19,19 @@ fn try_parse_index(s: &str) -> Result<u32, Bip32Error> {
         false
     };
 
-    index_str
+    let v = index_str
         .parse::<u32>()
-        .map(|v| if harden { harden_index(v) } else { v })
-        .map_err(|_| Bip32Error::MalformattedDerivation(s.to_owned()))
+        .map_err(|_| Bip32Error::MalformattedDerivation(s.to_owned()))?;
+
+    // Reject indices that already set the harden bit. Otherwise:
+    // - raw `2147483648` silently selects hardened child 0 (`0'`)
+    // - `2147483648'` wraps in `harden_index` to unhardened `0`
+    // Match geth `ParseDerivationPath` behavior.
+    if v >= BIP32_HARDEN {
+        return Err(Bip32Error::MalformattedDerivation(s.to_owned()));
+    }
+
+    Ok(if harden { harden_index(v) } else { v })
 }
 
 fn encode_index(idx: u32, harden: char) -> String {
@@ -321,6 +330,20 @@ mod test {
                 Err(e) => panic!("unexpected error {e}"),
             }
         }
+    }
+
+    #[test]
+    fn it_rejects_indices_that_overflow_harden_bit() {
+        // geth: "m/2147483648'" → error; raw harden-bit index also rejected.
+        for case in ["2147483648", "2147483648'", "2147483648h", "2147483649'"] {
+            match try_parse_index(case) {
+                Ok(v) => panic!("expected an error for {case}, got {v}"),
+                Err(Bip32Error::MalformattedDerivation(e)) => assert_eq!(&e, case),
+                Err(e) => panic!("unexpected error {e}"),
+            }
+        }
+        assert!("m/2147483648'".parse::<DerivationPath>().is_err());
+        assert!("m/44'/60'/0'/0/2147483648".parse::<DerivationPath>().is_err());
     }
 
     #[test]
