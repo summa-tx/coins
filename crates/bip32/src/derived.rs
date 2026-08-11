@@ -546,8 +546,8 @@ mod test {
         ];
         assert_eq!(sig.to_der().as_bytes(), der_sig);
         assert_eq!(&sig, &Signature::from_der(&der_sig).unwrap());
-        assert_eq!(sig.r().to_bytes().as_slice(), &rsv[..32]);
-        assert_eq!(sig.s().to_bytes().as_slice(), &rsv[32..64]);
+        assert_eq!(&sig.r().to_bytes()[..], &rsv[..32]);
+        assert_eq!(&sig.s().to_bytes()[..], &rsv[32..64]);
         assert_eq!(recovery_id.to_byte(), rsv[64]);
     }
 

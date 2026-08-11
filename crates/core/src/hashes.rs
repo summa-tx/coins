@@ -14,13 +14,15 @@ use std::io::Write;
 
 // Useful re-exports
 pub use digest::Digest;
+#[allow(deprecated)]
+// re-exported for API compatibility; generic-array 1.x migration is a breaking change
 pub use generic_array::GenericArray;
 pub use ripemd::Ripemd160;
 pub use sha2::Sha256;
 pub use sha3::Sha3_256;
 
 /// Output of a Digest function
-pub type DigestOutput<D> = GenericArray<u8, <D as OutputSizeUser>::OutputSize>;
+pub type DigestOutput<D> = Output<D>;
 
 /// Convenience interface for hash function outputs, particularly marked digest outputs
 pub trait MarkedDigestOutput:
@@ -99,7 +101,7 @@ impl OutputSizeUser for Hash256 {
 }
 
 impl digest::FixedOutput for Hash256 {
-    fn finalize_into(self, out: &mut GenericArray<u8, Self::OutputSize>) {
+    fn finalize_into(self, out: &mut Output<Self>) {
         let mut hasher = sha2::Sha256::default();
         hasher.update(self.0.finalize());
         Digest::finalize_into(hasher, out)
@@ -152,7 +154,7 @@ impl OutputSizeUser for Hash160 {
 }
 
 impl digest::FixedOutput for Hash160 {
-    fn finalize_into(self, out: &mut GenericArray<u8, Self::OutputSize>) {
+    fn finalize_into(self, out: &mut Output<Self>) {
         let mut hasher = ripemd::Ripemd160::default();
         hasher.update(self.0.finalize());
         Digest::finalize_into(hasher, out)
