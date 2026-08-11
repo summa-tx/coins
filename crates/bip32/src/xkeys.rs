@@ -1,6 +1,6 @@
 use coins_core::hashes::{Hash160, Hash160Digest, MarkedDigest, MarkedDigestOutput};
-use hmac::{Hmac, Mac};
-use k256::{ecdsa, elliptic_curve::sec1::FromEncodedPoint};
+use hmac::{Hmac, KeyInit, Mac};
+use k256::{ecdsa, elliptic_curve::sec1::FromSec1Point};
 use sha2::Sha512;
 use std::{
     convert::{TryFrom, TryInto},
@@ -343,7 +343,7 @@ impl Parent for XPub {
         }
 
         let parent_key =
-            k256::ProjectivePoint::from_encoded_point(&self.key.to_encoded_point(true)).unwrap();
+            k256::ProjectivePoint::from_sec1_point(&self.key.to_sec1_point(true)).unwrap();
         let mut tweak_point = k256::ProjectivePoint::GENERATOR.mul(*tweak);
         tweak_point.add_assign(parent_key);
 
@@ -554,10 +554,18 @@ mod test {
         let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str).unwrap();
 
         let child = xpriv.derive_child(33).unwrap();
-        let sig: ecdsa::Signature = child.sign_digest(digest.clone());
+        let sig: ecdsa::Signature = child.sign_digest(|d: &mut Hash256| *d = digest.clone());
 
         let child_xpub = child.verify_key();
-        child_xpub.verify_digest(digest, &sig).unwrap();
+        child_xpub
+            .verify_digest(
+                |d: &mut Hash256| {
+                    *d = digest.clone();
+                    Ok(())
+                },
+                &sig,
+            )
+            .unwrap();
     }
 
     #[test]
@@ -570,10 +578,18 @@ mod test {
         let child = xpriv.derive_child(33).unwrap();
 
         let (sig, recovery_id): (ecdsa::Signature, ecdsa::RecoveryId) =
-            child.sign_digest(digest.clone());
+            child.sign_digest(|d: &mut Hash256| *d = digest.clone());
 
         let child_xpub = child.verify_key();
-        child_xpub.verify_digest(digest.clone(), &sig).unwrap();
+        child_xpub
+            .verify_digest(
+                |d: &mut Hash256| {
+                    *d = digest.clone();
+                    Ok(())
+                },
+                &sig,
+            )
+            .unwrap();
 
         let recovered =
             ecdsa::VerifyingKey::recover_from_digest(digest, &sig, recovery_id).unwrap();

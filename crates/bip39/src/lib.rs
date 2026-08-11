@@ -26,4 +26,5 @@ pub use self::wordlist::*;
 mod _silence_warnings {
     use gr02 as _;
     use gr03 as _;
+    use gr04 as _;
 }

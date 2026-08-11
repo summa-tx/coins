@@ -9,11 +9,11 @@ macro_rules! inherit_signer {
                 + digest::Update
                 + digest::HashMarker,
         {
-            fn try_sign_digest(
+            fn try_sign_digest<F: Fn(&mut D) -> Result<(), k256::ecdsa::Error>>(
                 &self,
-                digest: D,
+                f: F,
             ) -> Result<k256::ecdsa::Signature, k256::ecdsa::Error> {
-                self.$attr.try_sign_digest(digest)
+                self.$attr.try_sign_digest(f)
             }
         }
 
@@ -30,11 +30,11 @@ macro_rules! inherit_signer {
                 + digest::Update
                 + digest::HashMarker,
         {
-            fn try_sign_digest(
+            fn try_sign_digest<F: Fn(&mut D) -> Result<(), k256::ecdsa::Error>>(
                 &self,
-                digest: D,
+                f: F,
             ) -> Result<(k256::ecdsa::Signature, k256::ecdsa::RecoveryId), k256::ecdsa::Error> {
-                self.$attr.sign_digest_recoverable(digest)
+                self.$attr.try_sign_digest(f)
             }
         }
 
@@ -53,7 +53,11 @@ macro_rules! inherit_signer {
                     + digest::Update
                     + digest::HashMarker,
             {
-                self.$attr.sign_digest_recoverable(digest)
+                use k256::ecdsa::signature::DigestSigner as _;
+                self.try_sign_digest(move |d: &mut D| {
+                    *d = digest.clone();
+                    Ok(())
+                })
             }
         }
     };
@@ -75,12 +79,12 @@ macro_rules! inherit_verifier {
         where
             D: digest::Digest + digest::FixedOutput<OutputSize = k256::elliptic_curve::consts::U32>,
         {
-            fn verify_digest(
+            fn verify_digest<F: Fn(&mut D) -> Result<(), k256::ecdsa::Error>>(
                 &self,
-                digest: D,
+                f: F,
                 signature: &k256::ecdsa::Signature,
             ) -> Result<(), k256::ecdsa::Error> {
-                self.$attr.verify_digest(digest, signature)
+                self.$attr.verify_digest(f, signature)
             }
         }
     };
