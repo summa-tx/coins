@@ -12,15 +12,9 @@ use crate::{primitives::KeyFingerprint, Bip32Error, BIP32_HARDEN};
 
 fn try_parse_index(s: &str) -> Result<u32, Bip32Error> {
     let mut index_str = s.to_owned();
-    let harden = if s.ends_with('\'') || s.ends_with('h') {
+    let harden: fn(u32) -> Option<u32> = if s.ends_with('\'') || s.ends_with('h') {
         index_str.pop();
-        true
-    } else {
-        false
-    };
-
-    let harden = if harden {
-        harden_index as fn(u32) -> Option<u32>
+        harden_index
     } else {
         dont_harden_index
     };
@@ -31,13 +25,8 @@ fn try_parse_index(s: &str) -> Result<u32, Bip32Error> {
     // Match geth `ParseDerivationPath` behavior.
     index_str
         .parse::<u32>()
-        .map_err(|_| Bip32Error::MalformattedDerivation(s.to_owned()))
-        .and_then(|v| {
-            (v < BIP32_HARDEN)
-                .then_some(v)
-                .ok_or_else(|| Bip32Error::MalformattedDerivation(s.to_owned()))
-        })
         .ok()
+        .filter(|v| *v < BIP32_HARDEN)
         .and_then(harden)
         .ok_or_else(|| Bip32Error::MalformattedDerivation(s.to_owned()))
 }
