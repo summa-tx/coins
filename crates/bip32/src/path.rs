@@ -19,19 +19,23 @@ fn try_parse_index(s: &str) -> Result<u32, Bip32Error> {
         false
     };
 
-    let v = index_str
-        .parse::<u32>()
-        .map_err(|_| Bip32Error::MalformattedDerivation(s.to_owned()))?;
-
     // Reject indices that already set the harden bit. Otherwise:
     // - raw `2147483648` silently selects hardened child 0 (`0'`)
     // - `2147483648'` wraps in `harden_index` to unhardened `0`
     // Match geth `ParseDerivationPath` behavior.
-    if v >= BIP32_HARDEN {
-        return Err(Bip32Error::MalformattedDerivation(s.to_owned()));
-    }
-
-    Ok(if harden { harden_index(v) } else { v })
+    index_str
+        .parse::<u32>()
+        .map_err(|_| Bip32Error::MalformattedDerivation(s.to_owned()))
+        .and_then(|v| {
+            if v >= BIP32_HARDEN {
+                return Err(Bip32Error::MalformattedDerivation(s.to_owned()));
+            }
+            if harden {
+                harden_index(v).ok_or_else(|| Bip32Error::MalformattedDerivation(s.to_owned()))
+            } else {
+                Ok(v)
+            }
+        })
 }
 
 fn encode_index(idx: u32, harden: char) -> String {
@@ -42,9 +46,9 @@ fn encode_index(idx: u32, harden: char) -> String {
     s
 }
 
-/// Converts an raw index to hardened
-pub const fn harden_index(index: u32) -> u32 {
-    index + BIP32_HARDEN
+/// Converts a raw index to hardened.
+pub const fn harden_index(index: u32) -> Option<u32> {
+    index.checked_add(BIP32_HARDEN)
 }
 
 /// A Bip32 derivation path
