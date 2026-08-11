@@ -131,9 +131,7 @@ fn read_response_apdu(
     let mut answer_buf = vec![];
 
     loop {
-        let remaining = expected_response_len
-            .checked_sub(offset)
-            .unwrap_or_default();
+        let remaining = expected_response_len.saturating_sub(offset);
 
         tracing::trace!(
             sequence_idx,
