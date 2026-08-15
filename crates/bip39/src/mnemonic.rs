@@ -153,7 +153,6 @@ impl Entropy {
     }
 
     /// Returns the length of the entropy array
-    #[allow(clippy::len_without_is_empty)]
     pub const fn len(&self) -> usize {
         match self {
             Entropy::Sixteen(_) => 16,
@@ -162,6 +161,12 @@ impl Entropy {
             Entropy::TwentyEight(_) => 28,
             Entropy::ThirtyTwo(_) => 32,
         }
+    }
+
+    /// Returns `true` if the entropy array is empty. Always `false`, since no `Entropy` variant
+    /// is zero-length.
+    pub const fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 }
 
