@@ -398,7 +398,7 @@ impl<P: NetworkParams> XKeyEncoder for BitcoinEncoder<P> {
         } else if version_bytes == P::BIP84_PUB_VERSION {
             Hint::SegWit
         } else {
-            return Err(Bip32Error::BadXPrivVersionBytes(buf));
+            return Err(Bip32Error::BadXPubVersionBytes(buf));
         };
         Self::read_xpub_body(reader, hint)
     }
