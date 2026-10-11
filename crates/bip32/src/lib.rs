@@ -37,7 +37,7 @@
 //!
 //! let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
 //!
-//! let xpriv: XPriv = xpriv_str.parse().unwrap();
+//! let xpriv: XPriv = MainnetEncoder::xpriv_from_base58(&xpriv_str)?;
 //!
 //! let child_xpriv = xpriv.derive_child(33)?;
 //! let (sig, _recovery_id): (Signature, RecoveryId) =

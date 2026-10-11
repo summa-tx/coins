@@ -14,6 +14,9 @@ use crate::{
 /// Intermediate buffers are zeroized, as the payload may be secret.
 pub fn decode_b58_check(s: &str) -> Result<Vec<u8>, Bip32Error> {
     let mut data: Vec<u8> = bs58::decode(s).into_vec()?;
+    if data.len() < 4 {
+        return Err(Bip32Error::BadB58Checksum);
+    }
     let idx = data.len() - 4;
 
     let digest = &Hash256::digest(&data[..idx]);
@@ -402,5 +405,28 @@ impl<P: NetworkParams> XKeyEncoder for BitcoinEncoder<P> {
             return Err(Bip32Error::BadXPubVersionBytes(buf));
         };
         Self::read_xpub_body(reader, hint)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn decode_b58_check_rejects_short_input() {
+        for len in 0..4 {
+            let s = bs58::encode(vec![1u8; len]).into_string();
+            assert!(matches!(
+                decode_b58_check(&s),
+                Err(Bip32Error::BadB58Checksum)
+            ));
+        }
+    }
+
+    #[test]
+    fn b58_check_round_trip() {
+        let payload = b"hello world";
+        let encoded = encode_b58_check(payload);
+        assert_eq!(decode_b58_check(&encoded).unwrap(), payload);
     }
 }

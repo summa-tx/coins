@@ -45,6 +45,7 @@ zeroize = { version = "1.8", features = ["derive"] }
 # bip39
 pbkdf2 = "0.13"
 rand = { version = "0.10", default-features = false }
+unicode-normalization = "0.1.25"
 once_cell = "1.19.0"
 
 # ledger

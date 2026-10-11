@@ -60,6 +60,10 @@ pub use super::spanish::Spanish;
 
 use thiserror::Error;
 
+/// The maximum length of a wordlist word, in bytes. The longest word in the built-in wordlists
+/// (Korean) is 33 bytes.
+pub const MAX_WORD_BYTES: usize = 33;
+
 #[derive(Debug, Clone, Copy, Error, PartialEq, Eq)]
 /// The error type returned while interacting with wordists.
 pub enum WordlistError {
@@ -76,7 +80,8 @@ pub enum WordlistError {
 pub trait Wordlist {
     /// Returns the word list as a string.
     ///
-    /// Implementor's note: this MUST be sorted
+    /// Implementor's note: this MUST be sorted, contain exactly 2048 words, and each word MUST be
+    /// NFKD-normalized and at most [`MAX_WORD_BYTES`] long.
     fn get_all() -> &'static [&'static str];
 
     /// Returns the word of a given index from the word list.
@@ -93,5 +98,34 @@ pub trait Wordlist {
             .iter()
             .position(|&x| x == word)
             .ok_or(crate::WordlistError::InvalidWord)
+    }
+}
+
+#[cfg(all(test, feature = "all-langs"))]
+mod tests {
+    use super::*;
+    use unicode_normalization::is_nfkd;
+
+    fn check<W: Wordlist>() {
+        let words = W::get_all();
+        assert_eq!(words.len(), 2048);
+        for word in words {
+            assert!(is_nfkd(word), "{word} is not NFKD");
+            assert!(word.len() <= MAX_WORD_BYTES, "{word} is too long");
+        }
+    }
+
+    #[test]
+    fn wordlists_are_nfkd_and_bounded() {
+        check::<ChineseSimplified>();
+        check::<ChineseTraditional>();
+        check::<Czech>();
+        check::<English>();
+        check::<French>();
+        check::<Italian>();
+        check::<Japanese>();
+        check::<Korean>();
+        check::<Portuguese>();
+        check::<Spanish>();
     }
 }

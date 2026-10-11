@@ -21,3 +21,7 @@ pub use self::mnemonic::*;
 /// Wordlists
 pub mod wordlist;
 pub use self::wordlist::*;
+
+// Only used by tests gated on the `english` feature.
+#[cfg(test)]
+use hex as _;
