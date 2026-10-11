@@ -73,6 +73,17 @@ impl From<[u8; 32]> for ChainCode {
     }
 }
 
+impl ChainCode {
+    /// The chain code fixed by BIP-328 for MuSig2 synthetic xpubs: `sha256("MuSig2MuSig2MuSig2")`.
+    ///
+    /// See <https://github.com/bitcoin/bips/blob/master/bip-0328.mediawiki>.
+    pub const MUSIG2_SYNTHETIC_ROOT: Self = Self([
+        0x86, 0x80, 0x87, 0xca, 0x02, 0xa6, 0xf9, 0x74, 0xc4, 0x59, 0x89, 0x24, 0xc3, 0x6b, 0x57,
+        0x76, 0x2d, 0x32, 0xcb, 0x45, 0x71, 0x71, 0x67, 0xe3, 0x00, 0x62, 0x2c, 0x71, 0x67, 0xe3,
+        0x89, 0x65,
+    ]);
+}
+
 /// Info associated with an extended key
 #[derive(Copy, Clone, Debug)]
 pub struct XKeyInfo {
@@ -95,5 +106,19 @@ impl PartialEq for XKeyInfo {
             && self.parent == other.parent
             && self.index == other.index
             && self.chain_code == other.chain_code
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use sha2::{Digest, Sha256};
+
+    #[test]
+    fn musig2_synthetic_root_chain_code_matches_bip328() {
+        // BIP-328: fixed chain code for synthetic xpubs is sha256("MuSig2MuSig2MuSig2")
+        // https://github.com/bitcoin/bips/blob/master/bip-0328.mediawiki
+        let expected = Sha256::digest(b"MuSig2MuSig2MuSig2");
+        assert_eq!(ChainCode::MUSIG2_SYNTHETIC_ROOT.0[..], expected[..]);
     }
 }
