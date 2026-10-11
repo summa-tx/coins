@@ -158,13 +158,6 @@ impl Entropy {
         hash[..].zeroize();
         checksum
     }
-
-    /// Writes the entropy followed by its checksum into `buf`, MSB-first.
-    fn encode_into(&self, buf: &mut [u8; MAX_ENCODED_BYTES]) {
-        let len = self.count.entropy_bytes();
-        buf[..len].copy_from_slice(self.as_bytes());
-        buf[len] = self.checksum();
-    }
 }
 
 impl TryFrom<&[u8]> for Entropy {
@@ -211,65 +204,130 @@ impl std::fmt::Debug for Entropy {
     }
 }
 
-/// Reads the 11-bit wordlist index of the word at `position`.
-fn read_index(buf: &[u8; MAX_ENCODED_BYTES], position: usize) -> usize {
-    let start = position * BITS_PER_WORD;
-    (start..start + BITS_PER_WORD).fold(0, |index, bit| {
-        (index << 1) | ((buf[bit / 8] >> (7 - bit % 8)) & 1) as usize
-    })
-}
+/// Entropy followed by its checksum, packed MSB-first as 11-bit wordlist indices. Zeroized on
+/// drop.
+#[derive(Zeroize, ZeroizeOnDrop)]
+struct EncodedEntropy([u8; MAX_ENCODED_BYTES]);
 
-/// Writes the 11-bit wordlist `index` of the word at `position`.
-fn write_index(buf: &mut [u8; MAX_ENCODED_BYTES], position: usize, index: usize) {
-    let start = position * BITS_PER_WORD;
-    for (i, bit) in (start..start + BITS_PER_WORD).enumerate() {
-        let value = ((index >> (BITS_PER_WORD - 1 - i)) & 1) as u8;
-        buf[bit / 8] |= value << (7 - bit % 8);
+impl EncodedEntropy {
+    const fn new() -> Self {
+        Self([0u8; MAX_ENCODED_BYTES])
+    }
+
+    /// Encodes `entropy` followed by its checksum.
+    fn from_entropy(entropy: &Entropy) -> Self {
+        let mut encoded = Self::new();
+        let len = entropy.count.entropy_bytes();
+        encoded.0[..len].copy_from_slice(entropy.as_bytes());
+        encoded.0[len] = entropy.checksum();
+        encoded
+    }
+
+    /// Decodes the entropy of a `count`-word phrase, verifying its checksum in constant time.
+    fn to_entropy(&self, count: WordCount) -> Result<Entropy, MnemonicError> {
+        let len = count.entropy_bytes();
+        let entropy = Entropy::from_slice(&self.0[..len])?;
+        let checksum = self.0[len] & count.checksum_mask();
+        bool::from(checksum.ct_eq(&entropy.checksum()))
+            .then_some(entropy)
+            .ok_or(MnemonicError::InvalidChecksum)
+    }
+
+    /// Reads the 11-bit wordlist index of the word at `position`.
+    fn read_index(&self, position: usize) -> usize {
+        let start = position * BITS_PER_WORD;
+        (start..start + BITS_PER_WORD).fold(0, |index, bit| {
+            (index << 1) | ((self.0[bit / 8] >> (7 - bit % 8)) & 1) as usize
+        })
+    }
+
+    /// Writes the 11-bit wordlist `index` of the word at `position`.
+    fn write_index(&mut self, position: usize, index: usize) {
+        let start = position * BITS_PER_WORD;
+        for (i, bit) in (start..start + BITS_PER_WORD).enumerate() {
+            let value = ((index >> (BITS_PER_WORD - 1 - i)) & 1) as u8;
+            self.0[bit / 8] |= value << (7 - bit % 8);
+        }
     }
 }
 
-/// Copies `word` into a zero-padded fixed-size buffer, so comparisons don't depend on its length.
-/// Returns `None` if the word is longer than [`MAX_WORD_BYTES`].
-fn try_pad(word: &str) -> Option<[u8; MAX_WORD_BYTES]> {
-    let mut buf = [0u8; MAX_WORD_BYTES];
-    buf.get_mut(..word.len())?.copy_from_slice(word.as_bytes());
-    Some(buf)
+/// A word zero-padded to [`MAX_WORD_BYTES`], so comparisons and copies don't depend on its
+/// length. Zeroized on drop.
+#[derive(Zeroize, ZeroizeOnDrop)]
+struct PaddedWord {
+    buf: [u8; MAX_WORD_BYTES],
+    len: u8,
 }
 
-/// Pads a wordlist word. Panics if the wordlist violates the [`MAX_WORD_BYTES`] requirement.
-fn pad(word: &str) -> [u8; MAX_WORD_BYTES] {
-    try_pad(word).expect("wordlist words must be at most MAX_WORD_BYTES")
+impl PaddedWord {
+    const fn new() -> Self {
+        Self {
+            buf: [0u8; MAX_WORD_BYTES],
+            len: 0,
+        }
+    }
+
+    /// Pads `word`. Returns `None` if it is longer than [`MAX_WORD_BYTES`].
+    fn from_word(word: &str) -> Option<Self> {
+        let mut padded = Self::new();
+        padded
+            .buf
+            .get_mut(..word.len())?
+            .copy_from_slice(word.as_bytes());
+        padded.len = word.len() as u8;
+        Some(padded)
+    }
+
+    /// Pads a wordlist word. Panics if the wordlist violates the [`MAX_WORD_BYTES`] requirement.
+    fn from_wordlist(word: &str) -> Self {
+        Self::from_word(word).expect("wordlist words must be at most MAX_WORD_BYTES")
+    }
+
+    /// Assigns `other` to `self` if `choice` is set, in constant time.
+    fn conditional_assign(&mut self, other: &Self, choice: Choice) {
+        self.buf
+            .iter_mut()
+            .zip(&other.buf)
+            .for_each(|(byte, other)| byte.conditional_assign(other, choice));
+        self.len.conditional_assign(&other.len, choice);
+    }
+
+    fn as_str(&self) -> &str {
+        std::str::from_utf8(&self.buf[..self.len as usize]).expect("wordlist words are UTF-8")
+    }
+}
+
+impl ConstantTimeEq for PaddedWord {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.buf[..].ct_eq(&other.buf[..]) & self.len.ct_eq(&other.len)
+    }
 }
 
 /// Finds the wordlist index of `word`. Scans the whole wordlist in constant time, so timing does
 /// not reveal which word matched.
 fn index_of<W: Wordlist>(word: &str) -> Option<usize> {
-    let target = Zeroizing::new(try_pad(word)?);
-    let target_len = word.len() as u32;
+    let target = PaddedWord::from_word(word)?;
 
     let mut index = Zeroizing::new(0u32);
     let mut found = Choice::from(0);
     for (i, candidate) in W::get_all().iter().enumerate() {
-        let matches = pad(candidate).ct_eq(&*target) & (candidate.len() as u32).ct_eq(&target_len);
+        let matches = PaddedWord::from_wordlist(candidate).ct_eq(&target);
         index.conditional_assign(&(i as u32), matches);
         found |= matches;
     }
     bool::from(found).then_some(*index as usize)
 }
 
-/// Copies the word at wordlist `index` into `out` and returns its length. Scans the whole wordlist
-/// in constant time, so memory access patterns do not reveal the index.
-fn word_at<W: Wordlist>(index: usize, out: &mut [u8; MAX_WORD_BYTES]) -> usize {
+/// Copies the word at wordlist `index` into `out`. Scans the whole wordlist in constant time, so
+/// memory access patterns do not reveal the index.
+fn word_at<W: Wordlist>(index: usize, out: &mut PaddedWord) {
     let index = index as u32;
-    let mut len = 0u32;
     for (i, candidate) in W::get_all().iter().enumerate() {
-        let matches = (i as u32).ct_eq(&index);
-        for (byte, padded) in out.iter_mut().zip(pad(candidate)) {
-            byte.conditional_assign(&padded, matches);
-        }
-        len.conditional_assign(&(candidate.len() as u32), matches);
+        out.conditional_assign(
+            &PaddedWord::from_wordlist(candidate),
+            (i as u32).ct_eq(&index),
+        );
     }
-    len as usize
 }
 
 /// Returns `prefix` followed by the NFKD normalization of `s`, as BIP-39 requires for phrases and
@@ -360,19 +418,13 @@ where
         let phrase = nfkd("", phrase);
         let count = WordCount::try_from(phrase.split(' ').count())?;
 
-        let mut buf = Zeroizing::new([0u8; MAX_ENCODED_BYTES]);
+        let mut encoded = EncodedEntropy::new();
         for (position, word) in phrase.split(' ').enumerate() {
             let index = index_of::<W>(word).ok_or(MnemonicError::InvalidWord(position))?;
-            write_index(&mut buf, position, index);
+            encoded.write_index(position, index);
         }
 
-        let len = count.entropy_bytes();
-        let entropy = Entropy::from_slice(&buf[..len])?;
-
-        let checksum = buf[len] & count.checksum_mask();
-        bool::from(checksum.ct_eq(&entropy.checksum()))
-            .then(|| Self::new_from_entropy(entropy))
-            .ok_or(MnemonicError::InvalidChecksum)
+        encoded.to_entropy(count).map(Self::new_from_entropy)
     }
 
     /// Returns the mnemonic's entropy.
@@ -393,20 +445,19 @@ where
             "wordlists must contain 2048 words"
         );
 
-        let mut buf = Zeroizing::new([0u8; MAX_ENCODED_BYTES]);
-        self.entropy.encode_into(&mut buf);
+        let encoded = EncodedEntropy::from_entropy(&self.entropy);
 
         // Allocate the maximum length up front. Growing the string would leave unzeroized copies
         // of the phrase behind in freed memory.
         let words = self.word_count().words();
         let mut phrase = Zeroizing::new(String::with_capacity(words * (MAX_WORD_BYTES + 1)));
-        let mut word = Zeroizing::new([0u8; MAX_WORD_BYTES]);
+        let mut word = PaddedWord::new();
         for position in 0..words {
             if position > 0 {
                 phrase.push(' ');
             }
-            let len = word_at::<W>(read_index(&buf, position), &mut word);
-            phrase.push_str(std::str::from_utf8(&word[..len]).expect("wordlist words are UTF-8"));
+            word_at::<W>(encoded.read_index(position), &mut word);
+            phrase.push_str(word.as_str());
         }
         phrase
     }

@@ -1,7 +1,7 @@
 use coins_core::hashes::{Digest, Hash256};
 use k256::ecdsa;
 use std::marker::PhantomData;
-use zeroize::Zeroizing;
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 use crate::{
     primitives::{ChainCode, Hint, KeyFingerprint, XKeyInfo},
@@ -11,30 +11,34 @@ use crate::{
 
 /// Decode a bytevector from a base58 check string
 ///
-/// Intermediate buffers are zeroized, as the payload may be secret.
-pub fn decode_b58_check(s: &str) -> Result<Vec<u8>, Bip32Error> {
+/// The intermediate buffer and the result are zeroized, as the payload may be secret.
+pub fn decode_b58_check(s: &str) -> Result<Zeroizing<Vec<u8>>, Bip32Error> {
     let data = Zeroizing::new(bs58::decode(s).into_vec()?);
     let (payload, checksum) = data
         .split_last_chunk::<4>()
         .ok_or(Bip32Error::BadB58Checksum)?;
 
     (Hash256::digest(payload)[..4] == checksum[..])
-        .then(|| payload.to_vec())
+        .then(|| Zeroizing::new(payload.to_vec()))
         .ok_or(Bip32Error::BadB58Checksum)
 }
 
 /// Encode a vec into a base58 check String
 ///
-/// Intermediate buffers are zeroized, as the payload may be secret.
-pub fn encode_b58_check(v: &[u8]) -> String {
+/// The intermediate buffer and the result are zeroized, as the payload may be secret.
+pub fn encode_b58_check(v: &[u8]) -> Zeroizing<String> {
     let digest = &Hash256::digest(v);
 
     let mut data = Zeroizing::new(Vec::with_capacity(v.len() + 4));
     data.extend_from_slice(v);
     data.extend_from_slice(&digest[..4]);
 
-    bs58::encode(&*data).into_string()
+    Zeroizing::new(bs58::encode(&*data).into_string())
 }
+
+/// A BIP-32 serialized extended private key. Zeroized on drop.
+#[derive(Zeroize, ZeroizeOnDrop)]
+struct SerializedXPriv([u8; XPriv::SERIALIZED_BYTES]);
 
 /// Contains network-specific serialization information
 pub trait NetworkParams {
@@ -272,9 +276,9 @@ pub trait XKeyEncoder {
     where
         K: AsRef<XPriv>,
     {
-        let mut buf = Zeroizing::new([0u8; XPriv::SERIALIZED_BYTES]);
-        Self::write_xpriv(&mut &mut buf[..], k)?;
-        Ok(Zeroizing::new(encode_b58_check(&*buf)))
+        let mut buf = SerializedXPriv([0u8; XPriv::SERIALIZED_BYTES]);
+        Self::write_xpriv(&mut &mut buf.0[..], k)?;
+        Ok(encode_b58_check(&buf.0))
     }
 
     /// Serialize an XPub to base58
@@ -284,7 +288,7 @@ pub trait XKeyEncoder {
     {
         let mut v: Vec<u8> = vec![];
         Self::write_xpub(&mut v, k)?;
-        Ok(encode_b58_check(&v))
+        Ok(encode_b58_check(&v).to_string())
     }
 
     /// Attempt to read an XPriv from a b58check string.
@@ -300,7 +304,7 @@ pub trait XKeyEncoder {
     /// ```
     fn xpriv_from_base58(s: &str) -> Result<XPriv, Bip32Error>
 where {
-        let data = Zeroizing::new(decode_b58_check(s)?);
+        let data = decode_b58_check(s)?;
         Self::read_xpriv(&mut &data[..])
     }
 
@@ -420,6 +424,6 @@ mod test {
     fn b58_check_round_trip() {
         let payload = b"hello world";
         let encoded = encode_b58_check(payload);
-        assert_eq!(decode_b58_check(&encoded).unwrap(), payload);
+        assert_eq!(decode_b58_check(&encoded).unwrap().as_slice(), payload);
     }
 }
