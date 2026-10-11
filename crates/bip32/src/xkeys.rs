@@ -316,18 +316,24 @@ impl XPub {
     /// Construct a BIP-328 "synthetic xpub" root from a MuSig2 plain aggregate public key.
     ///
     /// Per BIP-328, this fixes the depth, parent fingerprint, and child number to 0, and
-    /// attaches the fixed chain code `ChainCode::musig2_synthetic_root()`. As there is no
+    /// attaches the fixed chain code [`ChainCode::MUSIG2_SYNTHETIC_ROOT`]. As there is no
     /// aggregate private key, only unhardened derivation from the result is possible.
     ///
     /// See <https://github.com/bitcoin/bips/blob/master/bip-0328.mediawiki>.
-    pub const fn synthetic_musig2_root(key: ecdsa::VerifyingKey) -> Self {
+    ///
+    /// # Future work
+    ///
+    /// BIP-328 also requires MuSig2 signers to supply the `I_L` tweak from each `CKDpub` step
+    /// (tweak mode plain) when signing for a child derived from the synthetic root. This crate
+    /// computes those tweaks inside [`Parent::derive_child`] but does not yet expose them.
+    pub const fn musig2_synthetic_root(key: ecdsa::VerifyingKey) -> Self {
         Self {
             key,
             xkey_info: XKeyInfo {
                 depth: 0,
                 parent: KeyFingerprint([0u8; 4]),
                 index: 0,
-                chain_code: ChainCode::musig2_synthetic_root(),
+                chain_code: ChainCode::MUSIG2_SYNTHETIC_ROOT,
                 hint: Hint::Legacy,
             },
         }
@@ -341,7 +347,7 @@ impl XPub {
         self.xkey_info.depth == 0
             && self.xkey_info.parent == KeyFingerprint([0u8; 4])
             && self.xkey_info.index == 0
-            && self.xkey_info.chain_code == ChainCode::musig2_synthetic_root()
+            && self.xkey_info.chain_code == ChainCode::MUSIG2_SYNTHETIC_ROOT
     }
 }
 
@@ -625,29 +631,45 @@ mod test {
         println!("{xpriv:?}");
     }
 
-    // BIP-328 test vector: https://github.com/bitcoin/bips/blob/master/bip-0328.mediawiki
-    const BIP328_AGG_PUBKEY: &str =
-        "0354240c76b8f2999143301a99c7f721ee57eee0bce401df3afeaa9ae218c70f23";
-    const BIP328_SYNTHETIC_XPUB: &str = "xpub661MyMwAqRbcFt6tk3uaczE1y6EvM1TqXvawXcYmFEWijEM4PDBnuCXwwXEKGEouzXE6QLLRxjatMcLLzJ5LV5Nib1BN7vJg6yp45yHHRbm";
+    // BIP-328 test vectors (aggregate pubkey, synthetic xpub):
+    // https://github.com/bitcoin/bips/blob/master/bip-0328/vectors.json
+    const BIP328_VECTORS: &[(&str, &str)] = &[
+        (
+            "0354240c76b8f2999143301a99c7f721ee57eee0bce401df3afeaa9ae218c70f23",
+            "xpub661MyMwAqRbcFt6tk3uaczE1y6EvM1TqXvawXcYmFEWijEM4PDBnuCXwwXEKGEouzXE6QLLRxjatMcLLzJ5LV5Nib1BN7vJg6yp45yHHRbm",
+        ),
+        (
+            "0290539eede565f5d054f32cc0c220126889ed1e5d193baf15aef344fe59d4610c",
+            "xpub661MyMwAqRbcFt6tk3uaczE1y6EvM1TqXvawXcYmFEWijEM4PDBnuCXwwVk5TFJk8Tw5WAdV3DhrGfbFA216sE9BsQQiSFTdudkETnKdg8k",
+        ),
+        (
+            "022479f134cdb266141dab1a023cbba30a870f8995b95a91fc8464e56a7d41f8ea",
+            "xpub661MyMwAqRbcFt6tk3uaczE1y6EvM1TqXvawXcYmFEWijEM4PDBnuCXwwUvaZYpysLX4wN59tjwU5pBuDjNrPEJbfxjLwn7ruzbXTcUTHkZ",
+        ),
+    ];
+
+    fn bip328_aggregate_key(hex_pubkey: &str) -> ecdsa::VerifyingKey {
+        ecdsa::VerifyingKey::from_sec1_bytes(&hex::decode(hex_pubkey).unwrap()).unwrap()
+    }
 
     #[test]
-    fn synthetic_musig2_root_matches_bip328_test_vector() {
-        let key_bytes = hex::decode(BIP328_AGG_PUBKEY).unwrap();
-        let key = ecdsa::VerifyingKey::from_sec1_bytes(&key_bytes).unwrap();
+    fn musig2_synthetic_root_matches_bip328_test_vectors() {
+        for (agg_pubkey, expected_xpub) in BIP328_VECTORS {
+            let synthetic = XPub::musig2_synthetic_root(bip328_aggregate_key(agg_pubkey));
+            assert_eq!(
+                MainnetEncoder::xpub_to_base58(&synthetic).unwrap(),
+                *expected_xpub
+            );
 
-        let synthetic = XPub::synthetic_musig2_root(key);
-
-        assert_eq!(
-            MainnetEncoder::xpub_to_base58(&synthetic).unwrap(),
-            BIP328_SYNTHETIC_XPUB
-        );
+            let parsed = MainnetEncoder::xpub_from_base58(expected_xpub).unwrap();
+            assert!(parsed.is_musig2_synthetic_root());
+            assert_eq!(parsed.xkey_info, synthetic.xkey_info);
+        }
     }
 
     #[test]
     fn it_identifies_musig2_synthetic_roots() {
-        let key_bytes = hex::decode(BIP328_AGG_PUBKEY).unwrap();
-        let key = ecdsa::VerifyingKey::from_sec1_bytes(&key_bytes).unwrap();
-        let synthetic = XPub::synthetic_musig2_root(key);
+        let synthetic = XPub::musig2_synthetic_root(bip328_aggregate_key(BIP328_VECTORS[0].0));
         assert!(synthetic.is_musig2_synthetic_root());
 
         let ordinary = MainnetEncoder::xpub_from_base58(
