@@ -40,7 +40,7 @@ mod tests {
         assert_eq!(ChineseSimplified::get_index("韦"), Ok(2044));
         assert_eq!(
             ChineseSimplified::get_index("龟"),
-            Err(WordlistError::InvalidWord("龟".to_string()))
+            Err(WordlistError::InvalidWord)
         );
     }
 

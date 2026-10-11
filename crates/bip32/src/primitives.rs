@@ -1,6 +1,8 @@
 use crate::Bip32Error;
 use coins_core::ser::ByteFormat;
 use std::io::{Read, Write};
+use subtle::{Choice, ConstantTimeEq};
+use zeroize::Zeroize;
 
 /// We treat the bip32 xpub bip49 ypub and bip84 zpub convention as a hint regarding address type.
 /// Downstream crates are free to follow or ignore these hints when generating addresses from
@@ -63,9 +65,23 @@ impl std::fmt::Debug for KeyFingerprint {
     }
 }
 
-/// A 32-byte chain code
-#[derive(Eq, PartialEq, Debug, Clone, Copy)]
+/// A 32-byte chain code. Compared in constant time.
+#[derive(Debug, Clone, Copy, Zeroize)]
 pub struct ChainCode(pub [u8; 32]);
+
+impl ConstantTimeEq for ChainCode {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.0.ct_eq(&other.0)
+    }
+}
+
+impl PartialEq for ChainCode {
+    fn eq(&self, other: &Self) -> bool {
+        self.ct_eq(other).into()
+    }
+}
+
+impl Eq for ChainCode {}
 
 impl From<[u8; 32]> for ChainCode {
     fn from(v: [u8; 32]) -> Self {

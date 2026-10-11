@@ -1,6 +1,7 @@
 use coins_core::hashes::{Digest, Hash256};
 use k256::ecdsa;
 use std::marker::PhantomData;
+use zeroize::{Zeroize, Zeroizing};
 
 use crate::{
     primitives::{ChainCode, Hint, KeyFingerprint, XKeyInfo},
@@ -9,34 +10,33 @@ use crate::{
 };
 
 /// Decode a bytevector from a base58 check string
+///
+/// Intermediate buffers are zeroized, as the payload may be secret.
 pub fn decode_b58_check(s: &str) -> Result<Vec<u8>, Bip32Error> {
-    let data: Vec<u8> = bs58::decode(s).into_vec()?;
+    let mut data: Vec<u8> = bs58::decode(s).into_vec()?;
     let idx = data.len() - 4;
-    let payload = &data[..idx];
-    let checksum = &data[idx..];
 
-    let digest = &Hash256::digest(payload);
-
-    let mut expected = [0u8; 4];
-    expected.copy_from_slice(&digest[..4]);
-    if expected != checksum {
-        Err(Bip32Error::BadB58Checksum)
-    } else {
-        Ok(payload.to_vec())
+    let digest = &Hash256::digest(&data[..idx]);
+    if digest[..4] != data[idx..] {
+        data.zeroize();
+        return Err(Bip32Error::BadB58Checksum);
     }
+
+    data.truncate(idx);
+    Ok(data)
 }
 
 /// Encode a vec into a base58 check String
+///
+/// Intermediate buffers are zeroized, as the payload may be secret.
 pub fn encode_b58_check(v: &[u8]) -> String {
     let digest = &Hash256::digest(v);
 
-    let mut checksum = [0u8; 4];
-    checksum.copy_from_slice(&digest[..4]);
+    let mut data = Zeroizing::new(Vec::with_capacity(v.len() + 4));
+    data.extend_from_slice(v);
+    data.extend_from_slice(&digest[..4]);
 
-    let mut data = v.to_vec();
-    data.extend(checksum);
-
-    bs58::encode(data).into_string()
+    bs58::encode(&*data).into_string()
 }
 
 /// Contains network-specific serialization information
@@ -172,9 +172,9 @@ pub trait XKeyEncoder {
             return Err(Bip32Error::BadPadding(buf[0]));
         }
 
-        let mut buf = [0u8; 32];
-        reader.read_exact(&mut buf)?;
-        let key = ecdsa::SigningKey::from_bytes(&buf.into())?;
+        let mut buf = Zeroizing::new([0u8; 32]);
+        reader.read_exact(buf.as_mut())?;
+        let key = ecdsa::SigningKey::from_slice(buf.as_ref())?;
 
         Ok(XPriv {
             key,
@@ -270,14 +270,15 @@ pub trait XKeyEncoder {
     where
         R: std::io::Read;
 
-    /// Serialize an XPriv to base58
-    fn xpriv_to_base58<K>(k: &K) -> Result<String, Bip32Error>
+    /// Serialize an XPriv to base58. The result is zeroized on drop.
+    fn xpriv_to_base58<K>(k: &K) -> Result<Zeroizing<String>, Bip32Error>
     where
         K: AsRef<XPriv>,
     {
-        let mut v: Vec<u8> = vec![];
-        Self::write_xpriv(&mut v, k)?;
-        Ok(encode_b58_check(&v))
+        // Sized up front so the key is never left behind by a reallocation.
+        let mut v = Zeroizing::new(Vec::with_capacity(78));
+        Self::write_xpriv(&mut *v, k)?;
+        Ok(Zeroizing::new(encode_b58_check(&v)))
     }
 
     /// Serialize an XPub to base58
@@ -303,7 +304,7 @@ pub trait XKeyEncoder {
     /// ```
     fn xpriv_from_base58(s: &str) -> Result<XPriv, Bip32Error>
 where {
-        let data = decode_b58_check(s)?;
+        let data = Zeroizing::new(decode_b58_check(s)?);
         Self::read_xpriv(&mut &data[..])
     }
 
@@ -357,7 +358,7 @@ impl<P: NetworkParams> XKeyEncoder for BitcoinEncoder<P> {
         let mut written = writer.write(&version.to_be_bytes())?;
         written += Self::write_key_details(writer, key.as_ref())?;
         written += writer.write(&[0])?;
-        written += writer.write(key.as_ref().key.to_bytes().as_ref())?;
+        written += writer.write(&Zeroizing::new(key.as_ref().key.to_bytes()))?;
         Ok(written)
     }
 

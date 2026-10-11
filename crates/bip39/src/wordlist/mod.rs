@@ -60,15 +60,16 @@ pub use super::spanish::Spanish;
 
 use thiserror::Error;
 
-#[derive(Debug, Error, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, Error, PartialEq, Eq)]
 /// The error type returned while interacting with wordists.
 pub enum WordlistError {
     /// Describes the error when the wordlist is queried at an invalid index.
     #[error("the index `{0}` is invalid")]
     InvalidIndex(usize),
-    /// Describes the error when the wordlist does not contain the queried word.
-    #[error("the word `{0}` is invalid")]
-    InvalidWord(String),
+    /// Describes the error when the wordlist does not contain the queried word. The word is not
+    /// included, as it may be part of a secret phrase.
+    #[error("the word is not in the wordlist")]
+    InvalidWord,
 }
 
 /// The Wordlist trait that every language's wordlist must implement.
@@ -91,6 +92,6 @@ pub trait Wordlist {
         Self::get_all()
             .iter()
             .position(|&x| x == word)
-            .ok_or(crate::WordlistError::InvalidWord(word.to_string()))
+            .ok_or(crate::WordlistError::InvalidWord)
     }
 }

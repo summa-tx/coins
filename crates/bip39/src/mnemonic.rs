@@ -1,15 +1,23 @@
 use crate::{Wordlist, WordlistError};
-use bitvec::prelude::*;
 use coins_bip32::{path::DerivationPath, xkeys::XPriv, Bip32Error};
 use hmac::Hmac;
 use pbkdf2::pbkdf2;
-use rand::{CryptoRng, Rng, RngExt};
+use rand::{CryptoRng, Rng};
 use sha2::{Digest, Sha256, Sha512};
-use std::{convert::TryInto, marker::PhantomData};
+use std::marker::PhantomData;
+use subtle::{Choice, ConstantTimeEq};
 use thiserror::Error;
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 const PBKDF2_ROUNDS: u32 = 2048;
 const PBKDF2_BYTES: usize = 64;
+
+/// Each word encodes an 11-bit index into the wordlist.
+const BITS_PER_WORD: usize = 11;
+/// Entropy length of the longest (24-word) mnemonic.
+const MAX_ENTROPY_BYTES: usize = 32;
+/// Entropy plus checksum of the longest mnemonic: 24 words * 11 bits = 264 bits.
+const MAX_ENCODED_BYTES: usize = 33;
 
 #[derive(Debug, Error)]
 /// The error type returned while interacting with mnemonics.
@@ -17,9 +25,12 @@ pub enum MnemonicError {
     /// Describes the error when the mnemonic's entropy length is invalid.
     #[error("the mnemonic's entropy length `{0}` is invalid")]
     InvalidEntropyLength(usize),
-    /// Describes the error when the given phrase is invalid.
-    #[error("the phrase `{0}` is invalid")]
-    InvalidPhrase(String),
+    /// Describes the error when the phrase's checksum does not match its entropy.
+    #[error("the phrase's checksum is invalid")]
+    InvalidChecksum,
+    /// Describes the error when the word at the given position is not in the wordlist.
+    #[error("the word at position `{0}` is not in the wordlist")]
+    InvalidWord(usize),
     /// Describes the error when the word count provided for mnemonic generation is invalid.
     #[error("invalid word count (expected 12, 15, 18, 21, 24, found `{0}`")]
     InvalidWordCount(usize),
@@ -31,143 +42,197 @@ pub enum MnemonicError {
     Bip32Error(#[from] Bip32Error),
 }
 
-/// Holds valid entropy lengths for a mnemonic
-#[derive(Copy, Clone, PartialEq, Eq)]
-pub enum Entropy {
-    /// Sixteen bytes of entropy
-    Sixteen([u8; 16]),
-    /// Twenty bytes of entropy
-    Twenty([u8; 20]),
-    /// TwentyFour bytes of entropy
-    TwentyFour([u8; 24]),
-    /// TwentyEight bytes of entropy
-    TwentyEight([u8; 28]),
-    /// ThirtyTwo bytes of entropy
-    ThirtyTwo([u8; 32]),
+/// The number of words in a BIP-39 mnemonic. Determines the entropy length and checksum width.
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Hash)]
+pub enum WordCount {
+    /// 12 words, 128 bits of entropy.
+    Twelve,
+    /// 15 words, 160 bits of entropy.
+    Fifteen,
+    /// 18 words, 192 bits of entropy.
+    Eighteen,
+    /// 21 words, 224 bits of entropy.
+    TwentyOne,
+    /// 24 words, 256 bits of entropy.
+    TwentyFour,
 }
 
-impl std::fmt::Debug for Entropy {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl WordCount {
+    /// Returns the number of words in the mnemonic.
+    pub const fn words(self) -> usize {
         match self {
-            Self::Sixteen(_) => f.debug_tuple("Sixteen bytes").finish(),
-            Self::Twenty(_) => f.debug_tuple("Twenty bytes").finish(),
-            Self::TwentyFour(_) => f.debug_tuple("Twenty-four bytes").finish(),
-            Self::TwentyEight(_) => f.debug_tuple("Twenty-eight bytes").finish(),
-            Self::ThirtyTwo(_) => f.debug_tuple("Thirty-two bytes").finish(),
+            Self::Twelve => 12,
+            Self::Fifteen => 15,
+            Self::Eighteen => 18,
+            Self::TwentyOne => 21,
+            Self::TwentyFour => 24,
         }
+    }
+
+    /// Returns the entropy length in bytes. Every 3 words encode 32 bits of entropy.
+    pub const fn entropy_bytes(self) -> usize {
+        self.words() / 3 * 4
+    }
+
+    /// Returns the checksum length in bits. Every 3 words encode 1 bit of checksum.
+    pub const fn checksum_bits(self) -> usize {
+        self.words() / 3
+    }
+
+    const fn from_words(words: usize) -> Option<Self> {
+        match words {
+            12 => Some(Self::Twelve),
+            15 => Some(Self::Fifteen),
+            18 => Some(Self::Eighteen),
+            21 => Some(Self::TwentyOne),
+            24 => Some(Self::TwentyFour),
+            _ => None,
+        }
+    }
+
+    const fn from_entropy_bytes(bytes: usize) -> Option<Self> {
+        if bytes % 4 != 0 {
+            return None;
+        }
+        Self::from_words(bytes / 4 * 3)
+    }
+
+    /// Masks the checksum bits, which occupy the most significant bits of a byte.
+    const fn checksum_mask(self) -> u8 {
+        0xff << (8 - self.checksum_bits())
     }
 }
 
-impl std::convert::TryFrom<&[u8]> for Entropy {
+impl TryFrom<usize> for WordCount {
     type Error = MnemonicError;
 
-    fn try_from(buf: &[u8]) -> Result<Self, Self::Error> {
-        match buf.len() {
-            16 | 17 => Ok(Entropy::Sixteen(buf[..16].try_into().expect("len checked"))),
-            20 | 21 => Ok(Entropy::Twenty(buf[..20].try_into().expect("len checked"))),
-            24 | 25 => Ok(Entropy::TwentyFour(
-                buf[..24].try_into().expect("len checked"),
-            )),
-            28 | 29 => Ok(Entropy::TwentyEight(
-                buf[..28].try_into().expect("len checked"),
-            )),
-            32 | 33 => Ok(Entropy::ThirtyTwo(
-                buf[..32].try_into().expect("len checked"),
-            )),
-            _ => Err(MnemonicError::InvalidEntropyLength(buf.len())),
-        }
+    fn try_from(words: usize) -> Result<Self, Self::Error> {
+        Self::from_words(words).ok_or(MnemonicError::InvalidWordCount(words))
     }
 }
 
-impl From<[u8; 16]> for Entropy {
-    fn from(val: [u8; 16]) -> Entropy {
-        Entropy::Sixteen(val)
-    }
-}
-
-impl From<[u8; 20]> for Entropy {
-    fn from(val: [u8; 20]) -> Entropy {
-        Entropy::Twenty(val)
-    }
-}
-
-impl From<[u8; 24]> for Entropy {
-    fn from(val: [u8; 24]) -> Entropy {
-        Entropy::TwentyFour(val)
-    }
-}
-
-impl From<[u8; 28]> for Entropy {
-    fn from(val: [u8; 28]) -> Entropy {
-        Entropy::TwentyEight(val)
-    }
-}
-
-impl From<[u8; 32]> for Entropy {
-    fn from(val: [u8; 32]) -> Entropy {
-        Entropy::ThirtyTwo(val)
-    }
-}
-
-impl AsRef<[u8]> for Entropy {
-    fn as_ref(&self) -> &[u8] {
-        match self {
-            Entropy::Sixteen(arr) => arr.as_ref(),
-            Entropy::Twenty(arr) => arr.as_ref(),
-            Entropy::TwentyFour(arr) => arr.as_ref(),
-            Entropy::TwentyEight(arr) => arr.as_ref(),
-            Entropy::ThirtyTwo(arr) => arr.as_ref(),
-        }
-    }
+/// Mnemonic entropy. Zeroized on drop and compared in constant time.
+#[derive(Clone, Zeroize, ZeroizeOnDrop)]
+pub struct Entropy {
+    buf: [u8; MAX_ENTROPY_BYTES],
+    #[zeroize(skip)]
+    count: WordCount,
 }
 
 impl Entropy {
-    /// Attempts to instantiate Entropy from a slice. Fails if the slice is not
-    /// a valid entropy length
-    pub fn from_slice(buf: impl AsRef<[u8]>) -> Result<Self, MnemonicError> {
-        buf.as_ref().try_into()
+    /// Generates new entropy for a mnemonic of the given length.
+    pub fn random<R: Rng + CryptoRng + ?Sized>(count: WordCount, rng: &mut R) -> Self {
+        let mut entropy = Self {
+            buf: [0u8; MAX_ENTROPY_BYTES],
+            count,
+        };
+        rng.fill_bytes(&mut entropy.buf[..count.entropy_bytes()]);
+        entropy
     }
 
-    /// Instantiates new entropy from an RNG. Fails if the specified bytes is
-    /// not a valid entropy length
-    pub fn from_rng<R: Rng + CryptoRng>(bytes: usize, rng: &mut R) -> Result<Self, MnemonicError> {
-        match bytes {
-            16 => Ok(Entropy::Sixteen(rng.random())),
-            20 => Ok(Entropy::Twenty(rng.random())),
-            24 => Ok(Entropy::TwentyFour(rng.random())),
-            28 => Ok(Entropy::TwentyEight(rng.random())),
-            32 => Ok(Entropy::ThirtyTwo(rng.random())),
-            _ => Err(MnemonicError::InvalidEntropyLength(bytes)),
-        }
+    /// Instantiates entropy from a slice. Fails if the slice is not exactly 16, 20, 24, 28, or 32
+    /// bytes long.
+    pub fn from_slice(bytes: &[u8]) -> Result<Self, MnemonicError> {
+        let count = WordCount::from_entropy_bytes(bytes.len())
+            .ok_or(MnemonicError::InvalidEntropyLength(bytes.len()))?;
+        let mut buf = [0u8; MAX_ENTROPY_BYTES];
+        buf[..bytes.len()].copy_from_slice(bytes);
+        Ok(Self { buf, count })
     }
 
-    /// Computes the number of words in the mnemonic
-    pub const fn words(&self) -> usize {
-        match self {
-            Entropy::Sixteen(_) => 12,
-            Entropy::Twenty(_) => 15,
-            Entropy::TwentyFour(_) => 18,
-            Entropy::TwentyEight(_) => 21,
-            Entropy::ThirtyTwo(_) => 24,
-        }
+    /// Returns the number of words in the corresponding mnemonic.
+    pub const fn word_count(&self) -> WordCount {
+        self.count
     }
 
-    /// Returns the length of the entropy array
-    #[allow(clippy::len_without_is_empty)]
-    pub const fn len(&self) -> usize {
-        match self {
-            Entropy::Sixteen(_) => 16,
-            Entropy::Twenty(_) => 20,
-            Entropy::TwentyFour(_) => 24,
-            Entropy::TwentyEight(_) => 28,
-            Entropy::ThirtyTwo(_) => 32,
+    /// Returns the raw entropy bytes.
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.buf[..self.count.entropy_bytes()]
+    }
+
+    /// Computes the checksum: the leading `checksum_bits` of `sha256(entropy)`, left-aligned in a
+    /// byte.
+    fn checksum(&self) -> u8 {
+        let mut hash = Sha256::digest(self.as_bytes());
+        let checksum = hash[0] & self.count.checksum_mask();
+        hash[..].zeroize();
+        checksum
+    }
+
+    /// Writes the entropy followed by its checksum into `buf`, MSB-first.
+    fn encode_into(&self, buf: &mut [u8; MAX_ENCODED_BYTES]) {
+        let len = self.count.entropy_bytes();
+        buf[..len].copy_from_slice(self.as_bytes());
+        buf[len] = self.checksum();
+    }
+}
+
+impl TryFrom<&[u8]> for Entropy {
+    type Error = MnemonicError;
+
+    fn try_from(bytes: &[u8]) -> Result<Self, Self::Error> {
+        Self::from_slice(bytes)
+    }
+}
+
+macro_rules! impl_entropy_from_array {
+    ($($len:literal),*) => {$(
+        impl From<[u8; $len]> for Entropy {
+            fn from(mut bytes: [u8; $len]) -> Self {
+                let entropy = Self::from_slice(&bytes).expect("valid entropy length");
+                bytes.zeroize();
+                entropy
+            }
         }
+    )*};
+}
+
+impl_entropy_from_array!(16, 20, 24, 28, 32);
+
+impl ConstantTimeEq for Entropy {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.as_bytes().ct_eq(other.as_bytes())
+    }
+}
+
+impl PartialEq for Entropy {
+    fn eq(&self, other: &Self) -> bool {
+        self.ct_eq(other).into()
+    }
+}
+
+impl Eq for Entropy {}
+
+impl std::fmt::Debug for Entropy {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Entropy")
+            .field("word_count", &self.count)
+            .finish_non_exhaustive()
+    }
+}
+
+/// Reads the 11-bit wordlist index of the word at `position`.
+fn read_index(buf: &[u8; MAX_ENCODED_BYTES], position: usize) -> usize {
+    let start = position * BITS_PER_WORD;
+    (start..start + BITS_PER_WORD).fold(0, |index, bit| {
+        (index << 1) | ((buf[bit / 8] >> (7 - bit % 8)) & 1) as usize
+    })
+}
+
+/// Writes the 11-bit wordlist `index` of the word at `position`.
+fn write_index(buf: &mut [u8; MAX_ENCODED_BYTES], position: usize, index: usize) {
+    let start = position * BITS_PER_WORD;
+    for (i, bit) in (start..start + BITS_PER_WORD).enumerate() {
+        let value = ((index >> (BITS_PER_WORD - 1 - i)) & 1) as u8;
+        buf[bit / 8] |= value << (7 - bit % 8);
     }
 }
 
 /// Mnemonic represents entropy that can be represented as a phrase. A mnemonic can be used to
 /// deterministically generate an extended private key or derive its child keys.
-#[derive(Clone, Debug, PartialEq, Eq)]
+///
+/// The entropy is zeroized on drop, and comparisons are constant time.
+#[derive(Clone)]
 pub struct Mnemonic<W>
 where
     W: Wordlist,
@@ -176,6 +241,30 @@ where
     entropy: Entropy,
     /// Wordlist used to produce phrases from entropy.
     _wordlist: PhantomData<W>,
+}
+
+impl<W: Wordlist> ZeroizeOnDrop for Mnemonic<W> {}
+
+impl<W: Wordlist> ConstantTimeEq for Mnemonic<W> {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        self.entropy.ct_eq(&other.entropy)
+    }
+}
+
+impl<W: Wordlist> PartialEq for Mnemonic<W> {
+    fn eq(&self, other: &Self) -> bool {
+        self.ct_eq(other).into()
+    }
+}
+
+impl<W: Wordlist> Eq for Mnemonic<W> {}
+
+impl<W: Wordlist> std::fmt::Debug for Mnemonic<W> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Mnemonic")
+            .field("word_count", &self.word_count())
+            .finish_non_exhaustive()
+    }
 }
 
 impl<W> std::str::FromStr for Mnemonic<W>
@@ -193,13 +282,10 @@ impl<W> Mnemonic<W>
 where
     W: Wordlist,
 {
-    /// Returns a new mnemonic generated using the provided random number generator.
-    pub fn from_rng<R: Rng + CryptoRng>(rng: &mut R) -> Self {
-        let entropy: [u8; 16] = rng.random();
-        Self {
-            entropy: entropy.into(),
-            _wordlist: PhantomData,
-        }
+    /// Returns a new mnemonic of the given length, generated using the provided random number
+    /// generator.
+    pub fn random<R: Rng + CryptoRng + ?Sized>(count: WordCount, rng: &mut R) -> Self {
+        Self::new_from_entropy(Entropy::random(count, rng))
     }
 
     /// Returns a new mnemonic instantiated from an existing entropy.
@@ -210,85 +296,58 @@ where
         }
     }
 
-    /// Returns a new mnemonic given the word count, generated using the provided random number
-    /// generator.
-    pub fn from_rng_with_count<R: Rng + CryptoRng>(
-        rng: &mut R,
-        count: usize,
-    ) -> Result<Self, MnemonicError> {
-        let bytes: usize = match count {
-            12 => 16,
-            15 => 20,
-            18 => 24,
-            21 => 28,
-            24 => 32,
-            wc => return Err(MnemonicError::InvalidWordCount(wc)),
-        };
-        Ok(Self {
-            entropy: Entropy::from_rng(bytes, rng)?,
-            _wordlist: PhantomData,
-        })
-    }
-
     /// Returns a new mnemonic for a given phrase. The 12-24 space-separated words are used to
     /// calculate the entropy that must have produced it.
     pub fn new_from_phrase(phrase: &str) -> Result<Self, MnemonicError> {
-        let words = phrase.split(' ').collect::<Vec<&str>>();
+        let count = WordCount::try_from(phrase.split(' ').count())?;
 
-        let mut entropy: BitVec<u8, Msb0> = BitVec::new();
-        for word in words {
-            let index = W::get_index(word)?;
-            let index_u8: [u8; 2] = (index as u16).to_be_bytes();
-
-            // 11-bits per word as per BIP-39, and max index (2047) can be represented in 11-bits.
-            let index_slice = &BitVec::from_slice(&index_u8)[5..];
-
-            entropy.append(&mut BitVec::<u8, Msb0>::from_bitslice(index_slice));
+        let mut buf = Zeroizing::new([0u8; MAX_ENCODED_BYTES]);
+        for (position, word) in phrase.split(' ').enumerate() {
+            let index = W::get_index(word).map_err(|_| MnemonicError::InvalidWord(position))?;
+            write_index(&mut buf, position, index);
         }
 
-        let mnemonic = Self {
-            entropy: Entropy::from_slice(entropy.as_raw_slice())?,
-            _wordlist: PhantomData,
-        };
+        let len = count.entropy_bytes();
+        let entropy = Entropy::from_slice(&buf[..len])?;
 
-        // Ensures the checksum word matches the checksum word in the given phrase.
-        match phrase == mnemonic.to_phrase() {
-            true => Ok(mnemonic),
-            false => Err(MnemonicError::InvalidPhrase(phrase.into())),
+        let checksum = buf[len] & count.checksum_mask();
+        if !bool::from(checksum.ct_eq(&entropy.checksum())) {
+            return Err(MnemonicError::InvalidChecksum);
         }
+
+        Ok(Self::new_from_entropy(entropy))
+    }
+
+    /// Returns the mnemonic's entropy.
+    pub const fn entropy(&self) -> &Entropy {
+        &self.entropy
+    }
+
+    /// Returns the number of words in the mnemonic.
+    pub const fn word_count(&self) -> WordCount {
+        self.entropy.word_count()
     }
 
     /// Converts the mnemonic into phrase.
-    pub fn to_phrase(&self) -> String {
-        let length = self.word_count();
+    pub fn to_phrase(&self) -> Zeroizing<String> {
+        let mut buf = Zeroizing::new([0u8; MAX_ENCODED_BYTES]);
+        self.entropy.encode_into(&mut buf);
 
-        // Compute checksum. Checksum is the most significant (ENTROPY_BYTES/4) bits. That is also
-        // equivalent to (WORD_COUNT/3).
-        let mut hasher = Sha256::new();
-        hasher.update(self.entropy.as_ref());
-        let hash = hasher.finalize();
-        let hash_0 = BitVec::<u8, Msb0>::from_element(hash[0]);
-        let (checksum, _) = hash_0.split_at(length / 3);
-
-        // Convert the entropy bytes into bits and append the checksum.
-        let mut encoding = BitVec::<u8, Msb0>::from_slice(self.entropy.as_ref());
-        encoding.append(&mut checksum.to_bitvec());
-
-        // Compute the phrase in 11 bit chunks which encode an index into the word list
         let wordlist = W::get_all();
-        let phrase = encoding
-            .chunks(11)
-            .map(|index| {
-                let index = index.load_be::<u16>();
-                wordlist[index as usize]
-            })
-            .collect::<Vec<&str>>();
+        let words = self.word_count().words();
+        let word = |position| wordlist[read_index(&buf, position)];
 
-        phrase.join(" ")
-    }
-
-    const fn word_count(&self) -> usize {
-        self.entropy.words()
+        // Allocate the exact length up front. Growing the string would leave unzeroized copies of
+        // the phrase behind in freed memory.
+        let len = (0..words).map(|i| word(i).len()).sum::<usize>() + words - 1;
+        let mut phrase = Zeroizing::new(String::with_capacity(len));
+        for position in 0..words {
+            if position > 0 {
+                phrase.push(' ');
+            }
+            phrase.push_str(word(position));
+        }
+        phrase
     }
 
     /// Returns the master private key of the corresponding mnemonic.
@@ -309,14 +368,21 @@ where
     }
 
     /// Convert to a bip23 seed
-    pub fn to_seed(&self, password: Option<&str>) -> Result<[u8; PBKDF2_BYTES], MnemonicError> {
-        let mut seed = [0u8; PBKDF2_BYTES];
-        let salt = format!("mnemonic{}", password.unwrap_or(""));
+    pub fn to_seed(
+        &self,
+        password: Option<&str>,
+    ) -> Result<Zeroizing<[u8; PBKDF2_BYTES]>, MnemonicError> {
+        let password = password.unwrap_or("");
+        let mut salt = Zeroizing::new(Vec::with_capacity(8 + password.len()));
+        salt.extend_from_slice(b"mnemonic");
+        salt.extend_from_slice(password.as_bytes());
+
+        let mut seed = Zeroizing::new([0u8; PBKDF2_BYTES]);
         pbkdf2::<Hmac<Sha512>>(
             self.to_phrase().as_bytes(),
-            salt.as_bytes(),
+            &salt,
             PBKDF2_ROUNDS,
-            &mut seed,
+            seed.as_mut(),
         )
         .expect("cannot have invalid length");
 
@@ -334,26 +400,97 @@ mod tests {
     type W = English;
 
     #[test]
-    #[should_panic(expected = "InvalidWordCount(11)")]
+    fn test_word_count_params() {
+        // BIP-39: (words, entropy bytes, checksum bits)
+        let expected = [
+            (WordCount::Twelve, 12, 16, 4),
+            (WordCount::Fifteen, 15, 20, 5),
+            (WordCount::Eighteen, 18, 24, 6),
+            (WordCount::TwentyOne, 21, 28, 7),
+            (WordCount::TwentyFour, 24, 32, 8),
+        ];
+        for (count, words, bytes, checksum_bits) in expected {
+            assert_eq!(count.words(), words);
+            assert_eq!(count.entropy_bytes(), bytes);
+            assert_eq!(count.checksum_bits(), checksum_bits);
+            assert_eq!(WordCount::try_from(words).unwrap(), count);
+            assert_eq!(WordCount::from_entropy_bytes(bytes), Some(count));
+        }
+    }
+
+    #[test]
     fn test_invalid_word_count() {
-        let mut rng = rand::rng();
-        let _mnemonic = Mnemonic::<W>::from_rng_with_count(&mut rng, 11usize).unwrap();
+        assert!(matches!(
+            WordCount::try_from(11),
+            Err(MnemonicError::InvalidWordCount(11))
+        ));
+        let phrase = "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo wrong";
+        assert!(matches!(
+            phrase.parse::<Mnemonic<W>>(),
+            Err(MnemonicError::InvalidWordCount(11))
+        ));
     }
 
     #[test]
-    #[should_panic(expected = "WordlistError(InvalidWord(\"mnemonic\"))")]
+    fn test_invalid_entropy_length() {
+        for len in [0, 15, 17, 21, 33] {
+            assert!(matches!(
+                Entropy::from_slice(&vec![0u8; len]),
+                Err(MnemonicError::InvalidEntropyLength(l)) if l == len
+            ));
+        }
+    }
+
+    #[test]
     fn test_invalid_word_in_phrase() {
-        let phrase = "mnemonic zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo";
-        let _mnemonic: Mnemonic<English> = phrase.parse().unwrap();
+        let phrase = "zoo zoo zoo mnemonic zoo zoo zoo zoo zoo zoo zoo zoo";
+        let err = phrase.parse::<Mnemonic<W>>().unwrap_err();
+        assert!(matches!(err, MnemonicError::InvalidWord(3)));
+        assert!(!err.to_string().contains("mnemonic"));
     }
 
     #[test]
-    #[should_panic(
-        expected = "InvalidPhrase(\"zoo zone zoo zone zoo zone zoo zone zoo zone zoo zone\")"
-    )]
-    fn test_invalid_phrase() {
+    fn test_invalid_checksum() {
         let phrase = "zoo zone zoo zone zoo zone zoo zone zoo zone zoo zone";
-        let _mnemonic: Mnemonic<English> = phrase.parse().unwrap();
+        let err = phrase.parse::<Mnemonic<W>>().unwrap_err();
+        assert!(matches!(err, MnemonicError::InvalidChecksum));
+        assert!(!err.to_string().contains("zoo"));
+    }
+
+    #[test]
+    fn test_debug_redacts_entropy() {
+        let entropy = Entropy::from([0xab; 16]);
+        assert_eq!(format!("{entropy:?}"), "Entropy { word_count: Twelve, .. }");
+        let mnemonic = Mnemonic::<W>::new_from_entropy(entropy);
+        assert_eq!(
+            format!("{mnemonic:?}"),
+            "Mnemonic { word_count: Twelve, .. }"
+        );
+    }
+
+    #[test]
+    fn test_entropy_eq() {
+        let a = Entropy::from([1u8; 16]);
+        let mut bytes = [1u8; 16];
+        bytes[15] = 2;
+        assert_eq!(a, Entropy::from([1u8; 16]));
+        assert_ne!(a, Entropy::from(bytes));
+        assert_ne!(a, Entropy::from([1u8; 20]));
+    }
+
+    #[test]
+    fn test_random_round_trip() {
+        let mut rng = rand::rng();
+        for words in [12, 15, 18, 21, 24] {
+            let count = WordCount::try_from(words).unwrap();
+            let mnemonic = Mnemonic::<W>::random(count, &mut rng);
+            assert_eq!(mnemonic.word_count(), count);
+            assert_eq!(mnemonic.entropy().as_bytes().len(), count.entropy_bytes());
+
+            let phrase = mnemonic.to_phrase();
+            assert_eq!(phrase.split(' ').count(), words);
+            assert_eq!(phrase.parse::<Mnemonic<W>>().unwrap(), mnemonic);
+        }
     }
 
     // (entropy, phrase, seed, extended_private_key)
@@ -519,15 +656,10 @@ mod tests {
     #[test]
     fn test_from_phrase() {
         TESTCASES.iter().for_each(|(entropy_str, phrase, _, _)| {
-            let expected_entropy: Entropy = hex::decode(entropy_str)
-                .unwrap()
-                .as_slice()
-                .try_into()
-                .unwrap();
-            dbg!(&phrase);
-            let mnemonic: Mnemonic<English> = phrase.parse().unwrap();
-            assert_eq!(mnemonic.entropy, expected_entropy);
-            assert_eq!(mnemonic.to_phrase(), phrase.to_string());
+            let expected_entropy = Entropy::from_slice(&hex::decode(entropy_str).unwrap()).unwrap();
+            let mnemonic: Mnemonic<W> = phrase.parse().unwrap();
+            assert_eq!(mnemonic.entropy(), &expected_entropy);
+            assert_eq!(mnemonic.to_phrase().as_str(), *phrase);
         })
     }
 
@@ -536,17 +668,9 @@ mod tests {
         TESTCASES
             .iter()
             .for_each(|(entropy_str, expected_phrase, _, _)| {
-                let entropy: Entropy = hex::decode(entropy_str)
-                    .unwrap()
-                    .as_slice()
-                    .try_into()
-                    .unwrap();
-                let mnemonic = Mnemonic::<W> {
-                    entropy,
-                    _wordlist: PhantomData,
-                };
-                assert_eq!(mnemonic.entropy, entropy);
-                assert_eq!(mnemonic.to_phrase(), expected_phrase.to_string())
+                let entropy = Entropy::from_slice(&hex::decode(entropy_str).unwrap()).unwrap();
+                let mnemonic = Mnemonic::<W>::new_from_entropy(entropy);
+                assert_eq!(mnemonic.to_phrase().as_str(), *expected_phrase)
             })
     }
 
@@ -555,18 +679,11 @@ mod tests {
         TESTCASES
             .iter()
             .for_each(|(entropy_str, _, expected_seed, _)| {
-                let entropy: Entropy = hex::decode(entropy_str)
-                    .unwrap()
-                    .as_slice()
-                    .try_into()
-                    .unwrap();
-                let mnemonic = Mnemonic::<W> {
-                    entropy,
-                    _wordlist: PhantomData,
-                };
+                let entropy = Entropy::from_slice(&hex::decode(entropy_str).unwrap()).unwrap();
+                let mnemonic = Mnemonic::<W>::new_from_entropy(entropy);
                 assert_eq!(
                     expected_seed,
-                    &hex::encode(mnemonic.to_seed(Some("TREZOR")).unwrap()),
+                    &hex::encode(*mnemonic.to_seed(Some("TREZOR")).unwrap()),
                 )
             });
     }
@@ -576,7 +693,7 @@ mod tests {
         TESTCASES
             .iter()
             .for_each(|(_, phrase, _, expected_master_key)| {
-                let mnemonic: Mnemonic<English> = phrase.parse().unwrap();
+                let mnemonic: Mnemonic<W> = phrase.parse().unwrap();
                 let master_key = mnemonic.master_key(Some("TREZOR")).unwrap();
                 assert_eq!(
                     MainnetEncoder::xpriv_from_base58(expected_master_key).unwrap(),

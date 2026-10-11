@@ -20,7 +20,7 @@ impl Wordlist for Italian {
     fn get_index(word: &str) -> Result<usize, WordlistError> {
         Self::get_all()
             .binary_search(&word)
-            .map_err(|_| crate::WordlistError::InvalidWord(word.to_string()))
+            .map_err(|_| crate::WordlistError::InvalidWord)
     }
 }
 
@@ -43,7 +43,7 @@ mod tests {
         assert_eq!(Italian::get_index("zucchero"), Ok(2044));
         assert_eq!(
             Italian::get_index("qualcheparolaacaso"),
-            Err(WordlistError::InvalidWord("qualcheparolaacaso".to_string()))
+            Err(WordlistError::InvalidWord)
         );
     }
 

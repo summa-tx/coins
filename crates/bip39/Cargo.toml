@@ -20,11 +20,12 @@ homepage.workspace = true
 coins-bip32.workspace = true
 
 hmac.workspace = true
-bitvec.workspace = true
 pbkdf2.workspace = true
 rand.workspace = true
 sha2.workspace = true
 thiserror.workspace = true
+subtle.workspace = true
+zeroize.workspace = true
 
 [dev-dependencies]
 hex.workspace = true

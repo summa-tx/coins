@@ -19,7 +19,7 @@ impl Wordlist for Korean {
     fn get_index(word: &str) -> Result<usize, WordlistError> {
         Self::get_all()
             .binary_search(&word)
-            .map_err(|_| crate::WordlistError::InvalidWord(word.to_string()))
+            .map_err(|_| crate::WordlistError::InvalidWord)
     }
 }
 
@@ -42,7 +42,7 @@ mod tests {
         assert_eq!(Korean::get_index("희망"), Ok(2044));
         assert_eq!(
             Korean::get_index("임의의단어"),
-            Err(WordlistError::InvalidWord("임의의단어".to_string()))
+            Err(WordlistError::InvalidWord)
         );
     }
 

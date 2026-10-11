@@ -20,7 +20,7 @@ impl Wordlist for English {
     fn get_index(word: &str) -> Result<usize, WordlistError> {
         Self::get_all()
             .binary_search(&word)
-            .map_err(|_| crate::WordlistError::InvalidWord(word.to_string()))
+            .map_err(|_| crate::WordlistError::InvalidWord)
     }
 }
 
@@ -43,7 +43,7 @@ mod tests {
         assert_eq!(English::get_index("zebra"), Ok(2044));
         assert_eq!(
             English::get_index("somerandomword"),
-            Err(WordlistError::InvalidWord("somerandomword".to_string()))
+            Err(WordlistError::InvalidWord)
         );
     }
 

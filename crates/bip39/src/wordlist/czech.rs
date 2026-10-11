@@ -36,7 +36,7 @@ mod tests {
         assert_eq!(Czech::get_index("zvon"), Ok(2044));
         assert_eq!(
             Czech::get_index("nějakénáhodnéslovo"),
-            Err(WordlistError::InvalidWord("nějakénáhodnéslovo".to_string()))
+            Err(WordlistError::InvalidWord)
         );
     }
 
