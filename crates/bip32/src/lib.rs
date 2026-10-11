@@ -181,8 +181,6 @@ impl From<std::convert::Infallible> for Bip32Error {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
-mod _silence_warnings {
-    use gr03 as _;
-    use gr04 as _;
-}
+// Enables `std` on primeorder for k256's `precomputed-tables`, without
+// k256's `std` (which pulls in getrandom).
+use primeorder as _;

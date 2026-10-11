@@ -19,13 +19,10 @@ bs58.workspace = true
 digest.workspace = true
 hmac.workspace = true
 k256.workspace = true
+primeorder.workspace = true
 serde.workspace = true
 sha2.workspace = true
 thiserror.workspace = true
-
-[target.'cfg(target_arch = "wasm32")'.dependencies]
-gr04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
-gr03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
 
 [dev-dependencies]
 hex.workspace = true
