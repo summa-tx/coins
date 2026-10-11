@@ -139,14 +139,6 @@ impl AsRef<ecdsa::SigningKey> for XPriv {
 }
 
 impl XPriv {
-    /// Length of a BIP-32 serialized extended private key: version (4), depth (1), parent
-    /// fingerprint (4), index (4), chain code (32), padding (1), and private key (32).
-    pub(crate) const SERIALIZED_BYTES: usize = 78;
-
-    /// Length of the child derivation HMAC input: `0x00 || privkey || index` for hardened
-    /// children, `pubkey || index` otherwise. Both are 37 bytes.
-    const DERIVATION_DATA_BYTES: usize = 37;
-
     /// Instantiate a new XPriv.
     pub const fn new(key: ecdsa::SigningKey, xkey_info: XKeyInfo) -> Self {
         Self { key, xkey_info }
@@ -251,7 +243,8 @@ impl Parent for XPriv {
 
         let key: &ecdsa::SigningKey = self.as_ref();
 
-        let mut data = Zeroizing::new([0u8; Self::DERIVATION_DATA_BYTES]);
+        // `0x00 || privkey || index` for hardened children, `pubkey || index` otherwise.
+        let mut data = Zeroizing::new([0u8; 37]);
         if hardened {
             data[1..33].copy_from_slice(&Zeroizing::new(key.to_bytes()));
         } else {

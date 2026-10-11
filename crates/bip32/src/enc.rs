@@ -40,9 +40,10 @@ pub fn encode_b58_check(v: &[u8]) -> Zeroizing<String> {
     Zeroizing::new(bs58::encode(&*data).into_string())
 }
 
-/// A BIP-32 serialized extended private key. Zeroized on drop.
+/// A BIP-32 serialized extended private key: version (4), depth (1), parent fingerprint (4),
+/// index (4), chain code (32), padding (1), and private key (32). Zeroized on drop.
 #[derive(Zeroize, ZeroizeOnDrop)]
-struct SerializedXPriv([u8; XPriv::SERIALIZED_BYTES]);
+struct SerializedXPriv([u8; 78]);
 
 /// Contains network-specific serialization information
 pub trait NetworkParams {
@@ -280,9 +281,9 @@ pub trait XKeyEncoder: sealed::Sealed {
     where
         K: AsRef<XPriv>,
     {
-        let mut buf = SerializedXPriv([0u8; XPriv::SERIALIZED_BYTES]);
+        let mut buf = SerializedXPriv([0u8; 78]);
         let written = Self::write_xpriv(&mut &mut buf.0[..], k)?;
-        debug_assert_eq!(written, XPriv::SERIALIZED_BYTES);
+        debug_assert_eq!(written, buf.0.len());
         Ok(encode_b58_check(&buf.0))
     }
 
