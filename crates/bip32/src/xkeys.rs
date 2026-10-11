@@ -321,11 +321,8 @@ impl XPub {
     ///
     /// See <https://github.com/bitcoin/bips/blob/master/bip-0328.mediawiki>.
     ///
-    /// # Future work
-    ///
-    /// BIP-328 also requires MuSig2 signers to supply the `I_L` tweak from each `CKDpub` step
-    /// (tweak mode plain) when signing for a child derived from the synthetic root. This crate
-    /// computes those tweaks inside [`Parent::derive_child`] but does not yet expose them.
+    /// Signing for derived children requires the `I_L` tweak from each derivation step, which
+    /// [`Parent::derive_child`] does not expose. Open an issue if you need access to the tweaks.
     pub const fn musig2_synthetic_root(key: ecdsa::VerifyingKey) -> Self {
         Self {
             key,
