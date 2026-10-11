@@ -24,7 +24,6 @@ pub use self::wordlist::*;
 
 #[cfg(target_arch = "wasm32")]
 mod _silence_warnings {
-    use gr02 as _;
     use gr03 as _;
     use gr04 as _;
 }
