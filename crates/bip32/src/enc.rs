@@ -272,10 +272,9 @@ pub trait XKeyEncoder {
     where
         K: AsRef<XPriv>,
     {
-        // Sized up front so the key is never left behind by a reallocation.
-        let mut v = Zeroizing::new(Vec::with_capacity(78));
-        Self::write_xpriv(&mut *v, k)?;
-        Ok(Zeroizing::new(encode_b58_check(&v)))
+        let mut buf = Zeroizing::new([0u8; XPriv::SERIALIZED_BYTES]);
+        Self::write_xpriv(&mut &mut buf[..], k)?;
+        Ok(Zeroizing::new(encode_b58_check(&*buf)))
     }
 
     /// Serialize an XPub to base58

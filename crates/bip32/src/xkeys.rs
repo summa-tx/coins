@@ -139,6 +139,14 @@ impl AsRef<ecdsa::SigningKey> for XPriv {
 }
 
 impl XPriv {
+    /// Length of a BIP-32 serialized extended private key: version (4), depth (1), parent
+    /// fingerprint (4), index (4), chain code (32), padding (1), and private key (32).
+    pub(crate) const SERIALIZED_BYTES: usize = 78;
+
+    /// Length of the child derivation HMAC input: `0x00 || privkey || index` for hardened
+    /// children, `pubkey || index` otherwise. Both are 37 bytes.
+    const DERIVATION_DATA_BYTES: usize = 37;
+
     /// Instantiate a new XPriv.
     pub const fn new(key: ecdsa::SigningKey, xkey_info: XKeyInfo) -> Self {
         Self { key, xkey_info }
@@ -243,18 +251,15 @@ impl Parent for XPriv {
 
         let key: &ecdsa::SigningKey = self.as_ref();
 
-        // Sized up front so the parent private key is never left behind by a reallocation.
-        let mut data = Zeroizing::new(Vec::with_capacity(37));
+        let mut data = Zeroizing::new([0u8; Self::DERIVATION_DATA_BYTES]);
         if hardened {
-            data.push(0);
-            data.extend_from_slice(&Zeroizing::new(key.to_bytes()));
-            data.extend(index.to_be_bytes());
+            data[1..33].copy_from_slice(&Zeroizing::new(key.to_bytes()));
         } else {
-            data.extend(key.verifying_key().to_sec1_bytes().iter());
-            data.extend(index.to_be_bytes());
+            data[..33].copy_from_slice(&key.verifying_key().to_sec1_bytes());
         };
+        data[33..].copy_from_slice(&index.to_be_bytes());
 
-        let res = hmac_and_split(&self.xkey_info.chain_code.0, &data);
+        let res = hmac_and_split(&self.xkey_info.chain_code.0, &*data);
         let (tweak, chain_code) = match res {
             Ok((tweak, chain_code)) => (tweak, chain_code),
             _ => return self.derive_child(index + 1),
