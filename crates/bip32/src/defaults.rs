@@ -5,7 +5,7 @@ use crate::enc::XKeyEncoder;
 pub type Encoder = crate::enc::MainnetEncoder;
 
 /// The default encoder, selected by feature flag
-#[cfg(all(feature = "testnet", not(feature = "mainnet")))]
+#[cfg(feature = "testnet")]
 pub type Encoder = crate::enc::TestnetEncoder;
 
 impl std::str::FromStr for crate::xkeys::XPriv {

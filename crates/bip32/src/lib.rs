@@ -55,7 +55,10 @@ pub use k256::ecdsa;
 #[cfg(all(feature = "mainnet", feature = "testnet"))]
 compile_error!(
     "the `mainnet` and `testnet` features of coins-bip32 are mutually exclusive. \
-     Enable only one (use `default-features = false` to drop the default `mainnet`)."
+     These features only select which encoder `coins_bip32::defaults::Encoder` aliases; \
+     both `enc::MainnetEncoder` and `enc::TestnetEncoder` are always available \
+     regardless of feature set. Enable only one (use `default-features = false` to \
+     drop the default `mainnet`)."
 );
 
 #[macro_use]
