@@ -14,18 +14,17 @@ use crate::{
 /// Intermediate buffers are zeroized, as the payload may be secret.
 pub fn decode_b58_check(s: &str) -> Result<Vec<u8>, Bip32Error> {
     let mut data: Vec<u8> = bs58::decode(s).into_vec()?;
-    if data.len() < 4 {
+    let Some((payload, checksum)) = data.split_last_chunk::<4>() else {
         return Err(Bip32Error::BadB58Checksum);
-    }
-    let idx = data.len() - 4;
+    };
+    let len = payload.len();
 
-    let digest = &Hash256::digest(&data[..idx]);
-    if digest[..4] != data[idx..] {
+    if Hash256::digest(payload)[..4] != checksum[..] {
         data.zeroize();
         return Err(Bip32Error::BadB58Checksum);
     }
 
-    data.truncate(idx);
+    data.truncate(len);
     Ok(data)
 }
 
