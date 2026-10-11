@@ -3,7 +3,7 @@ use bitvec::prelude::*;
 use coins_bip32::{path::DerivationPath, xkeys::XPriv, Bip32Error};
 use hmac::Hmac;
 use pbkdf2::pbkdf2;
-use rand::{CryptoRng, Fill, Rng, RngExt};
+use rand::{CryptoRng, Rng, RngExt};
 use sha2::{Digest, Sha256, Sha512};
 use std::{convert::TryInto, marker::PhantomData};
 use thiserror::Error;
@@ -165,20 +165,6 @@ impl Entropy {
     }
 }
 
-impl Fill for Entropy {
-    fn fill_slice<R: Rng + ?Sized>(this: &mut [Self], rng: &mut R) {
-        for entropy in this {
-            match entropy {
-                Entropy::Sixteen(arr) => rng.fill_bytes(arr),
-                Entropy::Twenty(arr) => rng.fill_bytes(arr),
-                Entropy::TwentyFour(arr) => rng.fill_bytes(arr),
-                Entropy::TwentyEight(arr) => rng.fill_bytes(arr),
-                Entropy::ThirtyTwo(arr) => rng.fill_bytes(arr),
-            }
-        }
-    }
-}
-
 /// Mnemonic represents entropy that can be represented as a phrase. A mnemonic can be used to
 /// deterministically generate an extended private key or derive its child keys.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -190,14 +176,6 @@ where
     entropy: Entropy,
     /// Wordlist used to produce phrases from entropy.
     _wordlist: PhantomData<W>,
-}
-
-impl<W: Wordlist> Fill for Mnemonic<W> {
-    fn fill_slice<R: Rng + ?Sized>(this: &mut [Self], rng: &mut R) {
-        for mnemonic in this {
-            Entropy::fill_slice(std::slice::from_mut(&mut mnemonic.entropy), rng);
-        }
-    }
 }
 
 impl<W> std::str::FromStr for Mnemonic<W>
@@ -354,18 +332,6 @@ mod tests {
     use super::*;
 
     type W = English;
-
-    #[test]
-    fn test_fill() {
-        let mut rng = rand::rng();
-        let zero = Mnemonic::<W>::new_from_entropy([0u8; 32].into());
-        let mut mnemonics = [zero.clone(), zero.clone()];
-        rng.fill(&mut mnemonics);
-        assert_ne!(mnemonics[0], zero);
-        assert_ne!(mnemonics[1], zero);
-        assert_ne!(mnemonics[0], mnemonics[1]);
-        assert_eq!(mnemonics[0].entropy.len(), 32);
-    }
 
     #[test]
     #[should_panic(expected = "InvalidWordCount(11)")]
