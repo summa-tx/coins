@@ -3,7 +3,7 @@ use bitvec::prelude::*;
 use coins_bip32::{path::DerivationPath, xkeys::XPriv, Bip32Error};
 use hmac::Hmac;
 use pbkdf2::pbkdf2;
-use rand::{CryptoRng, Fill, Rng};
+use rand::{CryptoRng, Rng, RngExt};
 use sha2::{Digest, Sha256, Sha512};
 use std::{convert::TryInto, marker::PhantomData};
 use thiserror::Error;
@@ -165,18 +165,6 @@ impl Entropy {
     }
 }
 
-impl Fill for Entropy {
-    fn fill<R: Rng + ?Sized>(&mut self, rng: &mut R) {
-        match self {
-            Entropy::Sixteen(arr) => arr.fill(rng),
-            Entropy::Twenty(arr) => arr.fill(rng),
-            Entropy::TwentyFour(arr) => arr.fill(rng),
-            Entropy::TwentyEight(arr) => arr.fill(rng),
-            Entropy::ThirtyTwo(arr) => arr.fill(rng),
-        }
-    }
-}
-
 /// Mnemonic represents entropy that can be represented as a phrase. A mnemonic can be used to
 /// deterministically generate an extended private key or derive its child keys.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -188,12 +176,6 @@ where
     entropy: Entropy,
     /// Wordlist used to produce phrases from entropy.
     _wordlist: PhantomData<W>,
-}
-
-impl<W: Wordlist> Fill for Mnemonic<W> {
-    fn fill<R: Rng + ?Sized>(&mut self, rng: &mut R) {
-        self.entropy.fill(rng);
-    }
 }
 
 impl<W> std::str::FromStr for Mnemonic<W>

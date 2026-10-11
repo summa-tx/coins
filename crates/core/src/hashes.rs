@@ -6,17 +6,12 @@
 //! length.
 
 use crate::ser::{ByteFormat, SerError, SerResult};
-use digest::{
-    core_api::{BlockSizeUser, OutputSizeUser},
-    HashMarker, Output,
-};
+use digest::{block_api::BlockSizeUser, HashMarker, Output, OutputSizeUser};
 use std::io::Write;
 
 // Useful re-exports
 pub use digest::Digest;
-#[allow(deprecated)]
-// re-exported for API compatibility; generic-array 1.x migration is a breaking change
-pub use generic_array::GenericArray;
+pub use hybrid_array::Array as GenericArray;
 pub use ripemd::Ripemd160;
 pub use sha2::Sha256;
 pub use sha3::Sha3_256;

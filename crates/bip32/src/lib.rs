@@ -30,20 +30,27 @@
 //! # Usage
 //! ```
 //! use coins_bip32::prelude::*;
+//! use coins_core::hashes::{Digest, Hash256};
 //!
 //! # fn main() -> Result<(), Bip32Error> {
-//! let digest = coins_core::hashes::Hash256::default();
+//! let msg = b"hello world";
 //!
 //! let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
 //!
 //! let xpriv: XPriv = xpriv_str.parse().unwrap();
 //!
 //! let child_xpriv = xpriv.derive_child(33)?;
-//! let (sig, _recovery_id): (Signature, RecoveryId) = child_xpriv.sign_digest(digest.clone());
+//! let (sig, _recovery_id): (Signature, RecoveryId) =
+//!     child_xpriv.sign_digest(|d: &mut Hash256| d.update(msg));
 //!
 //! // Signing key types are associated with verifying key types. You can always derive a pubkey
 //! let child_xpub = child_xpriv.verify_key();
-//! child_xpub.verify_digest(digest.clone(), &sig)?;
+//! child_xpub.verify_digest(|d: &mut Hash256| Ok(d.update(msg)), &sig)?;
+//!
+//! // Or sign and verify a pre-filled hasher
+//! let digest = Hash256::new_with_prefix(msg);
+//! let sig = child_xpriv.sign_hasher(digest.clone())?;
+//! child_xpub.verify_hasher(digest, &sig)?;
 //!
 //! MainnetEncoder::xpub_to_base58(&child_xpub)?;
 //! # Ok(())
@@ -183,8 +190,6 @@ impl From<std::convert::Infallible> for Bip32Error {
     }
 }
 
-#[cfg(target_arch = "wasm32")]
-mod _silence_warnings {
-    use gr02 as _;
-    use gr03 as _;
-}
+// Enables `std` on primeorder for k256's `precomputed-tables`, without
+// k256's `std` (which pulls in getrandom).
+use primeorder as _;

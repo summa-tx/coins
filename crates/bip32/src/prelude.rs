@@ -15,7 +15,7 @@ pub use k256::{
         signature::{DigestSigner as _, DigestVerifier as _},
         RecoveryId, Signature, SigningKey, VerifyingKey,
     },
-    elliptic_curve::sec1::ToEncodedPoint as _,
+    elliptic_curve::sec1::ToSec1Point as _,
 };
 
 /// shortcut for easy usage
