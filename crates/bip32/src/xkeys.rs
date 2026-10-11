@@ -28,10 +28,10 @@ fn hmac_and_split(
 
     let left = Zeroizing::new(k256::NonZeroScalar::try_from(&result[..32])?);
 
-    let mut right = [0u8; 32];
-    right.copy_from_slice(&result[32..]);
+    let mut chain_code = ChainCode([0u8; 32]);
+    chain_code.0.copy_from_slice(&result[32..]);
 
-    Ok((left, ChainCode(right)))
+    Ok((left, chain_code))
 }
 
 /// A Parent key can be used to derive children.

@@ -1,4 +1,4 @@
-use crate::{Wordlist, WordlistError};
+use crate::Wordlist;
 use std::sync::LazyLock;
 
 /// The list of words as supported in the Portuguese language.
@@ -14,13 +14,6 @@ pub struct Portuguese;
 impl Wordlist for Portuguese {
     fn get_all() -> &'static [&'static str] {
         PARSED.as_slice()
-    }
-
-    /// Returns the index of a given word from the word list.
-    fn get_index(word: &str) -> Result<usize, WordlistError> {
-        Self::get_all()
-            .binary_search(&word)
-            .map_err(|_| crate::WordlistError::InvalidWord)
     }
 }
 

@@ -90,7 +90,7 @@ pub type MainnetEncoder = BitcoinEncoder<Main>;
 pub type TestnetEncoder = BitcoinEncoder<Test>;
 
 /// Bip32/49/84 encoder
-pub trait XKeyEncoder {
+pub trait XKeyEncoder: sealed::Sealed {
     #[doc(hidden)]
     fn write_key_details<K, W>(writer: &mut W, key: &K) -> Result<usize, Bip32Error>
     where
@@ -152,9 +152,9 @@ pub trait XKeyEncoder {
     where
         R: std::io::Read,
     {
-        let mut buf = [0u8; 32];
-        reader.read_exact(&mut buf)?;
-        Ok(buf.into())
+        let mut chain_code = ChainCode([0u8; 32]);
+        reader.read_exact(&mut chain_code.0)?;
+        Ok(chain_code)
     }
 
     #[doc(hidden)]
@@ -277,7 +277,8 @@ pub trait XKeyEncoder {
         K: AsRef<XPriv>,
     {
         let mut buf = SerializedXPriv([0u8; XPriv::SERIALIZED_BYTES]);
-        Self::write_xpriv(&mut &mut buf.0[..], k)?;
+        let written = Self::write_xpriv(&mut &mut buf.0[..], k)?;
+        debug_assert_eq!(written, XPriv::SERIALIZED_BYTES);
         Ok(encode_b58_check(&buf.0))
     }
 
@@ -325,6 +326,14 @@ where {
         Self::read_xpub(&mut &data[..])
     }
 }
+
+mod sealed {
+    /// Prevents downstream implementations of [`XKeyEncoder`](super::XKeyEncoder), so the
+    /// serialization lengths assumed by its provided methods always hold.
+    pub trait Sealed {}
+}
+
+impl<P: NetworkParams> sealed::Sealed for BitcoinEncoder<P> {}
 
 impl<P: NetworkParams> XKeyEncoder for BitcoinEncoder<P> {
     /// Serialize the xpub to `std::io::Write`
