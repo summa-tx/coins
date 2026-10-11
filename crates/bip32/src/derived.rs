@@ -439,9 +439,9 @@ mod test {
 
         let (sig, _): (Signature, RecoveryId) =
             key.sign_digest_recoverable(digest.clone()).unwrap();
-        key_pub.verify_hasher(digest.clone(), &sig).unwrap();
+        key_pub.verify_hasher(digest, &sig).unwrap();
 
-        let err_bad_sig = key_pub.verify_hasher(wrong_digest.clone(), &sig);
+        let err_bad_sig = key_pub.verify_hasher(wrong_digest, &sig);
         match err_bad_sig {
             Err(_) => {}
             _ => panic!("expected signature validation error"),
@@ -538,13 +538,13 @@ mod test {
         key_pub
             .derive_path(&path)
             .unwrap()
-            .verify_hasher(digest.clone(), &sig)
+            .verify_hasher(digest, &sig)
             .unwrap();
 
         let err_bad_sig = key_pub
             .derive_path(&path)
             .unwrap()
-            .verify_hasher(wrong_digest.clone(), &sig);
+            .verify_hasher(wrong_digest, &sig);
         match err_bad_sig {
             Err(_) => {}
             _ => panic!("expected signature validation error"),
