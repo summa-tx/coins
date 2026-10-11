@@ -1,4 +1,4 @@
-use crate::{Wordlist, WordlistError};
+use crate::Wordlist;
 use std::sync::LazyLock;
 
 /// The list of words as supported in the Italian language.
@@ -14,13 +14,6 @@ pub struct Italian;
 impl Wordlist for Italian {
     fn get_all() -> &'static [&'static str] {
         PARSED.as_slice()
-    }
-
-    /// Returns the index of a given word from the word list.
-    fn get_index(word: &str) -> Result<usize, WordlistError> {
-        Self::get_all()
-            .binary_search(&word)
-            .map_err(|_| crate::WordlistError::InvalidWord(word.to_string()))
     }
 }
 
@@ -43,7 +36,7 @@ mod tests {
         assert_eq!(Italian::get_index("zucchero"), Ok(2044));
         assert_eq!(
             Italian::get_index("qualcheparolaacaso"),
-            Err(WordlistError::InvalidWord("qualcheparolaacaso".to_string()))
+            Err(WordlistError::InvalidWord)
         );
     }
 

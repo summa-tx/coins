@@ -40,7 +40,7 @@ mod tests {
         assert_eq!(ChineseTraditional::get_index("韋"), Ok(2044));
         assert_eq!(
             ChineseTraditional::get_index("龜"),
-            Err(WordlistError::InvalidWord("龜".to_string()))
+            Err(WordlistError::InvalidWord)
         );
     }
 

@@ -36,7 +36,7 @@ mod tests {
         assert_eq!(French::get_index("zèbre"), Ok(2044));
         assert_eq!(
             French::get_index("unmotauhasard"),
-            Err(WordlistError::InvalidWord("unmotauhasard".to_string()))
+            Err(WordlistError::InvalidWord)
         );
     }
 

@@ -6,6 +6,8 @@ use std::{
     convert::{TryFrom, TryInto},
     ops::{AddAssign, Mul},
 };
+use subtle::{Choice, ConstantTimeEq};
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 use crate::{
     path::DerivationPath,
@@ -19,17 +21,17 @@ pub const SEED: &[u8; 12] = b"Bitcoin seed";
 fn hmac_and_split(
     seed: &[u8],
     data: &[u8],
-) -> Result<(k256::NonZeroScalar, ChainCode), Bip32Error> {
+) -> Result<(Zeroizing<k256::NonZeroScalar>, ChainCode), Bip32Error> {
     let mut mac = Hmac::<Sha512>::new_from_slice(seed).expect("key length is ok");
     mac.update(data);
-    let result = mac.finalize().into_bytes();
+    let result = Zeroizing::new(mac.finalize().into_bytes());
 
-    let left = k256::NonZeroScalar::try_from(&result[..32])?;
+    let left = Zeroizing::new(k256::NonZeroScalar::try_from(&result[..32])?);
 
-    let mut right = [0u8; 32];
-    right.copy_from_slice(&result[32..]);
+    let mut chain_code = ChainCode([0u8; 32]);
+    chain_code.0.copy_from_slice(&result[32..]);
 
-    Ok((left, ChainCode(right)))
+    Ok((left, chain_code))
 }
 
 /// A Parent key can be used to derive children.
@@ -61,21 +63,44 @@ pub trait Parent: Sized + Clone {
 }
 
 /// A BIP32 eXtended Privkey
+///
+/// The signing key and chain code are zeroized on drop, and comparisons are constant time.
 pub struct XPriv {
     pub(crate) key: ecdsa::SigningKey,
     pub(crate) xkey_info: XKeyInfo,
 }
 
+impl Drop for XPriv {
+    fn drop(&mut self) {
+        // The signing key zeroizes itself. The chain code is not secret on its own, but together
+        // with the xpub and any non-hardened child private key it reveals this private key.
+        self.xkey_info.chain_code.zeroize();
+    }
+}
+
+impl ZeroizeOnDrop for XPriv {}
+
+impl ConstantTimeEq for XPriv {
+    fn ct_eq(&self, other: &Self) -> Choice {
+        let public = self.xkey_info.depth == other.xkey_info.depth
+            && self.xkey_info.parent == other.xkey_info.parent
+            && self.xkey_info.index == other.xkey_info.index;
+        self.key.ct_eq(&other.key)
+            & self.xkey_info.chain_code.ct_eq(&other.xkey_info.chain_code)
+            & Choice::from(public as u8)
+    }
+}
+
 impl PartialEq for XPriv {
     fn eq(&self, other: &XPriv) -> bool {
-        self.fingerprint() == other.fingerprint() && self.xkey_info == other.xkey_info
+        self.ct_eq(other).into()
     }
 }
 
 impl Clone for XPriv {
     fn clone(&self) -> Self {
         Self {
-            key: ecdsa::SigningKey::from_bytes(&self.key.to_bytes()).unwrap(),
+            key: self.key.clone(),
             xkey_info: self.xkey_info,
         }
     }
@@ -87,8 +112,11 @@ impl std::fmt::Debug for XPriv {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("XPriv")
             .field("key fingerprint", &self.fingerprint())
-            .field("key info", &self.xkey_info)
-            .finish()
+            .field("depth", &self.xkey_info.depth)
+            .field("parent", &self.xkey_info.parent)
+            .field("index", &self.xkey_info.index)
+            .field("hint", &self.xkey_info.hint)
+            .finish_non_exhaustive()
     }
 }
 
@@ -164,7 +192,7 @@ impl XPriv {
             return Err(Bip32Error::InvalidKey);
         }
 
-        let key = ecdsa::SigningKey::from(key);
+        let key = ecdsa::SigningKey::from(*key);
 
         Ok(XPriv {
             key,
@@ -215,30 +243,29 @@ impl Parent for XPriv {
 
         let key: &ecdsa::SigningKey = self.as_ref();
 
-        let mut data: Vec<u8> = vec![];
+        // `0x00 || privkey || index` for hardened children, `pubkey || index` otherwise.
+        let mut data = Zeroizing::new([0u8; 37]);
         if hardened {
-            data.push(0);
-            data.extend(key.to_bytes());
-            data.extend(index.to_be_bytes());
+            data[1..33].copy_from_slice(&Zeroizing::new(key.to_bytes()));
         } else {
-            data.extend(key.verifying_key().to_sec1_bytes().iter());
-            data.extend(index.to_be_bytes());
+            data[..33].copy_from_slice(&key.verifying_key().to_sec1_bytes());
         };
+        data[33..].copy_from_slice(&index.to_be_bytes());
 
-        let res = hmac_and_split(&self.xkey_info.chain_code.0, &data);
+        let res = hmac_and_split(&self.xkey_info.chain_code.0, &*data);
         let (tweak, chain_code) = match res {
             Ok((tweak, chain_code)) => (tweak, chain_code),
             _ => return self.derive_child(index + 1),
         };
 
-        let parent_key = k256::NonZeroScalar::from_repr(key.to_bytes()).unwrap();
-        let tweaked = tweak.clone().add(&parent_key);
+        let tweaked = Zeroizing::new(tweak.add(key.as_nonzero_scalar()));
 
-        let tweaked: k256::NonZeroScalar =
-            Option::from(k256::NonZeroScalar::new(tweaked)).ok_or(Bip32Error::BadTweak)?;
+        let tweaked: Zeroizing<k256::NonZeroScalar> = Zeroizing::new(
+            Option::from(k256::NonZeroScalar::new(*tweaked)).ok_or(Bip32Error::BadTweak)?,
+        );
 
         Ok(Self {
-            key: ecdsa::SigningKey::from(tweaked),
+            key: ecdsa::SigningKey::from(*tweaked),
             xkey_info: XKeyInfo {
                 depth: self.xkey_info.depth + 1,
                 parent: self.fingerprint(),
@@ -378,7 +405,7 @@ impl Parent for XPub {
 
         let parent_key =
             k256::ProjectivePoint::from_sec1_point(&self.key.to_sec1_point(true)).unwrap();
-        let mut tweak_point = k256::ProjectivePoint::GENERATOR.mul(*tweak);
+        let mut tweak_point = k256::ProjectivePoint::GENERATOR.mul(**tweak);
         tweak_point.add_assign(parent_key);
 
         let key = ecdsa::VerifyingKey::from_affine(tweak_point.to_affine())?;
@@ -425,9 +452,35 @@ mod test {
         let deser_xpub = MainnetEncoder::xpub_from_base58(&d.xpub).unwrap();
 
         assert_eq!(&xpriv.key.to_bytes(), &deser_xpriv.key.to_bytes());
-        assert_eq!(MainnetEncoder::xpriv_to_base58(&xpriv).unwrap(), d.xpriv);
+        assert_eq!(
+            MainnetEncoder::xpriv_to_base58(&xpriv).unwrap().as_str(),
+            d.xpriv
+        );
         assert_eq!(&xpub.key.to_sec1_bytes(), &deser_xpub.key.to_sec1_bytes());
         assert_eq!(MainnetEncoder::xpub_to_base58(&xpub).unwrap(), d.xpub);
+    }
+
+    #[test]
+    fn xpriv_debug_redacts_secrets() {
+        let xpriv = XPriv::root_from_seed(&[0xab; 32], None).unwrap();
+        let debug = format!("{xpriv:?}");
+        let key_hex = hex::encode(xpriv.key.to_bytes());
+        let chain_code_dec = format!("{:?}", xpriv.xkey_info.chain_code.0);
+        assert!(!debug.contains(&key_hex));
+        assert!(!debug.contains(&chain_code_dec));
+        assert!(!debug.contains("chain_code"));
+    }
+
+    #[test]
+    fn xpriv_eq_compares_key_and_chain_code() {
+        let a = XPriv::root_from_seed(&[1; 32], None).unwrap();
+        let b = XPriv::root_from_seed(&[2; 32], None).unwrap();
+        assert_eq!(a, a.clone());
+        assert_ne!(a, b);
+
+        let mut c = a.clone();
+        c.xkey_info.chain_code.0[0] ^= 1;
+        assert_ne!(a, c);
     }
 
     #[test]
@@ -445,7 +498,7 @@ mod test {
 
         assert_eq!(&xpriv.key.to_bytes(), &deser_xpriv.key.to_bytes());
         assert_eq!(
-            MainnetEncoder::xpriv_to_base58(&xpriv).unwrap(),
+            MainnetEncoder::xpriv_to_base58(&xpriv).unwrap().as_str(),
             expected_xpriv
         );
         assert_eq!(&xpub.key.to_sec1_bytes(), &deser_xpub.key.to_sec1_bytes());
@@ -502,7 +555,7 @@ mod test {
 
         assert_eq!(&xpriv.key.to_bytes(), &deser_xpriv.key.to_bytes());
         assert_eq!(
-            MainnetEncoder::xpriv_to_base58(&xpriv).unwrap(),
+            MainnetEncoder::xpriv_to_base58(&xpriv).unwrap().as_str(),
             expected_xpriv
         );
         assert_eq!(&xpub.key.to_sec1_bytes(), &deser_xpub.key.to_sec1_bytes());
@@ -559,7 +612,7 @@ mod test {
 
         assert_eq!(&xpriv.key.to_bytes(), &deser_xpriv.key.to_bytes());
         assert_eq!(
-            MainnetEncoder::xpriv_to_base58(&xpriv).unwrap(),
+            MainnetEncoder::xpriv_to_base58(&xpriv).unwrap().as_str(),
             expected_xpriv
         );
         assert_eq!(&xpub.key.to_sec1_bytes(), &deser_xpub.key.to_sec1_bytes());

@@ -1,4 +1,4 @@
-use crate::{Wordlist, WordlistError};
+use crate::Wordlist;
 use std::sync::LazyLock;
 
 /// The list of words as supported in the English language.
@@ -14,13 +14,6 @@ pub struct English;
 impl Wordlist for English {
     fn get_all() -> &'static [&'static str] {
         PARSED.as_slice()
-    }
-
-    /// Returns the index of a given word from the word list.
-    fn get_index(word: &str) -> Result<usize, WordlistError> {
-        Self::get_all()
-            .binary_search(&word)
-            .map_err(|_| crate::WordlistError::InvalidWord(word.to_string()))
     }
 }
 
@@ -43,7 +36,7 @@ mod tests {
         assert_eq!(English::get_index("zebra"), Ok(2044));
         assert_eq!(
             English::get_index("somerandomword"),
-            Err(WordlistError::InvalidWord("somerandomword".to_string()))
+            Err(WordlistError::InvalidWord)
         );
     }
 

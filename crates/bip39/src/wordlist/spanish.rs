@@ -36,9 +36,7 @@ mod tests {
         assert_eq!(Spanish::get_index("zona"), Ok(2044));
         assert_eq!(
             Spanish::get_index("algunapalabraalazar"),
-            Err(WordlistError::InvalidWord(
-                "algunapalabraalazar".to_string()
-            ))
+            Err(WordlistError::InvalidWord)
         );
     }
 

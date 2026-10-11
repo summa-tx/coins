@@ -1,6 +1,7 @@
 use coins_core::hashes::{Digest, Hash256};
 use k256::ecdsa;
 use std::marker::PhantomData;
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 use crate::{
     primitives::{ChainCode, Hint, KeyFingerprint, XKeyInfo},
@@ -9,35 +10,40 @@ use crate::{
 };
 
 /// Decode a bytevector from a base58 check string
-pub fn decode_b58_check(s: &str) -> Result<Vec<u8>, Bip32Error> {
-    let data: Vec<u8> = bs58::decode(s).into_vec()?;
-    let idx = data.len() - 4;
-    let payload = &data[..idx];
-    let checksum = &data[idx..];
+///
+/// The intermediate buffer and the result are zeroized, as the payload may be secret.
+pub fn decode_b58_check(s: &str) -> Result<Zeroizing<Vec<u8>>, Bip32Error> {
+    let mut data = Zeroizing::new(bs58::decode(s).into_vec()?);
+    let (payload, checksum) = data
+        .split_last_chunk::<4>()
+        .ok_or(Bip32Error::BadB58Checksum)?;
+    let len = payload.len();
 
-    let digest = &Hash256::digest(payload);
-
-    let mut expected = [0u8; 4];
-    expected.copy_from_slice(&digest[..4]);
-    if expected != checksum {
-        Err(Bip32Error::BadB58Checksum)
-    } else {
-        Ok(payload.to_vec())
-    }
+    (Hash256::digest(payload)[..4] == checksum[..])
+        .then(|| {
+            data.truncate(len);
+            data
+        })
+        .ok_or(Bip32Error::BadB58Checksum)
 }
 
 /// Encode a vec into a base58 check String
-pub fn encode_b58_check(v: &[u8]) -> String {
+///
+/// The intermediate buffer and the result are zeroized, as the payload may be secret.
+pub fn encode_b58_check(v: &[u8]) -> Zeroizing<String> {
     let digest = &Hash256::digest(v);
 
-    let mut checksum = [0u8; 4];
-    checksum.copy_from_slice(&digest[..4]);
+    let mut data = Zeroizing::new(Vec::with_capacity(v.len() + 4));
+    data.extend_from_slice(v);
+    data.extend_from_slice(&digest[..4]);
 
-    let mut data = v.to_vec();
-    data.extend(checksum);
-
-    bs58::encode(data).into_string()
+    Zeroizing::new(bs58::encode(&*data).into_string())
 }
+
+/// A BIP-32 serialized extended private key: version (4), depth (1), parent fingerprint (4),
+/// index (4), chain code (32), padding (1), and private key (32). Zeroized on drop.
+#[derive(Zeroize, ZeroizeOnDrop)]
+struct SerializedXPriv([u8; 78]);
 
 /// Contains network-specific serialization information
 pub trait NetworkParams {
@@ -89,7 +95,7 @@ pub type MainnetEncoder = BitcoinEncoder<Main>;
 pub type TestnetEncoder = BitcoinEncoder<Test>;
 
 /// Bip32/49/84 encoder
-pub trait XKeyEncoder {
+pub trait XKeyEncoder: sealed::Sealed {
     #[doc(hidden)]
     fn write_key_details<K, W>(writer: &mut W, key: &K) -> Result<usize, Bip32Error>
     where
@@ -151,9 +157,9 @@ pub trait XKeyEncoder {
     where
         R: std::io::Read,
     {
-        let mut buf = [0u8; 32];
-        reader.read_exact(&mut buf)?;
-        Ok(buf.into())
+        let mut chain_code = ChainCode([0u8; 32]);
+        reader.read_exact(&mut chain_code.0)?;
+        Ok(chain_code)
     }
 
     #[doc(hidden)]
@@ -172,9 +178,9 @@ pub trait XKeyEncoder {
             return Err(Bip32Error::BadPadding(buf[0]));
         }
 
-        let mut buf = [0u8; 32];
-        reader.read_exact(&mut buf)?;
-        let key = ecdsa::SigningKey::from_bytes(&buf.into())?;
+        let mut buf = Zeroizing::new([0u8; 32]);
+        reader.read_exact(buf.as_mut())?;
+        let key = ecdsa::SigningKey::from_slice(buf.as_ref())?;
 
         Ok(XPriv {
             key,
@@ -270,14 +276,15 @@ pub trait XKeyEncoder {
     where
         R: std::io::Read;
 
-    /// Serialize an XPriv to base58
-    fn xpriv_to_base58<K>(k: &K) -> Result<String, Bip32Error>
+    /// Serialize an XPriv to base58. The result is zeroized on drop.
+    fn xpriv_to_base58<K>(k: &K) -> Result<Zeroizing<String>, Bip32Error>
     where
         K: AsRef<XPriv>,
     {
-        let mut v: Vec<u8> = vec![];
-        Self::write_xpriv(&mut v, k)?;
-        Ok(encode_b58_check(&v))
+        let mut buf = SerializedXPriv([0u8; 78]);
+        let written = Self::write_xpriv(&mut &mut buf.0[..], k)?;
+        debug_assert_eq!(written, buf.0.len());
+        Ok(encode_b58_check(&buf.0))
     }
 
     /// Serialize an XPub to base58
@@ -287,7 +294,7 @@ pub trait XKeyEncoder {
     {
         let mut v: Vec<u8> = vec![];
         Self::write_xpub(&mut v, k)?;
-        Ok(encode_b58_check(&v))
+        Ok(encode_b58_check(&v).to_string())
     }
 
     /// Attempt to read an XPriv from a b58check string.
@@ -325,6 +332,14 @@ where {
     }
 }
 
+mod sealed {
+    /// Prevents downstream implementations of [`XKeyEncoder`](super::XKeyEncoder), so the
+    /// serialization lengths assumed by its provided methods always hold.
+    pub trait Sealed {}
+}
+
+impl<P: NetworkParams> sealed::Sealed for BitcoinEncoder<P> {}
+
 impl<P: NetworkParams> XKeyEncoder for BitcoinEncoder<P> {
     /// Serialize the xpub to `std::io::Write`
     fn write_xpub<W, K>(writer: &mut W, key: &K) -> Result<usize, Bip32Error>
@@ -357,7 +372,7 @@ impl<P: NetworkParams> XKeyEncoder for BitcoinEncoder<P> {
         let mut written = writer.write(&version.to_be_bytes())?;
         written += Self::write_key_details(writer, key.as_ref())?;
         written += writer.write(&[0])?;
-        written += writer.write(key.as_ref().key.to_bytes().as_ref())?;
+        written += writer.write(&Zeroizing::new(key.as_ref().key.to_bytes()))?;
         Ok(written)
     }
 
@@ -401,5 +416,28 @@ impl<P: NetworkParams> XKeyEncoder for BitcoinEncoder<P> {
             return Err(Bip32Error::BadXPubVersionBytes(buf));
         };
         Self::read_xpub_body(reader, hint)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn decode_b58_check_rejects_short_input() {
+        for len in 0..4 {
+            let s = bs58::encode(vec![1u8; len]).into_string();
+            assert!(matches!(
+                decode_b58_check(&s),
+                Err(Bip32Error::BadB58Checksum)
+            ));
+        }
+    }
+
+    #[test]
+    fn b58_check_round_trip() {
+        let payload = b"hello world";
+        let encoded = encode_b58_check(payload);
+        assert_eq!(decode_b58_check(&encoded).unwrap().as_slice(), payload);
     }
 }

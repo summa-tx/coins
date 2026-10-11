@@ -1,4 +1,4 @@
-use crate::{Wordlist, WordlistError};
+use crate::Wordlist;
 use std::sync::LazyLock;
 
 /// The list of words as supported in the Korean language.
@@ -14,12 +14,6 @@ pub struct Korean;
 impl Wordlist for Korean {
     fn get_all() -> &'static [&'static str] {
         PARSED.as_slice()
-    }
-    /// Returns the index of a given word from the word list.
-    fn get_index(word: &str) -> Result<usize, WordlistError> {
-        Self::get_all()
-            .binary_search(&word)
-            .map_err(|_| crate::WordlistError::InvalidWord(word.to_string()))
     }
 }
 
@@ -42,7 +36,7 @@ mod tests {
         assert_eq!(Korean::get_index("희망"), Ok(2044));
         assert_eq!(
             Korean::get_index("임의의단어"),
-            Err(WordlistError::InvalidWord("임의의단어".to_string()))
+            Err(WordlistError::InvalidWord)
         );
     }
 

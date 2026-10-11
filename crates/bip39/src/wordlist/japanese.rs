@@ -36,7 +36,7 @@ mod tests {
         assert_eq!(Japanese::get_index("わじまし"), Ok(2044));
         assert_eq!(
             Japanese::get_index("ランダムな単語"),
-            Err(WordlistError::InvalidWord("ランダムな単語".to_string()))
+            Err(WordlistError::InvalidWord)
         );
     }
 
