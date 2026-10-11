@@ -289,7 +289,6 @@ mod test {
         BIP32_HARDEN,
     };
     use coins_core::hashes::*;
-    use k256::ecdsa::signature::{DigestSigner, DigestVerifier};
 
     use hex;
 
@@ -429,48 +428,20 @@ mod test {
         let key_pub = key.verify_key();
 
         // sign_digest + verify_digest
-        let sig: Signature = key.sign_digest(|d: &mut Hash256| *d = digest.clone());
-        key_pub
-            .verify_digest(
-                |d: &mut Hash256| {
-                    *d = digest.clone();
-                    Ok(())
-                },
-                &sig,
-            )
-            .unwrap();
+        let sig: Signature = key.sign_hasher(digest.clone()).unwrap();
+        key_pub.verify_hasher(digest.clone(), &sig).unwrap();
 
-        let err_bad_sig = key_pub.verify_digest(
-            |d: &mut Hash256| {
-                *d = wrong_digest.clone();
-                Ok(())
-            },
-            &sig,
-        );
+        let err_bad_sig = key_pub.verify_hasher(wrong_digest.clone(), &sig);
         match err_bad_sig {
             Err(_) => {}
             _ => panic!("expected signature validation error"),
         }
 
         let (sig, _): (Signature, RecoveryId) =
-            key.sign_digest(|d: &mut Hash256| *d = digest.clone());
-        key_pub
-            .verify_digest(
-                |d: &mut Hash256| {
-                    *d = digest.clone();
-                    Ok(())
-                },
-                &sig,
-            )
-            .unwrap();
+            key.sign_digest_recoverable(digest.clone()).unwrap();
+        key_pub.verify_hasher(digest.clone(), &sig).unwrap();
 
-        let err_bad_sig = key_pub.verify_digest(
-            |d: &mut Hash256| {
-                *d = wrong_digest.clone();
-                Ok(())
-            },
-            &sig,
-        );
+        let err_bad_sig = key_pub.verify_hasher(wrong_digest.clone(), &sig);
         match err_bad_sig {
             Err(_) => {}
             _ => panic!("expected signature validation error"),
@@ -500,26 +471,18 @@ mod test {
         let sig: Signature = key
             .derive_path(&path)
             .unwrap()
-            .sign_digest(|d: &mut Hash256| *d = digest.clone());
+            .sign_hasher(digest.clone())
+            .unwrap();
         key_pub
             .derive_path(&path)
             .unwrap()
-            .verify_digest(
-                |d: &mut Hash256| {
-                    *d = digest.clone();
-                    Ok(())
-                },
-                &sig,
-            )
+            .verify_hasher(digest.clone(), &sig)
             .unwrap();
 
-        let err_bad_sig = key_pub.derive_path(&path).unwrap().verify_digest(
-            |d: &mut Hash256| {
-                *d = wrong_digest.clone();
-                Ok(())
-            },
-            &sig,
-        );
+        let err_bad_sig = key_pub
+            .derive_path(&path)
+            .unwrap()
+            .verify_hasher(wrong_digest.clone(), &sig);
         match err_bad_sig {
             Err(_) => {}
             _ => panic!("expected signature validation error"),
@@ -528,26 +491,18 @@ mod test {
         let (sig, _): (Signature, RecoveryId) = key
             .derive_path(&path)
             .unwrap()
-            .sign_digest(|d: &mut Hash256| *d = digest.clone());
+            .sign_digest_recoverable(digest.clone())
+            .unwrap();
         key_pub
             .derive_path(&path)
             .unwrap()
-            .verify_digest(
-                |d: &mut Hash256| {
-                    *d = digest.clone();
-                    Ok(())
-                },
-                &sig,
-            )
+            .verify_hasher(digest.clone(), &sig)
             .unwrap();
 
-        let err_bad_sig = key_pub.derive_path(&path).unwrap().verify_digest(
-            |d: &mut Hash256| {
-                *d = wrong_digest.clone();
-                Ok(())
-            },
-            &sig,
-        );
+        let err_bad_sig = key_pub
+            .derive_path(&path)
+            .unwrap()
+            .verify_hasher(wrong_digest.clone(), &sig);
         match err_bad_sig {
             Err(_) => {}
             _ => panic!("expected signature validation error"),
@@ -557,26 +512,18 @@ mod test {
         let sig: Signature = key
             .derive_path(&path)
             .unwrap()
-            .sign_digest(|d: &mut Hash256| *d = digest.clone());
+            .sign_hasher(digest.clone())
+            .unwrap();
         key_pub
             .derive_path(&path)
             .unwrap()
-            .verify_digest(
-                |d: &mut Hash256| {
-                    *d = digest.clone();
-                    Ok(())
-                },
-                &sig,
-            )
+            .verify_hasher(digest.clone(), &sig)
             .unwrap();
 
-        let err_bad_sig = key_pub.derive_path(&path).unwrap().verify_digest(
-            |d: &mut Hash256| {
-                *d = wrong_digest.clone();
-                Ok(())
-            },
-            &sig,
-        );
+        let err_bad_sig = key_pub
+            .derive_path(&path)
+            .unwrap()
+            .verify_hasher(wrong_digest.clone(), &sig);
         match err_bad_sig {
             Err(_) => {}
             _ => panic!("expected signature validation error"),
@@ -586,26 +533,18 @@ mod test {
         let (sig, recovery_id): (Signature, RecoveryId) = key
             .derive_path(&path)
             .unwrap()
-            .sign_digest(|d: &mut Hash256| *d = digest.clone());
+            .sign_digest_recoverable(digest.clone())
+            .unwrap();
         key_pub
             .derive_path(&path)
             .unwrap()
-            .verify_digest(
-                |d: &mut Hash256| {
-                    *d = digest.clone();
-                    Ok(())
-                },
-                &sig,
-            )
+            .verify_hasher(digest.clone(), &sig)
             .unwrap();
 
-        let err_bad_sig = key_pub.derive_path(&path).unwrap().verify_digest(
-            |d: &mut Hash256| {
-                *d = wrong_digest.clone();
-                Ok(())
-            },
-            &sig,
-        );
+        let err_bad_sig = key_pub
+            .derive_path(&path)
+            .unwrap()
+            .verify_hasher(wrong_digest.clone(), &sig);
         match err_bad_sig {
             Err(_) => {}
             _ => panic!("expected signature validation error"),
