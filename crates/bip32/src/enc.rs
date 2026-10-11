@@ -1,7 +1,7 @@
 use coins_core::hashes::{Digest, Hash256};
 use k256::ecdsa;
 use std::marker::PhantomData;
-use zeroize::{Zeroize, Zeroizing};
+use zeroize::Zeroizing;
 
 use crate::{
     primitives::{ChainCode, Hint, KeyFingerprint, XKeyInfo},
@@ -13,19 +13,14 @@ use crate::{
 ///
 /// Intermediate buffers are zeroized, as the payload may be secret.
 pub fn decode_b58_check(s: &str) -> Result<Vec<u8>, Bip32Error> {
-    let mut data: Vec<u8> = bs58::decode(s).into_vec()?;
-    let Some((payload, checksum)) = data.split_last_chunk::<4>() else {
-        return Err(Bip32Error::BadB58Checksum);
-    };
-    let len = payload.len();
+    let data = Zeroizing::new(bs58::decode(s).into_vec()?);
+    let (payload, checksum) = data
+        .split_last_chunk::<4>()
+        .ok_or(Bip32Error::BadB58Checksum)?;
 
-    if Hash256::digest(payload)[..4] != checksum[..] {
-        data.zeroize();
-        return Err(Bip32Error::BadB58Checksum);
-    }
-
-    data.truncate(len);
-    Ok(data)
+    (Hash256::digest(payload)[..4] == checksum[..])
+        .then(|| payload.to_vec())
+        .ok_or(Bip32Error::BadB58Checksum)
 }
 
 /// Encode a vec into a base58 check String

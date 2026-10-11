@@ -91,11 +91,10 @@ impl WordCount {
         }
     }
 
-    const fn from_entropy_bytes(bytes: usize) -> Option<Self> {
-        if bytes % 4 != 0 {
-            return None;
-        }
-        Self::from_words(bytes / 4 * 3)
+    fn from_entropy_bytes(bytes: usize) -> Option<Self> {
+        Some(bytes)
+            .filter(|bytes| bytes % 4 == 0)
+            .and_then(|bytes| Self::from_words(bytes / 4 * 3))
     }
 
     /// Masks the checksum bits, which occupy the most significant bits of a byte.
@@ -230,23 +229,22 @@ fn write_index(buf: &mut [u8; MAX_ENCODED_BYTES], position: usize, index: usize)
 }
 
 /// Copies `word` into a zero-padded fixed-size buffer, so comparisons don't depend on its length.
-fn pad(word: &str) -> [u8; MAX_WORD_BYTES] {
-    assert!(
-        word.len() <= MAX_WORD_BYTES,
-        "wordlist words must be at most {MAX_WORD_BYTES} bytes"
-    );
+/// Returns `None` if the word is longer than [`MAX_WORD_BYTES`].
+fn try_pad(word: &str) -> Option<[u8; MAX_WORD_BYTES]> {
     let mut buf = [0u8; MAX_WORD_BYTES];
-    buf[..word.len()].copy_from_slice(word.as_bytes());
-    buf
+    buf.get_mut(..word.len())?.copy_from_slice(word.as_bytes());
+    Some(buf)
+}
+
+/// Pads a wordlist word. Panics if the wordlist violates the [`MAX_WORD_BYTES`] requirement.
+fn pad(word: &str) -> [u8; MAX_WORD_BYTES] {
+    try_pad(word).expect("wordlist words must be at most MAX_WORD_BYTES")
 }
 
 /// Finds the wordlist index of `word`. Scans the whole wordlist in constant time, so timing does
 /// not reveal which word matched.
 fn index_of<W: Wordlist>(word: &str) -> Option<usize> {
-    if word.len() > MAX_WORD_BYTES {
-        return None;
-    }
-    let target = Zeroizing::new(pad(word));
+    let target = Zeroizing::new(try_pad(word)?);
     let target_len = word.len() as u32;
 
     let mut index = Zeroizing::new(0u32);
@@ -372,11 +370,9 @@ where
         let entropy = Entropy::from_slice(&buf[..len])?;
 
         let checksum = buf[len] & count.checksum_mask();
-        if !bool::from(checksum.ct_eq(&entropy.checksum())) {
-            return Err(MnemonicError::InvalidChecksum);
-        }
-
-        Ok(Self::new_from_entropy(entropy))
+        bool::from(checksum.ct_eq(&entropy.checksum()))
+            .then(|| Self::new_from_entropy(entropy))
+            .ok_or(MnemonicError::InvalidChecksum)
     }
 
     /// Returns the mnemonic's entropy.
