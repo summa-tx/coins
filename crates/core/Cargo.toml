@@ -15,7 +15,6 @@ homepage.workspace = true
 [dependencies]
 base64.workspace = true
 bech32.workspace = true
-bs58 = { workspace = true, features = ["check"] }
 digest.workspace = true
 hybrid-array.workspace = true
 hex.workspace = true

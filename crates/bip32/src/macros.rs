@@ -53,11 +53,8 @@ macro_rules! inherit_signer {
                     + digest::Update
                     + digest::HashMarker,
             {
-                use k256::ecdsa::signature::DigestSigner as _;
-                self.try_sign_digest(move |d: &mut D| {
-                    *d = digest.clone();
-                    Ok(())
-                })
+                let key: &k256::ecdsa::SigningKey = self.as_ref();
+                Ok(key.sign_digest_recoverable(digest))
             }
         }
     };
