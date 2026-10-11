@@ -3,7 +3,7 @@ use bitvec::prelude::*;
 use coins_bip32::{path::DerivationPath, xkeys::XPriv, Bip32Error};
 use hmac::Hmac;
 use pbkdf2::pbkdf2;
-use rand::{CryptoRng, Fill, Rng};
+use rand::{CryptoRng, Fill, Rng, RngExt};
 use sha2::{Digest, Sha256, Sha512};
 use std::{convert::TryInto, marker::PhantomData};
 use thiserror::Error;
@@ -166,13 +166,15 @@ impl Entropy {
 }
 
 impl Fill for Entropy {
-    fn fill<R: Rng + ?Sized>(&mut self, rng: &mut R) {
-        match self {
-            Entropy::Sixteen(arr) => arr.fill(rng),
-            Entropy::Twenty(arr) => arr.fill(rng),
-            Entropy::TwentyFour(arr) => arr.fill(rng),
-            Entropy::TwentyEight(arr) => arr.fill(rng),
-            Entropy::ThirtyTwo(arr) => arr.fill(rng),
+    fn fill_slice<R: Rng + ?Sized>(this: &mut [Self], rng: &mut R) {
+        for entropy in this {
+            match entropy {
+                Entropy::Sixteen(arr) => rng.fill_bytes(arr),
+                Entropy::Twenty(arr) => rng.fill_bytes(arr),
+                Entropy::TwentyFour(arr) => rng.fill_bytes(arr),
+                Entropy::TwentyEight(arr) => rng.fill_bytes(arr),
+                Entropy::ThirtyTwo(arr) => rng.fill_bytes(arr),
+            }
         }
     }
 }
@@ -191,8 +193,10 @@ where
 }
 
 impl<W: Wordlist> Fill for Mnemonic<W> {
-    fn fill<R: Rng + ?Sized>(&mut self, rng: &mut R) {
-        self.entropy.fill(rng);
+    fn fill_slice<R: Rng + ?Sized>(this: &mut [Self], rng: &mut R) {
+        for mnemonic in this {
+            Entropy::fill_slice(std::slice::from_mut(&mut mnemonic.entropy), rng);
+        }
     }
 }
 
@@ -350,6 +354,18 @@ mod tests {
     use super::*;
 
     type W = English;
+
+    #[test]
+    fn test_fill() {
+        let mut rng = rand::rng();
+        let zero = Mnemonic::<W>::new_from_entropy([0u8; 32].into());
+        let mut mnemonics = [zero.clone(), zero.clone()];
+        rng.fill(&mut mnemonics);
+        assert_ne!(mnemonics[0], zero);
+        assert_ne!(mnemonics[1], zero);
+        assert_ne!(mnemonics[0], mnemonics[1]);
+        assert_eq!(mnemonics[0].entropy.len(), 32);
+    }
 
     #[test]
     #[should_panic(expected = "InvalidWordCount(11)")]
