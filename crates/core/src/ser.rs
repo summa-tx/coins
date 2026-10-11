@@ -110,15 +110,13 @@ where
     R: Read,
 {
     let mut prefix = [0u8; 1];
-    reader.read_exact(&mut prefix)?; // read at most one byte
+    reader.read_exact(&mut prefix)?;
     let prefix_len = prefix_len_from_first_byte(prefix[0]);
 
     // Get the byte(s) representing the number, and parse as u64
     let number = if prefix_len > 1 {
         let mut buf = [0u8; 8];
-        // The body is the prefix's remaining bytes (prefix_len - 1). `read_exact` keeps reading
-        // until all of them arrive, so a short read isn't mistaken for the end of the data.
-        // If the input really does end early, it returns an `UnexpectedEof` error.
+        // the body is the remaining bytes. We need all of them.
         reader.read_exact(&mut buf[..prefix_len as usize - 1])?;
         u64::from_le_bytes(buf)
     } else {
