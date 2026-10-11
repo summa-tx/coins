@@ -110,14 +110,14 @@ where
     R: Read,
 {
     let mut prefix = [0u8; 1];
-    reader.read_exact(&mut prefix)?; // read at most one byte
+    reader.read_exact(&mut prefix)?;
     let prefix_len = prefix_len_from_first_byte(prefix[0]);
 
     // Get the byte(s) representing the number, and parse as u64
     let number = if prefix_len > 1 {
         let mut buf = [0u8; 8];
-        let mut body = reader.take(prefix_len as u64 - 1); // minus 1 to account for prefix
-        let _ = body.read(&mut buf)?;
+        // the body is the remaining bytes. We need all of them.
+        reader.read_exact(&mut buf[..prefix_len as usize - 1])?;
         u64::from_le_bytes(buf)
     } else {
         prefix[0] as u64
@@ -420,6 +420,44 @@ mod test {
             assert_eq!(prefix_byte_len(case.0), case.1);
             assert_eq!(first_byte_from_len(case.1), case.2);
         }
+    }
+
+    #[test]
+    fn it_rejects_truncated_compact_ints() {
+        for case in [
+            &[0xfd, 0x01][..],
+            &[0xfe, 0x00, 0x00, 0x01],
+            &[0xff, 1, 2, 3],
+        ] {
+            let mut r = case;
+            assert!(matches!(
+                read_compact_int(&mut r),
+                Err(SerError::IoError(_))
+            ));
+        }
+    }
+
+    #[test]
+    fn it_reads_compact_ints_from_short_reading_readers() {
+        struct OneByte<'a>(&'a [u8]);
+        impl Read for OneByte<'_> {
+            fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+                if self.0.is_empty() || buf.is_empty() {
+                    return Ok(0);
+                }
+                buf[0] = self.0[0];
+                self.0 = &self.0[1..];
+                Ok(1)
+            }
+        }
+        assert_eq!(
+            read_compact_int(&mut OneByte(&[0xfd, 0x00, 0x01])).unwrap(),
+            256
+        );
+        assert_eq!(
+            read_compact_int(&mut OneByte(&[0xfe, 0x00, 0x00, 0x01, 0x00])).unwrap(),
+            65536
+        );
     }
 
     #[test]
