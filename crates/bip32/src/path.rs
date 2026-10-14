@@ -204,8 +204,15 @@ impl FromStr for DerivationPath {
     type Err = Bip32Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        s.split('/')
-            .filter(|v| v != &"m")
+        let path = if let Some(path) = s.strip_prefix("m/") {
+            path
+        } else if s == "m" {
+            return Ok(Self::default());
+        } else {
+            s
+        };
+
+        path.split('/')
             .map(try_parse_index)
             .collect::<Result<Vec<u32>, Bip32Error>>()
             .map(|v| v.into())
@@ -353,6 +360,7 @@ mod test {
     #[test]
     fn it_parses_derivation_strings() {
         let cases = [
+            ("m", vec![]),
             ("m/32", vec![32]),
             ("m/32'", vec![32 + BIP32_HARDEN]),
             ("m/0'/32/5/5/5", vec![BIP32_HARDEN, 32, 5, 5, 5]),
@@ -370,7 +378,7 @@ mod test {
 
     #[test]
     fn it_handles_malformatted_derivations() {
-        let cases = ["//", "m/", "-", "h", "toast", "憂鬱"];
+        let cases = ["//", "m/", "0/m/1", "m/0/m/1", "-", "h", "toast", "憂鬱"];
         for case in cases.iter() {
             match case.parse::<DerivationPath>() {
                 Ok(_) => panic!("expected an error"),
