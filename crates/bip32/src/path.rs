@@ -204,8 +204,13 @@ impl FromStr for DerivationPath {
     type Err = Bip32Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        s.split('/')
-            .filter(|v| v != &"m")
+        if s == "m" {
+            return Ok(Self::default());
+        }
+
+        s.strip_prefix("m/")
+            .unwrap_or(s)
+            .split('/')
             .map(try_parse_index)
             .collect::<Result<Vec<u32>, Bip32Error>>()
             .map(|v| v.into())
@@ -353,6 +358,7 @@ mod test {
     #[test]
     fn it_parses_derivation_strings() {
         let cases = [
+            ("m", vec![]),
             ("m/32", vec![32]),
             ("m/32'", vec![32 + BIP32_HARDEN]),
             ("m/0'/32/5/5/5", vec![BIP32_HARDEN, 32, 5, 5, 5]),
@@ -370,7 +376,7 @@ mod test {
 
     #[test]
     fn it_handles_malformatted_derivations() {
-        let cases = ["//", "m/", "-", "h", "toast", "憂鬱"];
+        let cases = ["//", "m/", "0/m/1", "m/0/m/1", "-", "h", "toast", "憂鬱"];
         for case in cases.iter() {
             match case.parse::<DerivationPath>() {
                 Ok(_) => panic!("expected an error"),
@@ -403,20 +409,6 @@ mod test {
         ];
         for case in cases.iter() {
             assert_eq!(case.0.without_prefix(&case.1), case.2);
-        }
-    }
-
-    #[test]
-    fn it_proudces_paths_from_strings() {
-        let cases = ["//", "m/", "-", "h", "toast", "憂鬱"];
-
-        for case in cases.iter() {
-            let path: Result<DerivationPath, _> = case.parse();
-            match path {
-                Ok(_) => panic!("expected an error"),
-                Err(Bip32Error::MalformattedDerivation(e)) => assert_eq!(&e, case),
-                Err(e) => panic!("unexpected error {e}"),
-            }
         }
     }
 
