@@ -304,11 +304,11 @@ impl ByteFormat for KeyDerivation {
     where
         T: Write,
     {
-        let mut length = writer.write(&self.root.0)?;
+        writer.write_all(&self.root.0)?;
         for i in self.path.iter() {
-            length += writer.write(&i.to_le_bytes())?;
+            writer.write_all(&i.to_le_bytes())?;
         }
-        Ok(length)
+        Ok(self.serialized_length())
     }
 }
 

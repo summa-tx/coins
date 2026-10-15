@@ -47,7 +47,8 @@ pub fn write_u32_le<W>(writer: &mut W, number: u32) -> SerResult<usize>
 where
     W: Write,
 {
-    Ok(writer.write(&number.to_le_bytes())?)
+    writer.write_all(&number.to_le_bytes())?;
+    Ok(std::mem::size_of::<u32>())
 }
 
 /// Convenience function for reading a LE u64
@@ -65,7 +66,8 @@ pub fn write_u64_le<W>(writer: &mut W, number: u64) -> SerResult<usize>
 where
     W: Write,
 {
-    Ok(writer.write(&number.to_le_bytes())?)
+    writer.write_all(&number.to_le_bytes())?;
+    Ok(std::mem::size_of::<u64>())
 }
 
 /// A simple trait for deserializing from `std::io::Read` and serializing to `std::io::Write`.
@@ -172,13 +174,32 @@ impl ByteFormat for u8 {
     where
         W: Write,
     {
-        Ok(writer.write(&self.to_le_bytes())?)
+        let bytes = self.to_le_bytes();
+        writer.write_all(&bytes)?;
+        Ok(bytes.len())
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+
+    struct ShortWriter(Vec<u8>);
+
+    impl Write for ShortWriter {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            if let Some(byte) = buf.first() {
+                self.0.push(*byte);
+                Ok(1)
+            } else {
+                Ok(0)
+            }
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
 
     #[test]
     fn it_implements_byteformat_for_u8() {
@@ -194,5 +215,29 @@ mod test {
             let expected = u8::read_from(&mut slice).unwrap();
             assert_eq!(i, expected);
         }
+    }
+
+    #[test]
+    fn integer_writers_handle_short_writes() {
+        let mut writer = ShortWriter(Vec::new());
+        assert_eq!(write_u32_le(&mut writer, 0x0102_0304).unwrap(), 4);
+        assert_eq!(writer.0, 0x0102_0304u32.to_le_bytes());
+
+        let mut writer = ShortWriter(Vec::new());
+        assert_eq!(write_u64_le(&mut writer, 0x0102_0304_0506_0708).unwrap(), 8);
+        assert_eq!(writer.0, 0x0102_0304_0506_0708u64.to_le_bytes());
+    }
+
+    #[test]
+    fn byteformat_writers_handle_short_writes() {
+        let mut writer = ShortWriter(Vec::new());
+        assert_eq!(0xabu8.write_to(&mut writer).unwrap(), 1);
+        assert_eq!(writer.0, [0xab]);
+
+        let bytes: [u8; 32] = std::array::from_fn(|i| i as u8);
+        let digest = crate::hashes::Hash256Digest::from(bytes);
+        let mut writer = ShortWriter(Vec::new());
+        assert_eq!(digest.write_to(&mut writer).unwrap(), bytes.len());
+        assert_eq!(writer.0, bytes);
     }
 }

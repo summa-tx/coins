@@ -87,7 +87,9 @@ macro_rules! marked_digest {
             where
                 W: std::io::Write,
             {
-                Ok(writer.write(self.as_ref())?)
+                let bytes: &[u8] = self.as_ref();
+                writer.write_all(bytes)?;
+                Ok(bytes.len())
             }
         }
     };

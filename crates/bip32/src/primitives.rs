@@ -48,7 +48,8 @@ impl ByteFormat for KeyFingerprint {
     where
         W: Write,
     {
-        Ok(writer.write(&self.0)?)
+        writer.write_all(&self.0)?;
+        Ok(self.0.len())
     }
 }
 

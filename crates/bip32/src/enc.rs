@@ -94,6 +94,10 @@ pub type MainnetEncoder = BitcoinEncoder<Main>;
 /// XKeyEncoder for Testnet xkeys
 pub type TestnetEncoder = BitcoinEncoder<Test>;
 
+/// Serialized length of the key details shared by xpubs and xprivs: depth (1), parent
+/// fingerprint (4), index (4), and chain code (32).
+const KEY_DETAILS_LEN: usize = 1 + 4 + 4 + 32;
+
 /// Bip32/49/84 encoder
 pub trait XKeyEncoder: sealed::Sealed {
     #[doc(hidden)]
@@ -103,11 +107,11 @@ pub trait XKeyEncoder: sealed::Sealed {
         W: std::io::Write,
     {
         let key = key.as_ref();
-        let mut written = writer.write(&[key.depth])?;
-        written += writer.write(&key.parent.0)?;
-        written += writer.write(&key.index.to_be_bytes())?;
-        written += writer.write(&key.chain_code.0)?;
-        Ok(written)
+        writer.write_all(&[key.depth])?;
+        writer.write_all(&key.parent.0)?;
+        writer.write_all(&key.index.to_be_bytes())?;
+        writer.write_all(&key.chain_code.0)?;
+        Ok(KEY_DETAILS_LEN)
     }
 
     /// Serialize the xpub to `std::io::Write`
@@ -352,10 +356,12 @@ impl<P: NetworkParams> XKeyEncoder for BitcoinEncoder<P> {
             Hint::Compatibility => P::BIP49_PUB_VERSION,
             Hint::SegWit => P::BIP84_PUB_VERSION,
         };
-        let mut written = writer.write(&version.to_be_bytes())?;
-        written += Self::write_key_details(writer, key.as_ref())?;
-        written += writer.write(key.as_ref().key.to_sec1_bytes().as_ref())?;
-        Ok(written)
+        let version_bytes = version.to_be_bytes();
+        writer.write_all(&version_bytes)?;
+        let details = Self::write_key_details(writer, key.as_ref())?;
+        let key_bytes = key.as_ref().key.to_sec1_bytes();
+        writer.write_all(&key_bytes)?;
+        Ok(version_bytes.len() + details + key_bytes.len())
     }
 
     /// Serialize the xpriv to `std::io::Write`
@@ -369,11 +375,13 @@ impl<P: NetworkParams> XKeyEncoder for BitcoinEncoder<P> {
             Hint::Compatibility => P::BIP49_PRIV_VERSION,
             Hint::SegWit => P::BIP84_PRIV_VERSION,
         };
-        let mut written = writer.write(&version.to_be_bytes())?;
-        written += Self::write_key_details(writer, key.as_ref())?;
-        written += writer.write(&[0])?;
-        written += writer.write(&Zeroizing::new(key.as_ref().key.to_bytes()))?;
-        Ok(written)
+        let version_bytes = version.to_be_bytes();
+        writer.write_all(&version_bytes)?;
+        let details = Self::write_key_details(writer, key.as_ref())?;
+        let key_bytes = Zeroizing::new(key.as_ref().key.to_bytes());
+        writer.write_all(&[0])?;
+        writer.write_all(&key_bytes)?;
+        Ok(version_bytes.len() + details + 1 + key_bytes.len())
     }
 
     fn read_xpriv<R>(reader: &mut R) -> Result<XPriv, Bip32Error>
@@ -422,6 +430,8 @@ impl<P: NetworkParams> XKeyEncoder for BitcoinEncoder<P> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::path::{DerivationPath, KeyDerivation};
+    use coins_core::ser::ByteFormat;
 
     #[test]
     fn decode_b58_check_rejects_short_input() {
@@ -439,5 +449,52 @@ mod test {
         let payload = b"hello world";
         let encoded = encode_b58_check(payload);
         assert_eq!(decode_b58_check(&encoded).unwrap().as_slice(), payload);
+    }
+
+    /// Accepts one byte per `write` call, so a writer that trusts a single `write` truncates.
+    struct ShortWriter(Vec<u8>);
+
+    impl std::io::Write for ShortWriter {
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            if let Some(byte) = buf.first() {
+                self.0.push(*byte);
+                Ok(1)
+            } else {
+                Ok(0)
+            }
+        }
+
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    /// Runs `$write` against a `Vec` and against a `ShortWriter`, and asserts that both end up
+    /// with the same bytes and report the full length.
+    macro_rules! assert_short_write_matches {
+        ($write:expr) => {{
+            let mut full = Vec::new();
+            let mut short = ShortWriter(Vec::new());
+            let full_len = $write(&mut full).unwrap();
+            let short_len = $write(&mut short).unwrap();
+            assert_eq!(full_len, full.len());
+            assert_eq!(short_len, full_len);
+            assert_eq!(short.0, full);
+        }};
+    }
+
+    #[test]
+    fn writers_handle_short_writes() {
+        let xpriv = XPriv::root_from_seed(&[7u8; 32], None).unwrap();
+        let xpub = xpriv.verify_key();
+        let derivation = KeyDerivation {
+            root: KeyFingerprint([1, 2, 3, 4]),
+            path: DerivationPath::from(vec![44, 0, 1]),
+        };
+
+        assert_short_write_matches!(|w| MainnetEncoder::write_xpriv(w, &xpriv));
+        assert_short_write_matches!(|w| MainnetEncoder::write_xpub(w, &xpub));
+        assert_short_write_matches!(|w| derivation.root.write_to(w));
+        assert_short_write_matches!(|w| derivation.write_to(w));
     }
 }
