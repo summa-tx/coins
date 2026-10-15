@@ -65,32 +65,5 @@ macro_rules! marked_digest {
                 self.0.as_mut()
             }
         }
-
-        impl $crate::ser::ByteFormat for $marked_name {
-            type Error = $crate::ser::SerError;
-
-            fn serialized_length(&self) -> usize {
-                $crate::hashes::MarkedDigestOutput::size(self)
-            }
-
-            fn read_from<R>(reader: &mut R) -> $crate::ser::SerResult<Self>
-            where
-                R: std::io::Read,
-                Self: std::marker::Sized,
-            {
-                let mut buf = Self::default();
-                reader.read_exact(buf.as_mut())?;
-                Ok(buf)
-            }
-
-            fn write_to<W>(&self, writer: &mut W) -> $crate::ser::SerResult<usize>
-            where
-                W: std::io::Write,
-            {
-                let bytes: &[u8] = self.as_ref();
-                writer.write_all(bytes)?;
-                Ok(bytes.len())
-            }
-        }
     };
 }

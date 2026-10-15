@@ -1,12 +1,9 @@
 use std::{
     convert::TryFrom,
-    io::{Read, Write},
     iter::{FromIterator, IntoIterator},
     slice::Iter,
     str::FromStr,
 };
-
-use coins_core::ser::ByteFormat;
 
 use crate::{primitives::KeyFingerprint, Bip32Error, BIP32_HARDEN};
 
@@ -260,55 +257,6 @@ impl KeyDerivation {
             root: self.root,
             path: self.path.extended(idx),
         }
-    }
-}
-
-impl ByteFormat for KeyDerivation {
-    type Error = Bip32Error;
-
-    fn serialized_length(&self) -> usize {
-        4 + 4 * self.path.len()
-    }
-
-    fn read_from<T>(_reader: &mut T) -> Result<Self, Self::Error>
-    where
-        T: Read,
-        Self: std::marker::Sized,
-    {
-        unimplemented!()
-        // if limit == 0 {
-        //     return Err(SerError::RequiresLimit.into());
-        // }
-
-        // if limit > 255 {
-        //     return Err(Bip32Error::InvalidBip32Path);
-        // }
-
-        // let mut finger = [0u8; 4];
-        // reader.read_exact(&mut finger)?;
-
-        // let mut path = vec![];
-        // for _ in 0..limit {
-        //     let mut buf = [0u8; 4];
-        //     reader.read_exact(&mut buf)?;
-        //     path.push(u32::from_le_bytes(buf));
-        // }
-
-        // Ok(KeyDerivation {
-        //     root: finger.into(),
-        //     path: path.into(),
-        // })
-    }
-
-    fn write_to<T>(&self, writer: &mut T) -> Result<usize, Self::Error>
-    where
-        T: Write,
-    {
-        writer.write_all(&self.root.0)?;
-        for i in self.path.iter() {
-            writer.write_all(&i.to_le_bytes())?;
-        }
-        Ok(self.serialized_length())
     }
 }
 

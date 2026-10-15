@@ -430,8 +430,6 @@ impl<P: NetworkParams> XKeyEncoder for BitcoinEncoder<P> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::path::{DerivationPath, KeyDerivation};
-    use coins_core::ser::ByteFormat;
 
     #[test]
     fn decode_b58_check_rejects_short_input() {
@@ -487,14 +485,8 @@ mod test {
     fn writers_handle_short_writes() {
         let xpriv = XPriv::root_from_seed(&[7u8; 32], None).unwrap();
         let xpub = xpriv.verify_key();
-        let derivation = KeyDerivation {
-            root: KeyFingerprint([1, 2, 3, 4]),
-            path: DerivationPath::from(vec![44, 0, 1]),
-        };
 
         assert_short_write_matches!(|w| MainnetEncoder::write_xpriv(w, &xpriv));
         assert_short_write_matches!(|w| MainnetEncoder::write_xpub(w, &xpub));
-        assert_short_write_matches!(|w| derivation.root.write_to(w));
-        assert_short_write_matches!(|w| derivation.write_to(w));
     }
 }

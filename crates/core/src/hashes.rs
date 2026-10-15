@@ -5,7 +5,6 @@
 //! type-confusion between TXIDs, sighashes, and other digests with the same
 //! length.
 
-use crate::ser::{ByteFormat, SerError, SerResult};
 use digest::{block_api::BlockSizeUser, HashMarker, Output, OutputSizeUser};
 use std::io::Write;
 
@@ -14,15 +13,12 @@ pub use digest::Digest;
 pub use hybrid_array::Array as GenericArray;
 pub use ripemd::Ripemd160;
 pub use sha2::Sha256;
-pub use sha3::Sha3_256;
 
 /// Output of a Digest function
 pub type DigestOutput<D> = Output<D>;
 
 /// Convenience interface for hash function outputs, particularly marked digest outputs
-pub trait MarkedDigestOutput:
-    Default + Copy + AsRef<[u8]> + AsMut<[u8]> + ByteFormat<Error = SerError>
-{
+pub trait MarkedDigestOutput: Default + Copy + AsRef<[u8]> + AsMut<[u8]> {
     /// Returns the number of bytes in the digest
     fn size(&self) -> usize;
 
@@ -35,16 +31,6 @@ pub trait MarkedDigestOutput:
             .as_mut()
             .copy_from_slice(&digest_bytes[..self.size()]);
         reversed
-    }
-
-    /// Deserialize to BE hex
-    fn from_be_hex(be: &str) -> SerResult<Self> {
-        Ok(Self::deserialize_hex(be)?.reversed())
-    }
-
-    /// Convert to BE hex
-    fn to_be_hex(&self) -> String {
-        self.reversed().serialize_hex()
     }
 
     /// Use as a mutable slice
