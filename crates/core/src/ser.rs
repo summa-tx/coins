@@ -174,7 +174,9 @@ impl ByteFormat for u8 {
     where
         W: Write,
     {
-        Ok(writer.write(&self.to_le_bytes())?)
+        let bytes = self.to_le_bytes();
+        writer.write_all(&bytes)?;
+        Ok(bytes.len())
     }
 }
 
@@ -224,5 +226,18 @@ mod test {
         let mut writer = ShortWriter(Vec::new());
         assert_eq!(write_u64_le(&mut writer, 0x0102_0304_0506_0708).unwrap(), 8);
         assert_eq!(writer.0, 0x0102_0304_0506_0708u64.to_le_bytes());
+    }
+
+    #[test]
+    fn byteformat_writers_handle_short_writes() {
+        let mut writer = ShortWriter(Vec::new());
+        assert_eq!(0xabu8.write_to(&mut writer).unwrap(), 1);
+        assert_eq!(writer.0, [0xab]);
+
+        let bytes: [u8; 32] = std::array::from_fn(|i| i as u8);
+        let digest = crate::hashes::Hash256Digest::from(bytes);
+        let mut writer = ShortWriter(Vec::new());
+        assert_eq!(digest.write_to(&mut writer).unwrap(), bytes.len());
+        assert_eq!(writer.0, bytes);
     }
 }
