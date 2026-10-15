@@ -24,9 +24,9 @@ Windows is not yet supported.
 - Build with node WASM bindings to `@ledgerhq/hw-transport-node-hid`
   - `wasm-pack build --scope summa-tx --target nodejs -- --features=node --no-default-features`
   - Runtime environment MUST be able to import `@ledgerhq/hw-transport-node-hid`
-- Build with browser WASM bindings to `@ledgerhq/hw-transport-u2f`
-  - `wasm-pack build --scope summa-tx --target bundler -- --features=broswer --no-default-features`
-  - Runtime environment MUST be able to import `@ledgerhq/hw-transport-u2f`
+- Build with browser WASM bindings to `@ledgerhq/hw-transport-webusb`
+  - `wasm-pack build --scope summa-tx --target bundler -- --features=browser --no-default-features`
+  - Runtime environment MUST be able to import `@ledgerhq/hw-transport-webusb`
 
 # Features
 
