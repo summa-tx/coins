@@ -13,7 +13,6 @@ pub use digest::Digest;
 pub use hybrid_array::Array as GenericArray;
 pub use ripemd::Ripemd160;
 pub use sha2::Sha256;
-pub use sha3::Sha3_256;
 
 /// Output of a Digest function
 pub type DigestOutput<D> = Output<D>;

@@ -29,7 +29,6 @@ hybrid-array = "0.4"
 hex = { package = "const-hex", version = "1.12.0" }
 ripemd = "0.2"
 serde = "1.0.203"
-sha3 = "0.12"
 
 # bip32
 hmac = { version = "0.13", features = ["zeroize"] }
