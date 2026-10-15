@@ -158,14 +158,6 @@ pub enum Bip32Error {
     /// Parsing an string derivation failed because an index string was malformatted
     #[error("Malformatted index during derivation: {0}")]
     MalformattedDerivation(String),
-
-    /// Attempted to deserialize a DER signature to a recoverable signature.
-    #[error("Attempted to deserialize a DER signature to a recoverable signature. Use deserialize_vrs instead")]
-    NoRecoveryId,
-
-    /// Attempted to deserialize a very long path
-    #[error("Invalid Bip32 Path.")]
-    InvalidBip32Path,
 }
 
 impl From<ecdsa::Error> for Bip32Error {
