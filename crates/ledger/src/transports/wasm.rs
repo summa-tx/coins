@@ -11,6 +11,9 @@ use crate::{
 #[cfg(not(any(feature = "node", feature = "browser")))]
 compile_error!("Either `node` or `browser` feature must be enabled for WASM transport");
 
+#[cfg(all(feature = "node", feature = "browser"))]
+compile_error!("The `node` and `browser` features are mutually exclusive");
+
 // These conditional compilation blocks ensure that we try to import the correct
 // transport for our environment.
 #[cfg_attr(
