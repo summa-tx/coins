@@ -23,8 +23,6 @@ coins-core = { path = "crates/core", version = "0.14" }
 coins-ledger = { path = "crates/ledger", version = "0.14" }
 
 # core
-base64 = "0.21"
-bech32 = "0.9"
 bs58 = "0.5.1"
 digest = "0.11"
 hybrid-array = "0.4"

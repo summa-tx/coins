@@ -119,10 +119,6 @@ pub enum Bip32Error {
     #[error(transparent)]
     IoError(#[from] std::io::Error),
 
-    /// Error bubbled up froom Ser
-    #[error(transparent)]
-    SerError(#[from] coins_core::ser::SerError),
-
     /// Master key seed generation received <16 bytes
     #[error("Master key seed generation received <16 bytes")]
     SeedTooShort,

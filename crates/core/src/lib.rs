@@ -12,19 +12,6 @@
 //! intended to be used for a specific purpose. E.g. `Hash256` is a marked type
 //! for Bitcoin's double-sha2, while `Hash160` is a marked type for Bitcoin's
 //! `ripemd160(sha2(x))`.
-//!
-//! #### Ser trait
-//!
-//! The `Ser` trait is a simple serialization API using
-//! `std::io::{Read, Write}`. Implementers define the binary serialization
-//! format of the type, as well as the JSON serialization. The transaction type
-//! must implement `Ser`, as the provided `txid` logic assumes access to the
-//! `serialize` method.
-//!
-//! `Ser` has an associated `Error` type. Most basic types can simply use the
-//! provided `SerError`. However, more complex (de)serialization will want to
-//! implement a custom error type to handle (e.g.) invalid transactions. These
-//! types must be easily instantiated from a `SerError` or an `std::io::Error`.
 
 #![forbid(unsafe_code)]
 #![warn(missing_docs)]
@@ -34,4 +21,3 @@
 pub mod macros;
 
 pub mod hashes;
-pub mod ser;

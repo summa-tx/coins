@@ -20,7 +20,7 @@ digest.workspace = true
 hmac.workspace = true
 k256.workspace = true
 primeorder.workspace = true
-serde.workspace = true
+serde = { workspace = true, features = ["derive"] }
 sha2.workspace = true
 thiserror.workspace = true
 subtle.workspace = true

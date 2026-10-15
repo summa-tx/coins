@@ -13,13 +13,8 @@ repository.workspace = true
 homepage.workspace = true
 
 [dependencies]
-base64.workspace = true
-bech32.workspace = true
 digest.workspace = true
 hybrid-array.workspace = true
-hex.workspace = true
 ripemd.workspace = true
-serde = { workspace = true, features = ["derive"] }
 sha2.workspace = true
 sha3.workspace = true
-thiserror.workspace = true
