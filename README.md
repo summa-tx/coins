@@ -6,8 +6,8 @@
 
 This project aims to provide high-quality tooling for bip32, bip39, and ledger
 device communication. It is a toolbox for building signers for blockchain
-applications. The code runs both natively and in wasm targets for browser and
-node.
+applications. The bip32, bip39, and core crates run both natively and on wasm
+targets. The ledger crate is native-only.
 
 This repo previously hosted a set of transaction construction libraries for
 UTXO-based chains. You can find much of that work in the archive folder (for
@@ -23,7 +23,7 @@ now). [This is the last commit with that code in the main packages.](https://git
 
 - Support bip32, bip39, and Ledger device comms
 - Provide basic tooling to support these use cases
-- WASM compatibility in all packages
+- WASM compatibility in all packages except `coins-ledger`, which needs native HID
 
 ## Project Status
 
