@@ -36,16 +36,9 @@ pub trait LedgerProtocol {
         match self.execute(transport) {
             Ok(output) => Ok(output),
             Err(e) => {
-                // TODO: make less ugly
-                #[cfg(target_arch = "wasm32")]
-                log::error!("Protocol failed, running recovery: {}", e);
-                #[cfg(not(target_arch = "wasm32"))]
                 tracing::error!(err = %e, "Protocol failed, running recovery.");
 
                 if let Err(e) = self.recover(transport) {
-                    #[cfg(target_arch = "wasm32")]
-                    log::error!("Recovery failed: {}", e);
-                    #[cfg(not(target_arch = "wasm32"))]
                     tracing::error!(err = %e, "Recovery failed.");
                 }
 

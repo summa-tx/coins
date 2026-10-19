@@ -6,41 +6,20 @@ Communication library between Rust and Ledger Nano S/X devices
 
 Windows is not yet supported.
 
-### Native
+This crate talks to the device over native HID via `hidapi`, and does not
+build for `wasm32` targets. The JS/WASM transport shipped in versions before
+0.16 was removed.
 
 - Install dependencies
   - OSX
     - TODO
     - please file an issue if you know. I don't have a macbook :)
-- Build with native transport
-  - `cargo build`
-
-### WASM
-
-- Install wasm-pack
-  - [Link here](https://rustwasm.github.io/wasm-pack/installer/)
-- MUST pass `--disable-default-features`
-- MUST select feature AT MOST ONE of `browser` and `node`
-- Build with node WASM bindings to `@ledgerhq/hw-transport-node-hid`
-  - `wasm-pack build --scope summa-tx --target nodejs -- --features=node --no-default-features`
-  - Runtime environment MUST be able to import `@ledgerhq/hw-transport-node-hid`
-- Build with browser WASM bindings to `@ledgerhq/hw-transport-webusb`
-  - `wasm-pack build --scope summa-tx --target bundler -- --features=browser --no-default-features`
-  - Runtime environment MUST be able to import `@ledgerhq/hw-transport-webusb`
-
-# Features
-
-The `node` and `browser` features are mutually exclusive. You must specify
-exactly one, as well as the `--no-default-features` flag.
-
-When building for non-wasm architectures, a native HID transport is compiled
-in. When building wasm via `wasm-pack`, you must specify whether you want the
-node or browser wasm transport.
+- `cargo build`
 
 # Testing
 
 - run the unit tests
-  - `$ cargo test -- --lib`
+  - `$ cargo test --lib`
 - run the integration tests
   - Plug in a Ledger Nano S or X device
   - Unlock the device
@@ -70,9 +49,5 @@ These changes are as follows:
   copies. It is now a thin wrapper around a &[u8]
 - Change exchange functions to accept a mutable buffer. The caller must allocate
   space for the response packet
-- `wasm_bindgen` bindings for JS ledger transports
-- Conditional compilation based abstraction of transport type
-  - Native HID if not wasm32
-  - Feature flags for browser or node if wasm32
 - Break out integration tests
 - Strip print logs

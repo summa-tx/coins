@@ -29,8 +29,12 @@ jobs:
       - run: cargo test ${{ matrix.features }}
 
   wasm:
-    name: check WASM
+    name: check WASM ${{ matrix.features }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        features: ["", "--no-default-features"]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
@@ -40,9 +44,10 @@ jobs:
       - name: check
         run: |
           cargo check \
+          --workspace \
+          --exclude coins-ledger \
           --target wasm32-unknown-unknown \
-          --no-default-features \
-          --features browser
+          ${{ matrix.features }}
 
   clippy:
     name: clippy

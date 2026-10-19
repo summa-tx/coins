@@ -18,7 +18,7 @@ pub mod common;
 /// Ledger-related error enum
 pub mod errors;
 
-/// Ledger transports. Contains native HID and wasm-bindgen
+/// Ledger transports. Contains the native HID transport.
 pub mod transports;
 
 pub use {

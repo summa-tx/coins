@@ -21,22 +21,9 @@ pub enum LedgerError {
     #[error("The backend has been disconnected.")]
     BackendGone,
 
-    /// JsValue Error
-    #[error("JsValue Error: {0}")]
-    #[cfg(target_arch = "wasm32")]
-    JsError(String),
-
     /// Native transport error type.
     #[error(transparent)]
-    #[cfg(not(target_arch = "wasm32"))]
     NativeTransportError(#[from] crate::transports::native::NativeTransportError),
-}
-
-#[cfg(target_arch = "wasm32")]
-impl From<wasm_bindgen::prelude::JsValue> for LedgerError {
-    fn from(r: wasm_bindgen::prelude::JsValue) -> Self {
-        LedgerError::JsError(format!("{:#?}", &r))
-    }
 }
 
 impl From<APDUResponseCodes> for LedgerError {
