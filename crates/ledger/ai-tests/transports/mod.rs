@@ -4,8 +4,9 @@
 
 use std::{collections::VecDeque, time::Duration};
 
-use super::LedgerTransport;
+use super::{DeviceIdentity, LedgerTransport};
 use crate::{
+    Model,
     common::{ApduAnswer, ApduBuffer, ApduCommand, StatusWord},
     errors::LedgerError,
 };
@@ -51,6 +52,10 @@ impl MockTransport {
 }
 
 impl LedgerTransport for &mut MockTransport {
+    fn identity(&self) -> Option<crate::transports::DeviceIdentity<'_>> {
+        None
+    }
+
     async fn exchange(
         &mut self,
         packet: ApduCommand,
@@ -62,4 +67,16 @@ impl LedgerTransport for &mut MockTransport {
             .pop_front()
             .unwrap_or(Err(LedgerError::BackendGone))
     }
+}
+
+#[test]
+fn device_identity_display_is_model_and_serial() {
+    let with_serial = DeviceIdentity::new(Model::NanoX, Some("0001"));
+    assert_eq!(with_serial.to_string(), "Nano X (0001)");
+    assert_eq!(with_serial.model(), Model::NanoX);
+    assert_eq!(with_serial.serial_number(), Some("0001"));
+
+    let without = DeviceIdentity::new(Model::NanoX, None);
+    assert_eq!(without.to_string(), "Nano X");
+    assert_eq!(without.serial_number(), None);
 }

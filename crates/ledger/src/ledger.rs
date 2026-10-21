@@ -1,10 +1,10 @@
 use std::time::Duration;
 
-use tracing::debug;
+use tracing::{Level, Span, debug, enabled, instrument};
 
 use crate::{
     ApduAnswer, ApduCommand, LedgerError,
-    transports::{DeviceId, HidTransport, LedgerTransport},
+    transports::{DeviceIdentity, HidDeviceId, HidTransport, LedgerTransport},
 };
 
 /// A Ledger device connection over a [`LedgerTransport`] (defaulting to
@@ -52,17 +52,44 @@ impl<T> Ledger<T>
 where
     T: LedgerTransport,
 {
+    /// The device this ledger talks to, if the transport knows.
+    pub fn identity(&self) -> Option<DeviceIdentity<'_>> {
+        self.transport.identity()
+    }
+
     /// Exchange a packet with the device, waiting up to the configured
     /// timeout for each report of the reply.
+    #[instrument(
+        level = "debug",
+        skip_all,
+        fields(
+            device,
+            cla = packet.cla(),
+            ins = packet.ins(),
+            p1 = packet.p1(),
+            p2 = packet.p2(),
+            len = packet.data().len(),
+            data,
+            response,
+        )
+    )]
     pub async fn exchange(&mut self, packet: ApduCommand) -> Result<ApduAnswer, LedgerError> {
-        debug!(command = ?packet, "dispatching APDU to device");
+        // NB: if trace is enabled, the span above is enabled, and `current` is
+        // the expected span.
+        if enabled!(Level::TRACE) {
+            Span::current().record("data", hex::encode(packet.data()));
+        }
+
         self.transport
             .exchange(packet, self.timeout)
             .await
             .inspect(|resp| {
+                if enabled!(Level::TRACE) {
+                    Span::current().record("response", hex::encode(resp.data()));
+                }
                 debug!(
                     status = %resp.status(),
-                    response = hex::encode(resp.data()),
+                    len = resp.data().len(),
                     "Received response from device"
                 )
             })
@@ -77,12 +104,12 @@ impl Ledger {
     }
 
     /// Open a Ledger via HID. See [`HidTransport::open`].
-    pub fn open_hid(id: &DeviceId) -> Result<Self, LedgerError> {
+    pub fn open_hid(id: &HidDeviceId) -> Result<Self, LedgerError> {
         HidTransport::open(id).map(Self::from_transport)
     }
 
     /// List available Ledger HID devices. See [`HidTransport::list`]
-    pub fn list_hid() -> Result<Vec<DeviceId>, LedgerError> {
+    pub fn list_hid() -> Result<Vec<HidDeviceId>, LedgerError> {
         HidTransport::list()
     }
 }

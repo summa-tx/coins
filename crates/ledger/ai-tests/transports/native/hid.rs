@@ -422,8 +422,8 @@ fn hid_thread_survives_a_panicking_job() {
 // ---------------------------------------------------------------------------
 // Device IDs
 
-fn device_id(product_id: u16, serial: Option<&str>) -> DeviceId {
-    DeviceId {
+fn device_id(product_id: u16, serial: Option<&str>) -> HidDeviceId {
+    HidDeviceId {
         path: c"/dev/hidraw3".to_owned(),
         product_id,
         serial_number: serial.map(str::to_owned),

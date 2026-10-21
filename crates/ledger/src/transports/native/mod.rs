@@ -4,7 +4,10 @@
 //! devices. [`HidTransport`] implements [`LedgerTransport`] over hid by
 //! spawning a background thread managing a [`HidLedgerDevice`].
 
-use crate::{ApduAnswer, ApduCommand, LedgerError, transports::LedgerTransport};
+use crate::{
+    ApduAnswer, ApduCommand, LedgerError,
+    transports::{DeviceIdentity, LedgerTransport},
+};
 use std::time::Duration;
 use tokio::sync::{mpsc, oneshot};
 
@@ -12,7 +15,8 @@ mod error;
 pub use error::NativeTransportError;
 
 pub mod hid;
-pub use hid::{DeviceId, HidLedgerDevice};
+pub use hid::{HidDeviceId, HidLedgerDevice};
+use tracing::{Span, debug, field::display};
 
 /// A packet exchange request.
 struct ApduExchange {
@@ -21,6 +25,9 @@ struct ApduExchange {
     timeout: Option<Duration>,
     /// The channel to send the answer back on.
     answer: oneshot::Sender<Result<ApduAnswer, LedgerError>>,
+    /// A tracing span associated with the exchange. Used to propagate trace
+    /// info to the background thread.
+    span: tracing::Span,
 }
 
 /// A handle to the Ledger device. This represents exclusive device access.
@@ -33,22 +40,23 @@ struct ApduExchange {
 /// the device.
 ///
 /// Generally instantiated via [`HidTransport::open_first`], but
-/// [`HidTransport::list`] allows scanning for [`DeviceId`]s that can be passed
-/// to [`HidTransport::open`].
+/// [`HidTransport::list`] allows scanning for [`HidDeviceId`]s that can be
+/// passed to [`HidTransport::open`].
 #[derive(Debug)]
 pub struct HidTransport {
     tx: mpsc::Sender<ApduExchange>,
+    identity: HidDeviceId,
 }
 
 impl HidTransport {
     /// List available Ledger devices. Empty under Termux; see
     /// [`HidLedgerDevice::list`].
-    pub fn list() -> Result<Vec<DeviceId>, LedgerError> {
+    pub fn list() -> Result<Vec<HidDeviceId>, LedgerError> {
         HidLedgerDevice::list().map_err(Into::into)
     }
 
     /// Open `id` and spawn its I/O thread. See [`HidLedgerDevice::open`].
-    pub fn open(id: &DeviceId) -> Result<Self, LedgerError> {
+    pub fn open(id: &HidDeviceId) -> Result<Self, LedgerError> {
         HidLedgerDevice::open(id)
             .map(Self::from_transport)
             .map_err(Into::into)
@@ -64,38 +72,56 @@ impl HidTransport {
 
     /// Make a [`HidTransport`] from an open device. This spawns a background
     /// thread that manages device communication.
-    pub fn from_transport(mut device: HidLedgerDevice) -> Self {
+    pub fn from_transport(device: HidLedgerDevice) -> Self {
+        let (device, identity) = device.into_parts();
         let (tx, mut rx) = mpsc::channel(1);
 
-        // Spawn a task that drives the blocking transport.
-        std::thread::spawn(move || {
-            while let Some(ApduExchange {
-                command,
-                timeout,
-                answer,
-            }) = rx.blocking_recv()
-            {
-                if answer.send(device.exchange(&command, timeout)).is_err() {
-                    tracing::debug!("exchange was dropped before its answer arrived");
+        // Spawn a thread that drives the blocking transport.
+        std::thread::Builder::new()
+            .name("coins-ledger-io".into())
+            .spawn(move || {
+                while let Some(ApduExchange {
+                    command,
+                    timeout,
+                    answer,
+                    span,
+                }) = rx.blocking_recv()
+                {
+                    let _entered = span.entered();
+                    if answer
+                        .send(hid::exchange(&device, &command, timeout))
+                        .is_err()
+                    {
+                        debug!("exchange was dropped before its answer arrived");
+                    }
                 }
-            }
-        });
-        Self { tx }
+            })
+            .expect("failed to spawn the Ledger I/O thread");
+        Self { tx, identity }
     }
 }
 
 impl LedgerTransport for HidTransport {
+    fn identity(&self) -> Option<DeviceIdentity<'_>> {
+        Some(DeviceIdentity {
+            model: self.identity.model(),
+            serial_number: self.identity.serial_number(),
+        })
+    }
+
     async fn exchange(
         &mut self,
         command: ApduCommand,
         timeout: Option<Duration>,
     ) -> Result<ApduAnswer, LedgerError> {
+        Span::current().record("device", display(&self.identity));
         let (answer, rx) = oneshot::channel();
         self.tx
             .send(ApduExchange {
                 command,
                 timeout,
                 answer,
+                span: Span::current(),
             })
             .await
             .map_err(|_| LedgerError::BackendGone)?;

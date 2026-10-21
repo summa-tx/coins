@@ -1,19 +1,65 @@
 //! Abstract ledger transport trait with a native HID instantiation.
 
-use std::time::Duration;
+use std::{fmt, time::Duration};
 
 pub mod native;
-pub use native::{DeviceId, HidTransport};
+pub use native::{HidDeviceId, HidTransport};
 
 use crate::{
+    Model,
     common::{ApduAnswer, ApduCommand},
     errors::LedgerError,
 };
 
+/// What identifies a Ledger on any transport: its model and serial number.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct DeviceIdentity<'a> {
+    model: Model,
+    serial_number: Option<&'a str>,
+}
+
+impl<'a> DeviceIdentity<'a> {
+    /// Identify a device by model and, if it reports one, serial number.
+    pub const fn new(model: Model, serial_number: Option<&'a str>) -> Self {
+        Self {
+            model,
+            serial_number,
+        }
+    }
+
+    /// The hardware model.
+    pub const fn model(&self) -> Model {
+        self.model
+    }
+
+    /// The serial number, if the device reports one.
+    pub const fn serial_number(&self) -> Option<&str> {
+        self.serial_number
+    }
+}
+
+/// `Nano X (0001)`, or `Nano X` with no serial number.
+impl fmt::Display for DeviceIdentity<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.model)?;
+        if let Some(serial) = &self.serial_number {
+            write!(f, " ({serial})")?;
+        }
+        Ok(())
+    }
+}
+
 /// An asynchronous interface to a Ledger device.
 pub trait LedgerTransport {
+    /// The device this transport talks to, if it knows.
+    fn identity(&self) -> Option<DeviceIdentity<'_>>;
+
     /// Exchange a packet. Transports SHOULD respect the timeout, but are free
     /// to choose how to do that.
+    ///
+    /// [`Ledger::exchange`](crate::Ledger::exchange) calls this inside a span
+    /// with an empty `device` field. A transport that knows its device may
+    /// record it on the current span.
     fn exchange(
         &mut self,
         packet: ApduCommand,
