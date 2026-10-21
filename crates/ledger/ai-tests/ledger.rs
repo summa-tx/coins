@@ -67,7 +67,7 @@ async fn transport_failures_pass_through() {
 async fn timeout_is_forwarded_and_settable() {
     let mut mock = MockTransport::new().reply(&[]).reply(&[]);
     let mut ledger = Ledger::from_handle(&mut mock);
-    assert_eq!(ledger.timeout(), DEFAULT_LEDGER_TIMEOUT);
+    assert_eq!(ledger.timeout(), None);
     ledger.exchange(get_version()).await.unwrap();
 
     let short = Some(Duration::from_millis(250));
@@ -75,7 +75,7 @@ async fn timeout_is_forwarded_and_settable() {
     assert_eq!(ledger.timeout(), short);
     ledger.exchange(get_version()).await.unwrap();
 
-    assert_eq!(mock.timeouts, vec![DEFAULT_LEDGER_TIMEOUT, short]);
+    assert_eq!(mock.timeouts, vec![None, short]);
 }
 
 #[tokio::test]

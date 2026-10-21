@@ -15,22 +15,11 @@ struct MockDevice {
 
 impl MockDevice {
     fn write(&mut self, report: &WriteReport) -> Result<(), NativeTransportError> {
-        if report[0] != 0 {
-            return Err(NativeTransportError::Comm("report id must be 0"));
-        }
-        if report[1..3] != [0x01, 0x01] {
-            return Err(NativeTransportError::Comm("wrong channel"));
-        }
-        if report[3] != 0x05 {
-            return Err(NativeTransportError::Comm("wrong tag"));
-        }
+        assert_eq!(report[0], 0, "report id");
+        assert_eq!(report[1..3], [0x01, 0x01], "channel");
+        assert_eq!(report[3], 0x05, "tag");
         let got = u16::from_be_bytes([report[4], report[5]]);
-        if got != self.next_seq {
-            return Err(NativeTransportError::SequenceMismatch {
-                got,
-                expected: self.next_seq,
-            });
-        }
+        assert_eq!(got, self.next_seq, "sequence index");
 
         let mut payload = &report[6..];
         if got == 0 {
@@ -137,9 +126,12 @@ fn sink_error_stops_after_the_failing_report() {
     let mut calls = 0;
     let result = packetize(LEDGER_CHANNEL, &[0; 200], |_| {
         calls += 1;
-        Err(NativeTransportError::Comm("boom"))
+        Err(NativeTransportError::HidThreadUnavailable)
     });
-    assert!(matches!(result, Err(NativeTransportError::Comm("boom"))));
+    assert!(matches!(
+        result,
+        Err(NativeTransportError::HidThreadUnavailable)
+    ));
     assert_eq!(calls, 1);
 }
 
@@ -194,19 +186,14 @@ fn device_reports(channel: u16, response: &[u8]) -> Vec<ReadReport> {
 }
 
 /// A report source that hands out `reports` in order, each as a full read,
-/// then fails.
+/// then panics.
 fn source(
     reports: Vec<ReadReport>,
 ) -> impl FnMut(&mut ReadReport) -> Result<usize, NativeTransportError> {
     let mut reports = reports.into_iter();
-    move |report| match reports.next() {
-        Some(next) => {
-            *report = next;
-            Ok(next.len())
-        }
-        None => Err(NativeTransportError::Comm(
-            "mock device has no more reports",
-        )),
+    move |report| {
+        *report = reports.next().expect("mock device has no more reports");
+        Ok(report.len())
     }
 }
 
@@ -357,6 +344,11 @@ fn hid_timeouts() {
     assert_eq!(hid_timeout_ms(None), -1);
     assert_eq!(hid_timeout_ms(Some(Duration::ZERO)), 0);
     assert_eq!(hid_timeout_ms(Some(Duration::from_millis(1500))), 1500);
+    assert_eq!(
+        hid_timeout_ms(Some(Duration::from_micros(1))),
+        1,
+        "rounds up"
+    );
     assert_eq!(
         hid_timeout_ms(Some(Duration::from_secs(u64::MAX))),
         i32::MAX

@@ -19,9 +19,10 @@ use crate::{
 /// never be interleaved, so [`Ledger`](crate::Ledger) holds its transport
 /// exclusively and `exchange` takes `&mut self`.
 ///
-/// Implementations build their replies with [`ApduAnswer::from_answer`]. See
-/// [`Ledger`](crate::Ledger) for an example.
-pub trait LedgerTransport: Sized {
+/// Implementations build their replies with [`ApduAnswer::from_answer`] and
+/// return a non-success status word as an error with
+/// [`ApduAnswer::into_result`]. See [`Ledger`](crate::Ledger) for an example.
+pub trait LedgerTransport {
     /// Exchange a packet, waiting up to `timeout` for each report of the
     /// reply. `None` waits indefinitely.
     fn exchange(

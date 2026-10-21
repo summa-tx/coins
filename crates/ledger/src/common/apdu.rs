@@ -9,7 +9,7 @@ pub struct BufferFull;
 /// A buffer holding one APDU command or response.
 pub struct ApduBuffer {
     len: u16,
-    data: [u8; 261],
+    data: [u8; Self::CAPACITY],
 }
 
 impl Default for ApduBuffer {
@@ -37,12 +37,6 @@ impl std::ops::Deref for ApduBuffer {
 
     fn deref(&self) -> &Self::Target {
         &self.data[..self.len as usize]
-    }
-}
-
-impl AsRef<[u8]> for ApduBuffer {
-    fn as_ref(&self) -> &[u8] {
-        self
     }
 }
 

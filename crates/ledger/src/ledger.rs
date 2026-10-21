@@ -7,10 +7,6 @@ use crate::{
     transports::{LedgerHandle, LedgerTransport},
 };
 
-/// Default per-report read timeout: wait indefinitely. The device may be
-/// waiting on the user, which takes as long as it takes.
-pub(crate) const DEFAULT_LEDGER_TIMEOUT: Option<Duration> = None;
-
 /// A Ledger device connection over a [`LedgerTransport`]. The default is the
 /// native HID handle.
 ///
@@ -41,7 +37,7 @@ pub(crate) const DEFAULT_LEDGER_TIMEOUT: Option<Duration> = None;
 ///     ) -> Result<ApduAnswer, LedgerError> {
 ///         let mut reply = ApduBuffer::new();
 ///         reply.extend_from_slice(&[0x90, 0x00]).unwrap();
-///         ApduAnswer::from_answer(reply)
+///         ApduAnswer::from_answer(reply)?.into_result()
 ///     }
 /// }
 ///
@@ -59,11 +55,12 @@ pub struct Ledger<T = LedgerHandle> {
 }
 
 impl<T> Ledger<T> {
-    /// Create a ledger from a handle.
+    /// Create a ledger from a handle. Starts with no timeout: the device may
+    /// be waiting on the user, which takes as long as it takes.
     pub const fn from_handle(transport: T) -> Self {
         Self {
             transport,
-            timeout: DEFAULT_LEDGER_TIMEOUT,
+            timeout: None,
         }
     }
 
@@ -85,20 +82,18 @@ where
     /// Exchange a packet with the device, waiting up to the configured
     /// timeout for each report of the reply.
     pub async fn exchange(&mut self, packet: ApduCommand) -> Result<ApduAnswer, LedgerError> {
-        debug!(command = %packet, "dispatching APDU to device");
-
-        let resp = self.transport.exchange(packet, self.timeout).await;
-        match &resp {
-            Ok(resp) => {
+        debug!(command = ?packet, "dispatching APDU to device");
+        self.transport
+            .exchange(packet, self.timeout)
+            .await
+            .inspect(|resp| {
                 debug!(
                     status = %resp.status(),
                     response = hex::encode(resp.data()),
                     "Received response from device"
                 )
-            }
-            Err(err) => debug!(%err, "Exchange failed"),
-        }
-        resp
+            })
+            .inspect_err(|err| debug!(%err, "Exchange failed"))
     }
 }
 

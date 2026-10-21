@@ -28,36 +28,6 @@ impl fmt::Display for StatusWord {
     }
 }
 
-impl fmt::LowerHex for StatusWord {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::LowerHex::fmt(&self.0, f)
-    }
-}
-
-impl fmt::UpperHex for StatusWord {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::UpperHex::fmt(&self.0, f)
-    }
-}
-
-impl From<u16> for StatusWord {
-    fn from(raw: u16) -> Self {
-        Self(raw)
-    }
-}
-
-impl From<StatusWord> for u16 {
-    fn from(sw: StatusWord) -> Self {
-        sw.0
-    }
-}
-
-impl From<[u8; 2]> for StatusWord {
-    fn from(bytes: [u8; 2]) -> Self {
-        Self::from_be_bytes(bytes)
-    }
-}
-
 // Proprietary OS codes.
 impl StatusWord {
     /// The device is locked. The PIN has not been entered.
@@ -102,7 +72,7 @@ impl StatusWord {
     /// user approval.
     pub const NO_RESPONSE: Self = Self(0x0000);
 
-    /// Success. SW2 is the number of response bytes still available.
+    /// Normal processing. SW2 is the number of response bytes still available.
     pub const RESPONSE_BYTES_AVAILABLE: Self = Self(0x6100);
 
     /// Warning: the returned data may be corrupted.
@@ -360,7 +330,9 @@ impl StatusWord {
             0x6FAA => "Device halted",
 
             0x0000 => "No response yet; the answer will arrive later",
-            0x6100..=0x61FF => "Success; SW2 is the number of response bytes still available",
+            0x6100..=0x61FF => {
+                "Normal processing; SW2 is the number of response bytes still available"
+            }
             0x6281 => "Warning: returned data may be corrupted",
             0x6282 => "Warning: end of file reached before reading Le bytes",
             0x6283 => "Warning: selected file invalidated",

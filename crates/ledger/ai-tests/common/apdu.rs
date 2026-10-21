@@ -23,7 +23,6 @@ fn append_tracks_length_and_contents() {
     b.extend_from_slice(&[1, 2]).unwrap();
     b.extend_from_slice(&[3]).unwrap();
     assert_eq!(&*b, &[1, 2, 3]);
-    assert_eq!(b.as_ref(), &[1, 2, 3]);
     assert_eq!(b.len(), 3);
     assert!(!b.is_empty());
     assert_eq!(b.remaining_capacity(), ApduBuffer::CAPACITY - 3);

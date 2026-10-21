@@ -10,8 +10,6 @@ fn status_word_bytes() {
     assert_eq!(sw.sw1(), 0x69);
     assert_eq!(sw.sw2(), 0x85);
     assert_eq!(sw.to_be_bytes(), [0x69, 0x85]);
-    assert_eq!(StatusWord::from([0x90, 0x00]), StatusWord::SUCCESS);
-    assert_eq!(u16::from(StatusWord::BUSY), 0x9001);
 }
 
 #[test]
@@ -63,8 +61,6 @@ fn status_word_formatting() {
     let sw = StatusWord::CONDITIONS_NOT_SATISFIED;
     assert!(sw.to_string().starts_with("0x6985 ("));
     assert_eq!(format!("{sw:?}"), "StatusWord(0x6985)");
-    assert_eq!(format!("{sw:x}"), "6985");
-    assert_eq!(format!("{sw:#06X}"), "0x6985");
     assert_eq!(
         format!("{:?}", StatusWord::new(0x0001)),
         "StatusWord(0x0001)"

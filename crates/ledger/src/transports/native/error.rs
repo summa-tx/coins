@@ -11,7 +11,7 @@ pub enum NativeTransportError {
     #[error("Ledger device did not respond within {0:?}")]
     Timeout(Duration),
 
-    /// The device announced a response longer than a short APDU allows.
+    /// The device announced a response longer than an [`ApduBuffer`] holds.
     #[error(
         "Ledger device response too long: {0} bytes, max {max}. Hint: This may indicate an incompatible device.",
         max = ApduBuffer::CAPACITY
@@ -74,10 +74,6 @@ pub enum NativeTransportError {
     /// stopped.
     #[error("The HID context thread is unavailable")]
     HidThreadUnavailable,
-
-    /// Communication error
-    #[error("Ledger device: communication error `{0}`")]
-    Comm(&'static str),
 
     /// HID error
     #[error(transparent)]

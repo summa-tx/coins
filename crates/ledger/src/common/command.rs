@@ -80,7 +80,8 @@ impl<'a> CommandBuilder<'a> {
     pub fn build(self) -> Result<ApduCommand, LedgerError> {
         let cla = self.cla.ok_or(LedgerError::MissingCla)?;
         let ins = self.ins.ok_or(LedgerError::MissingIns)?;
-        let mut command = ApduCommand::new(cla, ins, self.p1, self.p2);
+        let mut command = ApduCommand(ApduBuffer::new());
+        command.append(&[cla, ins, self.p1, self.p2]);
         if let Some(data) = self.data {
             command.set_data(data)?;
         }
@@ -91,20 +92,8 @@ impl<'a> CommandBuilder<'a> {
 
 /// A short-form APDU command in wire encoding. Built by [`CommandBuilder`];
 /// editable in place with the `set_*` methods.
-///
-/// ```compile_fail
-/// let cmd = coins_ledger::common::ApduCommand::new(0xe0, 0x06, 0, 0);
-/// ```
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub struct ApduCommand(ApduBuffer);
-
-impl PartialEq for ApduCommand {
-    fn eq(&self, other: &Self) -> bool {
-        self.as_bytes() == other.as_bytes()
-    }
-}
-
-impl Eq for ApduCommand {}
 
 impl fmt::Debug for ApduCommand {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -119,22 +108,10 @@ impl fmt::Debug for ApduCommand {
     }
 }
 
-impl fmt::Display for ApduCommand {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        fmt::Debug::fmt(self, f)
-    }
-}
-
 impl std::ops::Deref for ApduCommand {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl AsRef<[u8]> for ApduCommand {
-    fn as_ref(&self) -> &[u8] {
         &self.0
     }
 }
@@ -145,14 +122,6 @@ impl ApduCommand {
 
     /// CLA, INS, P1, P2.
     const HEADER_LEN: usize = 4;
-
-    /// Header only. Used by [`CommandBuilder::build`].
-    fn new(cla: u8, ins: u8, p1: u8, p2: u8) -> Self {
-        let mut buf = ApduBuffer::new();
-        buf.extend_from_slice(&[cla, ins, p1, p2])
-            .expect("a 4-byte header fits in an empty ApduBuffer");
-        Self(buf)
-    }
 
     /// An empty [`CommandBuilder`].
     pub const fn builder<'a>() -> CommandBuilder<'a> {
@@ -199,16 +168,6 @@ impl ApduCommand {
     /// The encoded command, ready for the wire.
     pub fn as_bytes(&self) -> &[u8] {
         &self.0
-    }
-
-    /// The underlying buffer.
-    pub const fn buffer(&self) -> &ApduBuffer {
-        &self.0
-    }
-
-    /// Consume the command and return the underlying buffer.
-    pub const fn into_buffer(self) -> ApduBuffer {
-        self.0
     }
 
     /// Set the class byte.

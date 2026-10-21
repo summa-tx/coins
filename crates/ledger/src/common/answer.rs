@@ -3,7 +3,7 @@ use crate::errors::LedgerError;
 use super::{ApduBuffer, StatusWord};
 
 /// An APDU response: data followed by a status word.
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct ApduAnswer(ApduBuffer);
 
 impl std::ops::Deref for ApduAnswer {
@@ -37,6 +37,17 @@ impl ApduAnswer {
         }
     }
 
+    /// `Ok` if the status word is [`StatusWord::SUCCESS`], else
+    /// [`LedgerError::BadRetcode`]. Transports apply this so that a
+    /// non-success reply surfaces as an error.
+    pub fn into_result(self) -> Result<Self, LedgerError> {
+        if self.is_success() {
+            Ok(self)
+        } else {
+            Err(self.status().into())
+        }
+    }
+
     /// True if the status word is [`StatusWord::SUCCESS`].
     pub fn is_success(&self) -> bool {
         self.status().is_success()
@@ -44,12 +55,11 @@ impl ApduAnswer {
 
     /// The status word: the trailing two bytes of the response.
     pub fn status(&self) -> StatusWord {
-        let mut buf = [0u8; 2];
-        buf.copy_from_slice(&self.0[self.len() - 2..]);
-        StatusWord::from_be_bytes(buf)
+        let n = self.len();
+        StatusWord::from_be_bytes([self[n - 2], self[n - 1]])
     }
 
-    /// Return a reference to the response data, or None if the response errored
+    /// The response data: everything before the status word.
     pub fn data(&self) -> &[u8] {
         &self.0[..self.len() - 2]
     }

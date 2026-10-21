@@ -12,63 +12,20 @@ use hid::TransportNativeHID;
 
 /// A packet exchange request.
 struct ApduExchange {
-    /// The command to send to the device.
     command: ApduCommand,
-    /// The channel to send the answer back on.
-    answer: oneshot::Sender<Result<ApduAnswer, LedgerError>>,
     /// The per-report read timeout. `None` waits indefinitely.
     timeout: Option<Duration>,
-}
-
-impl ApduExchange {
-    /// Create a new exchange request.
-    fn new(
-        command: ApduCommand,
-        timeout: Option<Duration>,
-    ) -> (Self, oneshot::Receiver<Result<ApduAnswer, LedgerError>>) {
-        let (tx, rx) = oneshot::channel();
-        (
-            Self {
-                command,
-                answer: tx,
-                timeout,
-            },
-            rx,
-        )
-    }
-}
-
-/// A task that manages Ledger packet exchange.
-struct LedgerTask {
-    ledger: TransportNativeHID,
-    rx: tokio::sync::mpsc::Receiver<ApduExchange>,
-}
-
-impl LedgerTask {
-    /// Create a new task.
-    fn new(ledger: TransportNativeHID) -> (Self, tokio::sync::mpsc::Sender<ApduExchange>) {
-        let (tx, rx) = tokio::sync::mpsc::channel(1);
-        (Self { ledger, rx }, tx)
-    }
-
-    /// Spawn the thread that performs the device I/O.
-    fn spawn(mut self) {
-        std::thread::spawn(move || {
-            while let Some(exchange) = self.rx.blocking_recv() {
-                // blocking IO
-                let answer = self.ledger.exchange(&exchange.command, exchange.timeout);
-
-                if exchange.answer.send(answer).is_err() {
-                    tracing::debug!("exchange was dropped before its answer arrived");
-                }
-            }
-        });
-    }
+    /// The channel to send the answer back on.
+    answer: oneshot::Sender<Result<ApduAnswer, LedgerError>>,
 }
 
 /// A handle to the Ledger device. This handle is not clone, as it is critical
 /// that only one connection to the device is active at a time. APDUs may NOT
 /// be interleaved.
+///
+/// Dropping the handle closes the device once the I/O thread notices, which
+/// is after any exchange in flight completes. On macOS, where opens are
+/// exclusive, reopening the device right after a drop can fail.
 #[derive(Debug)]
 pub struct LedgerHandle {
     tx: mpsc::Sender<ApduExchange>,
@@ -82,16 +39,21 @@ impl LedgerHandle {
 
     /// Spawn an I/O thread for a device you opened yourself, e.g. one of
     /// [`TransportNativeHID::open_all_devices`].
-    pub fn new(transport: TransportNativeHID) -> Self {
-        let (task, tx) = LedgerTask::new(transport);
-        task.spawn();
+    pub fn new(mut device: TransportNativeHID) -> Self {
+        let (tx, mut rx) = mpsc::channel(1);
+        std::thread::spawn(move || {
+            while let Some(ApduExchange {
+                command,
+                timeout,
+                answer,
+            }) = rx.blocking_recv()
+            {
+                if answer.send(device.exchange(&command, timeout)).is_err() {
+                    tracing::debug!("exchange was dropped before its answer arrived");
+                }
+            }
+        });
         Self { tx }
-    }
-}
-
-impl From<TransportNativeHID> for LedgerHandle {
-    fn from(transport: TransportNativeHID) -> Self {
-        Self::new(transport)
     }
 }
 
@@ -101,11 +63,18 @@ impl LedgerTransport for LedgerHandle {
     /// clamped.
     async fn exchange(
         &mut self,
-        apdu: ApduCommand,
+        command: ApduCommand,
         timeout: Option<Duration>,
     ) -> Result<ApduAnswer, LedgerError> {
-        let (exchange, rx) = ApduExchange::new(apdu, timeout);
-        self.tx.send(exchange).await?;
-        rx.await?
+        let (answer, rx) = oneshot::channel();
+        self.tx
+            .send(ApduExchange {
+                command,
+                timeout,
+                answer,
+            })
+            .await
+            .map_err(|_| LedgerError::BackendGone)?;
+        rx.await.map_err(|_| LedgerError::BackendGone)?
     }
 }

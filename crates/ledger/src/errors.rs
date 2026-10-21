@@ -39,15 +39,3 @@ impl From<StatusWord> for LedgerError {
         LedgerError::BadRetcode(sw)
     }
 }
-
-impl From<tokio::sync::oneshot::error::RecvError> for LedgerError {
-    fn from(_: tokio::sync::oneshot::error::RecvError) -> Self {
-        Self::BackendGone
-    }
-}
-
-impl<T> From<tokio::sync::mpsc::error::SendError<T>> for LedgerError {
-    fn from(_: tokio::sync::mpsc::error::SendError<T>) -> Self {
-        Self::BackendGone
-    }
-}

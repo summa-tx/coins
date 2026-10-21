@@ -16,12 +16,7 @@ pub(crate) fn answer(data: &[u8], status: StatusWord) -> Result<ApduAnswer, Ledg
     buf.extend_from_slice(data).expect("mock response fits");
     buf.extend_from_slice(&status.to_be_bytes())
         .expect("mock response fits");
-    let answer = ApduAnswer::from_answer(buf)?;
-    if answer.is_success() {
-        Ok(answer)
-    } else {
-        Err(answer.status().into())
-    }
+    ApduAnswer::from_answer(buf)?.into_result()
 }
 
 /// A scripted transport: hands out queued replies, records what it saw.
