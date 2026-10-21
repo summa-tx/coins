@@ -4,7 +4,7 @@
 use super::*;
 use crate::{
     common::{CommandBuilder, StatusWord},
-    transports::ai_tests::MockTransport,
+    transports::ai_tests::{MockTransport, ScriptExhausted},
 };
 
 fn get_version() -> ApduCommand {
@@ -54,12 +54,13 @@ async fn locked_device_is_reported_as_such() {
 }
 
 #[tokio::test]
-async fn transport_failures_pass_through() {
-    let mut mock = MockTransport::new().fail(LedgerError::BackendGone);
+async fn transport_timeouts_pass_through() {
+    let timeout = Duration::from_secs(1);
+    let mut mock = MockTransport::new().fail(LedgerError::Timeout(timeout));
     let mut ledger = Ledger::from_transport(&mut mock);
     assert!(matches!(
         ledger.exchange(get_version()).await,
-        Err(LedgerError::BackendGone)
+        Err(LedgerError::Timeout(d)) if d == timeout
     ));
 }
 
@@ -137,11 +138,12 @@ async fn chunked_payload_is_delivered_whole() {
 }
 
 #[tokio::test]
-async fn exhausted_script_reads_as_backend_gone() {
+async fn transport_errors_pass_through_and_downcast() {
     let mut mock = MockTransport::new();
     let mut ledger = Ledger::from_transport(&mut mock);
-    assert!(matches!(
-        ledger.exchange(get_version()).await,
-        Err(LedgerError::BackendGone)
-    ));
+    let err = ledger.exchange(get_version()).await.unwrap_err();
+    let LedgerError::Transport(inner) = err else {
+        panic!("expected Transport, got {err:?}");
+    };
+    assert!(inner.downcast_ref::<ScriptExhausted>().is_some());
 }

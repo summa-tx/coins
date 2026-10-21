@@ -237,19 +237,22 @@ fn only_the_bytes_read_are_payload() {
     // Short reads: the report array still holds stale bytes past `n`.
     let first = device_reports(LEDGER_CHANNEL, &[7; 20]).remove(0);
     let mut calls = 0;
-    let answer = depacketize(LEDGER_CHANNEL, |report| {
-        calls += 1;
-        report.fill(0xaa);
-        if calls == 1 {
-            // Header, length, and 3 payload bytes.
-            report[..10].copy_from_slice(&first[..10]);
-            Ok(10)
-        } else {
-            report[..5].copy_from_slice(&[0x01, 0x01, 0x05, 0x00, 0x01]);
-            report[5..22].fill(7);
-            Ok(22)
-        }
-    })
+    let answer = depacketize(
+        LEDGER_CHANNEL,
+        |report| -> Result<usize, NativeTransportError> {
+            calls += 1;
+            report.fill(0xaa);
+            if calls == 1 {
+                // Header, length, and 3 payload bytes.
+                report[..10].copy_from_slice(&first[..10]);
+                Ok(10)
+            } else {
+                report[..5].copy_from_slice(&[0x01, 0x01, 0x05, 0x00, 0x01]);
+                report[5..22].fill(7);
+                Ok(22)
+            }
+        },
+    )
     .unwrap();
     assert_eq!(&*answer, &[7; 20]);
     assert_eq!(calls, 2);
@@ -332,11 +335,22 @@ fn truncated_reports_are_errors() {
 
 #[test]
 fn source_errors_pass_through() {
+    // The read path reports a timeout as a `LedgerError`, so a source may
+    // yield that type, and framing errors raised inside convert to match.
     let err = depacketize(LEDGER_CHANNEL, |_| {
-        Err(NativeTransportError::Timeout(Duration::from_secs(1)))
+        Err(LedgerError::Timeout(Duration::from_secs(1)))
     })
     .unwrap_err();
-    assert!(matches!(err, NativeTransportError::Timeout(d) if d == Duration::from_secs(1)));
+    assert!(matches!(err, LedgerError::Timeout(d) if d == Duration::from_secs(1)));
+
+    let err = depacketize(LEDGER_CHANNEL, |_| Ok::<usize, LedgerError>(0)).unwrap_err();
+    let LedgerError::Transport(inner) = err else {
+        panic!("expected Transport, got {err:?}");
+    };
+    assert!(matches!(
+        inner.downcast_ref(),
+        Some(NativeTransportError::TruncatedReport(0))
+    ));
 }
 
 #[test]

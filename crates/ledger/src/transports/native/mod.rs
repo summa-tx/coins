@@ -51,23 +51,19 @@ pub struct HidTransport {
 impl HidTransport {
     /// List available Ledger devices. Empty under Termux; see
     /// [`HidLedgerDevice::list`].
-    pub fn list() -> Result<Vec<HidDeviceId>, LedgerError> {
-        HidLedgerDevice::list().map_err(Into::into)
+    pub fn list() -> Result<Vec<HidDeviceId>, NativeTransportError> {
+        HidLedgerDevice::list()
     }
 
     /// Open `id` and spawn its I/O thread. See [`HidLedgerDevice::open`].
-    pub fn open(id: &HidDeviceId) -> Result<Self, LedgerError> {
-        HidLedgerDevice::open(id)
-            .map(Self::from_transport)
-            .map_err(Into::into)
+    pub fn open(id: &HidDeviceId) -> Result<Self, NativeTransportError> {
+        HidLedgerDevice::open(id).map(Self::from_transport)
     }
 
     /// Open the first Ledger found, or the device Termux hands over, and
     /// spawn its I/O thread. See [`HidLedgerDevice::open_first`].
-    pub fn open_first() -> Result<Self, LedgerError> {
-        HidLedgerDevice::open_first()
-            .map(Self::from_transport)
-            .map_err(Into::into)
+    pub fn open_first() -> Result<Self, NativeTransportError> {
+        HidLedgerDevice::open_first().map(Self::from_transport)
     }
 
     /// Make a [`HidTransport`] from an open device. This spawns a background
@@ -124,7 +120,8 @@ impl LedgerTransport for HidTransport {
                 span: Span::current(),
             })
             .await
-            .map_err(|_| LedgerError::BackendGone)?;
-        rx.await.map_err(|_| LedgerError::BackendGone)?
+            .map_err(|_| NativeTransportError::IoThreadUnavailable)?;
+        rx.await
+            .map_err(|_| NativeTransportError::IoThreadUnavailable)?
     }
 }

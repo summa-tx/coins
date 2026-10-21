@@ -2,7 +2,7 @@
 //! `src/transports/mod.rs`. `MockTransport` replaces the HID handle behind
 //! `Ledger`.
 
-use std::{collections::VecDeque, time::Duration};
+use std::{collections::VecDeque, error::Error, fmt, time::Duration};
 
 use super::{DeviceIdentity, LedgerTransport};
 use crate::{
@@ -19,6 +19,19 @@ pub(crate) fn answer(data: &[u8], status: StatusWord) -> Result<ApduAnswer, Ledg
         .expect("mock response fits");
     ApduAnswer::from_answer(buf)?.into_result()
 }
+
+/// What `MockTransport` reports once its script runs out. Stands in for a
+/// third-party transport's own error type.
+#[derive(Debug)]
+pub(crate) struct ScriptExhausted;
+
+impl fmt::Display for ScriptExhausted {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str("mock transport has no more replies")
+    }
+}
+
+impl Error for ScriptExhausted {}
 
 /// A scripted transport: hands out queued replies, records what it saw.
 #[derive(Debug, Default)]
@@ -65,7 +78,7 @@ impl LedgerTransport for &mut MockTransport {
         self.timeouts.push(timeout);
         self.replies
             .pop_front()
-            .unwrap_or(Err(LedgerError::BackendGone))
+            .unwrap_or(Err(LedgerError::Transport(Box::new(ScriptExhausted))))
     }
 }
 

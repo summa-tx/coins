@@ -1,8 +1,10 @@
+use std::time::Duration;
+
 use thiserror::Error;
 
-use crate::common::StatusWord;
+use crate::{common::StatusWord, transports::native::NativeTransportError};
 
-/// APDU-related errors
+/// Errors from building, exchanging, and parsing APDUs.
 #[derive(Debug, Error)]
 pub enum LedgerError {
     /// A command was built without a class byte.
@@ -25,13 +27,20 @@ pub enum LedgerError {
     #[error("Ledger device: APDU response error {0}")]
     BadRetcode(StatusWord),
 
-    /// The backend has been disconnected.
-    #[error("The backend has been disconnected.")]
-    BackendGone,
+    /// The device did not answer within the timeout.
+    #[error("Ledger device did not respond within {0:?}")]
+    Timeout(Duration),
 
-    /// Native transport error type.
+    /// The transport failed. [`NativeTransportError`] for the HID transport;
+    /// other transports box their own error type.
     #[error(transparent)]
-    NativeTransportError(#[from] crate::transports::native::NativeTransportError),
+    Transport(#[from] Box<dyn std::error::Error + Send + Sync + 'static>),
+}
+
+impl From<NativeTransportError> for LedgerError {
+    fn from(err: NativeTransportError) -> Self {
+        Self::Transport(Box::new(err))
+    }
 }
 
 impl From<StatusWord> for LedgerError {
@@ -39,3 +48,7 @@ impl From<StatusWord> for LedgerError {
         LedgerError::BadRetcode(sw)
     }
 }
+
+#[cfg(test)]
+#[path = "../ai-tests/errors.rs"]
+mod ai_tests;

@@ -366,16 +366,19 @@ fn write_apdu(device: &HidDevice, channel: u16, apdu: &[u8]) -> Result<(), Nativ
 
 /// Read one report from `source` and check its framing: channel, tag, and
 /// sequence index. Returns the number of bytes in the report.
-fn read_report(
-    source: &mut impl FnMut(&mut ReadReport) -> Result<usize, NativeTransportError>,
+///
+/// Generic over the error so that a source can report a timeout as a
+/// [`LedgerError`] while framing errors stay [`NativeTransportError`]s.
+fn read_report<E: From<NativeTransportError>>(
+    source: &mut impl FnMut(&mut ReadReport) -> Result<usize, E>,
     report: &mut ReadReport,
     channel: u16,
     sequence_idx: u16,
-) -> Result<usize, NativeTransportError> {
+) -> Result<usize, E> {
     tracing::trace!(sequence_idx, "Reading report from device");
     let n = source(report)?;
     if n < 5 {
-        return Err(NativeTransportError::TruncatedReport(n));
+        return Err(NativeTransportError::TruncatedReport(n).into());
     }
 
     // Another channel means another client is talking to the device.
@@ -384,10 +387,11 @@ fn read_report(
         return Err(NativeTransportError::UnexpectedChannel {
             got,
             expected: channel,
-        });
+        }
+        .into());
     }
     if report[2] != LEDGER_TAG {
-        return Err(NativeTransportError::UnexpectedTag(report[2]));
+        return Err(NativeTransportError::UnexpectedTag(report[2]).into());
     }
 
     // A mismatch means someone else read a report.
@@ -396,29 +400,30 @@ fn read_report(
         return Err(NativeTransportError::SequenceMismatch {
             got,
             expected: sequence_idx,
-        });
+        }
+        .into());
     }
     Ok(n)
 }
 
 /// Reassemble a response APDU from the reports `source` yields. The first
 /// report carries the 2-byte response length ahead of the payload.
-fn depacketize(
+fn depacketize<E: From<NativeTransportError>>(
     channel: u16,
-    mut source: impl FnMut(&mut ReadReport) -> Result<usize, NativeTransportError>,
-) -> Result<ApduBuffer, NativeTransportError> {
+    mut source: impl FnMut(&mut ReadReport) -> Result<usize, E>,
+) -> Result<ApduBuffer, E> {
     let mut report = [0u8; LEDGER_PACKET_READ_SIZE];
     let mut answer = ApduBuffer::new();
 
     // The first report has sequence index 0 and leads with the response length.
     let n = read_report(&mut source, &mut report, channel, 0)?;
     if n < 7 {
-        return Err(NativeTransportError::TruncatedReport(n));
+        return Err(NativeTransportError::TruncatedReport(n).into());
     }
     let expected = u16::from_be_bytes([report[5], report[6]]) as usize;
     tracing::trace!(expected, "Received response length from device");
     if expected > ApduBuffer::CAPACITY {
-        return Err(NativeTransportError::ResponseTooLong(expected));
+        return Err(NativeTransportError::ResponseTooLong(expected).into());
     }
 
     // Only the bytes the device sent are payload. The rest of the report
@@ -436,7 +441,7 @@ fn depacketize(
         let n = read_report(&mut source, &mut report, channel, sequence_idx)?;
         payload = &report[5..n];
         if payload.is_empty() {
-            return Err(NativeTransportError::EmptyReport);
+            return Err(NativeTransportError::EmptyReport.into());
         }
         sequence_idx += 1;
     }
@@ -448,13 +453,15 @@ fn read_apdu(
     device: &HidDevice,
     channel: u16,
     timeout: Option<Duration>,
-) -> Result<ApduBuffer, NativeTransportError> {
+) -> Result<ApduBuffer, LedgerError> {
     let timeout_ms = hid_timeout_ms(timeout);
-    depacketize(channel, |report| {
-        let n = device.read_timeout(report, timeout_ms)?;
+    depacketize(channel, |report| -> Result<usize, LedgerError> {
+        let n = device
+            .read_timeout(report, timeout_ms)
+            .map_err(NativeTransportError::Hid)?;
         // hidapi returns 0 only on timeout, which a blocking read rules out.
         match (n, timeout) {
-            (0, Some(timeout)) => Err(NativeTransportError::Timeout(timeout)),
+            (0, Some(timeout)) => Err(LedgerError::Timeout(timeout)),
             _ => Ok(n),
         }
     })

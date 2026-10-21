@@ -4,7 +4,9 @@ use tracing::{Level, Span, debug, enabled, instrument};
 
 use crate::{
     ApduAnswer, ApduCommand, LedgerError,
-    transports::{DeviceIdentity, HidDeviceId, HidTransport, LedgerTransport},
+    transports::{
+        DeviceIdentity, HidDeviceId, HidTransport, LedgerTransport, native::NativeTransportError,
+    },
 };
 
 /// A Ledger device connection over a [`LedgerTransport`] (defaulting to
@@ -99,17 +101,17 @@ where
 
 impl Ledger {
     /// Open the first Ledger found via HID. See [`HidTransport::open_first`].
-    pub fn open_first_hid() -> Result<Self, LedgerError> {
+    pub fn open_first_hid() -> Result<Self, NativeTransportError> {
         HidTransport::open_first().map(Self::from_transport)
     }
 
     /// Open a Ledger via HID. See [`HidTransport::open`].
-    pub fn open_hid(id: &HidDeviceId) -> Result<Self, LedgerError> {
+    pub fn open_hid(id: &HidDeviceId) -> Result<Self, NativeTransportError> {
         HidTransport::open(id).map(Self::from_transport)
     }
 
     /// List available Ledger HID devices. See [`HidTransport::list`]
-    pub fn list_hid() -> Result<Vec<HidDeviceId>, LedgerError> {
+    pub fn list_hid() -> Result<Vec<HidDeviceId>, NativeTransportError> {
         HidTransport::list()
     }
 }

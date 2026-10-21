@@ -1,16 +1,10 @@
-use std::time::Duration;
-
 use thiserror::Error;
 
 use crate::common::ApduBuffer;
 
-/// Ledger transport errors
+/// Errors from the native HID transport.
 #[derive(Error, Debug)]
 pub enum NativeTransportError {
-    /// No report arrived within the timeout.
-    #[error("Ledger device did not respond within {0:?}")]
-    Timeout(Duration),
-
     /// The device announced a response longer than an [`ApduBuffer`] holds.
     #[error(
         "Ledger device response too long: {0} bytes, max {max}. Hint: This may indicate an incompatible device.",
@@ -74,6 +68,10 @@ pub enum NativeTransportError {
     /// stopped.
     #[error("The HID context thread is unavailable")]
     HidThreadUnavailable,
+
+    /// The thread that drives the device has stopped.
+    #[error("The device I/O thread is unavailable")]
+    IoThreadUnavailable,
 
     /// HID error
     #[error(transparent)]

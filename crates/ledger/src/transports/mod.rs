@@ -55,7 +55,9 @@ pub trait LedgerTransport {
     fn identity(&self) -> Option<DeviceIdentity<'_>>;
 
     /// Exchange a packet. Transports SHOULD respect the timeout, but are free
-    /// to choose how to do that.
+    /// to choose how to do that. A transport reports a timeout as
+    /// [`LedgerError::Timeout`] and its own failures as
+    /// [`LedgerError::Transport`].
     ///
     /// [`Ledger::exchange`](crate::Ledger::exchange) calls this inside a span
     /// with an empty `device` field. A transport that knows its device may
