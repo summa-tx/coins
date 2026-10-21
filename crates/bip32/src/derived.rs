@@ -1,8 +1,8 @@
 use crate::{
+    Bip32Error,
     path::{DerivationPath, KeyDerivation},
     primitives::{Hint, KeyFingerprint, XKeyInfo},
-    xkeys::{Parent, XPriv, XPub, SEED},
-    Bip32Error,
+    xkeys::{Parent, SEED, XPriv, XPub},
 };
 use coins_core::hashes::{Hash160, Hash160Digest, MarkedDigest, MarkedDigestOutput};
 use k256::ecdsa;
@@ -282,11 +282,11 @@ impl DerivedPubkey {
 mod test {
     use super::*;
     use crate::{
+        BIP32_HARDEN,
         enc::{MainnetEncoder, XKeyEncoder},
         path::DerivationPath,
         prelude::*,
         primitives::*,
-        BIP32_HARDEN,
     };
     use coins_core::hashes::*;
 

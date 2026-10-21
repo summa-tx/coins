@@ -5,7 +5,7 @@
 //! type-confusion between TXIDs, sighashes, and other digests with the same
 //! length.
 
-use digest::{block_api::BlockSizeUser, HashMarker, Output, OutputSizeUser};
+use digest::{HashMarker, Output, OutputSizeUser, block_api::BlockSizeUser};
 use std::io::Write;
 
 // Useful re-exports

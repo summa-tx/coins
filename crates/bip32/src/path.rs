@@ -5,7 +5,7 @@ use std::{
     str::FromStr,
 };
 
-use crate::{primitives::KeyFingerprint, Bip32Error, BIP32_HARDEN};
+use crate::{BIP32_HARDEN, Bip32Error, primitives::KeyFingerprint};
 
 fn try_parse_index(s: &str) -> Result<u32, Bip32Error> {
     let mut index_str = s.to_owned();
@@ -298,9 +298,11 @@ mod test {
             }
         }
         assert!("m/2147483648'".parse::<DerivationPath>().is_err());
-        assert!("m/44'/60'/0'/0/2147483648"
-            .parse::<DerivationPath>()
-            .is_err());
+        assert!(
+            "m/44'/60'/0'/0/2147483648"
+                .parse::<DerivationPath>()
+                .is_err()
+        );
     }
 
     #[test]

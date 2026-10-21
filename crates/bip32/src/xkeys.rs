@@ -10,9 +10,9 @@ use subtle::{Choice, ConstantTimeEq};
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 use crate::{
+    BIP32_HARDEN, Bip32Error,
     path::DerivationPath,
     primitives::{ChainCode, Hint, KeyFingerprint, XKeyInfo},
-    Bip32Error, BIP32_HARDEN,
 };
 
 /// The BIP32-defined seed used for derivation of the root node.

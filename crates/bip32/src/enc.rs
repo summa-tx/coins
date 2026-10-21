@@ -4,9 +4,9 @@ use std::marker::PhantomData;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 use crate::{
+    Bip32Error,
     primitives::{ChainCode, Hint, KeyFingerprint, XKeyInfo},
     xkeys::{XPriv, XPub},
-    Bip32Error,
 };
 
 /// Decode a bytevector from a base58 check string
