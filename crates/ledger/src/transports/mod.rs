@@ -2,11 +2,8 @@
 
 use std::time::Duration;
 
-/// APDU Transport for native HID. Wraps
-/// [`TransportNativeHID`][native::hid::TransportNativeHID] in a
-/// thread managing the IO.
 pub mod native;
-pub use native::{DeviceId, HidLedger};
+pub use native::{DeviceId, HidTransport};
 
 use crate::{
     common::{ApduAnswer, ApduCommand},

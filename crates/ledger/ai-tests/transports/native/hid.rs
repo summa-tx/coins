@@ -460,7 +460,7 @@ fn device_id_accessors() {
 #[ignore = "needs a Ledger device"]
 fn opening_while_the_previous_opener_thread_is_exiting() {
     let open = || {
-        let transport = TransportNativeHID::open_first().expect("a Ledger is attached");
+        let transport = HidLedgerDevice::open_first().expect("a Ledger is attached");
         assert_eq!(
             transport.get_manufacturer_string().as_deref(),
             Some("Ledger")
@@ -482,10 +482,10 @@ fn opening_while_the_previous_opener_thread_is_exiting() {
 #[test]
 #[ignore = "needs a Ledger device"]
 fn every_listed_device_opens() {
-    let ids = TransportNativeHID::list().expect("enumeration works");
+    let ids = HidLedgerDevice::list().expect("enumeration works");
     assert!(!ids.is_empty(), "a Ledger is attached");
     for id in &ids {
-        let device = TransportNativeHID::open(id).expect("device opens");
+        let device = HidLedgerDevice::open(id).expect("device opens");
         assert_eq!(device.get_manufacturer_string().as_deref(), Some("Ledger"));
     }
 }

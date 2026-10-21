@@ -4,20 +4,20 @@ use tracing::debug;
 
 use crate::{
     ApduAnswer, ApduCommand, LedgerError,
-    transports::{DeviceId, HidLedger, LedgerTransport},
+    transports::{DeviceId, HidTransport, LedgerTransport},
 };
 
 /// A Ledger device connection over a [`LedgerTransport`] (defaulting to
-/// [`HidLedger`]).
+/// [`HidTransport`]).
 ///
 /// Instantiate via:
 ///
 /// - [`Ledger::open_first_hid`] opens the first Ledger found via HID.
-/// - [`Ledger::open_hid`] opens one device from [`HidLedger::list`].
-/// - [`Ledger::from_transport`] wraps an existing [`HidLedger`], or any
+/// - [`Ledger::open_hid`] opens one device from [`Ledger::list_hid`].
+/// - [`Ledger::from_transport`] wraps an existing [`HidTransport`], or any
 ///   [`LedgerTransport`].
 #[derive(Debug)]
-pub struct Ledger<T = HidLedger> {
+pub struct Ledger<T = HidTransport> {
     transport: T,
     timeout: Option<Duration>,
 }
@@ -71,14 +71,19 @@ where
 }
 
 impl Ledger {
-    /// Open the first Ledger found via HID. See [`HidLedger::open_first`].
+    /// Open the first Ledger found via HID. See [`HidTransport::open_first`].
     pub fn open_first_hid() -> Result<Self, LedgerError> {
-        HidLedger::open_first().map(Self::from_transport)
+        HidTransport::open_first().map(Self::from_transport)
     }
 
-    /// Open one Ledger via HID. See [`HidLedger::open`].
+    /// Open a Ledger via HID. See [`HidTransport::open`].
     pub fn open_hid(id: &DeviceId) -> Result<Self, LedgerError> {
-        HidLedger::open(id).map(Self::from_transport)
+        HidTransport::open(id).map(Self::from_transport)
+    }
+
+    /// List available Ledger HID devices. See [`HidTransport::list`]
+    pub fn list_hid() -> Result<Vec<DeviceId>, LedgerError> {
+        HidTransport::list()
     }
 }
 

@@ -1,3 +1,9 @@
+//! APDU Transport for native HID.
+//!
+//! This module contains [`HidTransport`], the main USB access point for ledger
+//! devices. [`HidTransport`] implements [`LedgerTransport`] over hid by
+//! spawning a background thread managing a [`HidLedgerDevice`].
+
 use crate::{ApduAnswer, ApduCommand, LedgerError, transports::LedgerTransport};
 use std::time::Duration;
 use tokio::sync::{mpsc, oneshot};
@@ -6,8 +12,7 @@ mod error;
 pub use error::NativeTransportError;
 
 pub mod hid;
-pub use hid::DeviceId;
-use hid::TransportNativeHID;
+pub use hid::{DeviceId, HidLedgerDevice};
 
 /// A packet exchange request.
 struct ApduExchange {
@@ -27,36 +32,42 @@ struct ApduExchange {
 /// The timeout is thus the MAXIMUM duration that a user has to push buttons on
 /// the device.
 ///
-/// Open the first device found with [`HidLedger::open_first`], or pick one
-/// from [`HidLedger::list`] and pass it to [`HidLedger::open`]. Under Termux,
-/// which cannot enumerate USB devices, only `open_first` works: it takes the
-/// device `termux-usb` hands over.
+/// Generally instantiated via [`HidTransport::open_first`], but
+/// [`HidTransport::list`] allows scanning for [`DeviceId`]s that can be passed
+/// to [`HidTransport::open`].
 #[derive(Debug)]
-pub struct HidLedger {
+pub struct HidTransport {
     tx: mpsc::Sender<ApduExchange>,
 }
 
-impl HidLedger {
-    /// Every Ledger attached right now. Empty under Termux; see
-    /// [`TransportNativeHID::list`].
+impl HidTransport {
+    /// List available Ledger devices. Empty under Termux; see
+    /// [`HidLedgerDevice::list`].
     pub fn list() -> Result<Vec<DeviceId>, LedgerError> {
-        Ok(TransportNativeHID::list()?)
+        HidLedgerDevice::list().map_err(Into::into)
     }
 
-    /// Open `id` and spawn its I/O thread. See [`TransportNativeHID::open`].
+    /// Open `id` and spawn its I/O thread. See [`HidLedgerDevice::open`].
     pub fn open(id: &DeviceId) -> Result<Self, LedgerError> {
-        Ok(Self::from_transport(TransportNativeHID::open(id)?))
+        HidLedgerDevice::open(id)
+            .map(Self::from_transport)
+            .map_err(Into::into)
     }
 
     /// Open the first Ledger found, or the device Termux hands over, and
-    /// spawn its I/O thread. See [`TransportNativeHID::open_first`].
+    /// spawn its I/O thread. See [`HidLedgerDevice::open_first`].
     pub fn open_first() -> Result<Self, LedgerError> {
-        Ok(Self::from_transport(TransportNativeHID::open_first()?))
+        HidLedgerDevice::open_first()
+            .map(Self::from_transport)
+            .map_err(Into::into)
     }
 
-    /// Spawn an I/O thread for a device you opened yourself.
-    pub fn from_transport(mut device: TransportNativeHID) -> Self {
+    /// Make a [`HidTransport`] from an open device. This spawns a background
+    /// thread that manages device communication.
+    pub fn from_transport(mut device: HidLedgerDevice) -> Self {
         let (tx, mut rx) = mpsc::channel(1);
+
+        // Spawn a task that drives the blocking transport.
         std::thread::spawn(move || {
             while let Some(ApduExchange {
                 command,
@@ -73,7 +84,7 @@ impl HidLedger {
     }
 }
 
-impl LedgerTransport for HidLedger {
+impl LedgerTransport for HidTransport {
     async fn exchange(
         &mut self,
         command: ApduCommand,

@@ -6,7 +6,7 @@ use coins_ledger::{Ledger, common::*, transports::native::hid};
 #[test]
 #[serial]
 fn ledger_device_path() {
-    let transport = hid::TransportNativeHID::open_first().unwrap();
+    let transport = hid::HidLedgerDevice::open_first().unwrap();
 
     let manufacturer = transport.get_manufacturer_string();
     println!("{manufacturer:?}");

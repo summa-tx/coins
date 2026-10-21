@@ -43,8 +43,8 @@ const LEDGER_PACKET_READ_SIZE: usize = 64;
 type WriteReport = [u8; LEDGER_PACKET_WRITE_SIZE];
 type ReadReport = [u8; LEDGER_PACKET_READ_SIZE];
 
-/// A connected Ledger's APDU interface, as [`TransportNativeHID::list`]
-/// found it. Opens the device via [`TransportNativeHID::open`]. Valid until
+/// A connected Ledger's APDU interface, as [`HidLedgerDevice::list`]
+/// found it. Opens the device via [`HidLedgerDevice::open`]. Valid until
 /// the device is unplugged; the path is reassigned on the next plug-in.
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct DeviceId {
@@ -102,13 +102,13 @@ impl fmt::Display for DeviceId {
     }
 }
 
-/// Native HID transport for Ledger Nano hardware wallets
+/// An [`HidDevice`] that we know to be a Ledger.
 #[derive(Debug)]
-pub struct TransportNativeHID {
+pub struct HidLedgerDevice {
     device: HidDevice,
 }
 
-impl TransportNativeHID {
+impl HidLedgerDevice {
     /// Instantiate from a device.
     pub(crate) const fn from_device(device: HidDevice) -> Self {
         Self { device }
@@ -118,7 +118,7 @@ impl TransportNativeHID {
     /// each call.
     ///
     /// Termux cannot enumerate USB devices, so this is empty there. Use
-    /// [`TransportNativeHID::open_first`], which takes the device Termux
+    /// [`HidLedgerDevice::open_first`], which takes the device Termux
     /// hands over.
     pub fn list() -> Result<Vec<DeviceId>, NativeTransportError> {
         on_hid_thread(|| {
