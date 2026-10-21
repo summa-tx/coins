@@ -1,21 +1,29 @@
 use thiserror::Error;
 
-use crate::common::APDUResponseCodes;
+use crate::common::StatusWord;
 
 /// APDU-related errors
 #[derive(Debug, Error)]
 pub enum LedgerError {
+    /// A command was built without a class byte.
+    #[error("APDU command is missing its CLA byte")]
+    MissingCla,
+
+    /// A command was built without an instruction byte.
+    #[error("APDU command is missing its INS byte")]
+    MissingIns,
+
+    /// APDU data exceeds the 255-byte limit of a short APDU.
+    #[error("APDU data too long: {0} bytes, max 255")]
+    DataTooLong(usize),
+
     /// APDU Response was too short
-    #[error("Response too short. Expected at least 2 bytes. Got {0:?}")]
-    ResponseTooShort(Vec<u8>),
+    #[error("Response too short. Expected at least 2 bytes. Got {0} bytes.")]
+    ResponseTooShort(usize),
 
-    /// APDU error
-    #[error("Ledger device: APDU Response error `{0}`")]
-    BadRetcode(APDUResponseCodes),
-
-    /// Ledger returned an unknown APDU
-    #[error("Ledger returned an unknown response status code {0:x}. This is a bug. Please file an issue at https://github.com/summa-tx/coins-rs/issues")]
-    UnknownAPDUCode(u16),
+    /// The device returned a non-success status word.
+    #[error("Ledger device: APDU response error {0}")]
+    BadRetcode(StatusWord),
 
     /// The backend has been disconnected.
     #[error("The backend has been disconnected.")]
@@ -26,8 +34,20 @@ pub enum LedgerError {
     NativeTransportError(#[from] crate::transports::native::NativeTransportError),
 }
 
-impl From<APDUResponseCodes> for LedgerError {
-    fn from(r: APDUResponseCodes) -> Self {
-        LedgerError::BadRetcode(r)
+impl From<StatusWord> for LedgerError {
+    fn from(sw: StatusWord) -> Self {
+        LedgerError::BadRetcode(sw)
+    }
+}
+
+impl From<tokio::sync::oneshot::error::RecvError> for LedgerError {
+    fn from(_: tokio::sync::oneshot::error::RecvError) -> Self {
+        Self::BackendGone
+    }
+}
+
+impl<T> From<tokio::sync::mpsc::error::SendError<T>> for LedgerError {
+    fn from(_: tokio::sync::mpsc::error::SendError<T>) -> Self {
+        Self::BackendGone
     }
 }

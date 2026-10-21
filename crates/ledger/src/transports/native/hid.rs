@@ -1,37 +1,49 @@
 //! Native HID APDU transport for Ledger Nano hardware wallets
+//!
+//! Packets or "reports" are individual device communications. An APDU is sent/
+//! received as a series of reports.
+//!
+//! hidapi initializes once per process, on the first thread to create a
+//! `HidApi`, and on macOS binds its device manager to that thread's run loop
+//! for good. This crate therefore does all of its hidapi context work on one
+//! thread that lives as long as the process; see `on_hid_thread`. An
+//! application that mixes HID crates should likewise initialize hidapi once
+//! from a long-lived thread, because whichever crate initializes first decides
+//! where the manager lives.
 
-use crate::{
-    common::{APDUAnswer, APDUCommand},
-    errors::LedgerError,
+use std::{
+    panic::{AssertUnwindSafe, catch_unwind, resume_unwind},
+    sync::{Mutex, PoisonError, mpsc},
+    thread::ThreadId,
+    time::Duration,
 };
 
-use byteorder::{BigEndian, ReadBytesExt};
-use hidapi_rusb::{DeviceInfo, HidApi, HidDevice};
-use once_cell::sync::Lazy;
-use std::{
-    io::Cursor,
-    sync::{Mutex, MutexGuard},
+use hidapi::{DeviceInfo, HidApi, HidDevice};
+
+use crate::{
+    common::{ApduAnswer, ApduBuffer, ApduCommand},
+    errors::LedgerError,
 };
 
 use super::NativeTransportError;
 
 const LEDGER_VID: u16 = 0x2c97;
-#[cfg(not(target_os = "linux"))]
 const LEDGER_USAGE_PAGE: u16 = 0xFFA0;
 const LEDGER_CHANNEL: u16 = 0x0101;
-// for Windows compatability, we prepend the buffer with a 0x00
-// so the actual buffer is 64 bytes
-const LEDGER_PACKET_WRITE_SIZE: u8 = 65;
-const LEDGER_PACKET_READ_SIZE: u8 = 64;
-const LEDGER_TIMEOUT: i32 = 10_000_000;
+/// The tag byte of every APDU report.
+const LEDGER_TAG: u8 = 0x05;
+/// A report as written: a report ID byte, which Windows requires and the
+/// other platforms tolerate, then 64 bytes.
+const LEDGER_PACKET_WRITE_SIZE: usize = 65;
+/// A report as read: 64 bytes.
+const LEDGER_PACKET_READ_SIZE: usize = 64;
 
-/// The HID API instance.
-pub static HIDAPI: Lazy<HidApi> =
-    Lazy::new(|| HidApi::new().expect("Failed to initialize HID API"));
+type WriteReport = [u8; LEDGER_PACKET_WRITE_SIZE];
+type ReadReport = [u8; LEDGER_PACKET_READ_SIZE];
 
 /// Native HID transport for Ledger Nano hardware wallets
 pub struct TransportNativeHID {
-    device: Mutex<HidDevice>,
+    device: HidDevice,
 }
 
 impl std::fmt::Debug for TransportNativeHID {
@@ -40,14 +52,167 @@ impl std::fmt::Debug for TransportNativeHID {
     }
 }
 
-#[cfg(not(target_os = "linux"))]
-fn is_ledger(dev: &DeviceInfo) -> bool {
-    dev.vendor_id() == LEDGER_VID && dev.usage_page() == LEDGER_USAGE_PAGE
+impl TransportNativeHID {
+    /// Instantiate from a device.
+    const fn from_device(device: HidDevice) -> Self {
+        Self { device }
+    }
+
+    /// Open every Ledger device. Enumeration can fail as a whole; each open
+    /// can fail on its own, e.g. when another process holds that device.
+    pub fn open_all_devices()
+    -> Result<Vec<Result<Self, NativeTransportError>>, NativeTransportError> {
+        let devices = on_hid_thread(|| -> Result<Vec<_>, NativeTransportError> {
+            let api = HidApi::new()?;
+            Ok(list_ledgers(&api)
+                .map(|dev| open_device(&api, dev))
+                .collect())
+        })??;
+        Ok(devices
+            .into_iter()
+            .map(|device| device.map(Self::from_device))
+            .collect())
+    }
+
+    /// Create a new HID transport, connecting to the first ledger found.
+    /// Devices are enumerated afresh on every call.
+    ///
+    /// On macOS the device is opened exclusively, so this fails while another
+    /// process, or another transport in this one, holds it.
+    pub fn new() -> Result<Self, NativeTransportError> {
+        on_hid_thread(|| {
+            #[cfg(target_os = "android")]
+            if let Some(device) = open_termux_device()? {
+                return Ok(device);
+            }
+
+            let api = HidApi::new()?;
+            first_ledger(&api)
+        })?
+        .map(Self::from_device)
+    }
+
+    /// Get manufacturer string. Returns None on error, or on no string.
+    pub fn get_manufacturer_string(&self) -> Option<String> {
+        self.device.get_manufacturer_string().unwrap_or_default()
+    }
+
+    /// Send `command` and read the reply, waiting up to `timeout` for each
+    /// report. `None` waits indefinitely. A non-success status word is an
+    /// error.
+    pub fn exchange(
+        &mut self,
+        command: &ApduCommand,
+        timeout: Option<Duration>,
+    ) -> Result<ApduAnswer, LedgerError> {
+        write_apdu(&self.device, LEDGER_CHANNEL, command.as_bytes())?;
+        let answer = read_apdu(&self.device, LEDGER_CHANNEL, timeout)?;
+        let answer = ApduAnswer::from_answer(answer)?;
+
+        if answer.is_success() {
+            Ok(answer)
+        } else {
+            Err(answer.status().into())
+        }
+    }
 }
 
-#[cfg(target_os = "linux")]
+/// Termux cannot enumerate USB devices. Instead `termux-usb` opens the device
+/// and hands over its file descriptor in `TERMUX_USB_FD`. Returns `None`
+/// when not running under Termux.
+///
+/// Untested: no Android device is exercised in CI.
+#[cfg(target_os = "android")]
+fn open_termux_device() -> Result<Option<HidDevice>, NativeTransportError> {
+    // Using runtime detection since it's impossible to statically target Termux.
+    let is_termux = std::env::var("PREFIX").is_ok_and(|prefix| prefix.contains("/com.termux/"));
+    if !is_termux {
+        return Ok(None);
+    }
+
+    let usb_fd: i32 = std::env::var("TERMUX_USB_FD")
+        .ok()
+        .and_then(|fd| fd.parse().ok())
+        .ok_or(NativeTransportError::InvalidTermuxUsbFd)?;
+
+    // Enumeration needs USB authority Termux does not have. This panics if
+    // hidapi was already initialized with discovery on by other code in the
+    // process.
+    HidApi::disable_device_discovery();
+    let api = HidApi::new()?;
+    Ok(Some(api.wrap_sys_device(usb_fd as isize, -1)?))
+}
+
+type HidJob = Box<dyn FnOnce() + Send>;
+
+/// The thread that runs every hidapi context call, started on first use and
+/// kept for the life of the process.
+fn hid_thread() -> Result<(mpsc::Sender<HidJob>, ThreadId), NativeTransportError> {
+    static HID_THREAD: Mutex<Option<(mpsc::Sender<HidJob>, ThreadId)>> = Mutex::new(None);
+
+    let mut slot = HID_THREAD.lock().unwrap_or_else(PoisonError::into_inner);
+    if let Some(thread) = &*slot {
+        return Ok(thread.clone());
+    }
+    let (tx, rx) = mpsc::channel::<HidJob>();
+    let handle = std::thread::Builder::new()
+        .name("coins-ledger-hid".into())
+        .spawn(move || {
+            for job in rx {
+                job();
+            }
+        })
+        .map_err(|_| NativeTransportError::HidThreadUnavailable)?;
+    let thread = (tx, handle.thread().id());
+    *slot = Some(thread.clone());
+    Ok(thread)
+}
+
+/// Run `f` on the HID context thread and wait for its result. A panic in
+/// `f` is propagated to the caller. A call made from the context thread
+/// itself runs inline.
+///
+/// hidapi's macOS backend schedules its global device manager on the run
+/// loop of the thread that first initializes it, and holds that run loop
+/// unretained. If the thread exits while another thread is enumerating, the
+/// run loop is freed mid-enumeration and the process traps. Keeping one
+/// thread alive for the life of the process, and doing every context call
+/// there, avoids that. Device I/O does not touch the manager and stays on
+/// the caller's thread.
+fn on_hid_thread<R: Send + 'static>(
+    f: impl FnOnce() -> R + Send + 'static,
+) -> Result<R, NativeTransportError> {
+    let (jobs, id) = hid_thread()?;
+    if std::thread::current().id() == id {
+        return Ok(f());
+    }
+
+    let (tx, rx) = mpsc::channel();
+    jobs.send(Box::new(move || {
+        let _ = tx.send(catch_unwind(AssertUnwindSafe(f)));
+    }))
+    .map_err(|_| NativeTransportError::HidThreadUnavailable)?;
+    match rx.recv() {
+        Ok(Ok(value)) => Ok(value),
+        Ok(Err(panic)) => resume_unwind(panic),
+        Err(_) => Err(NativeTransportError::HidThreadUnavailable),
+    }
+}
+
+/// True if a HID interface is the APDU interface of a Ledger device.
+///
+/// The usage page identifies it wherever hidapi reports one. On Linux, older
+/// hidapi builds report no usage page, so interface 0 is accepted as well.
+/// This mirrors the filter in Ledger's own transports. The FIDO interface a
+/// device exposes alongside is rejected either way.
+const fn is_ledger_interface(vendor_id: u16, usage_page: u16, interface_number: i32) -> bool {
+    let apdu_interface =
+        usage_page == LEDGER_USAGE_PAGE || (cfg!(target_os = "linux") && interface_number == 0);
+    vendor_id == LEDGER_VID && apdu_interface
+}
+
 fn is_ledger(dev: &DeviceInfo) -> bool {
-    dev.vendor_id() == LEDGER_VID
+    is_ledger_interface(dev.vendor_id(), dev.usage_page(), dev.interface_number())
 }
 
 /// Get a list of ledger devices available
@@ -55,7 +220,7 @@ fn list_ledgers(api: &HidApi) -> impl Iterator<Item = &DeviceInfo> {
     api.device_list().filter(|dev| is_ledger(dev))
 }
 
-#[tracing::instrument(skip_all, err)]
+#[tracing::instrument(level = "trace", skip_all, err)]
 fn first_ledger(api: &HidApi) -> Result<HidDevice, NativeTransportError> {
     let device = list_ledgers(api)
         .next()
@@ -64,230 +229,187 @@ fn first_ledger(api: &HidApi) -> Result<HidDevice, NativeTransportError> {
     open_device(api, device)
 }
 
-/// Read the 5-byte response header.
-fn read_response_header(rdr: &mut Cursor<&[u8]>) -> Result<(u16, u8, u16), NativeTransportError> {
-    let rcv_channel = rdr.read_u16::<BigEndian>()?;
-    let rcv_tag = rdr.read_u8()?;
-    let rcv_seq_idx = rdr.read_u16::<BigEndian>()?;
-    Ok((rcv_channel, rcv_tag, rcv_seq_idx))
+/// Convert a per-report timeout to hidapi's representation: milliseconds, or
+/// -1 to block until a report arrives. Durations over `i32::MAX` ms are
+/// clamped.
+fn hid_timeout_ms(timeout: Option<Duration>) -> i32 {
+    match timeout {
+        None => -1,
+        Some(timeout) => timeout.as_millis().try_into().unwrap_or(i32::MAX),
+    }
 }
 
-fn write_apdu(
-    device: &mut MutexGuard<'_, HidDevice>,
+/// Copy `src` to the start of `dst` and zero the rest. `src` must fit.
+fn fill(dst: &mut [u8], src: &[u8]) {
+    dst[..src.len()].copy_from_slice(src);
+    dst[src.len()..].fill(0);
+}
+
+/// Split an APDU into HID reports and pass each to `sink`. The first report
+/// carries the 2-byte APDU length ahead of the payload.
+fn packetize(
     channel: u16,
-    apdu_command: &[u8],
+    apdu: &[u8],
+    mut sink: impl FnMut(&WriteReport) -> Result<(), NativeTransportError>,
 ) -> Result<(), NativeTransportError> {
-    tracing::debug!(apdu = %hex::encode(apdu_command), bytes = apdu_command.len(), "Writing APDU to device");
+    let apdu_len = u16::try_from(apdu.len())
+        .map_err(|_| NativeTransportError::Comm("APDU too long for HID framing"))?;
 
-    let command_length = apdu_command.len();
+    let mut packet = [0u8; LEDGER_PACKET_WRITE_SIZE];
+    packet[1..3].copy_from_slice(&channel.to_be_bytes());
+    packet[3] = LEDGER_TAG;
 
-    // TODO: allocation-free method
-    let mut in_data = Vec::with_capacity(command_length + 2);
-    in_data.push(((command_length >> 8) & 0xFF) as u8);
-    in_data.push((command_length & 0xFF) as u8);
-    in_data.extend_from_slice(apdu_command);
+    // The first report has sequence index 0 and leads with the APDU length.
+    let (first, rest) = apdu.split_at(apdu.len().min(LEDGER_PACKET_WRITE_SIZE - 8));
+    packet[6..8].copy_from_slice(&apdu_len.to_be_bytes());
+    fill(&mut packet[8..], first);
+    sink(&packet)?;
 
-    let mut buffer = [0u8; LEDGER_PACKET_WRITE_SIZE as usize];
-    // Windows platform requires 0x00 prefix and Linux/Mac tolerate this as
-    // well. So we leave buffer[0] as 0x00
-    buffer[1] = ((channel >> 8) & 0xFF) as u8; // channel big endian
-    buffer[2] = (channel & 0xFF) as u8; // channel big endian
-    buffer[3] = 0x05u8;
-
-    for (sequence_idx, chunk) in in_data
-        .chunks((LEDGER_PACKET_WRITE_SIZE - 6) as usize)
-        .enumerate()
-    {
-        buffer[4] = ((sequence_idx >> 8) & 0xFF) as u8; // sequence_idx big endian
-        buffer[5] = (sequence_idx & 0xFF) as u8; // sequence_idx big endian
-        buffer[6..6 + chunk.len()].copy_from_slice(chunk);
-
-        tracing::trace!(
-            buffer = hex::encode(buffer),
-            sequence_idx,
-            bytes = chunk.len(),
-            "Writing chunk to device",
-        );
-        let result = device.write(&buffer).map_err(NativeTransportError::Hid)?;
-        if result < buffer.len() {
-            return Err(NativeTransportError::Comm(
-                "USB write error. Could not send whole message",
-            ));
-        }
+    for (i, chunk) in rest.chunks(LEDGER_PACKET_WRITE_SIZE - 6).enumerate() {
+        packet[4..6].copy_from_slice(&((i + 1) as u16).to_be_bytes());
+        fill(&mut packet[6..], chunk);
+        sink(&packet)?;
     }
     Ok(())
 }
 
-/// Read a response APDU from the ledger channel.
-fn read_response_apdu(
-    device: &mut MutexGuard<'_, HidDevice>,
-    _channel: u16,
-) -> Result<Vec<u8>, NativeTransportError> {
-    let mut response_buffer = [0u8; LEDGER_PACKET_READ_SIZE as usize];
-    let mut sequence_idx = 0u16;
-    let mut expected_response_len = 0usize;
-    let mut offset = 0;
+/// Write an APDU to the device as a series of reports.
+fn write_apdu(device: &HidDevice, channel: u16, apdu: &[u8]) -> Result<(), NativeTransportError> {
+    tracing::debug!(apdu = %hex::encode(apdu), bytes = apdu.len(), "Writing APDU to device");
 
-    let mut answer_buf = vec![];
+    packetize(channel, apdu, |packet| {
+        tracing::trace!(packet = %hex::encode(packet), "Writing packet to device");
 
-    loop {
-        let remaining = expected_response_len.saturating_sub(offset);
+        let written = device.write(packet).map_err(NativeTransportError::Hid)?;
 
-        tracing::trace!(
-            sequence_idx,
-            expected_response_len,
-            remaining,
-            answer_size = answer_buf.len(),
-            "Reading response from device.",
-        );
-
-        let res = device.read_timeout(&mut response_buffer, LEDGER_TIMEOUT)?;
-
-        // The first packet contains the response length as u16, successive
-        // packets do not.
-        if (sequence_idx == 0 && res < 7) || res < 5 {
-            return Err(NativeTransportError::Comm("Read error. Incomplete header"));
-        }
-
-        let mut rdr: Cursor<&[u8]> = Cursor::new(&response_buffer[..]);
-        let (_, _, rcv_seq_idx) = read_response_header(&mut rdr)?;
-
-        // Check sequence index. A mismatch means someone else read a packet.s
-        if rcv_seq_idx != sequence_idx {
-            return Err(NativeTransportError::SequenceMismatch {
-                got: rcv_seq_idx,
-                expected: sequence_idx,
+        if written < packet.len() {
+            return Err(NativeTransportError::ShortWrite {
+                written,
+                expected: packet.len(),
             });
         }
-
-        // The header packet contains the number of bytes of response data
-        if rcv_seq_idx == 0 {
-            expected_response_len = rdr.read_u16::<BigEndian>()? as usize;
-            tracing::trace!(
-                expected_response_len,
-                "Received response length from device",
-            );
-        }
-
-        // Read either until the end of the buffer, or until we have read the
-        // expected response length
-        let remaining_in_buf = response_buffer.len() - rdr.position() as usize;
-        let missing = expected_response_len - offset;
-        let end_p = rdr.position() as usize + std::cmp::min(remaining_in_buf, missing);
-
-        let new_chunk = &response_buffer[rdr.position() as usize..end_p];
-
-        // Copy the response to the answer
-        answer_buf.extend(new_chunk);
-        offset += new_chunk.len();
-
-        if offset >= expected_response_len {
-            return Ok(answer_buf);
-        }
-
-        sequence_idx += 1;
-    }
+        Ok(())
+    })
 }
 
-/// Open a specific ledger device
+/// Read one report from `source` and check its framing: channel, tag, and
+/// sequence index. Returns the number of bytes in the report.
+fn read_report(
+    source: &mut impl FnMut(&mut ReadReport) -> Result<usize, NativeTransportError>,
+    report: &mut ReadReport,
+    channel: u16,
+    sequence_idx: u16,
+) -> Result<usize, NativeTransportError> {
+    tracing::trace!(sequence_idx, "Reading report from device");
+    let n = source(report)?;
+    if n < 5 {
+        return Err(NativeTransportError::TruncatedReport(n));
+    }
+
+    // Another channel means another client is talking to the device.
+    let got = u16::from_be_bytes([report[0], report[1]]);
+    if got != channel {
+        return Err(NativeTransportError::UnexpectedChannel {
+            got,
+            expected: channel,
+        });
+    }
+    if report[2] != LEDGER_TAG {
+        return Err(NativeTransportError::UnexpectedTag(report[2]));
+    }
+
+    // A mismatch means someone else read a report.
+    let got = u16::from_be_bytes([report[3], report[4]]);
+    if got != sequence_idx {
+        return Err(NativeTransportError::SequenceMismatch {
+            got,
+            expected: sequence_idx,
+        });
+    }
+    Ok(n)
+}
+
+/// Reassemble a response APDU from the reports `source` yields. The first
+/// report carries the 2-byte response length ahead of the payload.
+fn depacketize(
+    channel: u16,
+    mut source: impl FnMut(&mut ReadReport) -> Result<usize, NativeTransportError>,
+) -> Result<ApduBuffer, NativeTransportError> {
+    let mut report = [0u8; LEDGER_PACKET_READ_SIZE];
+    let mut answer = ApduBuffer::new();
+
+    // The first report has sequence index 0 and leads with the response length.
+    let n = read_report(&mut source, &mut report, channel, 0)?;
+    if n < 7 {
+        return Err(NativeTransportError::TruncatedReport(n));
+    }
+    let expected = u16::from_be_bytes([report[5], report[6]]) as usize;
+    tracing::trace!(expected, "Received response length from device");
+    if expected > ApduBuffer::CAPACITY {
+        return Err(NativeTransportError::ResponseTooLong(expected));
+    }
+
+    // Only the bytes the device sent are payload. The rest of the report
+    // array is stale.
+    let chunk = &report[7..n.min(7 + expected)];
+    answer
+        .extend_from_slice(chunk)
+        .map_err(|_| NativeTransportError::ResponseTooLong(expected))?;
+
+    let mut sequence_idx = 1;
+    while answer.len() < expected {
+        let n = read_report(&mut source, &mut report, channel, sequence_idx)?;
+        let chunk = &report[5..n.min(5 + expected - answer.len())];
+        if chunk.is_empty() {
+            return Err(NativeTransportError::EmptyReport);
+        }
+        answer
+            .extend_from_slice(chunk)
+            .map_err(|_| NativeTransportError::ResponseTooLong(expected))?;
+        sequence_idx += 1;
+    }
+    Ok(answer)
+}
+
+/// Read a response APDU from the device, waiting up to `timeout` for each
+/// report.
+fn read_apdu(
+    device: &HidDevice,
+    channel: u16,
+    timeout: Option<Duration>,
+) -> Result<ApduBuffer, NativeTransportError> {
+    let timeout_ms = hid_timeout_ms(timeout);
+    depacketize(channel, |report| {
+        let n = device.read_timeout(report, timeout_ms)?;
+        if n == 0 {
+            return Err(match timeout {
+                Some(timeout) => NativeTransportError::Timeout(timeout),
+                None => NativeTransportError::TruncatedReport(0),
+            });
+        }
+        Ok(n)
+    })
+}
+
+/// Open a specific device. No check is made that it is a Ledger.
 ///
-/// # Note
-/// No checks are made to ensure the device is a ledger device
-///
-/// # Warning
-/// Opening the same device concurrently will lead to device lock after the first handle is closed
-/// see [issue](https://github.com/ruabmbua/hidapi-rs/issues/81)
+/// On macOS the open is exclusive and fails while another client holds the
+/// device.
 fn open_device(api: &HidApi, device: &DeviceInfo) -> Result<HidDevice, NativeTransportError> {
     let device = device
         .open_device(api)
         .map_err(NativeTransportError::CantOpen)?;
-    let _ = device.set_blocking_mode(true);
+    if let Err(err) = device.set_blocking_mode(true) {
+        // hidapi opens devices in blocking mode, so this is not fatal.
+        tracing::trace!(%err, "Could not set blocking mode on device");
+    }
 
     Ok(device)
 }
 
-impl TransportNativeHID {
-    /// Instantiate from a device.
-    const fn from_device(device: HidDevice) -> Self {
-        Self {
-            device: Mutex::new(device),
-        }
-    }
-
-    /// Open all ledger devices.
-    pub fn open_all_devices() -> Result<Vec<Self>, NativeTransportError> {
-        let api = &HIDAPI;
-        let devices = list_ledgers(api)
-            .map(|dev| open_device(api, dev))
-            .collect::<Result<Vec<_>, _>>()?;
-
-        Ok(devices.into_iter().map(Self::from_device).collect())
-    }
-
-    /// Create a new HID transport, connecting to the first ledger found
-    ///
-    /// # Warning
-    /// Opening the same device concurrently will lead to device lock after the first handle is closed
-    /// see [issue](https://github.com/ruabmbua/hidapi-rs/issues/81)
-    pub fn new() -> Result<Self, NativeTransportError> {
-        let api = &HIDAPI;
-
-        #[cfg(target_os = "android")]
-        {
-            // Using runtime detection since it's impossible to statically target Termux.
-            let is_termux = match std::env::var("PREFIX") {
-                Ok(prefix_var) => prefix_var.contains("/com.termux/"),
-                Err(_) => false,
-            };
-
-            if is_termux {
-                // Termux uses a special environment vairable TERMUX_USB_FD for this
-                let usb_fd = std::env::var("TERMUX_USB_FD")
-                    .map_err(|_| NativeTransportError::InvalidTermuxUsbFd)?
-                    .parse::<i32>()
-                    .map_err(|_| NativeTransportError::InvalidTermuxUsbFd)?;
-                return Ok(api.wrap_sys_device(usb_fd, -1).map(Self::from_device)?);
-            }
-        }
-
-        first_ledger(api).map(Self::from_device)
-    }
-
-    /// Get manufacturer string. Returns None on error, or on no string.
-    pub fn get_manufacturer_string(&self) -> Option<String> {
-        let device = self.device.lock().unwrap();
-        device.get_manufacturer_string().unwrap_or_default()
-    }
-
-    /// Exchange an APDU with the device. The response data will be written to `answer_buf`, and a
-    /// `APDUAnswer` struct will be created with a reference to `answer_buf`.
-    ///
-    /// It is strongly recommended that you use the `APDUAnswer` api instead of reading the raw
-    /// answer_buf response.
-    ///
-    /// If the method errors, the buf may contain a partially written response. It is not advised
-    /// to read this.
-    pub fn exchange(&self, command: &APDUCommand) -> Result<APDUAnswer, LedgerError> {
-        let answer = {
-            let mut device = self.device.lock().unwrap();
-            write_apdu(&mut device, LEDGER_CHANNEL, &command.serialize())?;
-            read_response_apdu(&mut device, LEDGER_CHANNEL)?
-        };
-
-        let answer = APDUAnswer::from_answer(answer)?;
-
-        match answer.response_status() {
-            None => Ok(answer),
-            Some(response) => {
-                if response.is_success() {
-                    Ok(answer)
-                } else {
-                    Err(response.into())
-                }
-            }
-        }
-    }
-}
+#[cfg(test)]
+#[path = "../../../ai-tests/transports/native/hid.rs"]
+mod ai_tests;
 
 /*******************************************************************************
  *   (c) 2018-2022 ZondaX GmbH

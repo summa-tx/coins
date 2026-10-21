@@ -1,65 +1,39 @@
 //! Abstract ledger transport trait with a native HID instantiation.
 
-use crate::{
-    common::{APDUAnswer, APDUCommand},
-    errors::LedgerError,
-};
-use async_trait::async_trait;
-use tracing::{debug, error};
+use std::time::Duration;
 
 /// APDU Transport for native HID. Wraps
 /// [`TransportNativeHID`][native::hid::TransportNativeHID] in a
 /// thread managing the IO.
 pub mod native;
-pub use native::LedgerHandle as DefaultTransport;
+pub use native::LedgerHandle;
 
-/// A Ledger device connection. This wraps the default transport type, which
-/// is backed by the `hidapi` library.
-#[derive(Debug)]
-pub struct Ledger(DefaultTransport);
+use crate::{
+    common::{ApduAnswer, ApduCommand},
+    errors::LedgerError,
+};
 
-/// An asynchronous interface to the Ledger device. It is critical that the
-/// device have only one connection active, so the `init` function acquires a
-/// lock on the device.
-#[async_trait]
-pub trait LedgerAsync: Sized {
-    /// Init the connection to the device. This may fail if the device is already in use by some
-    /// other process.
-    async fn init() -> Result<Self, LedgerError>;
-
-    /// Exchange a packet with the device.
-    async fn exchange(&self, packet: &APDUCommand) -> Result<APDUAnswer, LedgerError>;
-
-    /// Consume the connection, and release the resources it holds.
-    ///
-    /// By default this function simply drops the struct.
-    fn close(self) {}
+/// An asynchronous interface to a Ledger device.
+///
+/// A transport owns one connection to the device. APDUs on a connection must
+/// never be interleaved, so [`Ledger`](crate::Ledger) holds its transport
+/// exclusively and `exchange` takes `&mut self`.
+///
+/// Implementations build their replies with [`ApduAnswer::from_answer`]. See
+/// [`Ledger`](crate::Ledger) for an example.
+pub trait LedgerTransport: Sized {
+    /// Exchange a packet, waiting up to `timeout` for each report of the
+    /// reply. `None` waits indefinitely.
+    fn exchange(
+        &mut self,
+        packet: ApduCommand,
+        timeout: Option<Duration>,
+    ) -> impl Future<Output = Result<ApduAnswer, LedgerError>> + Send;
 }
 
-#[async_trait]
-impl LedgerAsync for Ledger {
-    async fn init() -> Result<Self, LedgerError> {
-        Ok(Self(DefaultTransport::init()?))
-    }
-
-    async fn exchange(&self, packet: &APDUCommand) -> Result<APDUAnswer, LedgerError> {
-        debug!(command = %packet, "dispatching APDU to device");
-
-        // TODO: remove clone
-        let resp = self.0.exchange(packet.clone()).await;
-        match &resp {
-            Ok(resp) => {
-                debug!(
-                    retcode = resp.retcode(),
-                    response = resp.data().map(hex::encode),
-                    "Received response from device"
-                )
-            }
-            Err(err) => error!(%err, "Error during communication"),
-        }
-        resp
-    }
-}
+#[cfg(test)]
+#[path = "../../ai-tests/transports/mod.rs"]
+pub(crate) mod ai_tests;
 
 /*******************************************************************************
  *   (c) 2020 ZondaX GmbH

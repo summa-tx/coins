@@ -1,4 +1,4 @@
-//! Ledger utilites and transports
+//! Ledger utilities and transports
 
 #![warn(
     missing_copy_implementations,
@@ -22,10 +22,10 @@ pub mod errors;
 pub mod transports;
 
 pub use {
-    common::{APDUAnswer, APDUCommand},
+    common::{ApduAnswer, ApduBuffer, ApduCommand, BufferFull, CommandBuilder, StatusWord},
     errors::LedgerError,
-    transports::Ledger,
 };
 
-mod protocol;
-pub use protocol::LedgerProtocol;
+/// The Ledger connection.
+mod ledger;
+pub use ledger::Ledger;

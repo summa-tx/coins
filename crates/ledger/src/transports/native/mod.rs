@@ -1,6 +1,8 @@
+use std::time::Duration;
+
 use tokio::sync::{mpsc, oneshot};
 
-use crate::{APDUAnswer, APDUCommand, LedgerError};
+use crate::{ApduAnswer, ApduCommand, LedgerError, transports::LedgerTransport};
 
 mod error;
 pub use error::NativeTransportError;
@@ -9,21 +11,27 @@ pub mod hid;
 use hid::TransportNativeHID;
 
 /// A packet exchange request.
-struct APDUExchange {
+struct ApduExchange {
     /// The command to send to the device.
-    command: APDUCommand,
+    command: ApduCommand,
     /// The channel to send the answer back on.
-    answer: oneshot::Sender<Result<APDUAnswer, LedgerError>>,
+    answer: oneshot::Sender<Result<ApduAnswer, LedgerError>>,
+    /// The per-report read timeout. `None` waits indefinitely.
+    timeout: Option<Duration>,
 }
 
-impl APDUExchange {
+impl ApduExchange {
     /// Create a new exchange request.
-    fn new(command: APDUCommand) -> (Self, oneshot::Receiver<Result<APDUAnswer, LedgerError>>) {
+    fn new(
+        command: ApduCommand,
+        timeout: Option<Duration>,
+    ) -> (Self, oneshot::Receiver<Result<ApduAnswer, LedgerError>>) {
         let (tx, rx) = oneshot::channel();
         (
             Self {
                 command,
                 answer: tx,
+                timeout,
             },
             rx,
         )
@@ -33,35 +41,27 @@ impl APDUExchange {
 /// A task that manages Ledger packet exchange.
 struct LedgerTask {
     ledger: TransportNativeHID,
-    rx: tokio::sync::mpsc::Receiver<APDUExchange>,
+    rx: tokio::sync::mpsc::Receiver<ApduExchange>,
 }
 
 impl LedgerTask {
     /// Create a new task.
-    fn new(ledger: TransportNativeHID) -> (Self, tokio::sync::mpsc::Sender<APDUExchange>) {
+    fn new(ledger: TransportNativeHID) -> (Self, tokio::sync::mpsc::Sender<ApduExchange>) {
         let (tx, rx) = tokio::sync::mpsc::channel(1);
         (Self { ledger, rx }, tx)
     }
 
-    /// Spawn the task that will run Ledger protocols.
+    /// Spawn the thread that performs the device I/O.
     fn spawn(mut self) {
-        let fut = async move {
-            while let Some(exchange) = self.rx.recv().await {
+        std::thread::spawn(move || {
+            while let Some(exchange) = self.rx.blocking_recv() {
                 // blocking IO
-                let answer = self.ledger.exchange(&exchange.command);
-                let answer = exchange.answer.send(answer);
-                if let Err(Err(err)) = answer {
-                    tracing::error!(err = %err, "could not send answer to exchange");
+                let answer = self.ledger.exchange(&exchange.command, exchange.timeout);
+
+                if exchange.answer.send(answer).is_err() {
+                    tracing::debug!("exchange was dropped before its answer arrived");
                 }
             }
-        };
-
-        std::thread::spawn(|| {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .unwrap();
-            rt.block_on(fut);
         });
     }
 }
@@ -71,25 +71,41 @@ impl LedgerTask {
 /// be interleaved.
 #[derive(Debug)]
 pub struct LedgerHandle {
-    tx: mpsc::Sender<APDUExchange>,
+    tx: mpsc::Sender<ApduExchange>,
 }
 
 impl LedgerHandle {
-    /// Init a handle, and spawn a task to manage Ledger packet exchange.
+    /// Open the first Ledger found and spawn its I/O thread.
     pub fn init() -> Result<Self, LedgerError> {
-        let ledger = TransportNativeHID::new()?;
-        let (task, tx) = LedgerTask::new(ledger);
-        task.spawn();
-        Ok(Self { tx })
+        Ok(Self::new(TransportNativeHID::new()?))
     }
 
-    /// Exchange a packet with the device.
-    pub async fn exchange(&self, apdu: APDUCommand) -> Result<APDUAnswer, LedgerError> {
-        let (exchange, rx) = APDUExchange::new(apdu);
-        self.tx
-            .send(exchange)
-            .await
-            .map_err(|_| LedgerError::BackendGone)?;
-        rx.await.map_err(|_| LedgerError::BackendGone)?
+    /// Spawn an I/O thread for a device you opened yourself, e.g. one of
+    /// [`TransportNativeHID::open_all_devices`].
+    pub fn new(transport: TransportNativeHID) -> Self {
+        let (task, tx) = LedgerTask::new(transport);
+        task.spawn();
+        Self { tx }
+    }
+}
+
+impl From<TransportNativeHID> for LedgerHandle {
+    fn from(transport: TransportNativeHID) -> Self {
+        Self::new(transport)
+    }
+}
+
+impl LedgerTransport for LedgerHandle {
+    /// Exchange a packet, waiting up to `timeout` for each report of the
+    /// reply. `None` waits indefinitely. Durations over `i32::MAX` ms are
+    /// clamped.
+    async fn exchange(
+        &mut self,
+        apdu: ApduCommand,
+        timeout: Option<Duration>,
+    ) -> Result<ApduAnswer, LedgerError> {
+        let (exchange, rx) = ApduExchange::new(apdu, timeout);
+        self.tx.send(exchange).await?;
+        rx.await?
     }
 }

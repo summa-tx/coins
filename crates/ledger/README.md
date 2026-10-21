@@ -4,16 +4,19 @@ Communication library between Rust and Ledger Nano S/X devices
 
 # Building
 
-Windows is not yet supported.
-
 This crate talks to the device over native HID via `hidapi`, and does not
 build for `wasm32` targets. The JS/WASM transport shipped in versions before
-0.16 was removed.
+0.16 was removed. Windows is untested.
 
 - Install dependencies
-  - OSX
-    - TODO
-    - please file an issue if you know. I don't have a macbook :)
+  - macOS: none. `hidapi` uses the system HID framework.
+  - Linux: `libudev` and `pkg-config`. On Debian and Ubuntu that is
+    `apt install libudev-dev pkg-config`. Install Ledger's
+    [udev rules](https://github.com/LedgerHQ/udev-rules) so the device is
+    accessible without root.
+  - Android (Termux): `pkg install rust libusb pkg-config`. Android builds
+    use hidapi's libusb backend so that `termux-usb -e <binary> <device>`
+    can hand over the USB file descriptor. This path is untested.
 - `cargo build`
 
 # Testing
@@ -25,7 +28,7 @@ build for `wasm32` targets. The JS/WASM transport shipped in versions before
   - Unlock the device
   - Open the Ethereum application on the device
     - If you don't have the application, [install Ledger Live](https://support.ledger.com/hc/en-us/articles/360006395553) and follow [these instructions](https://support.ledger.com/hc/en-us/articles/360006523674-Install-or-uninstall-apps)
-  - `$ cargo test`
+  - `$ cargo test -p coins-ledger -- --ignored`
 
 # License Notes
 
@@ -42,12 +45,11 @@ These changes are as follows:
 - Remove bip44 crates
 - Significant refactoring to all other crates
 - Crates have been moved to be modules of a single crate
-- Refactor APDUErrorCodes
-- Refactor APDUCommand to move towards no_std support. They hold &'a [u8]
-  instead of vectors
-- Refactor APDUAnswer to move towards no_std support and avoid unnecessary
-  copies. It is now a thin wrapper around a &[u8]
-- Change exchange functions to accept a mutable buffer. The caller must allocate
-  space for the response packet
+- Status words are an open `StatusWord` type covering the OS codes
+- Commands and answers are fixed-size buffers; commands come from
+  `CommandBuilder`
+- Exchange runs on a dedicated I/O thread. Commands and answers are
+  fixed-size buffers, so the only per-command allocation is the channel that
+  returns the answer
 - Break out integration tests
 - Strip print logs
