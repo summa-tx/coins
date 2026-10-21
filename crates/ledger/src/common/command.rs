@@ -1,8 +1,6 @@
 use std::fmt;
 
-use crate::errors::LedgerError;
-
-use super::ApduBuffer;
+use crate::{common::ApduBuffer, errors::LedgerError};
 
 /// Builds an [`ApduCommand`]. `cla` and `ins` are required; `p1` and `p2`
 /// default to zero.

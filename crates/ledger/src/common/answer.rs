@@ -1,6 +1,7 @@
-use crate::errors::LedgerError;
-
-use super::{ApduBuffer, StatusWord};
+use crate::{
+    common::{ApduBuffer, StatusWord},
+    errors::LedgerError,
+};
 
 /// An APDU response: data followed by a status word.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

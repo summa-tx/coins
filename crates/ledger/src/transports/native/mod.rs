@@ -1,8 +1,6 @@
-use std::time::Duration;
-
-use tokio::sync::{mpsc, oneshot};
-
 use crate::{ApduAnswer, ApduCommand, LedgerError, transports::LedgerTransport};
+use std::time::Duration;
+use tokio::sync::{mpsc, oneshot};
 
 mod error;
 pub use error::NativeTransportError;

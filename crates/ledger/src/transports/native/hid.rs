@@ -24,9 +24,8 @@ use crate::{
     Model,
     common::{ApduAnswer, ApduBuffer, ApduCommand},
     errors::LedgerError,
+    transports::native::error::NativeTransportError,
 };
-
-use super::NativeTransportError;
 
 type HidJob = Box<dyn FnOnce() + Send>;
 
