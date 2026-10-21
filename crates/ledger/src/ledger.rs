@@ -5,7 +5,7 @@ use tracing::{Level, Span, debug, enabled, instrument};
 use crate::{
     ApduAnswer, ApduCommand, LedgerError,
     transports::{
-        DeviceIdentity, HidDeviceId, HidTransport, LedgerTransport, native::NativeTransportError,
+        DeviceIdentity, HidDeviceId, HidTransport, LedgerTransport, NativeTransportError,
     },
 };
 

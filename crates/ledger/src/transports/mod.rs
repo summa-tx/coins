@@ -3,7 +3,7 @@
 use std::{fmt, time::Duration};
 
 pub mod native;
-pub use native::{HidDeviceId, HidTransport};
+pub use native::{HidDeviceId, HidTransport, NativeTransportError};
 
 use crate::{
     Model,

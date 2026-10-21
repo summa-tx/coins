@@ -3,7 +3,7 @@
 use std::{error::Error, fmt, time::Duration};
 
 use super::*;
-use crate::transports::native::NativeTransportError;
+use crate::transports::NativeTransportError;
 
 #[test]
 fn timeout_display_names_the_duration() {

@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use thiserror::Error;
 
-use crate::{common::StatusWord, transports::native::NativeTransportError};
+use crate::{common::StatusWord, transports::NativeTransportError};
 
 /// Errors from building, exchanging, and parsing APDUs.
 #[derive(Debug, Error)]
