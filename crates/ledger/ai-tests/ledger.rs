@@ -14,7 +14,7 @@ fn get_version() -> ApduCommand {
 #[tokio::test]
 async fn success_reply_returns_its_data() {
     let mut mock = MockTransport::new().reply(&[1, 2, 3]);
-    let mut ledger = Ledger::from_handle(&mut mock);
+    let mut ledger = Ledger::from_transport(&mut mock);
     let answer = ledger.exchange(get_version()).await.unwrap();
     assert_eq!(answer.data(), &[1, 2, 3]);
     assert_eq!(answer.status(), StatusWord::SUCCESS);
@@ -24,7 +24,7 @@ async fn success_reply_returns_its_data() {
 #[tokio::test]
 async fn non_success_status_is_an_error() {
     let mut mock = MockTransport::new().reply_with(&[], StatusWord::CONDITIONS_NOT_SATISFIED);
-    let mut ledger = Ledger::from_handle(&mut mock);
+    let mut ledger = Ledger::from_transport(&mut mock);
     let err = ledger.exchange(get_version()).await.unwrap_err();
     assert!(matches!(
         err,
@@ -36,7 +36,7 @@ async fn non_success_status_is_an_error() {
 async fn unknown_status_is_an_error_not_an_empty_answer() {
     // Codes outside the old closed enum used to come back as Ok with no data.
     let mut mock = MockTransport::new().reply_with(&[], StatusWord::new(0x6e01));
-    let mut ledger = Ledger::from_handle(&mut mock);
+    let mut ledger = Ledger::from_transport(&mut mock);
     let err = ledger.exchange(get_version()).await.unwrap_err();
     assert!(matches!(err, LedgerError::BadRetcode(sw) if sw.raw() == 0x6e01));
 }
@@ -44,7 +44,7 @@ async fn unknown_status_is_an_error_not_an_empty_answer() {
 #[tokio::test]
 async fn locked_device_is_reported_as_such() {
     let mut mock = MockTransport::new().reply_with(&[], StatusWord::LOCKED_DEVICE);
-    let mut ledger = Ledger::from_handle(&mut mock);
+    let mut ledger = Ledger::from_transport(&mut mock);
     let err = ledger.exchange(get_version()).await.unwrap_err();
     assert!(matches!(
         err,
@@ -56,7 +56,7 @@ async fn locked_device_is_reported_as_such() {
 #[tokio::test]
 async fn transport_failures_pass_through() {
     let mut mock = MockTransport::new().fail(LedgerError::BackendGone);
-    let mut ledger = Ledger::from_handle(&mut mock);
+    let mut ledger = Ledger::from_transport(&mut mock);
     assert!(matches!(
         ledger.exchange(get_version()).await,
         Err(LedgerError::BackendGone)
@@ -66,7 +66,7 @@ async fn transport_failures_pass_through() {
 #[tokio::test]
 async fn timeout_is_forwarded_and_settable() {
     let mut mock = MockTransport::new().reply(&[]).reply(&[]);
-    let mut ledger = Ledger::from_handle(&mut mock);
+    let mut ledger = Ledger::from_transport(&mut mock);
     assert_eq!(ledger.timeout(), None);
     ledger.exchange(get_version()).await.unwrap();
 
@@ -99,7 +99,7 @@ async fn commands_arrive_in_order_and_unchanged() {
             .unwrap(),
     ];
     let mut mock = MockTransport::new().reply(&[]).reply(&[]).reply(&[]);
-    let mut ledger = Ledger::from_handle(&mut mock);
+    let mut ledger = Ledger::from_transport(&mut mock);
     for cmd in cmds {
         ledger.exchange(cmd).await.unwrap();
     }
@@ -120,7 +120,7 @@ async fn chunked_payload_is_delivered_whole() {
     mock = mock.reply(&[0xab; 65]);
 
     let base = CommandBuilder::new().cla(0xe0).ins(0x04);
-    let mut ledger = Ledger::from_handle(&mut mock);
+    let mut ledger = Ledger::from_transport(&mut mock);
     let mut last = None;
     for (i, chunk) in chunks.iter().enumerate() {
         let p1 = if i == 0 { 0x00 } else { 0x80 };
@@ -139,7 +139,7 @@ async fn chunked_payload_is_delivered_whole() {
 #[tokio::test]
 async fn exhausted_script_reads_as_backend_gone() {
     let mut mock = MockTransport::new();
-    let mut ledger = Ledger::from_handle(&mut mock);
+    let mut ledger = Ledger::from_transport(&mut mock);
     assert!(matches!(
         ledger.exchange(get_version()).await,
         Err(LedgerError::BackendGone)

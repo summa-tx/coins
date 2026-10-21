@@ -10,6 +10,8 @@
 //! manager lives.
 
 use std::{
+    ffi::{CStr, CString},
+    fmt,
     panic::{AssertUnwindSafe, catch_unwind, resume_unwind},
     sync::{Mutex, PoisonError, mpsc},
     thread::ThreadId,
@@ -19,11 +21,14 @@ use std::{
 use hidapi::{DeviceInfo, HidApi, HidDevice};
 
 use crate::{
+    Model,
     common::{ApduAnswer, ApduBuffer, ApduCommand},
     errors::LedgerError,
 };
 
 use super::NativeTransportError;
+
+type HidJob = Box<dyn FnOnce() + Send>;
 
 const LEDGER_VID: u16 = 0x2c97;
 const LEDGER_USAGE_PAGE: u16 = 0xFFA0;
@@ -39,6 +44,65 @@ const LEDGER_PACKET_READ_SIZE: usize = 64;
 type WriteReport = [u8; LEDGER_PACKET_WRITE_SIZE];
 type ReadReport = [u8; LEDGER_PACKET_READ_SIZE];
 
+/// A connected Ledger's APDU interface, as [`TransportNativeHID::list`]
+/// found it. Opens the device via [`TransportNativeHID::open`]. Valid until
+/// the device is unplugged; the path is reassigned on the next plug-in.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct DeviceId {
+    /// What hidapi opens. Platform-specific and opaque.
+    path: CString,
+    product_id: u16,
+    serial_number: Option<String>,
+    product_string: Option<String>,
+}
+
+impl DeviceId {
+    fn from_info(info: &DeviceInfo) -> Self {
+        Self {
+            path: info.path().to_owned(),
+            product_id: info.product_id(),
+            serial_number: info.serial_number().map(str::to_owned),
+            product_string: info.product_string().map(str::to_owned),
+        }
+    }
+
+    /// The hardware model, from the product ID.
+    pub const fn model(&self) -> Model {
+        Model::from_product_id(self.product_id)
+    }
+
+    /// The USB product ID.
+    pub const fn product_id(&self) -> u16 {
+        self.product_id
+    }
+
+    /// The serial number, if the device reports one.
+    pub fn serial_number(&self) -> Option<&str> {
+        self.serial_number.as_deref()
+    }
+
+    /// The product string, e.g. "Nano X".
+    pub fn product_string(&self) -> Option<&str> {
+        self.product_string.as_deref()
+    }
+
+    /// The platform HID path. Opaque; differs per OS and per plug-in.
+    pub fn path(&self) -> &CStr {
+        &self.path
+    }
+}
+
+/// `Nano X (0001)`, or `Nano X` with no serial number.
+impl fmt::Display for DeviceId {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.model())?;
+        if let Some(serial) = self.serial_number() {
+            write!(f, " ({serial})")?;
+        }
+        Ok(())
+    }
+}
+
 /// Native HID transport for Ledger Nano hardware wallets
 #[derive(Debug)]
 pub struct TransportNativeHID {
@@ -47,28 +111,43 @@ pub struct TransportNativeHID {
 
 impl TransportNativeHID {
     /// Instantiate from a device.
-    const fn from_device(device: HidDevice) -> Self {
+    pub(crate) const fn from_device(device: HidDevice) -> Self {
         Self { device }
     }
 
-    /// Open every Ledger device. Enumeration can fail as a whole; each open
-    /// can fail on its own, e.g. when another process holds that device.
-    pub fn open_all_devices()
-    -> Result<Vec<Result<Self, NativeTransportError>>, NativeTransportError> {
+    /// Every Ledger APDU interface attached right now. Enumerates afresh on
+    /// each call.
+    ///
+    /// Termux cannot enumerate USB devices, so this is empty there. Use
+    /// [`TransportNativeHID::open_first`], which takes the device Termux
+    /// hands over.
+    pub fn list() -> Result<Vec<DeviceId>, NativeTransportError> {
         on_hid_thread(|| {
             let api = HidApi::new()?;
-            Ok(list_ledgers(&api)
-                .map(|dev| open_device(&api, dev).map(Self::from_device))
-                .collect())
+            Ok(list_ledgers(&api).map(DeviceId::from_info).collect())
         })?
     }
 
-    /// Create a new HID transport, connecting to the first ledger found.
-    /// Devices are enumerated afresh on every call.
+    /// Open `id`. Fails as [`NativeTransportError::CantOpen`] if the device
+    /// was unplugged or another client holds it. Opens are exclusive on
+    /// macOS.
+    pub fn open(id: &DeviceId) -> Result<Self, NativeTransportError> {
+        let path = id.path.clone();
+        on_hid_thread(move || {
+            HidApi::new()?
+                .open_path(&path)
+                .map_err(NativeTransportError::CantOpen)
+        })?
+        .map(Self::from_device)
+    }
+
+    /// Open the first Ledger found. Devices are enumerated afresh on every
+    /// call. Under Termux, which cannot enumerate, this opens the device
+    /// `termux-usb` hands over instead.
     ///
     /// On macOS the device is opened exclusively, so this fails while another
     /// process, or another transport in this one, holds it.
-    pub fn new() -> Result<Self, NativeTransportError> {
+    pub fn open_first() -> Result<Self, NativeTransportError> {
         on_hid_thread(|| {
             #[cfg(target_os = "android")]
             if let Some(device) = open_termux_device()? {
@@ -76,10 +155,11 @@ impl TransportNativeHID {
             }
 
             let api = HidApi::new()?;
-            let device = list_ledgers(&api)
+            list_ledgers(&api)
                 .next()
-                .ok_or(NativeTransportError::DeviceNotFound)?;
-            open_device(&api, device)
+                .ok_or(NativeTransportError::DeviceNotFound)?
+                .open_device(&api)
+                .map_err(NativeTransportError::CantOpen)
         })?
         .map(Self::from_device)
     }
@@ -128,8 +208,6 @@ fn open_termux_device() -> Result<Option<HidDevice>, NativeTransportError> {
     let api = HidApi::new()?;
     Ok(Some(api.wrap_sys_device(usb_fd as isize, -1)?))
 }
-
-type HidJob = Box<dyn FnOnce() + Send>;
 
 /// The thread that runs every hidapi context call, started on first use and
 /// kept for the life of the process.
@@ -363,16 +441,6 @@ fn read_apdu(
             _ => Ok(n),
         }
     })
-}
-
-/// Open a specific device. No check is made that it is a Ledger.
-///
-/// On macOS the open is exclusive and fails while another client holds the
-/// device.
-fn open_device(api: &HidApi, device: &DeviceInfo) -> Result<HidDevice, NativeTransportError> {
-    device
-        .open_device(api)
-        .map_err(NativeTransportError::CantOpen)
 }
 
 #[cfg(test)]

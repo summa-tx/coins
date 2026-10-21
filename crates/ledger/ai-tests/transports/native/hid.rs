@@ -420,6 +420,35 @@ fn hid_thread_survives_a_panicking_job() {
 }
 
 // ---------------------------------------------------------------------------
+// Device IDs
+
+fn device_id(product_id: u16, serial: Option<&str>) -> DeviceId {
+    DeviceId {
+        path: c"/dev/hidraw3".to_owned(),
+        product_id,
+        serial_number: serial.map(str::to_owned),
+        product_string: Some("Nano X".to_owned()),
+    }
+}
+
+#[test]
+fn device_id_display_is_model_and_serial() {
+    assert_eq!(device_id(0x4011, Some("0001")).to_string(), "Nano X (0001)");
+    assert_eq!(device_id(0x4011, None).to_string(), "Nano X");
+    assert_eq!(device_id(0x8011, None).to_string(), "unknown model 0x8011");
+}
+
+#[test]
+fn device_id_accessors() {
+    let id = device_id(0x5011, Some("0001"));
+    assert_eq!(id.model(), Model::NanoSPlus);
+    assert_eq!(id.product_id(), 0x5011);
+    assert_eq!(id.serial_number(), Some("0001"));
+    assert_eq!(id.product_string(), Some("Nano X"));
+    assert_eq!(id.path(), c"/dev/hidraw3");
+}
+
+// ---------------------------------------------------------------------------
 // Hardware
 
 /// hidapi's macOS backend binds its device manager to the run loop of the
@@ -431,7 +460,7 @@ fn hid_thread_survives_a_panicking_job() {
 #[ignore = "needs a Ledger device"]
 fn opening_while_the_previous_opener_thread_is_exiting() {
     let open = || {
-        let transport = TransportNativeHID::new().expect("a Ledger is attached");
+        let transport = TransportNativeHID::open_first().expect("a Ledger is attached");
         assert_eq!(
             transport.get_manufacturer_string().as_deref(),
             Some("Ledger")
@@ -452,11 +481,11 @@ fn opening_while_the_previous_opener_thread_is_exiting() {
 
 #[test]
 #[ignore = "needs a Ledger device"]
-fn open_all_devices_finds_every_attached_ledger() {
-    let devices = TransportNativeHID::open_all_devices().expect("enumeration works");
-    assert!(!devices.is_empty(), "a Ledger is attached");
-    for device in devices {
-        let device = device.expect("device opens");
+fn every_listed_device_opens() {
+    let ids = TransportNativeHID::list().expect("enumeration works");
+    assert!(!ids.is_empty(), "a Ledger is attached");
+    for id in &ids {
+        let device = TransportNativeHID::open(id).expect("device opens");
         assert_eq!(device.get_manufacturer_string().as_deref(), Some("Ledger"));
     }
 }

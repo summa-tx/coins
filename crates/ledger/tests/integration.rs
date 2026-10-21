@@ -6,7 +6,7 @@ use coins_ledger::{Ledger, common::*, transports::native::hid};
 #[test]
 #[serial]
 fn ledger_device_path() {
-    let transport = hid::TransportNativeHID::new().unwrap();
+    let transport = hid::TransportNativeHID::open_first().unwrap();
 
     let manufacturer = transport.get_manufacturer_string();
     println!("{manufacturer:?}");
@@ -16,7 +16,7 @@ fn ledger_device_path() {
 #[serial]
 #[tokio::test]
 async fn exchange() {
-    let mut transport = Ledger::new().expect("Could not get a device");
+    let mut transport = Ledger::open_first_hid().expect("Could not get a device");
     // Ethereum `get_app_version`
     let command = CommandBuilder::new().cla(0xe0).ins(0x06).build().unwrap();
     let result = transport.exchange(command).await.unwrap();

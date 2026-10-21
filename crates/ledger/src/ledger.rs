@@ -4,72 +4,45 @@ use tracing::debug;
 
 use crate::{
     ApduAnswer, ApduCommand, LedgerError,
-    transports::{LedgerHandle, LedgerTransport},
+    transports::{DeviceId, HidLedger, LedgerTransport},
 };
 
-/// A Ledger device connection over a [`LedgerTransport`]. The default is the
-/// native HID handle.
+/// A Ledger device connection over a [`LedgerTransport`] (defaulting to
+/// [`HidLedger`]).
 ///
-/// Three ways to get one:
+/// Instantiate via:
 ///
-/// - [`Ledger::new`] opens the first Ledger found.
-/// - [`LedgerHandle::new`] wraps a device you opened yourself, e.g. one of
-///   [`TransportNativeHID::open_all_devices`](crate::transports::native::hid::TransportNativeHID::open_all_devices),
-///   and [`Ledger::from_handle`] takes it from there.
-/// - [`Ledger::from_handle`] also takes any [`LedgerTransport`] of your own,
-///   such as a connection to an emulator:
-///
-/// ```
-/// use std::time::Duration;
-///
-/// use coins_ledger::{
-///     ApduAnswer, ApduBuffer, ApduCommand, Ledger, LedgerError, transports::LedgerTransport,
-/// };
-///
-/// /// Answers every command with success and no data.
-/// struct Stub;
-///
-/// impl LedgerTransport for Stub {
-///     async fn exchange(
-///         &mut self,
-///         _command: ApduCommand,
-///         _timeout: Option<Duration>,
-///     ) -> Result<ApduAnswer, LedgerError> {
-///         let mut reply = ApduBuffer::new();
-///         reply.extend_from_slice(&[0x90, 0x00]).unwrap();
-///         ApduAnswer::from_answer(reply)?.into_result()
-///     }
-/// }
-///
-/// # tokio::runtime::Builder::new_current_thread().build().unwrap().block_on(async {
-/// let mut ledger = Ledger::from_handle(Stub);
-/// let version = ApduCommand::builder().cla(0xe0).ins(0x06).build()?;
-/// assert!(ledger.exchange(version).await?.is_success());
-/// # Ok::<(), LedgerError>(())
-/// # }).unwrap();
-/// ```
+/// - [`Ledger::open_first_hid`] opens the first Ledger found via HID.
+/// - [`Ledger::open_hid`] opens one device from [`HidLedger::list`].
+/// - [`Ledger::from_transport`] wraps an existing [`HidLedger`], or any
+///   [`LedgerTransport`].
 #[derive(Debug)]
-pub struct Ledger<T = LedgerHandle> {
+pub struct Ledger<T = HidLedger> {
     transport: T,
     timeout: Option<Duration>,
 }
 
 impl<T> Ledger<T> {
-    /// Create a ledger from a handle. Starts with no timeout: the device may
-    /// be waiting on the user, which takes as long as it takes.
-    pub const fn from_handle(transport: T) -> Self {
+    /// Create a ledger from a transport.
+    pub const fn from_transport(transport: T) -> Self {
         Self {
             transport,
             timeout: None,
         }
     }
 
-    /// Set the per-report read timeout. `None` waits indefinitely.
+    /// Set the device read timeout. `None` waits indefinitely.
     pub const fn set_timeout(&mut self, timeout: Option<Duration>) {
         self.timeout = timeout
     }
 
-    /// The per-report read timeout. `None` waits indefinitely.
+    /// Set the device read timeout. `None` waits indefinitely.
+    pub const fn with_timeout(mut self, timeout: Option<Duration>) -> Self {
+        self.timeout = timeout;
+        self
+    }
+
+    /// The device read timeout. `None` waits indefinitely.
     pub const fn timeout(&self) -> Option<Duration> {
         self.timeout
     }
@@ -98,9 +71,14 @@ where
 }
 
 impl Ledger {
-    /// Instantiate a new Ledger using the default transport
-    pub fn new() -> Result<Self, LedgerError> {
-        LedgerHandle::init().map(Self::from_handle)
+    /// Open the first Ledger found via HID. See [`HidLedger::open_first`].
+    pub fn open_first_hid() -> Result<Self, LedgerError> {
+        HidLedger::open_first().map(Self::from_transport)
+    }
+
+    /// Open one Ledger via HID. See [`HidLedger::open`].
+    pub fn open_hid(id: &DeviceId) -> Result<Self, LedgerError> {
+        HidLedger::open(id).map(Self::from_transport)
     }
 }
 

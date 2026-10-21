@@ -6,7 +6,7 @@ use std::time::Duration;
 /// [`TransportNativeHID`][native::hid::TransportNativeHID] in a
 /// thread managing the IO.
 pub mod native;
-pub use native::LedgerHandle;
+pub use native::{DeviceId, HidLedger};
 
 use crate::{
     common::{ApduAnswer, ApduCommand},
@@ -14,17 +14,9 @@ use crate::{
 };
 
 /// An asynchronous interface to a Ledger device.
-///
-/// A transport owns one connection to the device. APDUs on a connection must
-/// never be interleaved, so [`Ledger`](crate::Ledger) holds its transport
-/// exclusively and `exchange` takes `&mut self`.
-///
-/// Implementations build their replies with [`ApduAnswer::from_answer`] and
-/// return a non-success status word as an error with
-/// [`ApduAnswer::into_result`]. See [`Ledger`](crate::Ledger) for an example.
 pub trait LedgerTransport {
-    /// Exchange a packet, waiting up to `timeout` for each report of the
-    /// reply. `None` waits indefinitely.
+    /// Exchange a packet. Transports SHOULD respect the timeout, but are free
+    /// to choose how to do that.
     fn exchange(
         &mut self,
         packet: ApduCommand,

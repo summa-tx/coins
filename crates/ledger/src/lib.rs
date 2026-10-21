@@ -29,3 +29,7 @@ pub use {
 /// The Ledger connection.
 mod ledger;
 pub use ledger::Ledger;
+
+/// Ledger hardware models.
+mod model;
+pub use model::Model;
