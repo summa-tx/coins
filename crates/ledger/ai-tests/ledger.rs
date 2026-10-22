@@ -147,3 +147,17 @@ async fn transport_errors_pass_through_and_downcast() {
     };
     assert!(inner.downcast_ref::<ScriptExhausted>().is_some());
 }
+
+#[cfg(feature = "speculos")]
+#[tokio::test]
+async fn connect_speculos_reports_model() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let ledger = Ledger::connect_speculos(addr, crate::Model::Flex)
+        .await
+        .unwrap();
+    assert_eq!(
+        ledger.identity(),
+        Some(DeviceIdentity::new(crate::Model::Flex, None))
+    );
+}

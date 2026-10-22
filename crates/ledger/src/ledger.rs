@@ -1,5 +1,7 @@
 use std::time::Duration;
 
+#[cfg(feature = "speculos")]
+use tokio::net::ToSocketAddrs;
 use tracing::{Level, Span, debug, enabled, instrument};
 
 use crate::{
@@ -7,6 +9,11 @@ use crate::{
     transports::{
         DeviceIdentity, HidDeviceId, HidTransport, LedgerTransport, NativeTransportError,
     },
+};
+#[cfg(feature = "speculos")]
+use crate::{
+    Model,
+    transports::{SpeculosError, SpeculosTransport},
 };
 
 /// A Ledger device connection over a [`LedgerTransport`] (defaulting to
@@ -113,6 +120,21 @@ impl Ledger {
     /// List available Ledger HID devices. See [`HidTransport::list`]
     pub fn list_hid() -> Result<Vec<HidDeviceId>, NativeTransportError> {
         HidTransport::list()
+    }
+}
+
+#[cfg(feature = "speculos")]
+#[cfg_attr(docsrs, doc(cfg(feature = "speculos")))]
+impl Ledger<SpeculosTransport> {
+    /// Connect to the APDU socket of a Speculos instance emulating `model`.
+    /// See [`SpeculosTransport::connect`].
+    pub async fn connect_speculos(
+        addr: impl ToSocketAddrs,
+        model: Model,
+    ) -> Result<Self, SpeculosError> {
+        SpeculosTransport::connect(addr, model)
+            .await
+            .map(Self::from_transport)
     }
 }
 
