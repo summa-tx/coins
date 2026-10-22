@@ -30,6 +30,8 @@ jobs:
       - if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libudev-dev
       - run: cargo test ${{ matrix.features }}
+      - name: test speculos feature
+        run: cargo test -p coins-ledger --features speculos
 
   wasm:
     name: check WASM ${{ matrix.features }}
@@ -63,6 +65,10 @@ jobs:
         run: cargo clippy --workspace --all-targets
         env:
           RUSTFLAGS: "-D warnings"
+      - name: clippy speculos
+        run: cargo clippy -p coins-ledger --all-targets --features speculos
+        env:
+          RUSTFLAGS: "-D warnings"
 
   docs:
     name: docs
@@ -77,6 +83,44 @@ jobs:
         run: cargo doc --workspace --no-deps --document-private-items
         env:
           RUSTDOCFLAGS: "--cfg docsrs -D warnings"
+      - name: doc speculos
+        run: cargo doc -p coins-ledger --no-deps --document-private-items --features speculos
+        env:
+          RUSTDOCFLAGS: "--cfg docsrs -D warnings"
+
+  speculos:
+    name: speculos ${{ matrix.model }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { model: nanosp, elf: app-2.3.2-nanos2.elf }
+          - { model: flex, elf: app-2.3.2-flex.elf }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - run: sudo apt-get update && sudo apt-get install -y libudev-dev
+      - name: download app
+        run: gh release download 2.3.2 -R LedgerHQ/app-boilerplate -p ${{ matrix.elf }} -D apps
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: start speculos
+        run: >
+          docker run -d --name speculos -v "$PWD/apps":/apps -p 9999:9999 -p 5000:5000
+          ghcr.io/ledgerhq/speculos:v0.27.1@sha256:028d1e368244631578537e7ca50b6f13ca2932b5f3fd220627289b559c07a886
+          --model ${{ matrix.model }} --display headless
+          --apdu-port 9999 --api-port 5000 /apps/${{ matrix.elf }}
+      - name: wait for speculos
+        run: timeout 60 bash -c 'until curl -sf http://127.0.0.1:5000/events >/dev/null; do sleep 1; done'
+      - run: cargo test -p coins-ledger --features speculos transports::speculos
+        env:
+          SPECULOS_APDU_ADDR: 127.0.0.1:9999
+          SPECULOS_API_URL: http://127.0.0.1:5000
+          SPECULOS_MODEL: ${{ matrix.model }}
+      - if: failure()
+        run: docker logs speculos
 
   fmt:
     name: fmt
