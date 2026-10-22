@@ -11,11 +11,16 @@
 
 //! This crate provides a basic implementation of BIP32, BIP49, and BIP84.
 //!
-//! Keys carry their network. Root keys default to Bitcoin mainnet; call `set_network` to change
-//! it. Parse with `str::parse` or `XPriv::from_base58`, which accept Bitcoin mainnet and testnet
-//! prefixes and remember which one they saw; serialize with `to_base58`. Any other network is a
-//! `NetworkVersions` constant passed to `from_base58_with`, `set_network`, or the `deserialize_*`
-//! helpers in `enc`. The `prelude` module exports everything needed to get started.
+//! # Encoding
+//!
+//! Keys are associated with a specific network. When deserializing or parsing,
+//! the network is inferred from the prefix bytes, and stored on the key. It is
+//! then used when serializing. It is not advisable to change networks on a key
+//! in memory.
+//!
+//! Other networks can create a [`enc::NetworkVersions`] struct with their own
+//! prefix information, and use the helpers in the [`enc`] module to
+//! (de)serialize keys with those prefixes
 //!
 //! # Warnings:
 //!

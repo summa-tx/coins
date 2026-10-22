@@ -1,23 +1,50 @@
+use crate::{
+    derived::{DerivedXPriv, DerivedXPub},
+    path::KeyDerivation,
+    primitives::{ChainCode, Hint, KeyFingerprint, XKeyInfo},
+    xkeys::{XPriv, XPub},
+    Bip32Error,
+};
 use coins_core::hashes::{Digest, Hash256};
 use k256::ecdsa;
 use std::borrow::Cow;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
-use crate::{
-    Bip32Error,
-    derived::{DerivedXPriv, DerivedXPub},
-    path::KeyDerivation,
-    primitives::{ChainCode, Hint, KeyFingerprint, XKeyInfo},
-    xkeys::{XPriv, XPub},
-};
-
-/// Serialized length of an extended key, private or public: version (4), depth (1), parent
-/// fingerprint (4), index (4), chain code (32), and 33 bytes of key (a padding byte plus the
-/// 32-byte private key, or the 33-byte compressed public key).
+/// Serialized length of an extended key, private or public: version (4), depth
+/// (1), parent fingerprint (4), index (4), chain code (32), and 33 bytes of
+/// key (a padding byte plus the 32-byte private key, or the 33-byte compressed
+/// public key).
 const SERIALIZED_LEN: usize = 78;
 
 /// A serialized key followed by its 4-byte base58check checksum.
 const CHECKED_LEN: usize = SERIALIZED_LEN + 4;
+
+/// The networks a blind parse recognizes, tried in order.
+const KNOWN: [&NetworkVersions; 2] = [&MAINNET, &TESTNET];
+
+/// Serialized length of the key details shared by xpubs and xprivs: depth (1),
+/// parent fingerprint (4), index (4), and chain code (32).
+const KEY_DETAILS_LEN: usize = 1 + 4 + 4 + 32;
+
+/// Bitcoin mainnet version prefixes.
+pub const MAINNET: NetworkVersions = NetworkVersions {
+    priv_legacy: 0x0488_ADE4,
+    priv_compatibility: 0x049d_7878,
+    priv_segwit: 0x04b2_430c,
+    pub_legacy: 0x0488_B21E,
+    pub_compatibility: 0x049d_7cb2,
+    pub_segwit: 0x04b2_4746,
+};
+
+/// Bitcoin testnet version prefixes.
+pub const TESTNET: NetworkVersions = NetworkVersions {
+    priv_legacy: 0x0435_8394,
+    priv_compatibility: 0x044a_4e28,
+    priv_segwit: 0x045f_18bc,
+    pub_legacy: 0x0435_87CF,
+    pub_compatibility: 0x044a_5262,
+    pub_segwit: 0x045f_1cf6,
+};
 
 /// A BIP-32 serialized extended private key: version (4), depth (1), parent fingerprint (4),
 /// index (4), chain code (32), padding (1), and private key (32). Zeroized on drop.
@@ -26,8 +53,8 @@ struct SerializedXPriv([u8; SERIALIZED_LEN]);
 
 /// Decode a base58check string holding exactly one serialized key.
 ///
-/// Decodes into a fixed buffer, so nothing is allocated. The buffer and the result are
-/// zeroized on drop, as the payload may be an xpriv.
+/// Decodes into a fixed buffer The buffer and the result are zeroized on drop,
+/// as the payload may be an xpriv.
 fn decode_key_payload(s: &str) -> Result<Zeroizing<[u8; SERIALIZED_LEN]>, Bip32Error> {
     let mut checked = Zeroizing::new([0u8; CHECKED_LEN]);
     let len = match bs58::decode(s).onto(&mut *checked) {
@@ -47,7 +74,8 @@ fn decode_key_payload(s: &str) -> Result<Zeroizing<[u8; SERIALIZED_LEN]>, Bip32E
     Ok(key)
 }
 
-/// Encode one serialized key as a base58check string. The result is zeroized on drop.
+/// Encode one serialized key as a base58check string. The result is zeroized
+/// on drop.
 fn encode_key_payload(key: &[u8; SERIALIZED_LEN]) -> Zeroizing<String> {
     let mut checked = Zeroizing::new([0u8; CHECKED_LEN]);
     checked[..SERIALIZED_LEN].copy_from_slice(key);
@@ -119,33 +147,6 @@ impl NetworkVersions {
     }
 }
 
-/// Bitcoin mainnet version prefixes.
-pub const MAINNET: NetworkVersions = NetworkVersions {
-    priv_legacy: 0x0488_ADE4,
-    priv_compatibility: 0x049d_7878,
-    priv_segwit: 0x04b2_430c,
-    pub_legacy: 0x0488_B21E,
-    pub_compatibility: 0x049d_7cb2,
-    pub_segwit: 0x04b2_4746,
-};
-
-/// Bitcoin testnet version prefixes.
-pub const TESTNET: NetworkVersions = NetworkVersions {
-    priv_legacy: 0x0435_8394,
-    priv_compatibility: 0x044a_4e28,
-    priv_segwit: 0x045f_18bc,
-    pub_legacy: 0x0435_87CF,
-    pub_compatibility: 0x044a_5262,
-    pub_segwit: 0x045f_1cf6,
-};
-
-/// The networks a blind parse recognizes, tried in order.
-const KNOWN: [&NetworkVersions; 2] = [&MAINNET, &TESTNET];
-
-/// Serialized length of the key details shared by xpubs and xprivs: depth (1),
-/// parent fingerprint (4), index (4), and chain code (32).
-const KEY_DETAILS_LEN: usize = 1 + 4 + 4 + 32;
-
 fn write_key_details<W>(writer: &mut W, key: &XKeyInfo) -> Result<usize, Bip32Error>
 where
     W: std::io::Write,
@@ -193,8 +194,8 @@ where
     Ok(chain_code)
 }
 
-/// Read the four version bytes and return the hint and network of the first candidate whose
-/// `lookup` recognizes them. Unrecognized bytes are passed to `unknown` to build the error.
+/// Read the four version bytes and return the hint and network of the first
+/// candidate whose `lookup` recognizes them. Unrecognized bytes are passed to `unknown` to build the error.
 fn read_version<R>(
     reader: &mut R,
     candidates: &[&'static NetworkVersions],
@@ -312,7 +313,8 @@ where
 }
 
 impl XPriv {
-    /// Serialize the xpriv to `std::io::Write`, using its network's version bytes.
+    /// Serialize the xpriv to `std::io::Write`, using its network's version
+    /// bytes.
     pub fn write<W>(&self, writer: &mut W) -> Result<usize, Bip32Error>
     where
         W: std::io::Write,
@@ -327,8 +329,8 @@ impl XPriv {
         Ok(version_bytes.len() + details + 1 + key_bytes.len())
     }
 
-    /// Read an xpriv from `std::io::Read`, accepting Bitcoin mainnet and testnet version bytes.
-    /// The key remembers which network it was read with.
+    /// Read an xpriv from `std::io::Read`, accepting Bitcoin mainnet and
+    /// testnet version bytes.
     pub fn read<R>(reader: &mut R) -> Result<Self, Bip32Error>
     where
         R: std::io::Read,
@@ -336,7 +338,8 @@ impl XPriv {
         read_xpriv_from(reader, &KNOWN)
     }
 
-    /// Read an xpriv from `std::io::Read`, accepting only `network`'s version bytes.
+    /// Read an xpriv from `std::io::Read`, accepting only `network`'s version
+    /// bytes.
     pub fn read_with<R>(
         reader: &mut R,
         network: &'static NetworkVersions,
@@ -347,8 +350,8 @@ impl XPriv {
         read_xpriv_from(reader, &[network])
     }
 
-    /// Serialize the xpriv to base58check, using its network's version bytes. The result is
-    /// zeroized on drop.
+    /// Serialize the xpriv to base58check, using its network's version bytes.
+    /// The result is zeroized on drop.
     ///
     /// ```
     /// use coins_bip32::{Bip32Error, xkeys::XPriv};
@@ -369,8 +372,9 @@ impl XPriv {
         encode_key_payload(&buf.0)
     }
 
-    /// Read an xpriv from a base58check string, accepting Bitcoin mainnet and testnet version
-    /// bytes. The key remembers which network it was read with.
+    /// Read an xpriv from a base58check string, accepting Bitcoin mainnet and
+    /// testnet version bytes. For other networks, use
+    /// [`Self::from_base58_with`].
     ///
     /// ```
     /// use coins_bip32::{Bip32Error, xkeys::XPriv};
@@ -386,7 +390,8 @@ impl XPriv {
         Self::read(&mut &data[..])
     }
 
-    /// Read an xpriv from a base58check string, accepting only `network`'s version bytes.
+    /// Read an xpriv from a base58check string, accepting only `network`'s
+    /// version bytes.
     pub fn from_base58_with(
         s: &str,
         network: &'static NetworkVersions,
@@ -397,7 +402,8 @@ impl XPriv {
 }
 
 impl XPub {
-    /// Serialize the xpub to `std::io::Write`, using its network's version bytes.
+    /// Serialize the xpub to `std::io::Write`, using its network's version
+    /// bytes.
     pub fn write<W>(&self, writer: &mut W) -> Result<usize, Bip32Error>
     where
         W: std::io::Write,
@@ -411,8 +417,8 @@ impl XPub {
         Ok(version_bytes.len() + details + key_bytes.len())
     }
 
-    /// Read an xpub from `std::io::Read`, accepting Bitcoin mainnet and testnet version bytes.
-    /// The key remembers which network it was read with.
+    /// Read an xpub from `std::io::Read`, accepting Bitcoin mainnet and
+    /// testnet version bytes.
     pub fn read<R>(reader: &mut R) -> Result<Self, Bip32Error>
     where
         R: std::io::Read,
@@ -452,8 +458,9 @@ impl XPub {
         encode_key_payload(&buf).to_string()
     }
 
-    /// Read an xpub from a base58check string, accepting Bitcoin mainnet and testnet version
-    /// bytes. The key remembers which network it was read with.
+    /// Read an xpub from a base58check string, accepting Bitcoin mainnet and
+    /// testnet version bytes. For other networks, use
+    /// [`Self::from_base58_with`].
     ///
     /// ```
     /// use coins_bip32::{Bip32Error, xkeys::XPub};
@@ -469,7 +476,8 @@ impl XPub {
         Self::read(&mut &data[..])
     }
 
-    /// Read an xpub from a base58check string, accepting only `network`'s version bytes.
+    /// Read an xpub from a base58check string, accepting only `network`'s
+    /// version bytes.
     pub fn from_base58_with(
         s: &str,
         network: &'static NetworkVersions,
@@ -479,8 +487,8 @@ impl XPub {
     }
 }
 
-/// Parses an xpriv from a base58check string: on the given network, or on any known network
-/// when `None`. Accepts borrowed, transient and owned strings alike.
+/// Parses an xpriv from a base58check string: on the given network, or on any
+/// known network when `None`.
 pub(crate) struct XPrivVisitor(pub(crate) Option<&'static NetworkVersions>);
 
 impl serde::de::Visitor<'_> for XPrivVisitor {
@@ -506,8 +514,8 @@ impl serde::de::Visitor<'_> for XPrivVisitor {
     }
 }
 
-/// Parses an xpub from a base58check string: on the given network, or on any known network
-/// when `None`. Accepts borrowed, transient and owned strings alike.
+/// Parses an xpub from a base58check string: on the given network, or on any
+/// known network when `None`.
 pub(crate) struct XPubVisitor(pub(crate) Option<&'static NetworkVersions>);
 
 impl serde::de::Visitor<'_> for XPubVisitor {
@@ -526,10 +534,8 @@ impl serde::de::Visitor<'_> for XPubVisitor {
     }
 }
 
-/// Deserialize an [`XPriv`] on `network`, for use with `#[serde(deserialize_with)]`.
-///
-/// The blind `Deserialize` impl only knows mainnet and testnet. `deserialize_with` takes a path
-/// and cannot pass `network`, so wrap this in a one-argument function:
+/// Helper for deserializing an [`XPriv`] on `network`, for use with
+/// `#[serde(deserialize_with)]`.
 ///
 /// ```
 /// use coins_bip32::{enc::{NetworkVersions, deserialize_xpriv}, xkeys::XPriv};
@@ -568,10 +574,8 @@ pub fn deserialize_xpriv<'de, D: serde::Deserializer<'de>>(
     d.deserialize_str(XPrivVisitor(Some(network)))
 }
 
-/// Deserialize an [`XPub`] on `network`, for use with `#[serde(deserialize_with)]`.
-///
-/// The blind `Deserialize` impl only knows mainnet and testnet. `deserialize_with` takes a path
-/// and cannot pass `network`, so wrap this in a one-argument function:
+/// Helper for deserializing an [`XPub`] on `network`, for use with
+/// `#[serde(deserialize_with)]`.
 ///
 /// ```
 /// use coins_bip32::{enc::{NetworkVersions, deserialize_xpub}, xkeys::{XPriv, XPub}};
@@ -610,8 +614,9 @@ pub fn deserialize_xpub<'de, D: serde::Deserializer<'de>>(
     d.deserialize_str(XPubVisitor(Some(network)))
 }
 
-/// A serialized key as text: borrowed from the input when the deserializer allows it, owned
-/// otherwise. An owned copy may be an xpriv, so it is zeroized on drop, whichever path drops it.
+/// A serialized key as text: borrowed from the input when the deserializer
+/// allows it, owned otherwise. An owned copy may be an xpriv, so it is
+/// zeroized on drop, whichever path drops it.
 #[derive(serde::Deserialize)]
 #[serde(transparent)]
 struct KeyText<'a>(#[serde(borrow)] Cow<'a, str>);
@@ -624,8 +629,8 @@ impl Drop for KeyText<'_> {
     }
 }
 
-/// The serialized form of a [`DerivedXPriv`], with the key left as text so it can be parsed on a
-/// chosen network.
+/// The serialized form of a [`DerivedXPriv`], with the key left as text so it
+/// can be parsed on a chosen network.
 #[derive(serde::Deserialize)]
 struct DerivedXPrivRepr<'a> {
     #[serde(borrow)]
@@ -633,8 +638,8 @@ struct DerivedXPrivRepr<'a> {
     derivation: KeyDerivation,
 }
 
-/// The serialized form of a [`DerivedXPub`], with the key left as text so it can be parsed on a
-/// chosen network.
+/// The serialized form of a [`DerivedXPub`], with the key left as text so it
+/// can be parsed on a chosen network.
 #[derive(serde::Deserialize)]
 struct DerivedXPubRepr<'a> {
     #[serde(borrow)]
@@ -642,10 +647,8 @@ struct DerivedXPubRepr<'a> {
     derivation: KeyDerivation,
 }
 
-/// Deserialize a [`DerivedXPriv`] on `network`, for use with `#[serde(deserialize_with)]`.
-///
-/// The blind `Deserialize` impl only knows mainnet and testnet. `deserialize_with` takes a path
-/// and cannot pass `network`, so wrap this in a one-argument function:
+/// Deserialize a [`DerivedXPriv`] on `network`, for use with
+/// `#[serde(deserialize_with)]`.
 ///
 /// ```
 /// use coins_bip32::{
@@ -693,10 +696,8 @@ pub fn deserialize_derived_xpriv<'de, D: serde::Deserializer<'de>>(
     Ok(DerivedXPriv::new(xpriv, repr.derivation))
 }
 
-/// Deserialize a [`DerivedXPub`] on `network`, for use with `#[serde(deserialize_with)]`.
-///
-/// The blind `Deserialize` impl only knows mainnet and testnet. `deserialize_with` takes a path
-/// and cannot pass `network`, so wrap this in a one-argument function:
+/// Deserialize a [`DerivedXPub`] on `network`, for use with
+/// `#[serde(deserialize_with)]`.
 ///
 /// ```
 /// use coins_bip32::{
