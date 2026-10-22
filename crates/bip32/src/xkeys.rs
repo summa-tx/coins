@@ -470,7 +470,7 @@ impl<'de> serde::Deserialize<'de> for XPub {
     where
         D: serde::Deserializer<'de>,
     {
-        deserializer.deserialize_str(crate::enc::XPubVisitor(None))
+        deserializer.deserialize_str(crate::enc::XPubVisitor(&crate::enc::KNOWN))
     }
 }
 
@@ -488,7 +488,7 @@ impl<'de> serde::Deserialize<'de> for XPriv {
     where
         D: serde::Deserializer<'de>,
     {
-        deserializer.deserialize_str(crate::enc::XPrivVisitor(None))
+        deserializer.deserialize_str(crate::enc::XPrivVisitor(&crate::enc::KNOWN))
     }
 }
 

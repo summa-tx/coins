@@ -138,26 +138,26 @@ fn testnet_prefix_is_recognized_and_preserved() {
 #[test]
 fn strict_parse_rejects_the_other_network() {
     assert!(matches!(
-        XPriv::from_base58_with(VECTOR_1_XPRV, &TESTNET),
+        XPriv::from_base58_with(VECTOR_1_XPRV, &[&TESTNET]),
         Err(Bip32Error::BadXPrivVersionBytes(_))
     ));
     let tprv = with_version(VECTOR_1_XPRV, TESTNET.priv_legacy);
     assert!(matches!(
-        XPriv::from_base58_with(&tprv, &MAINNET),
+        XPriv::from_base58_with(&tprv, &[&MAINNET]),
         Err(Bip32Error::BadXPrivVersionBytes(_))
     ));
-    assert!(XPriv::from_base58_with(&tprv, &TESTNET).is_ok());
+    assert!(XPriv::from_base58_with(&tprv, &[&TESTNET]).is_ok());
 
     assert!(matches!(
-        XPub::from_base58_with(VECTOR_1_XPUB, &TESTNET),
+        XPub::from_base58_with(VECTOR_1_XPUB, &[&TESTNET]),
         Err(Bip32Error::BadXPubVersionBytes(_))
     ));
     let tpub = with_version(VECTOR_1_XPUB, TESTNET.pub_legacy);
     assert!(matches!(
-        XPub::from_base58_with(&tpub, &MAINNET),
+        XPub::from_base58_with(&tpub, &[&MAINNET]),
         Err(Bip32Error::BadXPubVersionBytes(_))
     ));
-    assert!(XPub::from_base58_with(&tpub, &TESTNET).is_ok());
+    assert!(XPub::from_base58_with(&tpub, &[&TESTNET]).is_ok());
 }
 
 #[test]
@@ -250,19 +250,19 @@ const OTHER: NetworkVersions = NetworkVersions {
 };
 
 fn other_xpriv<'de, D: serde::Deserializer<'de>>(d: D) -> Result<XPriv, D::Error> {
-    deserialize_xpriv(d, &OTHER)
+    deserialize_xpriv(d, &[&OTHER])
 }
 
 fn other_xpub<'de, D: serde::Deserializer<'de>>(d: D) -> Result<XPub, D::Error> {
-    deserialize_xpub(d, &OTHER)
+    deserialize_xpub(d, &[&OTHER])
 }
 
 fn other_derived_xpriv<'de, D: serde::Deserializer<'de>>(d: D) -> Result<DerivedXPriv, D::Error> {
-    deserialize_derived_xpriv(d, &OTHER)
+    deserialize_derived_xpriv(d, &[&OTHER])
 }
 
 fn other_derived_xpub<'de, D: serde::Deserializer<'de>>(d: D) -> Result<DerivedXPub, D::Error> {
-    deserialize_derived_xpub(d, &OTHER)
+    deserialize_derived_xpub(d, &[&OTHER])
 }
 
 #[derive(serde::Deserialize)]
@@ -323,10 +323,10 @@ fn helpers_reject_mainnet() {
         let input = json[field].to_string();
         let mut de = serde_json::Deserializer::from_str(&input);
         let err = match field {
-            "xpriv" => deserialize_xpriv(&mut de, &OTHER).err(),
-            "xpub" => deserialize_xpub(&mut de, &OTHER).err(),
-            "derived_xpriv" => deserialize_derived_xpriv(&mut de, &OTHER).err(),
-            _ => deserialize_derived_xpub(&mut de, &OTHER).err(),
+            "xpriv" => deserialize_xpriv(&mut de, &[&OTHER]).err(),
+            "xpub" => deserialize_xpub(&mut de, &[&OTHER]).err(),
+            "derived_xpriv" => deserialize_derived_xpriv(&mut de, &[&OTHER]).err(),
+            _ => deserialize_derived_xpub(&mut de, &[&OTHER]).err(),
         }
         .unwrap_or_else(|| panic!("{field}: mainnet key must be rejected"));
         let msg = err.to_string();
@@ -348,7 +348,7 @@ fn from_base58_rejects_wrong_payload_length() {
         );
         assert!(
             matches!(
-                XPriv::from_base58_with(&s, &MAINNET),
+                XPriv::from_base58_with(&s, &[&MAINNET]),
                 Err(Bip32Error::BadPayloadLength)
             ),
             "xpriv strict: {s}"
@@ -361,7 +361,7 @@ fn from_base58_rejects_wrong_payload_length() {
         );
         assert!(
             matches!(
-                XPub::from_base58_with(&s, &MAINNET),
+                XPub::from_base58_with(&s, &[&MAINNET]),
                 Err(Bip32Error::BadPayloadLength)
             ),
             "xpub strict: {s}"
@@ -394,4 +394,68 @@ fn helpers_accept_owned_string_sources() {
             serde_json::to_string(&key).unwrap()
         );
     }
+}
+
+#[test]
+fn strict_parse_accepts_any_listed_network() {
+    let listed: &[&NetworkVersions] = &[&OTHER, &TESTNET];
+
+    let tprv = with_version(VECTOR_1_XPRV, TESTNET.priv_legacy);
+    let parsed = XPriv::from_base58_with(&tprv, listed).unwrap();
+    let info: &XKeyInfo = parsed.as_ref();
+    assert_eq!(info.network, &TESTNET);
+    assert!(matches!(
+        XPriv::from_base58_with(VECTOR_1_XPRV, listed),
+        Err(Bip32Error::BadXPrivVersionBytes(_))
+    ));
+    assert!(matches!(
+        XPriv::from_base58_with(&tprv, &[]),
+        Err(Bip32Error::BadXPrivVersionBytes(_))
+    ));
+
+    let tpub = with_version(VECTOR_1_XPUB, TESTNET.pub_legacy);
+    let parsed = XPub::from_base58_with(&tpub, listed).unwrap();
+    let info: &XKeyInfo = parsed.as_ref();
+    assert_eq!(info.network, &TESTNET);
+    assert!(matches!(
+        XPub::from_base58_with(VECTOR_1_XPUB, listed),
+        Err(Bip32Error::BadXPubVersionBytes(_))
+    ));
+    assert!(matches!(
+        XPub::from_base58_with(&tpub, &[]),
+        Err(Bip32Error::BadXPubVersionBytes(_))
+    ));
+}
+
+#[test]
+fn helpers_accept_any_listed_network() {
+    fn either_xpriv<'de, D: serde::Deserializer<'de>>(d: D) -> Result<XPriv, D::Error> {
+        deserialize_xpriv(d, &[&OTHER, &TESTNET])
+    }
+
+    #[derive(serde::Deserialize)]
+    struct Pair {
+        #[serde(deserialize_with = "either_xpriv")]
+        a: XPriv,
+        #[serde(deserialize_with = "either_xpriv")]
+        b: XPriv,
+    }
+
+    let mut on_other = XPriv::root_from_seed(&[7u8; 32], None).unwrap();
+    on_other.set_network(&OTHER);
+    let mut on_testnet = XPriv::root_from_seed(&[8u8; 32], None).unwrap();
+    on_testnet.set_network(&TESTNET);
+    let json = serde_json::json!({
+        "a": on_other.to_base58().as_str(),
+        "b": on_testnet.to_base58().as_str(),
+    })
+    .to_string();
+    let pair: Pair = serde_json::from_str(&json).unwrap();
+    let (a, b): (&XKeyInfo, &XKeyInfo) = (pair.a.as_ref(), pair.b.as_ref());
+    assert_eq!(a.network, &OTHER);
+    assert_eq!(b.network, &TESTNET);
+
+    // Mainnet is not on the list.
+    let json = serde_json::json!({ "a": VECTOR_1_XPRV, "b": VECTOR_1_XPRV }).to_string();
+    assert!(serde_json::from_str::<Pair>(&json).is_err());
 }

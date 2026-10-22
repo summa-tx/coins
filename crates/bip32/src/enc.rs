@@ -1,9 +1,9 @@
 use crate::{
+    Bip32Error,
     derived::{DerivedXPriv, DerivedXPub},
     path::KeyDerivation,
     primitives::{ChainCode, Hint, KeyFingerprint, XKeyInfo},
     xkeys::{XPriv, XPub},
-    Bip32Error,
 };
 use coins_core::hashes::{Digest, Hash256};
 use k256::ecdsa;
@@ -20,7 +20,7 @@ const SERIALIZED_LEN: usize = 78;
 const CHECKED_LEN: usize = SERIALIZED_LEN + 4;
 
 /// The networks a blind parse recognizes, tried in order.
-const KNOWN: [&NetworkVersions; 2] = [&MAINNET, &TESTNET];
+pub(crate) const KNOWN: [&NetworkVersions; 2] = [&MAINNET, &TESTNET];
 
 /// Serialized length of the key details shared by xpubs and xprivs: depth (1),
 /// parent fingerprint (4), index (4), and chain code (32).
@@ -338,16 +338,16 @@ impl XPriv {
         read_xpriv_from(reader, &KNOWN)
     }
 
-    /// Read an xpriv from `std::io::Read`, accepting only `network`'s version
-    /// bytes.
+    /// Read an xpriv from `std::io::Read`, accepting only the version bytes of
+    /// the listed `networks`.
     pub fn read_with<R>(
         reader: &mut R,
-        network: &'static NetworkVersions,
+        networks: &[&'static NetworkVersions],
     ) -> Result<Self, Bip32Error>
     where
         R: std::io::Read,
     {
-        read_xpriv_from(reader, &[network])
+        read_xpriv_from(reader, networks)
     }
 
     /// Serialize the xpriv to base58check, using its network's version bytes.
@@ -390,14 +390,14 @@ impl XPriv {
         Self::read(&mut &data[..])
     }
 
-    /// Read an xpriv from a base58check string, accepting only `network`'s
-    /// version bytes.
+    /// Read an xpriv from a base58check string, accepting only the version
+    /// bytes of the listed `networks`.
     pub fn from_base58_with(
         s: &str,
-        network: &'static NetworkVersions,
+        networks: &[&'static NetworkVersions],
     ) -> Result<Self, Bip32Error> {
         let data = decode_key_payload(s)?;
-        Self::read_with(&mut &data[..], network)
+        Self::read_with(&mut &data[..], networks)
     }
 }
 
@@ -426,15 +426,16 @@ impl XPub {
         read_xpub_from(reader, &KNOWN)
     }
 
-    /// Read an xpub from `std::io::Read`, accepting only `network`'s version bytes.
+    /// Read an xpub from `std::io::Read`, accepting only the version bytes of
+    /// the listed `networks`.
     pub fn read_with<R>(
         reader: &mut R,
-        network: &'static NetworkVersions,
+        networks: &[&'static NetworkVersions],
     ) -> Result<Self, Bip32Error>
     where
         R: std::io::Read,
     {
-        read_xpub_from(reader, &[network])
+        read_xpub_from(reader, networks)
     }
 
     /// Serialize the xpub to base58check, using its network's version bytes.
@@ -476,22 +477,21 @@ impl XPub {
         Self::read(&mut &data[..])
     }
 
-    /// Read an xpub from a base58check string, accepting only `network`'s
-    /// version bytes.
+    /// Read an xpub from a base58check string, accepting only the version
+    /// bytes of the listed `networks`.
     pub fn from_base58_with(
         s: &str,
-        network: &'static NetworkVersions,
+        networks: &[&'static NetworkVersions],
     ) -> Result<Self, Bip32Error> {
         let data = decode_key_payload(s)?;
-        Self::read_with(&mut &data[..], network)
+        Self::read_with(&mut &data[..], networks)
     }
 }
 
-/// Parses an xpriv from a base58check string: on the given network, or on any
-/// known network when `None`.
-pub(crate) struct XPrivVisitor(pub(crate) Option<&'static NetworkVersions>);
+/// Parses an xpriv from a base58check string on one of the listed networks.
+pub(crate) struct XPrivVisitor<'a>(pub(crate) &'a [&'static NetworkVersions]);
 
-impl serde::de::Visitor<'_> for XPrivVisitor {
+impl serde::de::Visitor<'_> for XPrivVisitor<'_> {
     type Value = XPriv;
 
     fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -499,11 +499,7 @@ impl serde::de::Visitor<'_> for XPrivVisitor {
     }
 
     fn visit_str<E: serde::de::Error>(self, s: &str) -> Result<XPriv, E> {
-        match self.0 {
-            Some(network) => XPriv::from_base58_with(s, network),
-            None => XPriv::from_base58(s),
-        }
-        .map_err(E::custom)
+        XPriv::from_base58_with(s, self.0).map_err(E::custom)
     }
 
     /// An owned string holds secret material; zeroize it once parsed.
@@ -514,11 +510,10 @@ impl serde::de::Visitor<'_> for XPrivVisitor {
     }
 }
 
-/// Parses an xpub from a base58check string: on the given network, or on any
-/// known network when `None`.
-pub(crate) struct XPubVisitor(pub(crate) Option<&'static NetworkVersions>);
+/// Parses an xpub from a base58check string on one of the listed networks.
+pub(crate) struct XPubVisitor<'a>(pub(crate) &'a [&'static NetworkVersions]);
 
-impl serde::de::Visitor<'_> for XPubVisitor {
+impl serde::de::Visitor<'_> for XPubVisitor<'_> {
     type Value = XPub;
 
     fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -526,16 +521,12 @@ impl serde::de::Visitor<'_> for XPubVisitor {
     }
 
     fn visit_str<E: serde::de::Error>(self, s: &str) -> Result<XPub, E> {
-        match self.0 {
-            Some(network) => XPub::from_base58_with(s, network),
-            None => XPub::from_base58(s),
-        }
-        .map_err(E::custom)
+        XPub::from_base58_with(s, self.0).map_err(E::custom)
     }
 }
 
-/// Helper for deserializing an [`XPriv`] on `network`, for use with
-/// `#[serde(deserialize_with)]`.
+/// Helper for deserializing an [`XPriv`] on one of the listed `networks`, for
+/// use with `#[serde(deserialize_with)]`.
 ///
 /// ```
 /// use coins_bip32::{enc::{NetworkVersions, deserialize_xpriv}, xkeys::XPriv};
@@ -552,7 +543,7 @@ impl serde::de::Visitor<'_> for XPubVisitor {
 /// };
 ///
 /// fn litecoin_xpriv<'de, D: Deserializer<'de>>(d: D) -> Result<XPriv, D::Error> {
-///     deserialize_xpriv(d, &LITECOIN)
+///     deserialize_xpriv(d, &[&LITECOIN])
 /// }
 ///
 /// #[derive(Deserialize)]
@@ -569,13 +560,13 @@ impl serde::de::Visitor<'_> for XPubVisitor {
 /// ```
 pub fn deserialize_xpriv<'de, D: serde::Deserializer<'de>>(
     d: D,
-    network: &'static NetworkVersions,
+    networks: &[&'static NetworkVersions],
 ) -> Result<XPriv, D::Error> {
-    d.deserialize_str(XPrivVisitor(Some(network)))
+    d.deserialize_str(XPrivVisitor(networks))
 }
 
-/// Helper for deserializing an [`XPub`] on `network`, for use with
-/// `#[serde(deserialize_with)]`.
+/// Helper for deserializing an [`XPub`] on one of the listed `networks`, for
+/// use with `#[serde(deserialize_with)]`.
 ///
 /// ```
 /// use coins_bip32::{enc::{NetworkVersions, deserialize_xpub}, xkeys::{XPriv, XPub}};
@@ -592,7 +583,7 @@ pub fn deserialize_xpriv<'de, D: serde::Deserializer<'de>>(
 /// };
 ///
 /// fn litecoin_xpub<'de, D: Deserializer<'de>>(d: D) -> Result<XPub, D::Error> {
-///     deserialize_xpub(d, &LITECOIN)
+///     deserialize_xpub(d, &[&LITECOIN])
 /// }
 ///
 /// #[derive(Deserialize)]
@@ -609,9 +600,9 @@ pub fn deserialize_xpriv<'de, D: serde::Deserializer<'de>>(
 /// ```
 pub fn deserialize_xpub<'de, D: serde::Deserializer<'de>>(
     d: D,
-    network: &'static NetworkVersions,
+    networks: &[&'static NetworkVersions],
 ) -> Result<XPub, D::Error> {
-    d.deserialize_str(XPubVisitor(Some(network)))
+    d.deserialize_str(XPubVisitor(networks))
 }
 
 /// A serialized key as text: borrowed from the input when the deserializer
@@ -647,8 +638,8 @@ struct DerivedXPubRepr<'a> {
     derivation: KeyDerivation,
 }
 
-/// Deserialize a [`DerivedXPriv`] on `network`, for use with
-/// `#[serde(deserialize_with)]`.
+/// Deserialize a [`DerivedXPriv`] on one of the listed `networks`, for use
+/// with `#[serde(deserialize_with)]`.
 ///
 /// ```
 /// use coins_bip32::{
@@ -668,7 +659,7 @@ struct DerivedXPubRepr<'a> {
 /// };
 ///
 /// fn litecoin_derived_xpriv<'de, D: Deserializer<'de>>(d: D) -> Result<DerivedXPriv, D::Error> {
-///     deserialize_derived_xpriv(d, &LITECOIN)
+///     deserialize_derived_xpriv(d, &[&LITECOIN])
 /// }
 ///
 /// #[derive(Deserialize)]
@@ -688,16 +679,16 @@ struct DerivedXPubRepr<'a> {
 /// ```
 pub fn deserialize_derived_xpriv<'de, D: serde::Deserializer<'de>>(
     d: D,
-    network: &'static NetworkVersions,
+    networks: &[&'static NetworkVersions],
 ) -> Result<DerivedXPriv, D::Error> {
     let repr: DerivedXPrivRepr = serde::Deserialize::deserialize(d)?;
     let xpriv =
-        XPriv::from_base58_with(&repr.xpriv.0, network).map_err(serde::de::Error::custom)?;
+        XPriv::from_base58_with(&repr.xpriv.0, networks).map_err(serde::de::Error::custom)?;
     Ok(DerivedXPriv::new(xpriv, repr.derivation))
 }
 
-/// Deserialize a [`DerivedXPub`] on `network`, for use with
-/// `#[serde(deserialize_with)]`.
+/// Deserialize a [`DerivedXPub`] on one of the listed `networks`, for use
+/// with `#[serde(deserialize_with)]`.
 ///
 /// ```
 /// use coins_bip32::{
@@ -717,7 +708,7 @@ pub fn deserialize_derived_xpriv<'de, D: serde::Deserializer<'de>>(
 /// };
 ///
 /// fn litecoin_derived_xpub<'de, D: Deserializer<'de>>(d: D) -> Result<DerivedXPub, D::Error> {
-///     deserialize_derived_xpub(d, &LITECOIN)
+///     deserialize_derived_xpub(d, &[&LITECOIN])
 /// }
 ///
 /// #[derive(Deserialize)]
@@ -734,10 +725,10 @@ pub fn deserialize_derived_xpriv<'de, D: serde::Deserializer<'de>>(
 /// ```
 pub fn deserialize_derived_xpub<'de, D: serde::Deserializer<'de>>(
     d: D,
-    network: &'static NetworkVersions,
+    networks: &[&'static NetworkVersions],
 ) -> Result<DerivedXPub, D::Error> {
     let repr: DerivedXPubRepr = serde::Deserialize::deserialize(d)?;
-    let xpub = XPub::from_base58_with(&repr.xpub.0, network).map_err(serde::de::Error::custom)?;
+    let xpub = XPub::from_base58_with(&repr.xpub.0, networks).map_err(serde::de::Error::custom)?;
     Ok(DerivedXPub::new(xpub, repr.derivation))
 }
 
