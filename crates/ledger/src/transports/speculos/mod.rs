@@ -45,3 +45,7 @@ pub use transport::SpeculosTransport;
 
 mod client;
 pub use client::{Action, Button, ScreenEvent, SpeculosClient};
+
+#[cfg(test)]
+#[path = "../../../ai-tests/transports/speculos/mod.rs"]
+mod ai_tests;
