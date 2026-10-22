@@ -94,8 +94,8 @@ pub type MainnetEncoder = BitcoinEncoder<Main>;
 /// XKeyEncoder for Testnet xkeys
 pub type TestnetEncoder = BitcoinEncoder<Test>;
 
-/// Serialized length of the key details shared by xpubs and xprivs: depth (1), parent
-/// fingerprint (4), index (4), and chain code (32).
+/// Serialized length of the key details shared by xpubs and xprivs: depth (1),
+/// parent fingerprint (4), index (4), and chain code (32).
 const KEY_DETAILS_LEN: usize = 1 + 4 + 4 + 32;
 
 /// Bip32/49/84 encoder
