@@ -230,10 +230,6 @@ impl ApduCommand {
 }
 
 #[cfg(test)]
-#[path = "../../ai-tests/common/command.rs"]
-mod ai_tests;
-
-#[cfg(test)]
 mod test {
     use super::*;
 
@@ -256,3 +252,7 @@ mod test {
         assert_eq!(command.as_bytes(), expected);
     }
 }
+
+#[cfg(test)]
+#[path = "../../ai-tests/common/command.rs"]
+mod ai_tests;

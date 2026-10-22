@@ -68,6 +68,10 @@ impl HidTransport {
 
     /// Make a [`HidTransport`] from an open device. This spawns a background
     /// thread that manages device communication.
+    ///
+    /// # Panics
+    ///
+    /// If the I/O thread cannot be spawned.
     pub fn from_transport(device: HidLedgerDevice) -> Self {
         let (device, identity) = device.into_parts();
         let (tx, mut rx) = mpsc::channel(1);
