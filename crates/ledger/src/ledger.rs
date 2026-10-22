@@ -23,8 +23,14 @@ use crate::{
 ///
 /// - [`Ledger::open_first_hid`] opens the first Ledger found via HID.
 /// - [`Ledger::open_hid`] opens one device from [`Ledger::list_hid`].
-/// - [`Ledger::connect_speculos`] connects to a Speculos emulator (with the
-///   `speculos` feature).
+#[cfg_attr(
+    feature = "speculos",
+    doc = "- [`Ledger::connect_speculos`] connects to a Speculos emulator."
+)]
+#[cfg_attr(
+    not(feature = "speculos"),
+    doc = "- `Ledger::connect_speculos` connects to a Speculos emulator (with the\n  `speculos` feature)."
+)]
 /// - [`Ledger::from_transport`] wraps an existing [`HidTransport`], or any
 ///   [`LedgerTransport`].
 #[derive(Debug)]
