@@ -27,7 +27,9 @@
 //!
 //! // Match only events from this step.
 //! client.clear_events().await?;
-//! let (answer, approved) = tokio::join!(ledger.exchange(cmd, None), async {
+//! // Bound the exchange so a failed approval does not hang it forever.
+//! let timeout = Some(Duration::from_secs(30));
+//! let (answer, approved) = tokio::join!(ledger.exchange(cmd, timeout), async {
 //!     client.wait_for_text("Approve", Duration::from_secs(10)).await?;
 //!     client.button(Button::Both, Action::PressAndRelease { delay: None }).await?;
 //!     Ok::<_, SpeculosError>(())

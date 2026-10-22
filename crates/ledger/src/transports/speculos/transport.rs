@@ -60,9 +60,10 @@ impl SpeculosTransport {
         })
     }
 
-    /// Consume and drop the reply to a command that timed out.
+    /// Consume and drop the reply to a command whose exchange timed out or was
+    /// cancelled.
     ///
-    /// The reply to a timed-out command is still coming, and Speculos sends it
+    /// The reply to such a command is still coming, and Speculos sends it
     /// to whichever client is connected, so reconnecting while a prompt is
     /// pending is unsafe. Resolve the prompt on screen, then call this to
     /// discard the stale reply and make the transport usable again.

@@ -15,7 +15,7 @@ pub enum SpeculosError {
     #[error("Speculos response too long: {0} bytes, max {max}", max = ApduBuffer::CAPACITY)]
     ResponseTooLong(usize),
 
-    /// An earlier exchange timed out and its reply has not been read yet.
+    /// An earlier exchange timed out or was cancelled and its reply has not been read yet.
     #[error("An earlier exchange is still awaiting its reply")]
     PendingReply,
 
