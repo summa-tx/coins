@@ -14,7 +14,7 @@ $ cargo build
 $ cargo build --target wasm32-unknown-unknown
 ```
 
-Run tests (make sure to run with all feature combinations):
+Run tests:
 ```
 $ cargo test
 ```
@@ -22,5 +22,4 @@ $ cargo test
 Run bench marks
 ```
 $ cargo bench
-$ cargo bench --no-default-features
 ```

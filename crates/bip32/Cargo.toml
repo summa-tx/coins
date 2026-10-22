@@ -28,8 +28,4 @@ zeroize.workspace = true
 
 [dev-dependencies]
 hex.workspace = true
-
-[features]
-default = ["mainnet"]
-mainnet = []
-testnet = []
+serde_json.workspace = true

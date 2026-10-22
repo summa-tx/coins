@@ -749,3 +749,7 @@ mod test {
         assert!(!child.is_musig2_synthetic_root());
     }
 }
+
+#[cfg(test)]
+#[path = "../ai-tests/xkeys.rs"]
+mod ai_tests;

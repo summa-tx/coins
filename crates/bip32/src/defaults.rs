@@ -1,12 +1,7 @@
 use crate::enc::XKeyEncoder;
 
-/// The default encoder, selected by feature flag
-#[cfg(feature = "mainnet")]
+/// The default encoder.
 pub type Encoder = crate::enc::MainnetEncoder;
-
-/// The default encoder, selected by feature flag
-#[cfg(feature = "testnet")]
-pub type Encoder = crate::enc::TestnetEncoder;
 
 impl std::str::FromStr for crate::xkeys::XPriv {
     type Err = crate::Bip32Error;

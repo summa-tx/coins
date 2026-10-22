@@ -5,7 +5,6 @@ pub use crate::path::KeyDerivation;
 pub use crate::primitives::*;
 pub use crate::xkeys::{Parent, XPriv, XPub};
 
-#[cfg(any(feature = "mainnet", feature = "testnet"))]
 pub use crate::defaults::*;
 
 /// Re-exported signer traits
