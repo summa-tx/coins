@@ -71,8 +71,15 @@ jobs:
           RUSTFLAGS: "-D warnings"
 
   docs:
-    name: docs
+    name: docs ${{ matrix.features }} ${{ matrix.items }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Links must resolve with the feature off and on, and in the public
+        # docs that docs.rs publishes as well as the private ones.
+        features: ["", "--features coins-ledger/speculos"]
+        items: ["", "--document-private-items"]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@nightly
@@ -80,11 +87,7 @@ jobs:
           components: rust-docs
       - run: sudo apt-get update && sudo apt-get install -y libudev-dev
       - name: doc
-        run: cargo doc --workspace --no-deps --document-private-items
-        env:
-          RUSTDOCFLAGS: "--cfg docsrs -D warnings"
-      - name: doc speculos
-        run: cargo doc -p coins-ledger --no-deps --document-private-items --features speculos
+        run: cargo doc --workspace --no-deps ${{ matrix.features }} ${{ matrix.items }}
         env:
           RUSTDOCFLAGS: "--cfg docsrs -D warnings"
 
