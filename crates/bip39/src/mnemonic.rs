@@ -418,7 +418,6 @@ where
 #[cfg(all(test, feature = "english"))]
 mod tests {
     use crate::English;
-    use coins_bip32::enc::{MainnetEncoder, XKeyEncoder};
 
     use super::*;
 
@@ -742,10 +741,7 @@ mod tests {
             .for_each(|(_, phrase, _, expected_master_key)| {
                 let mnemonic: Mnemonic<W> = phrase.parse().unwrap();
                 let master_key = mnemonic.master_key(Some("TREZOR")).unwrap();
-                assert_eq!(
-                    MainnetEncoder::xpriv_from_base58(expected_master_key).unwrap(),
-                    master_key,
-                );
+                assert_eq!(XPriv::from_base58(expected_master_key).unwrap(), master_key,);
             });
     }
 
@@ -765,7 +761,6 @@ mod tests {
 mod japanese_tests {
     use super::*;
     use crate::Japanese;
-    use coins_bip32::enc::{MainnetEncoder, XKeyEncoder};
 
     const PASSPHRASE: &str = "㍍ガバヴァぱばぐゞちぢ十人十色";
 
@@ -928,7 +923,7 @@ mod japanese_tests {
             );
             assert_eq!(
                 mnemonic.master_key(Some(PASSPHRASE)).unwrap(),
-                MainnetEncoder::xpriv_from_base58(xpriv).unwrap()
+                XPriv::from_base58(xpriv).unwrap()
             );
         }
     }

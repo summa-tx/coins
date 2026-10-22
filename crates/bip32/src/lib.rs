@@ -14,13 +14,11 @@
 //! paramaterizable encoder.
 //!
 //!
-//! Typically, users will want to use the `MainnetEncoder`, `DerivedXPub`, `DerivedXPriv` types,
-//! which are available at the crate root. If key derivations are unknown, use the `XPub` and
-//! `XPriv` objects instead. These may be deserialized using a network-specific `Encoder` from the
-//! `enc` module.
-//!
-//! Useful traits will need to be imported from the `enc` or `model` modules.
-//! We also provide a `prelude` module with everything you need to get started.
+//! Keys carry their network. Root keys default to Bitcoin mainnet; call `set_network` to change
+//! it. Parse with `str::parse` or `XPriv::from_base58`, which accept Bitcoin mainnet and testnet
+//! prefixes and remember which one they saw; serialize with `to_base58`. Any other network is a
+//! `NetworkVersions` constant passed to `from_base58_with`, `set_network`, or the `deserialize_*`
+//! helpers in `enc`. The `prelude` module exports everything needed to get started.
 //!
 //! # Warnings:
 //!
@@ -37,7 +35,7 @@
 //!
 //! let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
 //!
-//! let xpriv: XPriv = MainnetEncoder::xpriv_from_base58(&xpriv_str)?;
+//! let xpriv: XPriv = xpriv_str.parse()?;
 //!
 //! let child_xpriv = xpriv.derive_child(33)?;
 //! let (sig, _recovery_id): (Signature, RecoveryId) =
@@ -52,7 +50,7 @@
 //! let sig = child_xpriv.sign_hasher(digest.clone())?;
 //! child_xpub.verify_hasher(digest, &sig)?;
 //!
-//! MainnetEncoder::xpub_to_base58(&child_xpub)?;
+//! child_xpub.to_base58();
 //! # Ok(())
 //! # }
 //! ```
@@ -76,9 +74,6 @@ pub mod xkeys;
 
 /// Provides keys that are coupled with their derivation path
 pub mod derived;
-
-#[doc(hidden)]
-pub mod defaults;
 
 /// Quickstart types and traits
 pub mod prelude;

@@ -11,6 +11,7 @@ use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 use crate::{
     BIP32_HARDEN, Bip32Error,
+    enc::{MAINNET, NetworkVersions},
     path::DerivationPath,
     primitives::{ChainCode, Hint, KeyFingerprint, XKeyInfo},
 };
@@ -144,6 +145,12 @@ impl XPriv {
         Self { key, xkey_info }
     }
 
+    /// Set the network whose version bytes this key serializes with. Root constructors default
+    /// to mainnet.
+    pub const fn set_network(&mut self, network: &'static NetworkVersions) {
+        self.xkey_info.network = network;
+    }
+
     /// Derive the associated XPub
     pub fn verify_key(&self) -> XPub {
         XPub {
@@ -202,6 +209,7 @@ impl XPriv {
                 index: 0,
                 chain_code,
                 hint: hint.unwrap_or(Hint::SegWit),
+                network: &MAINNET,
             },
         })
     }
@@ -272,6 +280,7 @@ impl Parent for XPriv {
                 index,
                 chain_code,
                 hint: self.xkey_info.hint,
+                network: self.xkey_info.network,
             },
         })
     }
@@ -326,6 +335,12 @@ impl XPub {
         Self { key, xkey_info }
     }
 
+    /// Set the network whose version bytes this key serializes with. Root constructors default
+    /// to mainnet.
+    pub const fn set_network(&mut self, network: &'static NetworkVersions) {
+        self.xkey_info.network = network;
+    }
+
     /// The fingerprint is the first 4 bytes of the HASH160 of the serialized
     /// public key.
     pub fn fingerprint(&self) -> KeyFingerprint {
@@ -359,6 +374,7 @@ impl XPub {
                 index: 0,
                 chain_code: ChainCode::MUSIG2_SYNTHETIC_ROOT,
                 hint: Hint::Legacy,
+                network: &MAINNET,
             },
         }
     }
@@ -417,18 +433,70 @@ impl Parent for XPub {
                 index,
                 chain_code,
                 hint: self.xkey_info.hint,
+                network: self.xkey_info.network,
             },
         })
+    }
+}
+
+impl std::str::FromStr for XPriv {
+    type Err = Bip32Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        XPriv::from_base58(s)
+    }
+}
+
+impl std::str::FromStr for XPub {
+    type Err = Bip32Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        XPub::from_base58(s)
+    }
+}
+
+impl serde::Serialize for XPub {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_base58())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for XPub {
+    fn deserialize<D>(deserializer: D) -> Result<XPub, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s: &str = serde::Deserialize::deserialize(deserializer)?;
+        XPub::from_base58(s).map_err(|e| serde::de::Error::custom(e.to_string()))
+    }
+}
+
+impl serde::Serialize for XPriv {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.to_base58())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for XPriv {
+    fn deserialize<D>(deserializer: D) -> Result<XPriv, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let s: &str = serde::Deserialize::deserialize(deserializer)?;
+        XPriv::from_base58(s).map_err(|e| serde::de::Error::custom(e.to_string()))
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{
-        enc::{MainnetEncoder, XKeyEncoder},
-        primitives::*,
-    };
+    use crate::primitives::*;
     use coins_core::hashes::Hash256;
     use k256::ecdsa::signature::{DigestSigner, DigestVerifier};
 
@@ -448,16 +516,13 @@ mod test {
         // let xpub_2 = m_pub.derive_path(d.path).unwrap();
         // assert_eq!(&xpub, &xpub_2);
 
-        let deser_xpriv = MainnetEncoder::xpriv_from_base58(&d.xpriv).unwrap();
-        let deser_xpub = MainnetEncoder::xpub_from_base58(&d.xpub).unwrap();
+        let deser_xpriv = XPriv::from_base58(&d.xpriv).unwrap();
+        let deser_xpub = XPub::from_base58(&d.xpub).unwrap();
 
         assert_eq!(&xpriv.key.to_bytes(), &deser_xpriv.key.to_bytes());
-        assert_eq!(
-            MainnetEncoder::xpriv_to_base58(&xpriv).unwrap().as_str(),
-            d.xpriv
-        );
+        assert_eq!(xpriv.to_base58().as_str(), d.xpriv);
         assert_eq!(&xpub.key.to_sec1_bytes(), &deser_xpub.key.to_sec1_bytes());
-        assert_eq!(MainnetEncoder::xpub_to_base58(&xpub).unwrap(), d.xpub);
+        assert_eq!(xpub.to_base58(), d.xpub);
     }
 
     #[test]
@@ -493,19 +558,13 @@ mod test {
         let expected_xpub = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
         let expected_xpriv = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
 
-        let deser_xpub = MainnetEncoder::xpub_from_base58(expected_xpub).unwrap();
-        let deser_xpriv = MainnetEncoder::xpriv_from_base58(expected_xpriv).unwrap();
+        let deser_xpub = XPub::from_base58(expected_xpub).unwrap();
+        let deser_xpriv = XPriv::from_base58(expected_xpriv).unwrap();
 
         assert_eq!(&xpriv.key.to_bytes(), &deser_xpriv.key.to_bytes());
-        assert_eq!(
-            MainnetEncoder::xpriv_to_base58(&xpriv).unwrap().as_str(),
-            expected_xpriv
-        );
+        assert_eq!(xpriv.to_base58().as_str(), expected_xpriv);
         assert_eq!(&xpub.key.to_sec1_bytes(), &deser_xpub.key.to_sec1_bytes());
-        assert_eq!(
-            MainnetEncoder::xpub_to_base58(&xpub).unwrap(),
-            expected_xpub
-        );
+        assert_eq!(xpub.to_base58(), expected_xpub);
 
         let descendants = [
             KeyDeriv {
@@ -550,19 +609,13 @@ mod test {
         let expected_xpub = "xpub661MyMwAqRbcFW31YEwpkMuc5THy2PSt5bDMsktWQcFF8syAmRUapSCGu8ED9W6oDMSgv6Zz8idoc4a6mr8BDzTJY47LJhkJ8UB7WEGuduB";
         let expected_xpriv = "xprv9s21ZrQH143K31xYSDQpPDxsXRTUcvj2iNHm5NUtrGiGG5e2DtALGdso3pGz6ssrdK4PFmM8NSpSBHNqPqm55Qn3LqFtT2emdEXVYsCzC2U";
 
-        let deser_xpub = MainnetEncoder::xpub_from_base58(expected_xpub).unwrap();
-        let deser_xpriv = MainnetEncoder::xpriv_from_base58(expected_xpriv).unwrap();
+        let deser_xpub = XPub::from_base58(expected_xpub).unwrap();
+        let deser_xpriv = XPriv::from_base58(expected_xpriv).unwrap();
 
         assert_eq!(&xpriv.key.to_bytes(), &deser_xpriv.key.to_bytes());
-        assert_eq!(
-            MainnetEncoder::xpriv_to_base58(&xpriv).unwrap().as_str(),
-            expected_xpriv
-        );
+        assert_eq!(xpriv.to_base58().as_str(), expected_xpriv);
         assert_eq!(&xpub.key.to_sec1_bytes(), &deser_xpub.key.to_sec1_bytes());
-        assert_eq!(
-            MainnetEncoder::xpub_to_base58(&xpub).unwrap(),
-            expected_xpub
-        );
+        assert_eq!(xpub.to_base58(), expected_xpub);
 
         let descendants = [
             KeyDeriv {
@@ -607,19 +660,13 @@ mod test {
         let expected_xpub = "xpub661MyMwAqRbcEZVB4dScxMAdx6d4nFc9nvyvH3v4gJL378CSRZiYmhRoP7mBy6gSPSCYk6SzXPTf3ND1cZAceL7SfJ1Z3GC8vBgp2epUt13";
         let expected_xpriv = "xprv9s21ZrQH143K25QhxbucbDDuQ4naNntJRi4KUfWT7xo4EKsHt2QJDu7KXp1A3u7Bi1j8ph3EGsZ9Xvz9dGuVrtHHs7pXeTzjuxBrCmmhgC6";
 
-        let deser_xpub = MainnetEncoder::xpub_from_base58(expected_xpub).unwrap();
-        let deser_xpriv = MainnetEncoder::xpriv_from_base58(expected_xpriv).unwrap();
+        let deser_xpub = XPub::from_base58(expected_xpub).unwrap();
+        let deser_xpriv = XPriv::from_base58(expected_xpriv).unwrap();
 
         assert_eq!(&xpriv.key.to_bytes(), &deser_xpriv.key.to_bytes());
-        assert_eq!(
-            MainnetEncoder::xpriv_to_base58(&xpriv).unwrap().as_str(),
-            expected_xpriv
-        );
+        assert_eq!(xpriv.to_base58().as_str(), expected_xpriv);
         assert_eq!(&xpub.key.to_sec1_bytes(), &deser_xpub.key.to_sec1_bytes());
-        assert_eq!(
-            MainnetEncoder::xpub_to_base58(&xpub).unwrap(),
-            expected_xpub
-        );
+        assert_eq!(xpub.to_base58(), expected_xpub);
 
         let descendants = [
             KeyDeriv {
@@ -638,7 +685,7 @@ mod test {
     fn it_can_sign_and_verify() {
         let digest = Hash256::default();
         let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
-        let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str).unwrap();
+        let xpriv = XPriv::from_base58(&xpriv_str).unwrap();
 
         let child = xpriv.derive_child(33).unwrap();
         let sig: ecdsa::Signature = child.sign_digest(|d: &mut Hash256| *d = digest.clone());
@@ -660,7 +707,7 @@ mod test {
         let digest = Hash256::default();
 
         let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
-        let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str).unwrap();
+        let xpriv = XPriv::from_base58(&xpriv_str).unwrap();
 
         let child = xpriv.derive_child(33).unwrap();
 
@@ -687,13 +734,13 @@ mod test {
     #[test]
     fn it_can_read_keys() {
         let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
-        let _xpriv: XPriv = MainnetEncoder::xpriv_from_base58(&xpriv_str).unwrap();
+        let _xpriv: XPriv = XPriv::from_base58(&xpriv_str).unwrap();
     }
 
     #[test]
     fn print_key() {
         let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
-        let xpriv: XPriv = MainnetEncoder::xpriv_from_base58(&xpriv_str).unwrap();
+        let xpriv: XPriv = XPriv::from_base58(&xpriv_str).unwrap();
         println!("{xpriv:?}");
     }
 
@@ -722,12 +769,9 @@ mod test {
     fn musig2_synthetic_root_matches_bip328_test_vectors() {
         for (agg_pubkey, expected_xpub) in BIP328_VECTORS {
             let synthetic = XPub::musig2_synthetic_root(bip328_aggregate_key(agg_pubkey));
-            assert_eq!(
-                MainnetEncoder::xpub_to_base58(&synthetic).unwrap(),
-                *expected_xpub
-            );
+            assert_eq!(synthetic.to_base58(), *expected_xpub);
 
-            let parsed = MainnetEncoder::xpub_from_base58(expected_xpub).unwrap();
+            let parsed = XPub::from_base58(expected_xpub).unwrap();
             assert!(parsed.is_musig2_synthetic_root());
             assert_eq!(parsed.xkey_info, synthetic.xkey_info);
         }
@@ -738,7 +782,7 @@ mod test {
         let synthetic = XPub::musig2_synthetic_root(bip328_aggregate_key(BIP328_VECTORS[0].0));
         assert!(synthetic.is_musig2_synthetic_root());
 
-        let ordinary = MainnetEncoder::xpub_from_base58(
+        let ordinary = XPub::from_base58(
             "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8",
         )
         .unwrap();

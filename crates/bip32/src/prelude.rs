@@ -1,13 +1,9 @@
 pub use crate::Bip32Error;
 pub use crate::derived::{DerivedKey, DerivedPubkey, DerivedXPriv, DerivedXPub};
-pub use crate::enc::{
-    MAINNET, MainnetEncoder, NetworkVersions, TESTNET, TestnetEncoder, XKeyEncoder,
-};
+pub use crate::enc::{MAINNET, NetworkVersions, TESTNET};
 pub use crate::path::KeyDerivation;
 pub use crate::primitives::*;
 pub use crate::xkeys::{Parent, XPriv, XPub};
-
-pub use crate::defaults::*;
 
 /// Re-exported signer traits
 pub use k256;

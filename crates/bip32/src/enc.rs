@@ -1,6 +1,5 @@
 use coins_core::hashes::{Digest, Hash256};
 use k256::ecdsa;
-use std::marker::PhantomData;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 use crate::{
@@ -44,46 +43,6 @@ pub fn encode_b58_check(v: &[u8]) -> Zeroizing<String> {
 /// index (4), chain code (32), padding (1), and private key (32). Zeroized on drop.
 #[derive(Zeroize, ZeroizeOnDrop)]
 struct SerializedXPriv([u8; 78]);
-
-/// Contains network-specific serialization information
-pub trait NetworkParams {
-    /// The Bip32 privkey version bytes
-    const PRIV_VERSION: u32;
-    /// The Bip49 privkey version bytes
-    const BIP49_PRIV_VERSION: u32;
-    /// The Bip84 pubkey version bytes
-    const BIP84_PRIV_VERSION: u32;
-    /// The Bip32 pubkey version bytes
-    const PUB_VERSION: u32;
-    /// The Bip49 pubkey version bytes
-    const BIP49_PUB_VERSION: u32;
-    /// The Bip84 pubkey version bytes
-    const BIP84_PUB_VERSION: u32;
-}
-
-params!(
-    /// Mainnet encoding param
-    Main {
-        bip32: 0x0488_ADE4,
-        bip49: 0x049d_7878,
-        bip84: 0x04b2_430c,
-        bip32_pub: 0x0488_B21E,
-        bip49_pub: 0x049d_7cb2,
-        bip84_pub: 0x04b2_4746
-    }
-);
-
-params!(
-    /// Testnet encoding param
-    Test {
-        bip32: 0x0435_8394,
-        bip49: 0x044a_4e28,
-        bip84: 0x045f_18bc,
-        bip32_pub: 0x0435_87CF,
-        bip49_pub: 0x044a_5262,
-        bip84_pub: 0x045f_1cf6
-    }
-);
 
 /// A network's BIP-32/49/84 version prefixes, in big-endian u32 form.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -168,345 +127,343 @@ pub const TESTNET: NetworkVersions = NetworkVersions {
     pub_segwit: 0x045f_1cf6,
 };
 
-/// Parameterizable Bitcoin encoder
-#[derive(Debug, Clone)]
-pub struct BitcoinEncoder<P: NetworkParams>(PhantomData<fn(P) -> P>);
-
-/// XKeyEncoder for Mainnet xkeys
-pub type MainnetEncoder = BitcoinEncoder<Main>;
-/// XKeyEncoder for Testnet xkeys
-pub type TestnetEncoder = BitcoinEncoder<Test>;
+/// The networks a blind parse recognizes, tried in order.
+const KNOWN: [&NetworkVersions; 2] = [&MAINNET, &TESTNET];
 
 /// Serialized length of the key details shared by xpubs and xprivs: depth (1),
 /// parent fingerprint (4), index (4), and chain code (32).
 const KEY_DETAILS_LEN: usize = 1 + 4 + 4 + 32;
 
-/// Bip32/49/84 encoder
-pub trait XKeyEncoder: sealed::Sealed {
-    #[doc(hidden)]
-    fn write_key_details<K, W>(writer: &mut W, key: &K) -> Result<usize, Bip32Error>
-    where
-        K: AsRef<XKeyInfo>,
-        W: std::io::Write,
-    {
-        let key = key.as_ref();
-        writer.write_all(&[key.depth])?;
-        writer.write_all(&key.parent.0)?;
-        writer.write_all(&key.index.to_be_bytes())?;
-        writer.write_all(&key.chain_code.0)?;
-        Ok(KEY_DETAILS_LEN)
-    }
-
-    /// Serialize the xpub to `std::io::Write`
-    fn write_xpub<W, K>(writer: &mut W, key: &K) -> Result<usize, Bip32Error>
-    where
-        W: std::io::Write,
-        K: AsRef<XPub>;
-
-    /// Serialize the xpriv to `std::io::Write`
-    fn write_xpriv<W, K>(writer: &mut W, key: &K) -> Result<usize, Bip32Error>
-    where
-        W: std::io::Write,
-        K: AsRef<XPriv>;
-
-    #[doc(hidden)]
-    fn read_depth<R>(reader: &mut R) -> Result<u8, Bip32Error>
-    where
-        R: std::io::Read,
-    {
-        let mut buf = [0u8; 1];
-        reader.read_exact(&mut buf)?;
-        Ok(buf[0])
-    }
-
-    #[doc(hidden)]
-    fn read_parent<R>(reader: &mut R) -> Result<KeyFingerprint, Bip32Error>
-    where
-        R: std::io::Read,
-    {
-        let mut buf = [0u8; 4];
-        reader.read_exact(&mut buf)?;
-        Ok(buf.into())
-    }
-
-    #[doc(hidden)]
-    fn read_index<R>(reader: &mut R) -> Result<u32, Bip32Error>
-    where
-        R: std::io::Read,
-    {
-        let mut buf = [0u8; 4];
-        reader.read_exact(&mut buf)?;
-        Ok(u32::from_be_bytes(buf))
-    }
-
-    #[doc(hidden)]
-    fn read_chain_code<R>(reader: &mut R) -> Result<ChainCode, Bip32Error>
-    where
-        R: std::io::Read,
-    {
-        let mut chain_code = ChainCode([0u8; 32]);
-        reader.read_exact(&mut chain_code.0)?;
-        Ok(chain_code)
-    }
-
-    #[doc(hidden)]
-    fn read_xpriv_body<R>(reader: &mut R, hint: Hint) -> Result<XPriv, Bip32Error>
-    where
-        R: std::io::Read,
-    {
-        let depth = Self::read_depth(reader)?;
-        let parent = Self::read_parent(reader)?;
-        let index = Self::read_index(reader)?;
-        let chain_code = Self::read_chain_code(reader)?;
-
-        let mut buf = [0u8];
-        reader.read_exact(&mut buf)?;
-        if buf != [0] {
-            return Err(Bip32Error::BadPadding(buf[0]));
-        }
-
-        let mut buf = Zeroizing::new([0u8; 32]);
-        reader.read_exact(buf.as_mut())?;
-        let key = ecdsa::SigningKey::from_slice(buf.as_ref())?;
-
-        Ok(XPriv {
-            key,
-            xkey_info: XKeyInfo {
-                depth,
-                parent,
-                index,
-                chain_code,
-                hint,
-            },
-        })
-    }
-
-    #[doc(hidden)]
-    // Can be used for unhealthy but sometimes-desiable behavior. E.g. accepting an xpriv from any
-    // network.
-    fn read_xpriv_without_network<R>(reader: &mut R) -> Result<XPriv, Bip32Error>
-    where
-        R: std::io::Read,
-    {
-        let mut buf = [0u8; 4];
-        reader.read_exact(&mut buf)?;
-
-        Self::read_xpriv_body(reader, Hint::Legacy)
-    }
-
-    /// Attempt to instantiate an `XPriv` from a `std::io::Read`
-    ///
-    /// ```
-    /// use coins_bip32::{Bip32Error, xkeys::XPriv, enc::{XKeyEncoder, MainnetEncoder}};
-    /// # fn main() -> Result<(), Bip32Error> {
-    /// let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
-    ///
-    /// let xpriv: XPriv = MainnetEncoder::xpriv_from_base58(&xpriv_str)?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    fn read_xpriv<R>(reader: &mut R) -> Result<XPriv, Bip32Error>
-    where
-        R: std::io::Read;
-
-    #[doc(hidden)]
-    fn read_xpub_body<R>(reader: &mut R, hint: Hint) -> Result<XPub, Bip32Error>
-    where
-        R: std::io::Read,
-    {
-        let depth = Self::read_depth(reader)?;
-        let parent = Self::read_parent(reader)?;
-        let index = Self::read_index(reader)?;
-        let chain_code = Self::read_chain_code(reader)?;
-
-        let mut buf = [0u8; 33];
-        reader.read_exact(&mut buf)?;
-        let key = ecdsa::VerifyingKey::from_sec1_bytes(&buf)?;
-
-        Ok(XPub {
-            key,
-            xkey_info: XKeyInfo {
-                depth,
-                parent,
-                index,
-                chain_code,
-                hint,
-            },
-        })
-    }
-
-    #[doc(hidden)]
-    // Can be used for unhealthy but sometimes-desiable behavior. E.g. accepting an xpub from any
-    // network.
-    fn read_xpub_without_network<R>(reader: &mut R) -> Result<XPub, Bip32Error>
-    where
-        R: std::io::Read,
-    {
-        let mut buf = [0u8; 4];
-        reader.read_exact(&mut buf)?;
-
-        Self::read_xpub_body(reader, Hint::Legacy)
-    }
-
-    /// Attempt to instantiate an `XPub` from a `std::io::Read`
-    ///
-    /// ```
-    /// use coins_bip32::{Bip32Error, xkeys::XPub, enc::{XKeyEncoder, MainnetEncoder}};
-    /// # fn main() -> Result<(), Bip32Error> {
-    /// let xpub_str = "xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y".to_owned();
-    ///
-    /// let xpub: XPub = MainnetEncoder::xpub_from_base58(&xpub_str)?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    fn read_xpub<R>(reader: &mut R) -> Result<XPub, Bip32Error>
-    where
-        R: std::io::Read;
-
-    /// Serialize an XPriv to base58. The result is zeroized on drop.
-    fn xpriv_to_base58<K>(k: &K) -> Result<Zeroizing<String>, Bip32Error>
-    where
-        K: AsRef<XPriv>,
-    {
-        let mut buf = SerializedXPriv([0u8; 78]);
-        let written = Self::write_xpriv(&mut &mut buf.0[..], k)?;
-        debug_assert_eq!(written, buf.0.len());
-        Ok(encode_b58_check(&buf.0))
-    }
-
-    /// Serialize an XPub to base58
-    fn xpub_to_base58<K>(k: &K) -> Result<String, Bip32Error>
-    where
-        K: AsRef<XPub>,
-    {
-        let mut v: Vec<u8> = vec![];
-        Self::write_xpub(&mut v, k)?;
-        Ok(encode_b58_check(&v).to_string())
-    }
-
-    /// Attempt to read an XPriv from a b58check string.
-    ///
-    /// ```
-    /// use coins_bip32::{Bip32Error, xkeys::XPriv, enc::{XKeyEncoder, MainnetEncoder}};
-    /// # fn main() -> Result<(), Bip32Error> {
-    /// let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
-    ///
-    /// let xpriv: XPriv = MainnetEncoder::xpriv_from_base58(&xpriv_str)?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    fn xpriv_from_base58(s: &str) -> Result<XPriv, Bip32Error>
-where {
-        let data = decode_b58_check(s)?;
-        Self::read_xpriv(&mut &data[..])
-    }
-
-    /// Attempt to read an XPub from a b58check string
-    ///
-    /// ```
-    /// use coins_bip32::{Bip32Error, xkeys::XPub, enc::{XKeyEncoder, MainnetEncoder}};
-    /// # fn main() -> Result<(), Bip32Error> {
-    /// let xpub_str = "xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y".to_owned();
-    ///
-    /// let xpub: XPub = MainnetEncoder::xpub_from_base58(&xpub_str)?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    fn xpub_from_base58(s: &str) -> Result<XPub, Bip32Error>
-where {
-        let data = decode_b58_check(s)?;
-        Self::read_xpub(&mut &data[..])
-    }
+fn write_key_details<W>(writer: &mut W, key: &XKeyInfo) -> Result<usize, Bip32Error>
+where
+    W: std::io::Write,
+{
+    writer.write_all(&[key.depth])?;
+    writer.write_all(&key.parent.0)?;
+    writer.write_all(&key.index.to_be_bytes())?;
+    writer.write_all(&key.chain_code.0)?;
+    Ok(KEY_DETAILS_LEN)
 }
 
-mod sealed {
-    /// Prevents downstream implementations of [`XKeyEncoder`](super::XKeyEncoder), so the
-    /// serialization lengths assumed by its provided methods always hold.
-    pub trait Sealed {}
+fn read_depth<R>(reader: &mut R) -> Result<u8, Bip32Error>
+where
+    R: std::io::Read,
+{
+    let mut buf = [0u8; 1];
+    reader.read_exact(&mut buf)?;
+    Ok(buf[0])
 }
 
-impl<P: NetworkParams> sealed::Sealed for BitcoinEncoder<P> {}
+fn read_parent<R>(reader: &mut R) -> Result<KeyFingerprint, Bip32Error>
+where
+    R: std::io::Read,
+{
+    let mut buf = [0u8; 4];
+    reader.read_exact(&mut buf)?;
+    Ok(buf.into())
+}
 
-impl<P: NetworkParams> XKeyEncoder for BitcoinEncoder<P> {
-    /// Serialize the xpub to `std::io::Write`
-    fn write_xpub<W, K>(writer: &mut W, key: &K) -> Result<usize, Bip32Error>
-    where
-        W: std::io::Write,
-        K: AsRef<XPub>,
-    {
-        let version = match key.as_ref().xkey_info.hint {
-            Hint::Legacy => P::PUB_VERSION,
-            Hint::Compatibility => P::BIP49_PUB_VERSION,
-            Hint::SegWit => P::BIP84_PUB_VERSION,
-        };
-        let version_bytes = version.to_be_bytes();
-        writer.write_all(&version_bytes)?;
-        let details = Self::write_key_details(writer, key.as_ref())?;
-        let key_bytes = key.as_ref().key.to_sec1_bytes();
-        writer.write_all(&key_bytes)?;
-        Ok(version_bytes.len() + details + key_bytes.len())
+fn read_index<R>(reader: &mut R) -> Result<u32, Bip32Error>
+where
+    R: std::io::Read,
+{
+    let mut buf = [0u8; 4];
+    reader.read_exact(&mut buf)?;
+    Ok(u32::from_be_bytes(buf))
+}
+
+fn read_chain_code<R>(reader: &mut R) -> Result<ChainCode, Bip32Error>
+where
+    R: std::io::Read,
+{
+    let mut chain_code = ChainCode([0u8; 32]);
+    reader.read_exact(&mut chain_code.0)?;
+    Ok(chain_code)
+}
+
+/// Read the four version bytes and return the hint and network of the first candidate whose
+/// `lookup` recognizes them. Unrecognized bytes are passed to `unknown` to build the error.
+fn read_version<R>(
+    reader: &mut R,
+    candidates: &[&'static NetworkVersions],
+    lookup: fn(&NetworkVersions, u32) -> Option<Hint>,
+    unknown: fn([u8; 4]) -> Bip32Error,
+) -> Result<(Hint, &'static NetworkVersions), Bip32Error>
+where
+    R: std::io::Read,
+{
+    let mut buf = [0u8; 4];
+    reader.read_exact(&mut buf)?;
+    let version = u32::from_be_bytes(buf);
+    candidates
+        .iter()
+        .find_map(|network| lookup(network, version).map(|hint| (hint, *network)))
+        .ok_or_else(|| unknown(buf))
+}
+
+fn read_xpriv_body<R>(
+    reader: &mut R,
+    hint: Hint,
+    network: &'static NetworkVersions,
+) -> Result<XPriv, Bip32Error>
+where
+    R: std::io::Read,
+{
+    let depth = read_depth(reader)?;
+    let parent = read_parent(reader)?;
+    let index = read_index(reader)?;
+    let chain_code = read_chain_code(reader)?;
+
+    let mut buf = [0u8];
+    reader.read_exact(&mut buf)?;
+    if buf != [0] {
+        return Err(Bip32Error::BadPadding(buf[0]));
     }
 
-    /// Serialize the xpriv to `std::io::Write`
-    fn write_xpriv<W, K>(writer: &mut W, key: &K) -> Result<usize, Bip32Error>
+    let mut buf = Zeroizing::new([0u8; 32]);
+    reader.read_exact(buf.as_mut())?;
+    let key = ecdsa::SigningKey::from_slice(buf.as_ref())?;
+
+    Ok(XPriv {
+        key,
+        xkey_info: XKeyInfo {
+            depth,
+            parent,
+            index,
+            chain_code,
+            hint,
+            network,
+        },
+    })
+}
+
+fn read_xpub_body<R>(
+    reader: &mut R,
+    hint: Hint,
+    network: &'static NetworkVersions,
+) -> Result<XPub, Bip32Error>
+where
+    R: std::io::Read,
+{
+    let depth = read_depth(reader)?;
+    let parent = read_parent(reader)?;
+    let index = read_index(reader)?;
+    let chain_code = read_chain_code(reader)?;
+
+    let mut buf = [0u8; 33];
+    reader.read_exact(&mut buf)?;
+    let key = ecdsa::VerifyingKey::from_sec1_bytes(&buf)?;
+
+    Ok(XPub {
+        key,
+        xkey_info: XKeyInfo {
+            depth,
+            parent,
+            index,
+            chain_code,
+            hint,
+            network,
+        },
+    })
+}
+
+fn read_xpriv_from<R>(
+    reader: &mut R,
+    candidates: &[&'static NetworkVersions],
+) -> Result<XPriv, Bip32Error>
+where
+    R: std::io::Read,
+{
+    let (hint, network) = read_version(
+        reader,
+        candidates,
+        NetworkVersions::priv_hint,
+        Bip32Error::BadXPrivVersionBytes,
+    )?;
+    read_xpriv_body(reader, hint, network)
+}
+
+fn read_xpub_from<R>(
+    reader: &mut R,
+    candidates: &[&'static NetworkVersions],
+) -> Result<XPub, Bip32Error>
+where
+    R: std::io::Read,
+{
+    let (hint, network) = read_version(
+        reader,
+        candidates,
+        NetworkVersions::pub_hint,
+        Bip32Error::BadXPubVersionBytes,
+    )?;
+    read_xpub_body(reader, hint, network)
+}
+
+impl XPriv {
+    /// Serialize the xpriv to `std::io::Write`, using its network's version bytes.
+    pub fn write<W>(&self, writer: &mut W) -> Result<usize, Bip32Error>
     where
         W: std::io::Write,
-        K: AsRef<XPriv>,
     {
-        let version = match key.as_ref().xkey_info.hint {
-            Hint::Legacy => P::PRIV_VERSION,
-            Hint::Compatibility => P::BIP49_PRIV_VERSION,
-            Hint::SegWit => P::BIP84_PRIV_VERSION,
-        };
+        let version = self.xkey_info.network.priv_version(self.xkey_info.hint);
         let version_bytes = version.to_be_bytes();
         writer.write_all(&version_bytes)?;
-        let details = Self::write_key_details(writer, key.as_ref())?;
-        let key_bytes = Zeroizing::new(key.as_ref().key.to_bytes());
+        let details = write_key_details(writer, &self.xkey_info)?;
+        let key_bytes = Zeroizing::new(self.key.to_bytes());
         writer.write_all(&[0])?;
         writer.write_all(&key_bytes)?;
         Ok(version_bytes.len() + details + 1 + key_bytes.len())
     }
 
-    fn read_xpriv<R>(reader: &mut R) -> Result<XPriv, Bip32Error>
+    /// Read an xpriv from `std::io::Read`, accepting Bitcoin mainnet and testnet version bytes.
+    /// The key remembers which network it was read with.
+    pub fn read<R>(reader: &mut R) -> Result<Self, Bip32Error>
     where
         R: std::io::Read,
     {
-        let mut buf = [0u8; 4];
-        reader.read_exact(&mut buf)?;
-        let version_bytes = u32::from_be_bytes(buf);
-
-        // Can't use associated constants in matches :()
-        let hint = if version_bytes == P::PRIV_VERSION {
-            Hint::Legacy
-        } else if version_bytes == P::BIP49_PRIV_VERSION {
-            Hint::Compatibility
-        } else if version_bytes == P::BIP84_PRIV_VERSION {
-            Hint::SegWit
-        } else {
-            return Err(Bip32Error::BadXPrivVersionBytes(buf));
-        };
-        Self::read_xpriv_body(reader, hint)
+        read_xpriv_from(reader, &KNOWN)
     }
 
-    fn read_xpub<R>(reader: &mut R) -> Result<XPub, Bip32Error>
+    /// Read an xpriv from `std::io::Read`, accepting only `network`'s version bytes.
+    pub fn read_with<R>(
+        reader: &mut R,
+        network: &'static NetworkVersions,
+    ) -> Result<Self, Bip32Error>
     where
         R: std::io::Read,
     {
-        let mut buf = [0u8; 4];
-        reader.read_exact(&mut buf)?;
-        let version_bytes = u32::from_be_bytes(buf);
+        read_xpriv_from(reader, &[network])
+    }
 
-        // Can't use associated constants in matches :()
-        let hint = if version_bytes == P::PUB_VERSION {
-            Hint::Legacy
-        } else if version_bytes == P::BIP49_PUB_VERSION {
-            Hint::Compatibility
-        } else if version_bytes == P::BIP84_PUB_VERSION {
-            Hint::SegWit
-        } else {
-            return Err(Bip32Error::BadXPubVersionBytes(buf));
-        };
-        Self::read_xpub_body(reader, hint)
+    /// Serialize the xpriv to base58check, using its network's version bytes. The result is
+    /// zeroized on drop.
+    ///
+    /// ```
+    /// use coins_bip32::{Bip32Error, xkeys::XPriv};
+    /// # fn main() -> Result<(), Bip32Error> {
+    /// let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
+    ///
+    /// let xpriv = XPriv::from_base58(xpriv_str)?;
+    /// assert_eq!(xpriv.to_base58().as_str(), xpriv_str);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn to_base58(&self) -> Zeroizing<String> {
+        let mut buf = SerializedXPriv([0u8; 78]);
+        let written = self
+            .write(&mut &mut buf.0[..])
+            .expect("78-byte buffer fits an xpriv");
+        debug_assert_eq!(written, buf.0.len());
+        encode_b58_check(&buf.0)
+    }
+
+    /// Read an xpriv from a base58check string, accepting Bitcoin mainnet and testnet version
+    /// bytes. The key remembers which network it was read with.
+    ///
+    /// ```
+    /// use coins_bip32::{Bip32Error, xkeys::XPriv};
+    /// # fn main() -> Result<(), Bip32Error> {
+    /// let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi";
+    ///
+    /// let xpriv = XPriv::from_base58(xpriv_str)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn from_base58(s: &str) -> Result<Self, Bip32Error> {
+        let data = decode_b58_check(s)?;
+        Self::read(&mut &data[..])
+    }
+
+    /// Read an xpriv from a base58check string, accepting only `network`'s version bytes.
+    pub fn from_base58_with(
+        s: &str,
+        network: &'static NetworkVersions,
+    ) -> Result<Self, Bip32Error> {
+        let data = decode_b58_check(s)?;
+        Self::read_with(&mut &data[..], network)
+    }
+}
+
+impl XPub {
+    /// Serialize the xpub to `std::io::Write`, using its network's version bytes.
+    pub fn write<W>(&self, writer: &mut W) -> Result<usize, Bip32Error>
+    where
+        W: std::io::Write,
+    {
+        let version = self.xkey_info.network.pub_version(self.xkey_info.hint);
+        let version_bytes = version.to_be_bytes();
+        writer.write_all(&version_bytes)?;
+        let details = write_key_details(writer, &self.xkey_info)?;
+        let key_bytes = self.key.to_sec1_bytes();
+        writer.write_all(&key_bytes)?;
+        Ok(version_bytes.len() + details + key_bytes.len())
+    }
+
+    /// Read an xpub from `std::io::Read`, accepting Bitcoin mainnet and testnet version bytes.
+    /// The key remembers which network it was read with.
+    pub fn read<R>(reader: &mut R) -> Result<Self, Bip32Error>
+    where
+        R: std::io::Read,
+    {
+        read_xpub_from(reader, &KNOWN)
+    }
+
+    /// Read an xpub from `std::io::Read`, accepting only `network`'s version bytes.
+    pub fn read_with<R>(
+        reader: &mut R,
+        network: &'static NetworkVersions,
+    ) -> Result<Self, Bip32Error>
+    where
+        R: std::io::Read,
+    {
+        read_xpub_from(reader, &[network])
+    }
+
+    /// Serialize the xpub to base58check, using its network's version bytes.
+    ///
+    /// ```
+    /// use coins_bip32::{Bip32Error, xkeys::XPub};
+    /// # fn main() -> Result<(), Bip32Error> {
+    /// let xpub_str = "xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y";
+    ///
+    /// let xpub = XPub::from_base58(xpub_str)?;
+    /// assert_eq!(xpub.to_base58(), xpub_str);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn to_base58(&self) -> String {
+        let mut buf = [0u8; 78];
+        let written = self
+            .write(&mut &mut buf[..])
+            .expect("78-byte buffer fits an xpub");
+        debug_assert_eq!(written, buf.len());
+        encode_b58_check(&buf).to_string()
+    }
+
+    /// Read an xpub from a base58check string, accepting Bitcoin mainnet and testnet version
+    /// bytes. The key remembers which network it was read with.
+    ///
+    /// ```
+    /// use coins_bip32::{Bip32Error, xkeys::XPub};
+    /// # fn main() -> Result<(), Bip32Error> {
+    /// let xpub_str = "xpub68NZiKmJWnxxS6aaHmn81bvJeTESw724CRDs6HbuccFQN9Ku14VQrADWgqbhhTHBaohPX4CjNLf9fq9MYo6oDaPPLPxSb7gwQN3ih19Zm4Y";
+    ///
+    /// let xpub = XPub::from_base58(xpub_str)?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn from_base58(s: &str) -> Result<Self, Bip32Error> {
+        let data = decode_b58_check(s)?;
+        Self::read(&mut &data[..])
+    }
+
+    /// Read an xpub from a base58check string, accepting only `network`'s version bytes.
+    pub fn from_base58_with(
+        s: &str,
+        network: &'static NetworkVersions,
+    ) -> Result<Self, Bip32Error> {
+        let data = decode_b58_check(s)?;
+        Self::read_with(&mut &data[..], network)
     }
 }
 
@@ -569,8 +526,8 @@ mod test {
         let xpriv = XPriv::root_from_seed(&[7u8; 32], None).unwrap();
         let xpub = xpriv.verify_key();
 
-        assert_short_write_matches!(|w| MainnetEncoder::write_xpriv(w, &xpriv));
-        assert_short_write_matches!(|w| MainnetEncoder::write_xpub(w, &xpub));
+        assert_short_write_matches!(|w| xpriv.write(w));
+        assert_short_write_matches!(|w| xpub.write(w));
     }
 }
 

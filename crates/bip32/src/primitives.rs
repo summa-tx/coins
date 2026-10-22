@@ -1,6 +1,8 @@
 use subtle::{Choice, ConstantTimeEq};
 use zeroize::Zeroize;
 
+use crate::enc::NetworkVersions;
+
 /// We treat the bip32 xpub bip49 ypub and bip84 zpub convention as a hint
 /// regarding address type. Downstream crates are free to follow or ignore
 /// these hints when generating addresses from extended keys.
@@ -86,8 +88,12 @@ pub struct XKeyInfo {
     pub chain_code: ChainCode,
     /// The key's stanadard output type preference
     pub hint: Hint,
+    /// The network whose version bytes this key serializes with
+    pub network: &'static NetworkVersions,
 }
 
+/// Compares the key's position and chain code. Ignores `hint` and `network`, because both are
+/// presentation metadata, not key identity.
 impl PartialEq for XKeyInfo {
     fn eq(&self, other: &XKeyInfo) -> bool {
         self.depth == other.depth
