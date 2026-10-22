@@ -163,10 +163,10 @@ async fn connect_speculos_reports_model() {
 }
 
 /// After a timed-out exchange, the caller recovers through
-/// `Ledger::transport_mut`.
+/// `Ledger::discard_pending`.
 #[cfg(feature = "speculos")]
 #[tokio::test]
-async fn speculos_recovers_after_timeout_via_transport_mut() {
+async fn speculos_recovers_after_timeout() {
     use tokio::{
         io::{AsyncReadExt, AsyncWriteExt},
         net::{TcpListener, TcpStream},
@@ -213,7 +213,6 @@ async fn speculos_recovers_after_timeout_via_transport_mut() {
     // The late reply arrives, and is discarded.
     write_reply(&mut server, &[9]).await;
     ledger
-        .transport_mut()
         .discard_pending(Duration::from_secs(1))
         .await
         .unwrap();

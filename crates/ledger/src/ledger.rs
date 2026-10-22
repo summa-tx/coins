@@ -145,8 +145,7 @@ impl Ledger<SpeculosTransport> {
     ///
     /// After an exchange times out or is cancelled, the transport refuses
     /// further exchanges until its reply is consumed. Resolve the prompt on
-    /// screen, then call
-    /// [`ledger.transport_mut().discard_pending(..)`](SpeculosTransport::discard_pending).
+    /// screen, then call [`Ledger::discard_pending`].
     pub async fn connect_speculos(
         addr: impl ToSocketAddrs,
         model: Model,
@@ -154,6 +153,13 @@ impl Ledger<SpeculosTransport> {
         SpeculosTransport::connect(addr, model)
             .await
             .map(Self::from_transport)
+    }
+
+    /// Consume and drop the reply to a timed-out or cancelled exchange, so
+    /// the ledger accepts exchanges again. Resolve the prompt on screen
+    /// first. See [`SpeculosTransport::discard_pending`].
+    pub async fn discard_pending(&mut self, timeout: Duration) -> Result<(), SpeculosError> {
+        self.transport.discard_pending(timeout).await
     }
 }
 
