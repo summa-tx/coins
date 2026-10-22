@@ -85,6 +85,89 @@ params!(
     }
 );
 
+/// A network's BIP-32/49/84 version prefixes, in big-endian u32 form.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NetworkVersions {
+    /// BIP-32 private key version (`xprv` on mainnet).
+    pub priv_legacy: u32,
+    /// BIP-49 private key version (`yprv` on mainnet).
+    pub priv_compatibility: u32,
+    /// BIP-84 private key version (`zprv` on mainnet).
+    pub priv_segwit: u32,
+    /// BIP-32 public key version (`xpub` on mainnet).
+    pub pub_legacy: u32,
+    /// BIP-49 public key version (`ypub` on mainnet).
+    pub pub_compatibility: u32,
+    /// BIP-84 public key version (`zpub` on mainnet).
+    pub pub_segwit: u32,
+}
+
+impl NetworkVersions {
+    /// The private key version for the given hint.
+    pub const fn priv_version(&self, hint: Hint) -> u32 {
+        match hint {
+            Hint::Legacy => self.priv_legacy,
+            Hint::Compatibility => self.priv_compatibility,
+            Hint::SegWit => self.priv_segwit,
+        }
+    }
+
+    /// The public key version for the given hint.
+    pub const fn pub_version(&self, hint: Hint) -> u32 {
+        match hint {
+            Hint::Legacy => self.pub_legacy,
+            Hint::Compatibility => self.pub_compatibility,
+            Hint::SegWit => self.pub_segwit,
+        }
+    }
+
+    /// The hint for a private key version, if it belongs to this network.
+    pub const fn priv_hint(&self, version: u32) -> Option<Hint> {
+        if version == self.priv_legacy {
+            Some(Hint::Legacy)
+        } else if version == self.priv_compatibility {
+            Some(Hint::Compatibility)
+        } else if version == self.priv_segwit {
+            Some(Hint::SegWit)
+        } else {
+            None
+        }
+    }
+
+    /// The hint for a public key version, if it belongs to this network.
+    pub const fn pub_hint(&self, version: u32) -> Option<Hint> {
+        if version == self.pub_legacy {
+            Some(Hint::Legacy)
+        } else if version == self.pub_compatibility {
+            Some(Hint::Compatibility)
+        } else if version == self.pub_segwit {
+            Some(Hint::SegWit)
+        } else {
+            None
+        }
+    }
+}
+
+/// Bitcoin mainnet version prefixes.
+pub const MAINNET: NetworkVersions = NetworkVersions {
+    priv_legacy: 0x0488_ADE4,
+    priv_compatibility: 0x049d_7878,
+    priv_segwit: 0x04b2_430c,
+    pub_legacy: 0x0488_B21E,
+    pub_compatibility: 0x049d_7cb2,
+    pub_segwit: 0x04b2_4746,
+};
+
+/// Bitcoin testnet version prefixes.
+pub const TESTNET: NetworkVersions = NetworkVersions {
+    priv_legacy: 0x0435_8394,
+    priv_compatibility: 0x044a_4e28,
+    priv_segwit: 0x045f_18bc,
+    pub_legacy: 0x0435_87CF,
+    pub_compatibility: 0x044a_5262,
+    pub_segwit: 0x045f_1cf6,
+};
+
 /// Parameterizable Bitcoin encoder
 #[derive(Debug, Clone)]
 pub struct BitcoinEncoder<P: NetworkParams>(PhantomData<fn(P) -> P>);
@@ -490,3 +573,7 @@ mod test {
         assert_short_write_matches!(|w| MainnetEncoder::write_xpub(w, &xpub));
     }
 }
+
+#[cfg(test)]
+#[path = "../ai-tests/enc.rs"]
+mod ai_tests;
