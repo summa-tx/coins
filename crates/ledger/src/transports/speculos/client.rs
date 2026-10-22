@@ -32,7 +32,7 @@ impl Button {
 }
 
 /// What to do with a button or finger.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Action {
     /// Press and hold.
     Press,
@@ -86,15 +86,31 @@ impl ActionBody {
     }
 }
 
-/// A piece of text Speculos drew on the emulated screen.
+/// A piece of text Speculos drew on the emulated screen, with its bounds.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct ScreenEvent {
     /// The text drawn.
     pub text: String,
-    /// Horizontal position.
-    pub x: i32,
-    /// Vertical position.
-    pub y: i32,
+    /// Horizontal position of the left edge.
+    pub x: u16,
+    /// Vertical position of the top edge.
+    pub y: u16,
+    /// Width, or 0 if Speculos did not report one.
+    #[serde(default)]
+    pub w: u16,
+    /// Height, or 0 if Speculos did not report one.
+    #[serde(default)]
+    pub h: u16,
+}
+
+impl ScreenEvent {
+    /// The middle of the text's bounds, where a touchscreen tap selects it.
+    pub const fn center(&self) -> (u16, u16) {
+        (
+            self.x.saturating_add(self.w / 2),
+            self.y.saturating_add(self.h / 2),
+        )
+    }
 }
 
 #[derive(Deserialize)]
@@ -116,7 +132,9 @@ impl SpeculosClient {
     /// A client for the API at `base_url`, e.g. `http://127.0.0.1:5000`.
     pub fn new(base_url: impl IntoUrl) -> Result<Self, SpeculosError> {
         Ok(Self {
-            http: reqwest::Client::new(),
+            // Speculos runs locally, so a proxy from the environment must not
+            // capture the requests.
+            http: reqwest::Client::builder().no_proxy().build()?,
             base: base_url.into_url()?,
         })
     }
@@ -272,9 +290,17 @@ struct StreamState {
     buf: Vec<u8>,
 }
 
-/// Parse one line of the event stream, or `None` for a blank line.
+/// Parse one line of the event stream, or `None` for a line that carries no
+/// event: a blank line, an SSE comment or an SSE field other than `data`.
 fn parse_line(line: &[u8]) -> Option<Result<ScreenEvent, SpeculosError>> {
     let line = line.trim_ascii();
+    if line.starts_with(b":")
+        || [&b"event:"[..], b"id:", b"retry:"]
+            .iter()
+            .any(|field| line.starts_with(field))
+    {
+        return None;
+    }
     let line = line.strip_prefix(b"data:").map_or(line, <[u8]>::trim_ascii);
     if line.is_empty() {
         return None;

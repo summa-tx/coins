@@ -125,7 +125,7 @@ async fn finger_posts_coords() {
 
 #[tokio::test]
 async fn events_parse() {
-    let body = br#"{"events":[{"text":"Boilerplate","x":1,"y":2}]}"#.to_vec();
+    let body = br#"{"events":[{"text":"Boilerplate","x":1,"y":2,"w":10,"h":4}]}"#.to_vec();
     let (url, seen) = serve(vec![
         (200, "application/json", body.clone()),
         (200, "application/json", body),
@@ -136,6 +136,8 @@ async fn events_parse() {
         text: "Boilerplate".into(),
         x: 1,
         y: 2,
+        w: 10,
+        h: 4,
     }];
     assert_eq!(client.events().await.unwrap(), expected);
     assert_eq!(client.current_screen().await.unwrap(), expected);
@@ -263,12 +265,16 @@ async fn event_stream_splits_lines() {
             ScreenEvent {
                 text: "Boilerplate".into(),
                 x: 1,
-                y: 2
+                y: 2,
+                w: 0,
+                h: 0
             },
             ScreenEvent {
                 text: "Approve".into(),
                 x: 3,
-                y: 4
+                y: 4,
+                w: 0,
+                h: 0
             },
         ]
     );
@@ -326,8 +332,42 @@ data: {\"text\": \"cancelled\", \"x\": 40, \"y\": 32, \"w\": 48, \"h\": 14, \"cl
     )
     .await
     .unwrap();
-    let texts: Vec<_> = events.into_iter().map(|e| e.unwrap().text).collect();
+    let events: Vec<_> = events.into_iter().map(Result::unwrap).collect();
+    let texts: Vec<_> = events.iter().map(|e| e.text.as_str()).collect();
     assert_eq!(texts, ["Address verification ", "cancelled"]);
+    assert_eq!((events[0].w, events[0].h), (103, 14));
+    assert_eq!((events[1].w, events[1].h), (48, 14));
+}
+
+#[test]
+fn center_is_the_middle_of_the_bounds() {
+    let ev = |x, y, w, h| ScreenEvent {
+        text: String::new(),
+        x,
+        y,
+        w,
+        h,
+    };
+    assert_eq!(ev(10, 20, 8, 4).center(), (14, 22));
+    assert_eq!(ev(10, 20, 0, 0).center(), (10, 20));
+    assert_eq!(ev(u16::MAX, u16::MAX, 8, 8).center(), (u16::MAX, u16::MAX));
+}
+
+/// Comments and non-`data` SSE fields carry no event.
+#[tokio::test]
+async fn event_stream_skips_comments_and_other_fields() {
+    let body = b": keepalive\nevent: x\nid: 7\nretry: 100\ndata: {\"text\": \"Approve\", \"x\": 3, \"y\": 4}\n\n"
+        .to_vec();
+    let (url, _seen) = serve(vec![(200, "text/event-stream", body)]).await;
+    let client = SpeculosClient::new(url).unwrap();
+    let items: Vec<_> = timeout(
+        WAIT,
+        client.event_stream().await.unwrap().collect::<Vec<_>>(),
+    )
+    .await
+    .unwrap();
+    assert_eq!(items.len(), 1, "{items:?}");
+    assert_eq!(items[0].as_ref().unwrap().text, "Approve");
 }
 
 /// Subscribing waits for the response, so a refused subscription fails

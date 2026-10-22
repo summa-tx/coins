@@ -145,8 +145,7 @@ async fn choose(client: &SpeculosClient, model: Model, target: &str) {
             match next_page(model) {
                 None => client.button(Button::Both, TAP).await.unwrap(),
                 Some(_) => {
-                    let x = u16::try_from(ev.x).unwrap();
-                    let y = u16::try_from(ev.y).unwrap();
+                    let (x, y) = ev.center();
                     client.finger(x, y, TAP).await.unwrap();
                 }
             }
