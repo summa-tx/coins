@@ -1,5 +1,6 @@
 use crate::{
     Bip32Error,
+    enc::NetworkVersions,
     path::{DerivationPath, KeyDerivation},
     primitives::{Hint, KeyFingerprint, XKeyInfo},
     xkeys::{Parent, SEED, XPriv, XPub},
@@ -41,11 +42,7 @@ pub trait DerivedKey {
 }
 
 /// An XPriv with its derivation.
-#[derive(Debug, Clone)]
-#[cfg_attr(
-    any(feature = "mainnet", feature = "testnet"),
-    derive(serde::Serialize, serde::Deserialize)
-)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct DerivedXPriv {
     xpriv: XPriv,
     derivation: KeyDerivation,
@@ -84,13 +81,17 @@ impl DerivedXPriv {
         Self { xpriv, derivation }
     }
 
+    /// Set the network whose version bytes this key serializes with. Root constructors default
+    /// to mainnet.
+    pub const fn set_network(&mut self, network: &'static NetworkVersions) {
+        self.xpriv.set_network(network);
+    }
+
     /// Check if this XPriv is the private ancestor of some other derived key.
     /// To check ancestry of another private key, derive its public key first
     pub fn is_private_ancestor_of(&self, other: &DerivedXPub) -> Result<bool, Bip32Error> {
         if let Some(path) = self.path_to_descendant(other) {
             let descendant = self.derive_path(path)?;
-            dbg!(descendant.verify_key());
-            dbg!(&other);
             Ok(descendant.verify_key() == *other)
         } else {
             Ok(false)
@@ -164,11 +165,7 @@ impl Parent for DerivedXPriv {
 }
 
 /// An XPub with its derivation.
-#[derive(Debug, Clone, PartialEq)]
-#[cfg_attr(
-    any(feature = "mainnet", feature = "testnet"),
-    derive(serde::Serialize, serde::Deserialize)
-)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DerivedXPub {
     xpub: XPub,
     derivation: KeyDerivation,
@@ -214,6 +211,12 @@ impl DerivedXPub {
     /// should not be called directly. Prefer deriving keys from parents.
     pub const fn new(xpub: XPub, derivation: KeyDerivation) -> Self {
         Self { xpub, derivation }
+    }
+
+    /// Set the network whose version bytes this key serializes with. Root constructors default
+    /// to mainnet.
+    pub const fn set_network(&mut self, network: &'static NetworkVersions) {
+        self.xpub.set_network(network);
     }
 
     /// Check if this XPriv is the private ancestor of some other derived key
@@ -281,13 +284,7 @@ impl DerivedPubkey {
 #[cfg(test)]
 mod test {
     use super::*;
-    use crate::{
-        BIP32_HARDEN,
-        enc::{MainnetEncoder, XKeyEncoder},
-        path::DerivationPath,
-        prelude::*,
-        primitives::*,
-    };
+    use crate::{BIP32_HARDEN, path::DerivationPath, prelude::*, primitives::*};
     use coins_core::hashes::*;
 
     use hex;
@@ -418,7 +415,7 @@ mod test {
         wrong_digest.update([0u8]);
 
         let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
-        let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str).unwrap();
+        let xpriv = XPriv::from_base58(&xpriv_str).unwrap();
         let fake_deriv = KeyDerivation {
             root: [0, 0, 0, 0].into(),
             path: (0..0).collect(),
@@ -457,7 +454,7 @@ mod test {
         let path = vec![0u32, 1, 2];
 
         let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
-        let xpriv = MainnetEncoder::xpriv_from_base58(&xpriv_str).unwrap();
+        let xpriv = XPriv::from_base58(&xpriv_str).unwrap();
         let fake_deriv = KeyDerivation {
             root: [0, 0, 0, 0].into(),
             path: (0..0).collect(),
@@ -596,8 +593,15 @@ mod test {
             (&m, &m2.derive_child(33).unwrap().verify_key(), false),
         ];
         for (i, case) in cases.iter().enumerate() {
-            dbg!(i);
-            assert_eq!(case.0.is_private_ancestor_of(case.1).unwrap(), case.2);
+            assert_eq!(
+                case.0.is_private_ancestor_of(case.1).unwrap(),
+                case.2,
+                "case {i}"
+            );
         }
     }
 }
+
+#[cfg(test)]
+#[path = "../ai-tests/derived.rs"]
+mod ai_tests;
