@@ -27,6 +27,23 @@ pub enum SpeculosError {
     /// Speculos did not reply within the duration.
     #[error("Speculos did not reply within {0:?}")]
     NoReply(Duration),
+
+    /// An HTTP request to the control API failed, or returned an error status.
+    #[error(transparent)]
+    Http(#[from] reqwest::Error),
+
+    /// A response from the control API was not the expected JSON.
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+
+    /// No screen event contained the text within the duration.
+    #[error("No screen event containing {needle:?} within {timeout:?}")]
+    TextNotFound {
+        /// The text that was awaited.
+        needle: String,
+        /// How long it was awaited.
+        timeout: Duration,
+    },
 }
 
 impl From<SpeculosError> for LedgerError {

@@ -20,10 +20,22 @@ hex.workspace = true
 thiserror.workspace = true
 tracing = "0.1"
 tokio = { version = "1.34", features = ["sync"] }
+reqwest = { version = "0.13.5", default-features = false, features = ["json", "stream"], optional = true }
+serde = { workspace = true, features = ["derive"], optional = true }
+serde_json = { workspace = true, optional = true }
+futures-util = { version = "0.3", default-features = false, optional = true }
 
 [features]
 # The Speculos emulator transport.
-speculos = ["tokio/net", "tokio/io-util", "tokio/time"]
+speculos = [
+    "dep:reqwest",
+    "dep:serde",
+    "dep:serde_json",
+    "dep:futures-util",
+    "tokio/net",
+    "tokio/io-util",
+    "tokio/time",
+]
 
 # On Linux the default backend is hidraw, as in Ledger's own tooling.
 [target.'cfg(not(target_os = "android"))'.dependencies]
