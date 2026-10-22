@@ -10,17 +10,17 @@
 )]
 
 //! This crate provides a basic implementation of BIP32, BIP49, and BIP84.
-//! It can be easily adapted to support other networks, using the
-//! paramaterizable encoder.
 //!
+//! # Encoding
 //!
-//! Typically, users will want to use the `MainnetEncoder`, `DerivedXPub`, `DerivedXPriv` types,
-//! which are available at the crate root. If key derivations are unknown, use the `XPub` and
-//! `XPriv` objects instead. These may be deserialized using a network-specific `Encoder` from the
-//! `enc` module.
+//! Keys are associated with a specific network. When deserializing or parsing,
+//! the network is inferred from the prefix bytes, and stored on the key. It is
+//! then used when serializing. It is not advisable to change networks on a key
+//! in memory.
 //!
-//! Useful traits will need to be imported from the `enc` or `model` modules.
-//! We also provide a `prelude` module with everything you need to get started.
+//! Other networks can create a [`enc::NetworkVersions`] struct with their own
+//! prefix information, and use the helpers in the [`enc`] module to
+//! (de)serialize keys with those prefixes
 //!
 //! # Warnings:
 //!
@@ -37,7 +37,7 @@
 //!
 //! let xpriv_str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".to_owned();
 //!
-//! let xpriv: XPriv = MainnetEncoder::xpriv_from_base58(&xpriv_str)?;
+//! let xpriv: XPriv = xpriv_str.parse()?;
 //!
 //! let child_xpriv = xpriv.derive_child(33)?;
 //! let (sig, _recovery_id): (Signature, RecoveryId) =
@@ -52,26 +52,17 @@
 //! let sig = child_xpriv.sign_hasher(digest.clone())?;
 //! child_xpub.verify_hasher(digest, &sig)?;
 //!
-//! MainnetEncoder::xpub_to_base58(&child_xpub)?;
+//! child_xpub.to_base58();
 //! # Ok(())
 //! # }
 //! ```
 
 pub use k256::ecdsa;
 
-#[cfg(all(feature = "mainnet", feature = "testnet"))]
-compile_error!(
-    "the `mainnet` and `testnet` features of coins-bip32 are mutually exclusive. \
-     These features only select which encoder `coins_bip32::defaults::Encoder` aliases; \
-     both `enc::MainnetEncoder` and `enc::TestnetEncoder` are always available \
-     regardless of feature set. Enable only one (use `default-features = false` to \
-     drop the default `mainnet`)."
-);
-
 #[macro_use]
 pub(crate) mod macros;
 
-/// Network-differentiated encoders for extended keys.
+/// Base58check helpers, network version prefixes, inherent key (de)serialization, and serde helpers for other networks.
 pub mod enc;
 
 /// `DerivationPath` type and tooling for parsing it from strings
@@ -86,14 +77,13 @@ pub mod xkeys;
 /// Provides keys that are coupled with their derivation path
 pub mod derived;
 
-#[doc(hidden)]
-#[cfg(any(feature = "mainnet", feature = "testnet"))]
-pub mod defaults;
-
 /// Quickstart types and traits
 pub mod prelude;
 
-use thiserror::Error;
+/// The crate's error type
+pub mod error;
+
+pub use error::Bip32Error;
 
 /// The hardened derivation flag. Keys at or above this index are hardened.
 pub const BIP32_HARDEN: u32 = 0x8000_0000;
@@ -103,80 +93,6 @@ pub const CURVE_ORDER: [u8; 32] = [
     0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xfe,
     0xba, 0xae, 0xdc, 0xe6, 0xaf, 0x48, 0xa0, 0x3b, 0xbf, 0xd2, 0x5e, 0x8c, 0xd0, 0x36, 0x41, 0x41,
 ];
-
-/// Errors for this library
-#[derive(Debug, Error)]
-pub enum Bip32Error {
-    /// Error bubbled up from the backend
-    #[error("k256 error")]
-    BackendError(/*#[from]*/ ecdsa::Error),
-
-    /// Error bubbled up from the backend
-    #[error("elliptic curve error")]
-    EllipticCurveError(/*#[from]*/ k256::elliptic_curve::Error),
-
-    /// Error bubbled up froom std::io
-    #[error(transparent)]
-    IoError(#[from] std::io::Error),
-
-    /// Master key seed generation received <16 bytes
-    #[error("Master key seed generation received <16 bytes")]
-    SeedTooShort,
-
-    /// HMAC I_l was invalid during key generations.
-    #[error("HMAC left segment was 0 or greated than the curve order. How?")]
-    InvalidKey,
-
-    /// pted to derive the hardened child of an xpub
-    #[error("Attempted to derive the hardened child of an xpub")]
-    HardenedDerivationFailed,
-
-    /// Attempted to tweak an xpriv or xpub directly
-    #[error("Attempted to tweak an xpriv or xpub directly")]
-    BadTweak,
-
-    /// Unrecognized version when deserializing xpriv
-    #[error("Version bytes 0x{0:x?} don't match any network xpriv version bytes")]
-    BadXPrivVersionBytes([u8; 4]),
-
-    /// Unrecognized version when deserializing xpub
-    #[error("Version bytes 0x{0:x?} don't match any network xpub version bytes")]
-    BadXPubVersionBytes([u8; 4]),
-
-    /// Bad padding byte on serialized xprv
-    #[error("Expected 0 padding byte. Got {0}")]
-    BadPadding(u8),
-
-    /// Bad Checks on b58check
-    #[error("Checksum mismatch on b58 deserialization")]
-    BadB58Checksum,
-
-    /// Bubbled up error from bs58 library
-    #[error(transparent)]
-    B58Error(#[from] bs58::decode::Error),
-
-    /// Parsing an string derivation failed because an index string was malformatted
-    #[error("Malformatted index during derivation: {0}")]
-    MalformattedDerivation(String),
-}
-
-impl From<ecdsa::Error> for Bip32Error {
-    fn from(e: ecdsa::Error) -> Self {
-        Self::BackendError(e)
-    }
-}
-
-impl From<k256::elliptic_curve::Error> for Bip32Error {
-    fn from(e: k256::elliptic_curve::Error) -> Self {
-        Self::EllipticCurveError(e)
-    }
-}
-
-impl From<std::convert::Infallible> for Bip32Error {
-    fn from(_i: std::convert::Infallible) -> Self {
-        unimplemented!("unreachable, but required by type system")
-    }
-}
 
 // Enables `std` on primeorder for k256's `precomputed-tables`, without
 // k256's `std` (which pulls in getrandom).

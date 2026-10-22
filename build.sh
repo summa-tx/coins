@@ -15,7 +15,6 @@ cargo test -q --doc || fail "Cargo documentation tests"
 
 ### BIP32 ###
 cargo c -q -p coins-bip32 || fail "BIP32 build failed"
-cargo c -q -p coins-bip32 --no-default-features || fail "BIP32 build without default features"
 RUSTFLAGS='--cfg getrandom_backend="wasm_js"' cargo c -q -p coins-bip32 --target wasm32-unknown-unknown || fail "BIP32 wasm build "
 
 ### BIP39 ###

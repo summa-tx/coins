@@ -1,95 +1,131 @@
-use tokio::sync::{mpsc, oneshot};
+//! APDU Transport for native HID.
+//!
+//! This module contains [`HidTransport`], the main USB access point for ledger
+//! devices. [`HidTransport`] implements [`LedgerTransport`] over hid by
+//! spawning a background thread managing a [`HidLedgerDevice`].
 
-use crate::{APDUAnswer, APDUCommand, LedgerError};
+use crate::{
+    ApduAnswer, ApduCommand, LedgerError,
+    transports::{DeviceIdentity, LedgerTransport},
+};
+use std::time::Duration;
+use tokio::sync::{mpsc, oneshot};
 
 mod error;
 pub use error::NativeTransportError;
 
 pub mod hid;
-use hid::TransportNativeHID;
+pub use hid::{HidDeviceId, HidLedgerDevice};
+use tracing::{Span, debug, field::display};
 
 /// A packet exchange request.
-struct APDUExchange {
-    /// The command to send to the device.
-    command: APDUCommand,
+struct ApduExchange {
+    command: ApduCommand,
+    /// The per-report read timeout. `None` waits indefinitely.
+    timeout: Option<Duration>,
     /// The channel to send the answer back on.
-    answer: oneshot::Sender<Result<APDUAnswer, LedgerError>>,
+    answer: oneshot::Sender<Result<ApduAnswer, LedgerError>>,
+    /// A tracing span associated with the exchange. Used to propagate trace
+    /// info to the background thread.
+    span: tracing::Span,
 }
 
-impl APDUExchange {
-    /// Create a new exchange request.
-    fn new(command: APDUCommand) -> (Self, oneshot::Receiver<Result<APDUAnswer, LedgerError>>) {
-        let (tx, rx) = oneshot::channel();
-        (
-            Self {
-                command,
-                answer: tx,
-            },
-            rx,
-        )
-    }
-}
-
-/// A task that manages Ledger packet exchange.
-struct LedgerTask {
-    ledger: TransportNativeHID,
-    rx: tokio::sync::mpsc::Receiver<APDUExchange>,
-}
-
-impl LedgerTask {
-    /// Create a new task.
-    fn new(ledger: TransportNativeHID) -> (Self, tokio::sync::mpsc::Sender<APDUExchange>) {
-        let (tx, rx) = tokio::sync::mpsc::channel(1);
-        (Self { ledger, rx }, tx)
-    }
-
-    /// Spawn the task that will run Ledger protocols.
-    fn spawn(mut self) {
-        let fut = async move {
-            while let Some(exchange) = self.rx.recv().await {
-                // blocking IO
-                let answer = self.ledger.exchange(&exchange.command);
-                let answer = exchange.answer.send(answer);
-                if let Err(Err(err)) = answer {
-                    tracing::error!(err = %err, "could not send answer to exchange");
-                }
-            }
-        };
-
-        std::thread::spawn(|| {
-            let rt = tokio::runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .unwrap();
-            rt.block_on(fut);
-        });
-    }
-}
-
-/// A handle to the Ledger device. This handle is not clone, as it is critical
-/// that only one connection to the device is active at a time. APDUs may NOT
-/// be interleaved.
+/// A handle to the Ledger device. This represents exclusive device access.
+/// Dropping the handle closes the device once in-flight communications are
+/// completed.
+///
+/// This transport implements [`LedgerTransport`] timeouts on a per-packet
+/// basis. I.e. it will wait up to `timeout` for each roundtrip with the device.
+/// The timeout is thus the MAXIMUM duration that a user has to push buttons on
+/// the device.
+///
+/// Generally instantiated via [`HidTransport::open_first`], but
+/// [`HidTransport::list`] allows scanning for [`HidDeviceId`]s that can be
+/// passed to [`HidTransport::open`].
 #[derive(Debug)]
-pub struct LedgerHandle {
-    tx: mpsc::Sender<APDUExchange>,
+pub struct HidTransport {
+    tx: mpsc::Sender<ApduExchange>,
+    identity: HidDeviceId,
 }
 
-impl LedgerHandle {
-    /// Init a handle, and spawn a task to manage Ledger packet exchange.
-    pub fn init() -> Result<Self, LedgerError> {
-        let ledger = TransportNativeHID::new()?;
-        let (task, tx) = LedgerTask::new(ledger);
-        task.spawn();
-        Ok(Self { tx })
+impl HidTransport {
+    /// List available Ledger devices. Empty under Termux; see
+    /// [`HidLedgerDevice::list`].
+    pub fn list() -> Result<Vec<HidDeviceId>, NativeTransportError> {
+        HidLedgerDevice::list()
     }
 
-    /// Exchange a packet with the device.
-    pub async fn exchange(&self, apdu: APDUCommand) -> Result<APDUAnswer, LedgerError> {
-        let (exchange, rx) = APDUExchange::new(apdu);
+    /// Open `id` and spawn its I/O thread. See [`HidLedgerDevice::open`].
+    pub fn open(id: &HidDeviceId) -> Result<Self, NativeTransportError> {
+        HidLedgerDevice::open(id).map(Self::from_transport)
+    }
+
+    /// Open the first Ledger found, or the device Termux hands over, and
+    /// spawn its I/O thread. See [`HidLedgerDevice::open_first`].
+    pub fn open_first() -> Result<Self, NativeTransportError> {
+        HidLedgerDevice::open_first().map(Self::from_transport)
+    }
+
+    /// Make a [`HidTransport`] from an open device. This spawns a background
+    /// thread that manages device communication.
+    ///
+    /// # Panics
+    ///
+    /// If the I/O thread cannot be spawned.
+    pub fn from_transport(device: HidLedgerDevice) -> Self {
+        let (device, identity) = device.into_parts();
+        let (tx, mut rx) = mpsc::channel(1);
+
+        // Spawn a thread that drives the blocking transport.
+        std::thread::Builder::new()
+            .name("coins-ledger-io".into())
+            .spawn(move || {
+                while let Some(ApduExchange {
+                    command,
+                    timeout,
+                    answer,
+                    span,
+                }) = rx.blocking_recv()
+                {
+                    let _entered = span.entered();
+                    if answer
+                        .send(hid::exchange(&device, &command, timeout))
+                        .is_err()
+                    {
+                        debug!("exchange was dropped before its answer arrived");
+                    }
+                }
+            })
+            .expect("failed to spawn the Ledger I/O thread");
+        Self { tx, identity }
+    }
+}
+
+impl LedgerTransport for HidTransport {
+    fn identity(&self) -> Option<DeviceIdentity<'_>> {
+        Some(DeviceIdentity {
+            model: self.identity.model(),
+            serial_number: self.identity.serial_number(),
+        })
+    }
+
+    async fn exchange(
+        &mut self,
+        command: ApduCommand,
+        timeout: Option<Duration>,
+    ) -> Result<ApduAnswer, LedgerError> {
+        Span::current().record("device", display(&self.identity));
+        let (answer, rx) = oneshot::channel();
         self.tx
-            .send(exchange)
+            .send(ApduExchange {
+                command,
+                timeout,
+                answer,
+                span: Span::current(),
+            })
             .await
-            .map_err(|_| LedgerError::BackendGone)?;
-        rx.await.map_err(|_| LedgerError::BackendGone)?
+            .map_err(|_| NativeTransportError::IoThreadUnavailable)?;
+        rx.await
+            .map_err(|_| NativeTransportError::IoThreadUnavailable)?
     }
 }

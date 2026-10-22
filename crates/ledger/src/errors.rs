@@ -1,33 +1,54 @@
+use std::time::Duration;
+
 use thiserror::Error;
 
-use crate::common::APDUResponseCodes;
+use crate::{common::StatusWord, transports::NativeTransportError};
 
-/// APDU-related errors
+/// Errors from building, exchanging, and parsing APDUs.
 #[derive(Debug, Error)]
 pub enum LedgerError {
+    /// A command was built without a class byte.
+    #[error("APDU command is missing its CLA byte")]
+    MissingCla,
+
+    /// A command was built without an instruction byte.
+    #[error("APDU command is missing its INS byte")]
+    MissingIns,
+
+    /// APDU data exceeds the 255-byte limit of a short APDU.
+    #[error("APDU data too long: {0} bytes, max 255")]
+    DataTooLong(usize),
+
     /// APDU Response was too short
-    #[error("Response too short. Expected at least 2 bytes. Got {0:?}")]
-    ResponseTooShort(Vec<u8>),
+    #[error("Response too short. Expected at least 2 bytes. Got {0} bytes.")]
+    ResponseTooShort(usize),
 
-    /// APDU error
-    #[error("Ledger device: APDU Response error `{0}`")]
-    BadRetcode(APDUResponseCodes),
+    /// The device returned a non-success status word.
+    #[error("Ledger device: APDU response error {0}")]
+    BadRetcode(StatusWord),
 
-    /// Ledger returned an unknown APDU
-    #[error("Ledger returned an unknown response status code {0:x}. This is a bug. Please file an issue at https://github.com/summa-tx/coins-rs/issues")]
-    UnknownAPDUCode(u16),
+    /// The device did not answer within the timeout.
+    #[error("Ledger device did not respond within {0:?}")]
+    Timeout(Duration),
 
-    /// The backend has been disconnected.
-    #[error("The backend has been disconnected.")]
-    BackendGone,
-
-    /// Native transport error type.
+    /// The transport failed. [`NativeTransportError`] for the HID transport;
+    /// other transports box their own error type.
     #[error(transparent)]
-    NativeTransportError(#[from] crate::transports::native::NativeTransportError),
+    Transport(#[from] Box<dyn std::error::Error + Send + Sync + 'static>),
 }
 
-impl From<APDUResponseCodes> for LedgerError {
-    fn from(r: APDUResponseCodes) -> Self {
-        LedgerError::BadRetcode(r)
+impl From<NativeTransportError> for LedgerError {
+    fn from(err: NativeTransportError) -> Self {
+        Self::Transport(Box::new(err))
     }
 }
+
+impl From<StatusWord> for LedgerError {
+    fn from(sw: StatusWord) -> Self {
+        LedgerError::BadRetcode(sw)
+    }
+}
+
+#[cfg(test)]
+#[path = "../ai-tests/errors.rs"]
+mod ai_tests;

@@ -9,26 +9,27 @@ categories = ["authentication", "cryptography"]
 keywords = ["ledger", "apdu", "cryptocurrency"]
 description = "Ledger Nano X/S connection and communication management library"
 
-version.workspace =  true
-edition.workspace =  true
+version.workspace = true
+edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 
 [dependencies]
-async-trait.workspace = true
 hex.workspace = true
 thiserror.workspace = true
-once_cell.workspace = true
-byteorder = "1.5"
 tracing = "0.1"
-hidapi-rusb = "1.3"
-tokio = { version = "1.34", features = ["sync", "rt"] }
+tokio = { version = "1.34", features = ["sync"] }
 
-# linux only
-[target.'cfg(target_os = "linux")'.dependencies]
-nix = "0.26"
+# On Linux the default backend is hidraw, as in Ledger's own tooling.
+[target.'cfg(not(target_os = "android"))'.dependencies]
+hidapi = "2.6"
+
+# Termux hands over an already-open USB file descriptor, which only the libusb
+# backend can wrap. The two target tables are disjoint so the backends never
+# unify.
+[target.'cfg(target_os = "android")'.dependencies]
+hidapi = { version = "2.6", default-features = false, features = ["linux-static-libusb"] }
 
 [dev-dependencies]
 tokio = { version = "1.34", features = ["rt", "macros"] }

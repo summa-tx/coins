@@ -10,7 +10,6 @@ rust-version.workspace = true
 authors.workspace =  true
 license.workspace = true
 repository.workspace = true
-homepage.workspace = true
 
 [dependencies]
 coins-core.workspace = true
@@ -28,8 +27,4 @@ zeroize.workspace = true
 
 [dev-dependencies]
 hex.workspace = true
-
-[features]
-default = ["mainnet"]
-mainnet = []
-testnet = []
+serde_json.workspace = true

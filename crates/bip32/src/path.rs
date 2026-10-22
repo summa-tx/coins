@@ -5,7 +5,7 @@ use std::{
     str::FromStr,
 };
 
-use crate::{primitives::KeyFingerprint, Bip32Error, BIP32_HARDEN};
+use crate::{BIP32_HARDEN, Bip32Error, primitives::KeyFingerprint};
 
 fn try_parse_index(s: &str) -> Result<u32, Bip32Error> {
     let mut index_str = s.to_owned();
@@ -64,9 +64,22 @@ impl<'de> serde::Deserialize<'de> for DerivationPath {
     where
         D: serde::Deserializer<'de>,
     {
-        let s: &str = serde::Deserialize::deserialize(deserializer)?;
-        s.parse::<DerivationPath>()
-            .map_err(|e| serde::de::Error::custom(e.to_string()))
+        /// Parses a path from borrowed, transient or owned strings alike.
+        struct PathVisitor;
+
+        impl serde::de::Visitor<'_> for PathVisitor {
+            type Value = DerivationPath;
+
+            fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                f.write_str("a derivation path such as m/44'/0'/0'")
+            }
+
+            fn visit_str<E: serde::de::Error>(self, s: &str) -> Result<DerivationPath, E> {
+                s.parse().map_err(E::custom)
+            }
+        }
+
+        deserializer.deserialize_str(PathVisitor)
     }
 }
 
@@ -298,9 +311,11 @@ mod test {
             }
         }
         assert!("m/2147483648'".parse::<DerivationPath>().is_err());
-        assert!("m/44'/60'/0'/0/2147483648"
-            .parse::<DerivationPath>()
-            .is_err());
+        assert!(
+            "m/44'/60'/0'/0/2147483648"
+                .parse::<DerivationPath>()
+                .is_err()
+        );
     }
 
     #[test]

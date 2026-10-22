@@ -16,16 +16,19 @@ env:
 
 jobs:
   test:
-    name: test ${{ matrix.features }}
-    runs-on: ubuntu-latest
+    name: test ${{ matrix.os }} ${{ matrix.features }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
+        os: [ubuntu-latest, macos-latest]
         features: ["", "--no-default-features"]
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libudev-dev
       - run: cargo test ${{ matrix.features }}
 
   wasm:
@@ -55,6 +58,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@clippy
+      - run: sudo apt-get update && sudo apt-get install -y libudev-dev
       - name: clippy
         run: cargo clippy --workspace --all-targets
         env:
@@ -68,6 +72,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@nightly
         with:
           components: rust-docs
+      - run: sudo apt-get update && sudo apt-get install -y libudev-dev
       - name: doc
         run: cargo doc --workspace --no-deps --document-private-items
         env:

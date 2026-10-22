@@ -1,65 +1,77 @@
 //! Abstract ledger transport trait with a native HID instantiation.
 
+use std::{fmt, time::Duration};
+
+pub mod native;
+pub use native::{HidDeviceId, HidTransport, NativeTransportError};
+
 use crate::{
-    common::{APDUAnswer, APDUCommand},
+    Model,
+    common::{ApduAnswer, ApduCommand},
     errors::LedgerError,
 };
-use async_trait::async_trait;
-use tracing::{debug, error};
 
-/// APDU Transport for native HID. Wraps
-/// [`TransportNativeHID`][native::hid::TransportNativeHID] in a
-/// thread managing the IO.
-pub mod native;
-pub use native::LedgerHandle as DefaultTransport;
-
-/// A Ledger device connection. This wraps the default transport type, which
-/// is backed by the `hidapi` library.
-#[derive(Debug)]
-pub struct Ledger(DefaultTransport);
-
-/// An asynchronous interface to the Ledger device. It is critical that the
-/// device have only one connection active, so the `init` function acquires a
-/// lock on the device.
-#[async_trait]
-pub trait LedgerAsync: Sized {
-    /// Init the connection to the device. This may fail if the device is already in use by some
-    /// other process.
-    async fn init() -> Result<Self, LedgerError>;
-
-    /// Exchange a packet with the device.
-    async fn exchange(&self, packet: &APDUCommand) -> Result<APDUAnswer, LedgerError>;
-
-    /// Consume the connection, and release the resources it holds.
-    ///
-    /// By default this function simply drops the struct.
-    fn close(self) {}
+/// What identifies a Ledger on any transport: its model and serial number.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct DeviceIdentity<'a> {
+    model: Model,
+    serial_number: Option<&'a str>,
 }
 
-#[async_trait]
-impl LedgerAsync for Ledger {
-    async fn init() -> Result<Self, LedgerError> {
-        Ok(Self(DefaultTransport::init()?))
-    }
-
-    async fn exchange(&self, packet: &APDUCommand) -> Result<APDUAnswer, LedgerError> {
-        debug!(command = %packet, "dispatching APDU to device");
-
-        // TODO: remove clone
-        let resp = self.0.exchange(packet.clone()).await;
-        match &resp {
-            Ok(resp) => {
-                debug!(
-                    retcode = resp.retcode(),
-                    response = resp.data().map(hex::encode),
-                    "Received response from device"
-                )
-            }
-            Err(err) => error!(%err, "Error during communication"),
+impl<'a> DeviceIdentity<'a> {
+    /// Identify a device by model and, if it reports one, serial number.
+    pub const fn new(model: Model, serial_number: Option<&'a str>) -> Self {
+        Self {
+            model,
+            serial_number,
         }
-        resp
+    }
+
+    /// The hardware model.
+    pub const fn model(&self) -> Model {
+        self.model
+    }
+
+    /// The serial number, if the device reports one.
+    pub const fn serial_number(&self) -> Option<&str> {
+        self.serial_number
     }
 }
+
+/// `Nano X (0001)`, or `Nano X` with no serial number.
+impl fmt::Display for DeviceIdentity<'_> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.model)?;
+        if let Some(serial) = &self.serial_number {
+            write!(f, " ({serial})")?;
+        }
+        Ok(())
+    }
+}
+
+/// An asynchronous interface to a Ledger device.
+pub trait LedgerTransport {
+    /// The device this transport talks to, if it knows.
+    fn identity(&self) -> Option<DeviceIdentity<'_>>;
+
+    /// Exchange a packet. Transports SHOULD respect the timeout, but are free
+    /// to choose how to do that. A transport reports a timeout as
+    /// [`LedgerError::Timeout`] and its own failures as
+    /// [`LedgerError::Transport`].
+    ///
+    /// [`Ledger::exchange`](crate::Ledger::exchange) calls this inside a span
+    /// with an empty `device` field. A transport that knows its device may
+    /// record it on the current span.
+    fn exchange(
+        &mut self,
+        packet: ApduCommand,
+        timeout: Option<Duration>,
+    ) -> impl Future<Output = Result<ApduAnswer, LedgerError>> + Send;
+}
+
+#[cfg(test)]
+#[path = "../../ai-tests/transports/mod.rs"]
+pub(crate) mod ai_tests;
 
 /*******************************************************************************
  *   (c) 2020 ZondaX GmbH
