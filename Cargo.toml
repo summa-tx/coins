@@ -13,14 +13,11 @@ authors = [
     "James Prestwich <james@prestwi.ch>",
 ]
 license = "MIT OR Apache-2.0"
-homepage = "https://github.com/summa-tx/coins"
 repository = "https://github.com/summa-tx/coins"
 
 [workspace.dependencies]
 coins-bip32 = { path = "crates/bip32", version = "0.17" }
-coins-bip39 = { path = "crates/bip39", version = "0.17" }
 coins-core = { path = "crates/core", version = "0.17" }
-coins-ledger = { path = "crates/ledger", version = "0.17" }
 
 # core
 bs58 = "0.5.1"
