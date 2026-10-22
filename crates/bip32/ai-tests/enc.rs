@@ -185,3 +185,81 @@ fn read_consumes_exactly_one_key() {
     assert_eq!(XPub::read(&mut cursor).unwrap(), xpub);
     assert!(cursor.is_empty());
 }
+
+const OTHER: NetworkVersions = NetworkVersions {
+    priv_legacy: 0x1111_1111,
+    priv_compatibility: 0x2222_2222,
+    priv_segwit: 0x3333_3333,
+    pub_legacy: 0x4444_4444,
+    pub_compatibility: 0x5555_5555,
+    pub_segwit: 0x6666_6666,
+};
+
+fn other_xpriv<'de, D: serde::Deserializer<'de>>(d: D) -> Result<XPriv, D::Error> {
+    deserialize_xpriv(d, &OTHER)
+}
+
+fn other_xpub<'de, D: serde::Deserializer<'de>>(d: D) -> Result<XPub, D::Error> {
+    deserialize_xpub(d, &OTHER)
+}
+
+fn other_derived_xpriv<'de, D: serde::Deserializer<'de>>(d: D) -> Result<DerivedXPriv, D::Error> {
+    deserialize_derived_xpriv(d, &OTHER)
+}
+
+fn other_derived_xpub<'de, D: serde::Deserializer<'de>>(d: D) -> Result<DerivedXPub, D::Error> {
+    deserialize_derived_xpub(d, &OTHER)
+}
+
+#[derive(serde::Deserialize)]
+struct Holder {
+    #[serde(deserialize_with = "other_xpriv")]
+    xpriv: XPriv,
+    #[serde(deserialize_with = "other_xpub")]
+    xpub: XPub,
+    #[serde(deserialize_with = "other_derived_xpriv")]
+    derived_xpriv: DerivedXPriv,
+    #[serde(deserialize_with = "other_derived_xpub")]
+    derived_xpub: DerivedXPub,
+}
+
+fn holder_json(key: &DerivedXPriv) -> serde_json::Value {
+    let xpriv: &XPriv = key.as_ref();
+    let key_pub = key.verify_key();
+    let xpub: &XPub = key_pub.as_ref();
+    serde_json::json!({
+        "xpriv": xpriv.to_base58().as_str(),
+        "xpub": xpub.to_base58(),
+        "derived_xpriv": key,
+        "derived_xpub": &key_pub,
+    })
+}
+
+#[test]
+fn helpers_accept_their_network() {
+    let mut key = DerivedXPriv::root_from_seed(&[7u8; 32], None).unwrap();
+    key.set_network(&OTHER);
+    let holder: Holder = serde_json::from_str(&holder_json(&key).to_string()).unwrap();
+    let infos: [&XKeyInfo; 4] = [
+        holder.xpriv.as_ref(),
+        holder.xpub.as_ref(),
+        holder.derived_xpriv.as_ref(),
+        holder.derived_xpub.as_ref(),
+    ];
+    for info in infos {
+        assert_eq!(info.network, &OTHER);
+    }
+    assert_eq!(
+        serde_json::to_string(&holder.derived_xpriv).unwrap(),
+        serde_json::to_string(&key).unwrap()
+    );
+}
+
+#[test]
+fn helpers_reject_mainnet() {
+    let key = DerivedXPriv::root_from_seed(&[7u8; 32], None).unwrap();
+    let err = serde_json::from_str::<Holder>(&holder_json(&key).to_string())
+        .err()
+        .expect("mainnet keys must be rejected");
+    assert!(err.to_string().contains("don't match any network"), "{err}");
+}

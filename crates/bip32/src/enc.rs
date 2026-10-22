@@ -4,6 +4,8 @@ use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 use crate::{
     Bip32Error,
+    derived::{DerivedXPriv, DerivedXPub},
+    path::KeyDerivation,
     primitives::{ChainCode, Hint, KeyFingerprint, XKeyInfo},
     xkeys::{XPriv, XPub},
 };
@@ -465,6 +467,199 @@ impl XPub {
         let data = decode_b58_check(s)?;
         Self::read_with(&mut &data[..], network)
     }
+}
+
+/// Deserialize an [`XPriv`] on `network`, for use with `#[serde(deserialize_with)]`.
+///
+/// The blind `Deserialize` impl only knows mainnet and testnet. `deserialize_with` takes a path
+/// and cannot pass `network`, so wrap this in a one-argument function:
+///
+/// ```
+/// use coins_bip32::{enc::{NetworkVersions, deserialize_xpriv}, xkeys::XPriv};
+/// use serde::{Deserialize, Deserializer};
+///
+/// const LITECOIN: NetworkVersions = NetworkVersions {
+///     priv_legacy: 0x019d_9cfe,
+///     priv_compatibility: 0x01b2_6792,
+///     priv_segwit: 0x04b2_430c,
+///     pub_legacy: 0x019d_a462,
+///     pub_compatibility: 0x01b2_6ef6,
+///     pub_segwit: 0x04b2_4746,
+/// };
+///
+/// fn litecoin_xpriv<'de, D: Deserializer<'de>>(d: D) -> Result<XPriv, D::Error> {
+///     deserialize_xpriv(d, &LITECOIN)
+/// }
+///
+/// #[derive(Deserialize)]
+/// struct Wallet {
+///     #[serde(deserialize_with = "litecoin_xpriv")]
+///     key: XPriv,
+/// }
+///
+/// let mut key = XPriv::root_from_seed(&[1u8; 32], None).unwrap();
+/// key.set_network(&LITECOIN);
+/// let json = serde_json::json!({ "key": key.to_base58().as_str() }).to_string();
+/// let wallet: Wallet = serde_json::from_str(&json).unwrap();
+/// assert_eq!(wallet.key, key);
+/// ```
+pub fn deserialize_xpriv<'de, D: serde::Deserializer<'de>>(
+    d: D,
+    network: &'static NetworkVersions,
+) -> Result<XPriv, D::Error> {
+    let s: &str = serde::Deserialize::deserialize(d)?;
+    XPriv::from_base58_with(s, network).map_err(serde::de::Error::custom)
+}
+
+/// Deserialize an [`XPub`] on `network`, for use with `#[serde(deserialize_with)]`.
+///
+/// The blind `Deserialize` impl only knows mainnet and testnet. `deserialize_with` takes a path
+/// and cannot pass `network`, so wrap this in a one-argument function:
+///
+/// ```
+/// use coins_bip32::{enc::{NetworkVersions, deserialize_xpub}, xkeys::{XPriv, XPub}};
+/// use serde::{Deserialize, Deserializer};
+///
+/// const LITECOIN: NetworkVersions = NetworkVersions {
+///     priv_legacy: 0x019d_9cfe,
+///     priv_compatibility: 0x01b2_6792,
+///     priv_segwit: 0x04b2_430c,
+///     pub_legacy: 0x019d_a462,
+///     pub_compatibility: 0x01b2_6ef6,
+///     pub_segwit: 0x04b2_4746,
+/// };
+///
+/// fn litecoin_xpub<'de, D: Deserializer<'de>>(d: D) -> Result<XPub, D::Error> {
+///     deserialize_xpub(d, &LITECOIN)
+/// }
+///
+/// #[derive(Deserialize)]
+/// struct Wallet {
+///     #[serde(deserialize_with = "litecoin_xpub")]
+///     key: XPub,
+/// }
+///
+/// let mut key = XPriv::root_from_seed(&[1u8; 32], None).unwrap().verify_key();
+/// key.set_network(&LITECOIN);
+/// let json = serde_json::json!({ "key": key.to_base58() }).to_string();
+/// let wallet: Wallet = serde_json::from_str(&json).unwrap();
+/// assert_eq!(wallet.key, key);
+/// ```
+pub fn deserialize_xpub<'de, D: serde::Deserializer<'de>>(
+    d: D,
+    network: &'static NetworkVersions,
+) -> Result<XPub, D::Error> {
+    let s: &str = serde::Deserialize::deserialize(d)?;
+    XPub::from_base58_with(s, network).map_err(serde::de::Error::custom)
+}
+
+#[derive(serde::Deserialize)]
+struct DerivedXPrivRepr<'a> {
+    #[serde(borrow)]
+    xpriv: &'a str,
+    derivation: KeyDerivation,
+}
+
+#[derive(serde::Deserialize)]
+struct DerivedXPubRepr<'a> {
+    #[serde(borrow)]
+    xpub: &'a str,
+    derivation: KeyDerivation,
+}
+
+/// Deserialize a [`DerivedXPriv`] on `network`, for use with `#[serde(deserialize_with)]`.
+///
+/// The blind `Deserialize` impl only knows mainnet and testnet. `deserialize_with` takes a path
+/// and cannot pass `network`, so wrap this in a one-argument function:
+///
+/// ```
+/// use coins_bip32::{
+///     derived::DerivedXPriv,
+///     enc::{NetworkVersions, deserialize_derived_xpriv},
+/// };
+/// use serde::{Deserialize, Deserializer};
+///
+/// const LITECOIN: NetworkVersions = NetworkVersions {
+///     priv_legacy: 0x019d_9cfe,
+///     priv_compatibility: 0x01b2_6792,
+///     priv_segwit: 0x04b2_430c,
+///     pub_legacy: 0x019d_a462,
+///     pub_compatibility: 0x01b2_6ef6,
+///     pub_segwit: 0x04b2_4746,
+/// };
+///
+/// fn litecoin_derived_xpriv<'de, D: Deserializer<'de>>(d: D) -> Result<DerivedXPriv, D::Error> {
+///     deserialize_derived_xpriv(d, &LITECOIN)
+/// }
+///
+/// #[derive(Deserialize)]
+/// struct Wallet {
+///     #[serde(deserialize_with = "litecoin_derived_xpriv")]
+///     key: DerivedXPriv,
+/// }
+///
+/// let mut key = DerivedXPriv::root_from_seed(&[1u8; 32], None).unwrap();
+/// key.set_network(&LITECOIN);
+/// let json = serde_json::json!({ "key": &key }).to_string();
+/// let wallet: Wallet = serde_json::from_str(&json).unwrap();
+/// assert_eq!(
+///     serde_json::to_string(&wallet.key).unwrap(),
+///     serde_json::to_string(&key).unwrap()
+/// );
+/// ```
+pub fn deserialize_derived_xpriv<'de, D: serde::Deserializer<'de>>(
+    d: D,
+    network: &'static NetworkVersions,
+) -> Result<DerivedXPriv, D::Error> {
+    let repr: DerivedXPrivRepr = serde::Deserialize::deserialize(d)?;
+    let xpriv = XPriv::from_base58_with(repr.xpriv, network).map_err(serde::de::Error::custom)?;
+    Ok(DerivedXPriv::new(xpriv, repr.derivation))
+}
+
+/// Deserialize a [`DerivedXPub`] on `network`, for use with `#[serde(deserialize_with)]`.
+///
+/// The blind `Deserialize` impl only knows mainnet and testnet. `deserialize_with` takes a path
+/// and cannot pass `network`, so wrap this in a one-argument function:
+///
+/// ```
+/// use coins_bip32::{
+///     derived::{DerivedXPriv, DerivedXPub},
+///     enc::{NetworkVersions, deserialize_derived_xpub},
+/// };
+/// use serde::{Deserialize, Deserializer};
+///
+/// const LITECOIN: NetworkVersions = NetworkVersions {
+///     priv_legacy: 0x019d_9cfe,
+///     priv_compatibility: 0x01b2_6792,
+///     priv_segwit: 0x04b2_430c,
+///     pub_legacy: 0x019d_a462,
+///     pub_compatibility: 0x01b2_6ef6,
+///     pub_segwit: 0x04b2_4746,
+/// };
+///
+/// fn litecoin_derived_xpub<'de, D: Deserializer<'de>>(d: D) -> Result<DerivedXPub, D::Error> {
+///     deserialize_derived_xpub(d, &LITECOIN)
+/// }
+///
+/// #[derive(Deserialize)]
+/// struct Wallet {
+///     #[serde(deserialize_with = "litecoin_derived_xpub")]
+///     key: DerivedXPub,
+/// }
+///
+/// let mut key = DerivedXPriv::root_from_seed(&[1u8; 32], None).unwrap().verify_key();
+/// key.set_network(&LITECOIN);
+/// let json = serde_json::json!({ "key": &key }).to_string();
+/// let wallet: Wallet = serde_json::from_str(&json).unwrap();
+/// assert_eq!(wallet.key, key);
+/// ```
+pub fn deserialize_derived_xpub<'de, D: serde::Deserializer<'de>>(
+    d: D,
+    network: &'static NetworkVersions,
+) -> Result<DerivedXPub, D::Error> {
+    let repr: DerivedXPubRepr = serde::Deserialize::deserialize(d)?;
+    let xpub = XPub::from_base58_with(repr.xpub, network).map_err(serde::de::Error::custom)?;
+    Ok(DerivedXPub::new(xpub, repr.derivation))
 }
 
 #[cfg(test)]
