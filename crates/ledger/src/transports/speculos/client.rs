@@ -3,7 +3,7 @@ use std::time::Duration;
 use futures_util::{Stream, StreamExt, stream};
 use reqwest::{IntoUrl, Url};
 use serde::{Deserialize, Serialize};
-use tokio::time::{Instant, sleep};
+use tokio::time::{Instant, sleep, timeout_at};
 
 use crate::transports::speculos::SpeculosError;
 
@@ -186,22 +186,22 @@ impl SpeculosClient {
         timeout: Duration,
     ) -> Result<ScreenEvent, SpeculosError> {
         let deadline = Instant::now() + timeout;
-        loop {
-            if let Some(found) = self
-                .events()
-                .await?
-                .into_iter()
-                .find(|e| e.text.contains(needle))
-            {
-                return Ok(found);
+        let poll = async {
+            loop {
+                let events = self.events().await?;
+                if let Some(found) = events.into_iter().find(|e| e.text.contains(needle)) {
+                    return Ok(found);
+                }
+                sleep(POLL_INTERVAL).await;
             }
-            if Instant::now() >= deadline {
-                return Err(SpeculosError::TextNotFound {
-                    needle: needle.to_owned(),
-                    timeout,
-                });
-            }
-            sleep(POLL_INTERVAL).await;
+        };
+        // The deadline also bounds a request that hangs.
+        match timeout_at(deadline, poll).await {
+            Ok(res) => res,
+            Err(_) => Err(SpeculosError::TextNotFound {
+                needle: needle.to_owned(),
+                timeout,
+            }),
         }
     }
 
@@ -242,6 +242,10 @@ impl SpeculosClient {
                 if let Some(pos) = st.buf.iter().position(|b| *b == b'\n') {
                     let line: Vec<u8> = st.buf.drain(..=pos).collect();
                     if let Some(item) = parse_line(&line) {
+                        if item.is_err() {
+                            // A malformed line means the format is not understood.
+                            st.bytes = None;
+                        }
                         return Some((item, st));
                     }
                     continue;

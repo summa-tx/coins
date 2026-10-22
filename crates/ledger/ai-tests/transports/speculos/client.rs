@@ -272,3 +272,35 @@ async fn event_stream_splits_lines() {
     let req = server.await.unwrap();
     assert_eq!(request_line(&req), "GET /events?stream=true HTTP/1.1");
 }
+
+#[tokio::test]
+async fn wait_for_text_bounded_when_server_hangs() {
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let url = format!("http://{}", listener.local_addr().unwrap());
+    // Accept and never reply.
+    let _server = tokio::spawn(async move {
+        let mut held = Vec::new();
+        loop {
+            held.push(listener.accept().await.unwrap().0);
+        }
+    });
+    let client = SpeculosClient::new(url).unwrap();
+    let t = Duration::from_millis(300);
+    let err = timeout(WAIT, client.wait_for_text("Approve", t))
+        .await
+        .unwrap()
+        .unwrap_err();
+    assert!(matches!(err, SpeculosError::TextNotFound { .. }), "{err:?}");
+}
+
+#[tokio::test]
+async fn event_stream_ends_after_malformed_line() {
+    let body = b"not json\n{\"text\":\"Approve\",\"x\":3,\"y\":4}\n".to_vec();
+    let (url, _seen) = serve(vec![(200, "text/event-stream", body)]).await;
+    let client = SpeculosClient::new(url).unwrap();
+    let items: Vec<_> = timeout(WAIT, client.event_stream().collect::<Vec<_>>())
+        .await
+        .unwrap();
+    assert_eq!(items.len(), 1, "{items:?}");
+    assert!(matches!(items[0], Err(SpeculosError::Json(_))));
+}
