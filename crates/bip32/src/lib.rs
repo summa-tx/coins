@@ -130,8 +130,8 @@ pub enum Bip32Error {
     BadPadding(u8),
 
     /// A base58check payload that is not exactly one serialized extended key long
-    #[error("Expected a 78-byte serialized key. Got {0} bytes")]
-    BadPayloadLength(usize),
+    #[error("Expected a 78-byte serialized key")]
+    BadPayloadLength,
 
     /// Bad Checks on b58check
     #[error("Checksum mismatch on b58 deserialization")]

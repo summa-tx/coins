@@ -11,54 +11,49 @@ use crate::{
     xkeys::{XPriv, XPub},
 };
 
-/// Decode a bytevector from a base58 check string
-///
-/// The intermediate buffer and the result are zeroized, as the payload may be secret.
-pub fn decode_b58_check(s: &str) -> Result<Zeroizing<Vec<u8>>, Bip32Error> {
-    let mut data = Zeroizing::new(bs58::decode(s).into_vec()?);
-    let (payload, checksum) = data
-        .split_last_chunk::<4>()
-        .ok_or(Bip32Error::BadB58Checksum)?;
-    let len = payload.len();
-
-    (Hash256::digest(payload)[..4] == checksum[..])
-        .then(|| {
-            data.truncate(len);
-            data
-        })
-        .ok_or(Bip32Error::BadB58Checksum)
-}
-
-/// Encode a vec into a base58 check String
-///
-/// The intermediate buffer and the result are zeroized, as the payload may be secret.
-pub fn encode_b58_check(v: &[u8]) -> Zeroizing<String> {
-    let digest = &Hash256::digest(v);
-
-    let mut data = Zeroizing::new(Vec::with_capacity(v.len() + 4));
-    data.extend_from_slice(v);
-    data.extend_from_slice(&digest[..4]);
-
-    Zeroizing::new(bs58::encode(&*data).into_string())
-}
-
 /// Serialized length of an extended key, private or public: version (4), depth (1), parent
 /// fingerprint (4), index (4), chain code (32), and 33 bytes of key (a padding byte plus the
 /// 32-byte private key, or the 33-byte compressed public key).
 const SERIALIZED_LEN: usize = 78;
+
+/// A serialized key followed by its 4-byte base58check checksum.
+const CHECKED_LEN: usize = SERIALIZED_LEN + 4;
 
 /// A BIP-32 serialized extended private key: version (4), depth (1), parent fingerprint (4),
 /// index (4), chain code (32), padding (1), and private key (32). Zeroized on drop.
 #[derive(Zeroize, ZeroizeOnDrop)]
 struct SerializedXPriv([u8; SERIALIZED_LEN]);
 
-/// Decode a base58check string and require the payload to be exactly one serialized key.
-fn decode_key_payload(s: &str) -> Result<Zeroizing<Vec<u8>>, Bip32Error> {
-    let data = decode_b58_check(s)?;
-    if data.len() != SERIALIZED_LEN {
-        return Err(Bip32Error::BadPayloadLength(data.len()));
+/// Decode a base58check string holding exactly one serialized key.
+///
+/// Decodes into a fixed buffer, so nothing is allocated. The buffer and the result are
+/// zeroized on drop, as the payload may be an xpriv.
+fn decode_key_payload(s: &str) -> Result<Zeroizing<[u8; SERIALIZED_LEN]>, Bip32Error> {
+    let mut checked = Zeroizing::new([0u8; CHECKED_LEN]);
+    let len = match bs58::decode(s).onto(&mut *checked) {
+        Ok(len) => len,
+        Err(bs58::decode::Error::BufferTooSmall) => return Err(Bip32Error::BadPayloadLength),
+        Err(e) => return Err(e.into()),
+    };
+    if len != CHECKED_LEN {
+        return Err(Bip32Error::BadPayloadLength);
     }
-    Ok(data)
+    let (payload, checksum) = checked.split_at(SERIALIZED_LEN);
+    if Hash256::digest(payload)[..4] != checksum[..] {
+        return Err(Bip32Error::BadB58Checksum);
+    }
+    let mut key = Zeroizing::new([0u8; SERIALIZED_LEN]);
+    key.copy_from_slice(payload);
+    Ok(key)
+}
+
+/// Encode one serialized key as a base58check string. The result is zeroized on drop.
+fn encode_key_payload(key: &[u8; SERIALIZED_LEN]) -> Zeroizing<String> {
+    let mut checked = Zeroizing::new([0u8; CHECKED_LEN]);
+    checked[..SERIALIZED_LEN].copy_from_slice(key);
+    let digest = Hash256::digest(key);
+    checked[SERIALIZED_LEN..].copy_from_slice(&digest[..4]);
+    Zeroizing::new(bs58::encode(&checked[..]).into_string())
 }
 
 /// A network's BIP-32/49/84 version prefixes, in big-endian u32 form.
@@ -371,7 +366,7 @@ impl XPriv {
             .write(&mut &mut buf.0[..])
             .expect("78-byte buffer fits an xpriv");
         debug_assert_eq!(written, buf.0.len());
-        encode_b58_check(&buf.0)
+        encode_key_payload(&buf.0)
     }
 
     /// Read an xpriv from a base58check string, accepting Bitcoin mainnet and testnet version
@@ -454,7 +449,7 @@ impl XPub {
             .write(&mut &mut buf[..])
             .expect("78-byte buffer fits an xpub");
         debug_assert_eq!(written, buf.len());
-        encode_b58_check(&buf).to_string()
+        encode_key_payload(&buf).to_string()
     }
 
     /// Read an xpub from a base58check string, accepting Bitcoin mainnet and testnet version
@@ -748,24 +743,6 @@ pub fn deserialize_derived_xpub<'de, D: serde::Deserializer<'de>>(
 #[cfg(test)]
 mod test {
     use super::*;
-
-    #[test]
-    fn decode_b58_check_rejects_short_input() {
-        for len in 0..4 {
-            let s = bs58::encode(vec![1u8; len]).into_string();
-            assert!(matches!(
-                decode_b58_check(&s),
-                Err(Bip32Error::BadB58Checksum)
-            ));
-        }
-    }
-
-    #[test]
-    fn b58_check_round_trip() {
-        let payload = b"hello world";
-        let encoded = encode_b58_check(payload);
-        assert_eq!(decode_b58_check(&encoded).unwrap().as_slice(), payload);
-    }
 
     /// Accepts one byte per `write` call, so a writer that trusts a single `write` truncates.
     struct ShortWriter(Vec<u8>);

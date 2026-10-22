@@ -42,11 +42,54 @@ const VECTOR_1_XPRV: &str = "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6c
 /// BIP-32 test vector 1, master xpub.
 const VECTOR_1_XPUB: &str = "xpub661MyMwAqRbcFtXgS5sYJABqqG9YLmC4Q1Rdap9gSE8NqtwybGhePY2gZ29ESFjqJoCu1Rupje8YtGqsefD265TMg7usUDFdp6W1EGMcet8";
 
+/// Base58check-encode an arbitrary payload, for building malformed inputs.
+fn b58check(payload: &[u8]) -> String {
+    let digest = Hash256::digest(payload);
+    let mut data = payload.to_vec();
+    data.extend_from_slice(&digest[..4]);
+    bs58::encode(&data).into_string()
+}
+
 /// Re-encode a base58check key with its four version bytes replaced.
 fn with_version(s: &str, version: u32) -> String {
-    let mut bytes = decode_b58_check(s).unwrap();
+    let mut bytes = decode_key_payload(s).unwrap();
     bytes[..4].copy_from_slice(&version.to_be_bytes());
-    encode_b58_check(&bytes).to_string()
+    encode_key_payload(&bytes).to_string()
+}
+
+#[test]
+fn decode_key_payload_rejects_short_input() {
+    for len in 0..4 {
+        let s = bs58::encode(vec![1u8; len]).into_string();
+        assert!(
+            matches!(decode_key_payload(&s), Err(Bip32Error::BadPayloadLength)),
+            "len {len}"
+        );
+    }
+}
+
+#[test]
+fn decode_key_payload_rejects_bad_checksum() {
+    let mut s = VECTOR_1_XPRV.to_string();
+    let last = s.pop().unwrap();
+    s.push(if last == '1' { '2' } else { '1' });
+    assert!(matches!(
+        decode_key_payload(&s),
+        Err(Bip32Error::BadB58Checksum)
+    ));
+}
+
+#[test]
+fn key_payload_round_trips() {
+    let payload = [0x5au8; SERIALIZED_LEN];
+    let encoded = encode_key_payload(&payload);
+    assert_eq!(*decode_key_payload(&encoded).unwrap(), payload);
+
+    // Leading zero bytes become leading '1's; the fixed-length decode must restore them.
+    let zeros = [0u8; SERIALIZED_LEN];
+    let encoded = encode_key_payload(&zeros);
+    assert!(encoded.starts_with("1111"), "{}", *encoded);
+    assert_eq!(*decode_key_payload(&encoded).unwrap(), zeros);
 }
 
 #[test]
@@ -57,7 +100,7 @@ fn every_known_prefix_round_trips() {
             xpriv.set_network(network);
             let s = xpriv.to_base58();
             assert_eq!(
-                decode_b58_check(&s).unwrap()[..4],
+                decode_key_payload(&s).unwrap()[..4],
                 network.priv_version(hint).to_be_bytes()
             );
             let back = XPriv::from_base58(&s).unwrap();
@@ -69,7 +112,7 @@ fn every_known_prefix_round_trips() {
             let xpub = xpriv.verify_key();
             let s = xpub.to_base58();
             assert_eq!(
-                decode_b58_check(&s).unwrap()[..4],
+                decode_key_payload(&s).unwrap()[..4],
                 network.pub_version(hint).to_be_bytes()
             );
             let back = XPub::from_base58(&s).unwrap();
@@ -158,14 +201,14 @@ fn network_survives_derivation_and_verify_key() {
 
 #[test]
 fn truncated_input_is_an_io_error() {
-    let bytes = decode_b58_check(VECTOR_1_XPRV).unwrap();
+    let bytes = decode_key_payload(VECTOR_1_XPRV).unwrap();
     for len in [0, 3, 4, 45, 77] {
         assert!(
             matches!(XPriv::read(&mut &bytes[..len]), Err(Bip32Error::IoError(_))),
             "len {len}"
         );
     }
-    let bytes = decode_b58_check(VECTOR_1_XPUB).unwrap();
+    let bytes = decode_key_payload(VECTOR_1_XPUB).unwrap();
     for len in [0, 3, 4, 45, 77] {
         assert!(
             matches!(XPub::read(&mut &bytes[..len]), Err(Bip32Error::IoError(_))),
@@ -176,7 +219,7 @@ fn truncated_input_is_an_io_error() {
 
 #[test]
 fn nonzero_padding_is_rejected() {
-    let mut bytes = decode_b58_check(VECTOR_1_XPRV).unwrap();
+    let mut bytes = decode_key_payload(VECTOR_1_XPRV).unwrap();
     bytes[45] = 1;
     assert!(matches!(
         XPriv::read(&mut &bytes[..]),
@@ -294,38 +337,34 @@ fn helpers_reject_mainnet() {
 
 #[test]
 fn from_base58_rejects_wrong_payload_length() {
-    let xprv = decode_b58_check(VECTOR_1_XPRV).unwrap().to_vec();
-    let xpub = decode_b58_check(VECTOR_1_XPUB).unwrap().to_vec();
-    let short = |b: &[u8]| encode_b58_check(&b[..77]).to_string();
-    let long = |b: &[u8]| {
-        let mut v = b.to_vec();
-        v.push(0);
-        encode_b58_check(&v).to_string()
-    };
-    for (s, len) in [(short(&xprv), 77), (long(&xprv), 79)] {
+    let xprv = decode_key_payload(VECTOR_1_XPRV).unwrap().to_vec();
+    let xpub = decode_key_payload(VECTOR_1_XPUB).unwrap().to_vec();
+    let short = |b: &[u8]| b58check(&b[..77]);
+    let long = |b: &[u8]| b58check(&[b, &[0u8]].concat());
+    for s in [short(&xprv), long(&xprv)] {
         assert!(
-            matches!(XPriv::from_base58(&s), Err(Bip32Error::BadPayloadLength(l)) if l == len),
-            "xpriv blind, {len} bytes"
+            matches!(XPriv::from_base58(&s), Err(Bip32Error::BadPayloadLength)),
+            "xpriv blind: {s}"
         );
         assert!(
             matches!(
                 XPriv::from_base58_with(&s, &MAINNET),
-                Err(Bip32Error::BadPayloadLength(l)) if l == len
+                Err(Bip32Error::BadPayloadLength)
             ),
-            "xpriv strict, {len} bytes"
+            "xpriv strict: {s}"
         );
     }
-    for (s, len) in [(short(&xpub), 77), (long(&xpub), 79)] {
+    for s in [short(&xpub), long(&xpub)] {
         assert!(
-            matches!(XPub::from_base58(&s), Err(Bip32Error::BadPayloadLength(l)) if l == len),
-            "xpub blind, {len} bytes"
+            matches!(XPub::from_base58(&s), Err(Bip32Error::BadPayloadLength)),
+            "xpub blind: {s}"
         );
         assert!(
             matches!(
                 XPub::from_base58_with(&s, &MAINNET),
-                Err(Bip32Error::BadPayloadLength(l)) if l == len
+                Err(Bip32Error::BadPayloadLength)
             ),
-            "xpub strict, {len} bytes"
+            "xpub strict: {s}"
         );
     }
 }
