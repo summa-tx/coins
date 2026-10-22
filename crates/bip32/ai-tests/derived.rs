@@ -51,3 +51,21 @@ fn derived_set_network_reaches_children_and_pubkeys() {
         assert_eq!(info.network, &TESTNET);
     }
 }
+
+#[test]
+fn derived_keys_deserialize_from_owned_string_sources() {
+    let key = DerivedXPriv::root_from_seed(&[7u8; 32], None).unwrap();
+    let key_pub = key.verify_key();
+    // `from_value` hands the inner key's visitor an owned string; `from_reader` a transient one.
+    let back: DerivedXPriv = serde_json::from_value(serde_json::to_value(&key).unwrap()).unwrap();
+    let (a, b): (&XPriv, &XPriv) = (back.as_ref(), key.as_ref());
+    assert_eq!(a, b);
+    // DerivedXPriv has no PartialEq; the serialized form covers the derivation too.
+    assert_eq!(
+        serde_json::to_string(&back).unwrap(),
+        serde_json::to_string(&key).unwrap()
+    );
+    let bytes = serde_json::to_vec(&key_pub).unwrap();
+    let back: DerivedXPub = serde_json::from_reader(&bytes[..]).unwrap();
+    assert_eq!(back, key_pub);
+}

@@ -1,5 +1,6 @@
 use coins_core::hashes::{Digest, Hash256};
 use k256::ecdsa;
+use std::borrow::Cow;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 use crate::{
@@ -41,10 +42,24 @@ pub fn encode_b58_check(v: &[u8]) -> Zeroizing<String> {
     Zeroizing::new(bs58::encode(&*data).into_string())
 }
 
+/// Serialized length of an extended key, private or public: version (4), depth (1), parent
+/// fingerprint (4), index (4), chain code (32), and 33 bytes of key (a padding byte plus the
+/// 32-byte private key, or the 33-byte compressed public key).
+const SERIALIZED_LEN: usize = 78;
+
 /// A BIP-32 serialized extended private key: version (4), depth (1), parent fingerprint (4),
 /// index (4), chain code (32), padding (1), and private key (32). Zeroized on drop.
 #[derive(Zeroize, ZeroizeOnDrop)]
-struct SerializedXPriv([u8; 78]);
+struct SerializedXPriv([u8; SERIALIZED_LEN]);
+
+/// Decode a base58check string and require the payload to be exactly one serialized key.
+fn decode_key_payload(s: &str) -> Result<Zeroizing<Vec<u8>>, Bip32Error> {
+    let data = decode_b58_check(s)?;
+    if data.len() != SERIALIZED_LEN {
+        return Err(Bip32Error::BadPayloadLength(data.len()));
+    }
+    Ok(data)
+}
 
 /// A network's BIP-32/49/84 version prefixes, in big-endian u32 form.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -351,7 +366,7 @@ impl XPriv {
     /// # }
     /// ```
     pub fn to_base58(&self) -> Zeroizing<String> {
-        let mut buf = SerializedXPriv([0u8; 78]);
+        let mut buf = SerializedXPriv([0u8; SERIALIZED_LEN]);
         let written = self
             .write(&mut &mut buf.0[..])
             .expect("78-byte buffer fits an xpriv");
@@ -372,7 +387,7 @@ impl XPriv {
     /// # }
     /// ```
     pub fn from_base58(s: &str) -> Result<Self, Bip32Error> {
-        let data = decode_b58_check(s)?;
+        let data = decode_key_payload(s)?;
         Self::read(&mut &data[..])
     }
 
@@ -381,7 +396,7 @@ impl XPriv {
         s: &str,
         network: &'static NetworkVersions,
     ) -> Result<Self, Bip32Error> {
-        let data = decode_b58_check(s)?;
+        let data = decode_key_payload(s)?;
         Self::read_with(&mut &data[..], network)
     }
 }
@@ -434,7 +449,7 @@ impl XPub {
     /// # }
     /// ```
     pub fn to_base58(&self) -> String {
-        let mut buf = [0u8; 78];
+        let mut buf = [0u8; SERIALIZED_LEN];
         let written = self
             .write(&mut &mut buf[..])
             .expect("78-byte buffer fits an xpub");
@@ -455,7 +470,7 @@ impl XPub {
     /// # }
     /// ```
     pub fn from_base58(s: &str) -> Result<Self, Bip32Error> {
-        let data = decode_b58_check(s)?;
+        let data = decode_key_payload(s)?;
         Self::read(&mut &data[..])
     }
 
@@ -464,8 +479,55 @@ impl XPub {
         s: &str,
         network: &'static NetworkVersions,
     ) -> Result<Self, Bip32Error> {
-        let data = decode_b58_check(s)?;
+        let data = decode_key_payload(s)?;
         Self::read_with(&mut &data[..], network)
+    }
+}
+
+/// Parses an xpriv from a base58check string: on the given network, or on any known network
+/// when `None`. Accepts borrowed, transient and owned strings alike.
+pub(crate) struct XPrivVisitor(pub(crate) Option<&'static NetworkVersions>);
+
+impl serde::de::Visitor<'_> for XPrivVisitor {
+    type Value = XPriv;
+
+    fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("a base58check-encoded extended private key")
+    }
+
+    fn visit_str<E: serde::de::Error>(self, s: &str) -> Result<XPriv, E> {
+        match self.0 {
+            Some(network) => XPriv::from_base58_with(s, network),
+            None => XPriv::from_base58(s),
+        }
+        .map_err(E::custom)
+    }
+
+    /// An owned string holds secret material; zeroize it once parsed.
+    fn visit_string<E: serde::de::Error>(self, mut s: String) -> Result<XPriv, E> {
+        let parsed = self.visit_str(&s);
+        s.zeroize();
+        parsed
+    }
+}
+
+/// Parses an xpub from a base58check string: on the given network, or on any known network
+/// when `None`. Accepts borrowed, transient and owned strings alike.
+pub(crate) struct XPubVisitor(pub(crate) Option<&'static NetworkVersions>);
+
+impl serde::de::Visitor<'_> for XPubVisitor {
+    type Value = XPub;
+
+    fn expecting(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("a base58check-encoded extended public key")
+    }
+
+    fn visit_str<E: serde::de::Error>(self, s: &str) -> Result<XPub, E> {
+        match self.0 {
+            Some(network) => XPub::from_base58_with(s, network),
+            None => XPub::from_base58(s),
+        }
+        .map_err(E::custom)
     }
 }
 
@@ -508,8 +570,7 @@ pub fn deserialize_xpriv<'de, D: serde::Deserializer<'de>>(
     d: D,
     network: &'static NetworkVersions,
 ) -> Result<XPriv, D::Error> {
-    let s: &str = serde::Deserialize::deserialize(d)?;
-    XPriv::from_base58_with(s, network).map_err(serde::de::Error::custom)
+    d.deserialize_str(XPrivVisitor(Some(network)))
 }
 
 /// Deserialize an [`XPub`] on `network`, for use with `#[serde(deserialize_with)]`.
@@ -551,21 +612,38 @@ pub fn deserialize_xpub<'de, D: serde::Deserializer<'de>>(
     d: D,
     network: &'static NetworkVersions,
 ) -> Result<XPub, D::Error> {
-    let s: &str = serde::Deserialize::deserialize(d)?;
-    XPub::from_base58_with(s, network).map_err(serde::de::Error::custom)
+    d.deserialize_str(XPubVisitor(Some(network)))
 }
 
+/// A serialized key as text: borrowed from the input when the deserializer allows it, owned
+/// otherwise. An owned copy may be an xpriv, so it is zeroized on drop, whichever path drops it.
+#[derive(serde::Deserialize)]
+#[serde(transparent)]
+struct KeyText<'a>(#[serde(borrow)] Cow<'a, str>);
+
+impl Drop for KeyText<'_> {
+    fn drop(&mut self) {
+        if let Cow::Owned(s) = &mut self.0 {
+            s.zeroize();
+        }
+    }
+}
+
+/// The serialized form of a [`DerivedXPriv`], with the key left as text so it can be parsed on a
+/// chosen network.
 #[derive(serde::Deserialize)]
 struct DerivedXPrivRepr<'a> {
     #[serde(borrow)]
-    xpriv: &'a str,
+    xpriv: KeyText<'a>,
     derivation: KeyDerivation,
 }
 
+/// The serialized form of a [`DerivedXPub`], with the key left as text so it can be parsed on a
+/// chosen network.
 #[derive(serde::Deserialize)]
 struct DerivedXPubRepr<'a> {
     #[serde(borrow)]
-    xpub: &'a str,
+    xpub: KeyText<'a>,
     derivation: KeyDerivation,
 }
 
@@ -615,7 +693,8 @@ pub fn deserialize_derived_xpriv<'de, D: serde::Deserializer<'de>>(
     network: &'static NetworkVersions,
 ) -> Result<DerivedXPriv, D::Error> {
     let repr: DerivedXPrivRepr = serde::Deserialize::deserialize(d)?;
-    let xpriv = XPriv::from_base58_with(repr.xpriv, network).map_err(serde::de::Error::custom)?;
+    let xpriv =
+        XPriv::from_base58_with(&repr.xpriv.0, network).map_err(serde::de::Error::custom)?;
     Ok(DerivedXPriv::new(xpriv, repr.derivation))
 }
 
@@ -662,7 +741,7 @@ pub fn deserialize_derived_xpub<'de, D: serde::Deserializer<'de>>(
     network: &'static NetworkVersions,
 ) -> Result<DerivedXPub, D::Error> {
     let repr: DerivedXPubRepr = serde::Deserialize::deserialize(d)?;
-    let xpub = XPub::from_base58_with(repr.xpub, network).map_err(serde::de::Error::custom)?;
+    let xpub = XPub::from_base58_with(&repr.xpub.0, network).map_err(serde::de::Error::custom)?;
     Ok(DerivedXPub::new(xpub, repr.derivation))
 }
 

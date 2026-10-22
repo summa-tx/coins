@@ -470,8 +470,7 @@ impl<'de> serde::Deserialize<'de> for XPub {
     where
         D: serde::Deserializer<'de>,
     {
-        let s: &str = serde::Deserialize::deserialize(deserializer)?;
-        XPub::from_base58(s).map_err(|e| serde::de::Error::custom(e.to_string()))
+        deserializer.deserialize_str(crate::enc::XPubVisitor(None))
     }
 }
 
@@ -489,8 +488,7 @@ impl<'de> serde::Deserialize<'de> for XPriv {
     where
         D: serde::Deserializer<'de>,
     {
-        let s: &str = serde::Deserialize::deserialize(deserializer)?;
-        XPriv::from_base58(s).map_err(|e| serde::de::Error::custom(e.to_string()))
+        deserializer.deserialize_str(crate::enc::XPrivVisitor(None))
     }
 }
 

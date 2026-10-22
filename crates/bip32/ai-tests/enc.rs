@@ -291,3 +291,68 @@ fn helpers_reject_mainnet() {
         assert!(msg.contains(expected), "{field}: {msg}");
     }
 }
+
+#[test]
+fn from_base58_rejects_wrong_payload_length() {
+    let xprv = decode_b58_check(VECTOR_1_XPRV).unwrap().to_vec();
+    let xpub = decode_b58_check(VECTOR_1_XPUB).unwrap().to_vec();
+    let short = |b: &[u8]| encode_b58_check(&b[..77]).to_string();
+    let long = |b: &[u8]| {
+        let mut v = b.to_vec();
+        v.push(0);
+        encode_b58_check(&v).to_string()
+    };
+    for (s, len) in [(short(&xprv), 77), (long(&xprv), 79)] {
+        assert!(
+            matches!(XPriv::from_base58(&s), Err(Bip32Error::BadPayloadLength(l)) if l == len),
+            "xpriv blind, {len} bytes"
+        );
+        assert!(
+            matches!(
+                XPriv::from_base58_with(&s, &MAINNET),
+                Err(Bip32Error::BadPayloadLength(l)) if l == len
+            ),
+            "xpriv strict, {len} bytes"
+        );
+    }
+    for (s, len) in [(short(&xpub), 77), (long(&xpub), 79)] {
+        assert!(
+            matches!(XPub::from_base58(&s), Err(Bip32Error::BadPayloadLength(l)) if l == len),
+            "xpub blind, {len} bytes"
+        );
+        assert!(
+            matches!(
+                XPub::from_base58_with(&s, &MAINNET),
+                Err(Bip32Error::BadPayloadLength(l)) if l == len
+            ),
+            "xpub strict, {len} bytes"
+        );
+    }
+}
+
+#[test]
+fn helpers_accept_owned_string_sources() {
+    let mut key = DerivedXPriv::root_from_seed(&[7u8; 32], None).unwrap();
+    key.set_network(&OTHER);
+    let json = holder_json(&key);
+    // `from_value` hands the visitor owned strings; `from_reader` hands it transient ones.
+    // Neither can satisfy a borrowed `&str`.
+    let from_value: Holder = serde_json::from_value(json.clone()).unwrap();
+    let bytes = json.to_string().into_bytes();
+    let from_reader: Holder = serde_json::from_reader(&bytes[..]).unwrap();
+    for holder in [from_value, from_reader] {
+        let infos: [&XKeyInfo; 4] = [
+            holder.xpriv.as_ref(),
+            holder.xpub.as_ref(),
+            holder.derived_xpriv.as_ref(),
+            holder.derived_xpub.as_ref(),
+        ];
+        for info in infos {
+            assert_eq!(info.network, &OTHER);
+        }
+        assert_eq!(
+            serde_json::to_string(&holder.derived_xpriv).unwrap(),
+            serde_json::to_string(&key).unwrap()
+        );
+    }
+}

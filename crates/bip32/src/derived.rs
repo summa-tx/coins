@@ -92,8 +92,6 @@ impl DerivedXPriv {
     pub fn is_private_ancestor_of(&self, other: &DerivedXPub) -> Result<bool, Bip32Error> {
         if let Some(path) = self.path_to_descendant(other) {
             let descendant = self.derive_path(path)?;
-            dbg!(descendant.verify_key());
-            dbg!(&other);
             Ok(descendant.verify_key() == *other)
         } else {
             Ok(false)
@@ -595,8 +593,11 @@ mod test {
             (&m, &m2.derive_child(33).unwrap().verify_key(), false),
         ];
         for (i, case) in cases.iter().enumerate() {
-            dbg!(i);
-            assert_eq!(case.0.is_private_ancestor_of(case.1).unwrap(), case.2);
+            assert_eq!(
+                case.0.is_private_ancestor_of(case.1).unwrap(),
+                case.2,
+                "case {i}"
+            );
         }
     }
 }
