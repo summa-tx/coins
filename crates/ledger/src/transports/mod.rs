@@ -5,6 +5,13 @@ use std::{fmt, time::Duration};
 pub mod native;
 pub use native::{HidDeviceId, HidTransport, NativeTransportError};
 
+#[cfg(feature = "speculos")]
+#[cfg_attr(docsrs, doc(cfg(feature = "speculos")))]
+pub mod speculos;
+#[cfg(feature = "speculos")]
+#[cfg_attr(docsrs, doc(cfg(feature = "speculos")))]
+pub use speculos::{SpeculosError, SpeculosTransport};
+
 use crate::{
     Model,
     common::{ApduAnswer, ApduCommand},
