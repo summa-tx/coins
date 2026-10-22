@@ -23,6 +23,8 @@ use crate::{
 ///
 /// - [`Ledger::open_first_hid`] opens the first Ledger found via HID.
 /// - [`Ledger::open_hid`] opens one device from [`Ledger::list_hid`].
+/// - [`Ledger::connect_speculos`] connects to a Speculos emulator (with the
+///   `speculos` feature).
 /// - [`Ledger::from_transport`] wraps an existing [`HidTransport`], or any
 ///   [`LedgerTransport`].
 #[derive(Debug)]
@@ -54,6 +56,12 @@ impl<T> Ledger<T> {
     /// The device read timeout. `None` waits indefinitely.
     pub const fn timeout(&self) -> Option<Duration> {
         self.timeout
+    }
+
+    /// The underlying transport, for transport-specific operations such as
+    /// recovering from a failed exchange.
+    pub const fn transport_mut(&mut self) -> &mut T {
+        &mut self.transport
     }
 }
 
@@ -128,6 +136,11 @@ impl Ledger {
 impl Ledger<SpeculosTransport> {
     /// Connect to the APDU socket of a Speculos instance emulating `model`.
     /// See [`SpeculosTransport::connect`].
+    ///
+    /// After an exchange times out or is cancelled, the transport refuses
+    /// further exchanges until its reply is consumed. Resolve the prompt on
+    /// screen, then call
+    /// [`ledger.transport_mut().discard_pending(..)`](SpeculosTransport::discard_pending).
     pub async fn connect_speculos(
         addr: impl ToSocketAddrs,
         model: Model,
