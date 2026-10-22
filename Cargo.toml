@@ -44,6 +44,5 @@ pbkdf2 = "0.13"
 rand = { version = "0.10", default-features = false }
 unicode-normalization = "0.1.25"
 
-
 # dev
 serde_json = "1.0"

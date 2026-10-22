@@ -10,9 +10,6 @@
 )]
 
 //! This crate provides a basic implementation of BIP32, BIP49, and BIP84.
-//! It can be easily adapted to support other networks, using the
-//! paramaterizable encoder.
-//!
 //!
 //! Keys carry their network. Root keys default to Bitcoin mainnet; call `set_network` to change
 //! it. Parse with `str::parse` or `XPriv::from_base58`, which accept Bitcoin mainnet and testnet
@@ -60,7 +57,7 @@ pub use k256::ecdsa;
 #[macro_use]
 pub(crate) mod macros;
 
-/// Network-differentiated encoders for extended keys.
+/// Base58check helpers, network version prefixes, inherent key (de)serialization, and serde helpers for other networks.
 pub mod enc;
 
 /// `DerivationPath` type and tooling for parsing it from strings

@@ -477,6 +477,7 @@ impl XPub {
 /// ```
 /// use coins_bip32::{enc::{NetworkVersions, deserialize_xpriv}, xkeys::XPriv};
 /// use serde::{Deserialize, Deserializer};
+/// use coins_bip32::primitives::Hint;
 ///
 /// const LITECOIN: NetworkVersions = NetworkVersions {
 ///     priv_legacy: 0x019d_9cfe,
@@ -497,7 +498,7 @@ impl XPub {
 ///     key: XPriv,
 /// }
 ///
-/// let mut key = XPriv::root_from_seed(&[1u8; 32], None).unwrap();
+/// let mut key = XPriv::root_from_seed(&[1u8; 32], Some(Hint::Legacy)).unwrap();
 /// key.set_network(&LITECOIN);
 /// let json = serde_json::json!({ "key": key.to_base58().as_str() }).to_string();
 /// let wallet: Wallet = serde_json::from_str(&json).unwrap();
@@ -519,6 +520,7 @@ pub fn deserialize_xpriv<'de, D: serde::Deserializer<'de>>(
 /// ```
 /// use coins_bip32::{enc::{NetworkVersions, deserialize_xpub}, xkeys::{XPriv, XPub}};
 /// use serde::{Deserialize, Deserializer};
+/// use coins_bip32::primitives::Hint;
 ///
 /// const LITECOIN: NetworkVersions = NetworkVersions {
 ///     priv_legacy: 0x019d_9cfe,
@@ -539,7 +541,7 @@ pub fn deserialize_xpriv<'de, D: serde::Deserializer<'de>>(
 ///     key: XPub,
 /// }
 ///
-/// let mut key = XPriv::root_from_seed(&[1u8; 32], None).unwrap().verify_key();
+/// let mut key = XPriv::root_from_seed(&[1u8; 32], Some(Hint::Legacy)).unwrap().verify_key();
 /// key.set_network(&LITECOIN);
 /// let json = serde_json::json!({ "key": key.to_base58() }).to_string();
 /// let wallet: Wallet = serde_json::from_str(&json).unwrap();
@@ -578,6 +580,7 @@ struct DerivedXPubRepr<'a> {
 ///     enc::{NetworkVersions, deserialize_derived_xpriv},
 /// };
 /// use serde::{Deserialize, Deserializer};
+/// use coins_bip32::primitives::Hint;
 ///
 /// const LITECOIN: NetworkVersions = NetworkVersions {
 ///     priv_legacy: 0x019d_9cfe,
@@ -598,7 +601,7 @@ struct DerivedXPubRepr<'a> {
 ///     key: DerivedXPriv,
 /// }
 ///
-/// let mut key = DerivedXPriv::root_from_seed(&[1u8; 32], None).unwrap();
+/// let mut key = DerivedXPriv::root_from_seed(&[1u8; 32], Some(Hint::Legacy)).unwrap();
 /// key.set_network(&LITECOIN);
 /// let json = serde_json::json!({ "key": &key }).to_string();
 /// let wallet: Wallet = serde_json::from_str(&json).unwrap();
@@ -627,6 +630,7 @@ pub fn deserialize_derived_xpriv<'de, D: serde::Deserializer<'de>>(
 ///     enc::{NetworkVersions, deserialize_derived_xpub},
 /// };
 /// use serde::{Deserialize, Deserializer};
+/// use coins_bip32::primitives::Hint;
 ///
 /// const LITECOIN: NetworkVersions = NetworkVersions {
 ///     priv_legacy: 0x019d_9cfe,
@@ -647,7 +651,7 @@ pub fn deserialize_derived_xpriv<'de, D: serde::Deserializer<'de>>(
 ///     key: DerivedXPub,
 /// }
 ///
-/// let mut key = DerivedXPriv::root_from_seed(&[1u8; 32], None).unwrap().verify_key();
+/// let mut key = DerivedXPriv::root_from_seed(&[1u8; 32], Some(Hint::Legacy)).unwrap().verify_key();
 /// key.set_network(&LITECOIN);
 /// let json = serde_json::json!({ "key": &key }).to_string();
 /// let wallet: Wallet = serde_json::from_str(&json).unwrap();

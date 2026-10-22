@@ -104,6 +104,17 @@ fn strict_parse_rejects_the_other_network() {
         Err(Bip32Error::BadXPrivVersionBytes(_))
     ));
     assert!(XPriv::from_base58_with(&tprv, &TESTNET).is_ok());
+
+    assert!(matches!(
+        XPub::from_base58_with(VECTOR_1_XPUB, &TESTNET),
+        Err(Bip32Error::BadXPubVersionBytes(_))
+    ));
+    let tpub = with_version(VECTOR_1_XPUB, TESTNET.pub_legacy);
+    assert!(matches!(
+        XPub::from_base58_with(&tpub, &MAINNET),
+        Err(Bip32Error::BadXPubVersionBytes(_))
+    ));
+    assert!(XPub::from_base58_with(&tpub, &TESTNET).is_ok());
 }
 
 #[test]

@@ -117,6 +117,7 @@ impl std::fmt::Debug for XPriv {
             .field("parent", &self.xkey_info.parent)
             .field("index", &self.xkey_info.index)
             .field("hint", &self.xkey_info.hint)
+            .field("network", self.xkey_info.network)
             .finish_non_exhaustive()
     }
 }

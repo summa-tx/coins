@@ -741,7 +741,7 @@ mod tests {
             .for_each(|(_, phrase, _, expected_master_key)| {
                 let mnemonic: Mnemonic<W> = phrase.parse().unwrap();
                 let master_key = mnemonic.master_key(Some("TREZOR")).unwrap();
-                assert_eq!(XPriv::from_base58(expected_master_key).unwrap(), master_key,);
+                assert_eq!(XPriv::from_base58(expected_master_key).unwrap(), master_key);
             });
     }
 
