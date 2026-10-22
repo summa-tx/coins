@@ -258,8 +258,25 @@ fn helpers_accept_their_network() {
 #[test]
 fn helpers_reject_mainnet() {
     let key = DerivedXPriv::root_from_seed(&[7u8; 32], None).unwrap();
-    let err = serde_json::from_str::<Holder>(&holder_json(&key).to_string())
-        .err()
-        .expect("mainnet keys must be rejected");
-    assert!(err.to_string().contains("don't match any network"), "{err}");
+    let json = holder_json(&key);
+    // Each helper is driven on its own, since a combined holder stops at the first error.
+    for (field, expected) in [
+        ("xpriv", "xpriv version bytes"),
+        ("xpub", "xpub version bytes"),
+        ("derived_xpriv", "xpriv version bytes"),
+        ("derived_xpub", "xpub version bytes"),
+    ] {
+        let input = json[field].to_string();
+        let mut de = serde_json::Deserializer::from_str(&input);
+        let err = match field {
+            "xpriv" => deserialize_xpriv(&mut de, &OTHER).err(),
+            "xpub" => deserialize_xpub(&mut de, &OTHER).err(),
+            "derived_xpriv" => deserialize_derived_xpriv(&mut de, &OTHER).err(),
+            _ => deserialize_derived_xpub(&mut de, &OTHER).err(),
+        }
+        .unwrap_or_else(|| panic!("{field}: mainnet key must be rejected"));
+        let msg = err.to_string();
+        assert!(msg.contains("don't match any network"), "{field}: {msg}");
+        assert!(msg.contains(expected), "{field}: {msg}");
+    }
 }
