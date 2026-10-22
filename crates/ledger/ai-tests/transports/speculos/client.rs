@@ -250,9 +250,12 @@ async fn event_stream_splits_lines() {
         req
     });
     let client = SpeculosClient::new(url).unwrap();
-    let events: Vec<_> = timeout(WAIT, client.event_stream().collect::<Vec<_>>())
-        .await
-        .unwrap();
+    let events: Vec<_> = timeout(
+        WAIT,
+        client.event_stream().await.unwrap().collect::<Vec<_>>(),
+    )
+    .await
+    .unwrap();
     let events: Vec<_> = events.into_iter().map(Result::unwrap).collect();
     assert_eq!(
         events,
@@ -298,9 +301,45 @@ async fn event_stream_ends_after_malformed_line() {
     let body = b"not json\n{\"text\":\"Approve\",\"x\":3,\"y\":4}\n".to_vec();
     let (url, _seen) = serve(vec![(200, "text/event-stream", body)]).await;
     let client = SpeculosClient::new(url).unwrap();
-    let items: Vec<_> = timeout(WAIT, client.event_stream().collect::<Vec<_>>())
-        .await
-        .unwrap();
+    let items: Vec<_> = timeout(
+        WAIT,
+        client.event_stream().await.unwrap().collect::<Vec<_>>(),
+    )
+    .await
+    .unwrap();
     assert_eq!(items.len(), 1, "{items:?}");
     assert!(matches!(items[0], Err(SpeculosError::Json(_))));
+}
+
+/// The format real Speculos (v0.27.1) sends: server-sent events whose JSON
+/// carries extra fields.
+#[tokio::test]
+async fn event_stream_parses_server_sent_events() {
+    let body = b"data: {\"text\": \"Address verification \", \"x\": 12, \"y\": 18, \"w\": 103, \"h\": 14, \"clear\": false}\n\n\
+data: {\"text\": \"cancelled\", \"x\": 40, \"y\": 32, \"w\": 48, \"h\": 14, \"clear\": false}\n\n"
+        .to_vec();
+    let (url, _seen) = serve(vec![(200, "text/event-stream", body)]).await;
+    let client = SpeculosClient::new(url).unwrap();
+    let events: Vec<_> = timeout(
+        WAIT,
+        client.event_stream().await.unwrap().collect::<Vec<_>>(),
+    )
+    .await
+    .unwrap();
+    let texts: Vec<_> = events.into_iter().map(|e| e.unwrap().text).collect();
+    assert_eq!(texts, ["Address verification ", "cancelled"]);
+}
+
+/// Subscribing waits for the response, so a refused subscription fails
+/// `event_stream` itself.
+#[tokio::test]
+async fn event_stream_subscribes_before_returning() {
+    let (url, seen) = serve(vec![(500, "text/plain", vec![])]).await;
+    let client = SpeculosClient::new(url).unwrap();
+    let res = timeout(WAIT, client.event_stream()).await.unwrap();
+    assert!(matches!(res, Err(SpeculosError::Http(_))));
+    assert_eq!(
+        request_line(&seen.await.unwrap()[0]),
+        "GET /events?stream=true HTTP/1.1"
+    );
 }

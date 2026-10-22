@@ -211,32 +211,31 @@ impl SpeculosClient {
         Ok(resp.bytes().await?.to_vec())
     }
 
-    /// Stream screen events as they are drawn.
+    /// Subscribe to screen events, and stream them as they are drawn.
+    ///
+    /// Speculos sends only events drawn after it registers the subscription,
+    /// and this returns once it has, so an action taken after this returns is
+    /// seen by the stream. Speculos sends server-sent events: each event is a
+    /// `data:` line holding its JSON.
     ///
     /// The stream ends when Speculos closes the connection, and yields an
     /// error, then ends, if the connection fails or a line is not an event.
-    pub fn event_stream(
+    pub async fn event_stream(
         &self,
-    ) -> impl Stream<Item = Result<ScreenEvent, SpeculosError>> + Send + 'static {
+    ) -> Result<
+        impl Stream<Item = Result<ScreenEvent, SpeculosError>> + Send + 'static,
+        SpeculosError,
+    > {
         let mut url = self.url("/events");
         url.set_query(Some("stream=true"));
-        let req = self.http.get(url);
+        // Speculos registers the subscriber before it sends the headers.
+        let resp = self.send(self.http.get(url)).await?;
         let state = StreamState {
-            req: Some(req),
-            bytes: None,
+            bytes: Some(resp.bytes_stream().map(|c| c.map(|b| b.to_vec())).boxed()),
             buf: Vec::new(),
         };
-        stream::unfold(state, |mut st| async move {
+        Ok(stream::unfold(state, |mut st| async move {
             loop {
-                if let Some(req) = st.req.take() {
-                    match req.send().await.and_then(|r| r.error_for_status()) {
-                        Ok(resp) => {
-                            st.bytes =
-                                Some(resp.bytes_stream().map(|c| c.map(|b| b.to_vec())).boxed())
-                        }
-                        Err(e) => return Some((Err(e.into()), st)),
-                    }
-                }
                 let bytes = st.bytes.as_mut()?;
                 // A complete line may already be buffered.
                 if let Some(pos) = st.buf.iter().position(|b| *b == b'\n') {
@@ -264,12 +263,11 @@ impl SpeculosClient {
                     }
                 }
             }
-        })
+        }))
     }
 }
 
 struct StreamState {
-    req: Option<reqwest::RequestBuilder>,
     bytes: Option<futures_util::stream::BoxStream<'static, reqwest::Result<Vec<u8>>>>,
     buf: Vec<u8>,
 }
