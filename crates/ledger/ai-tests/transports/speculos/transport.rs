@@ -115,3 +115,132 @@ async fn identity_is_configured_model() {
         Some(DeviceIdentity::new(Model::NanoSPlus, None))
     );
 }
+
+const SHORT: Duration = Duration::from_millis(50);
+const LONG: Duration = Duration::from_secs(1);
+
+/// `exchange(cmd(), Some(SHORT))`, failing rather than hanging if the transport
+/// ignores the timeout.
+async fn exchange_short(t: &mut SpeculosTransport) -> Result<ApduAnswer, LedgerError> {
+    tokio::time::timeout(LONG, t.exchange(cmd(), Some(SHORT)))
+        .await
+        .expect("the transport ignored its timeout")
+}
+
+/// Send `cmd()` and let the server consume it without replying, so the
+/// exchange times out.
+async fn time_out(t: &mut SpeculosTransport, server: &mut TcpStream) {
+    let (res, _) = tokio::join!(exchange_short(t), read_frame(server));
+    assert!(matches!(res.unwrap_err(), LedgerError::Timeout(d) if d == SHORT));
+}
+
+/// Exchange `cmd()` with the server replying `[7]`.
+async fn round_trip_seven(t: &mut SpeculosTransport, server: &mut TcpStream) {
+    let srv = async {
+        read_frame(server).await;
+        write_reply(server, &[7], 0x9000).await;
+    };
+    let (ans, ()) = tokio::join!(tokio::time::timeout(LONG, t.exchange(cmd(), None)), srv);
+    assert_eq!(ans.unwrap().unwrap().data(), &[7]);
+}
+
+/// The next exchange fails with `PendingReply` without writing a command.
+async fn assert_pending(t: &mut SpeculosTransport) {
+    let err = tokio::time::timeout(LONG, t.exchange(cmd(), None))
+        .await
+        .unwrap()
+        .unwrap_err();
+    assert!(matches!(speculos_err(err), SpeculosError::PendingReply));
+}
+
+#[tokio::test]
+async fn timeout_poisons() {
+    let (mut t, mut server) = fake().await;
+    time_out(&mut t, &mut server).await;
+    assert_pending(&mut t).await;
+}
+
+#[tokio::test]
+async fn dropped_exchange_poisons() {
+    let (mut t, mut server) = fake().await;
+    let (res, _) = tokio::join!(
+        tokio::time::timeout(SHORT, t.exchange(cmd(), None)),
+        read_frame(&mut server)
+    );
+    assert!(res.is_err(), "the exchange should have been dropped");
+    assert_pending(&mut t).await;
+}
+
+#[tokio::test]
+async fn discard_pending_recovers() {
+    let (mut t, mut server) = fake().await;
+    time_out(&mut t, &mut server).await;
+    write_reply(&mut server, &[], 0x9000).await;
+    t.discard_pending(LONG).await.unwrap();
+    round_trip_seven(&mut t, &mut server).await;
+}
+
+#[tokio::test]
+async fn timeout_mid_frame_then_discard() {
+    let (mut t, mut server) = fake().await;
+    let srv = async {
+        read_frame(&mut server).await;
+        server.write_all(&[0, 0, 0, 3, 0xaa]).await.unwrap();
+    };
+    let (res, ()) = tokio::join!(exchange_short(&mut t), srv);
+    assert!(matches!(res.unwrap_err(), LedgerError::Timeout(d) if d == SHORT));
+    server.write_all(&[0xbb, 0xcc, 0x90, 0x00]).await.unwrap();
+    t.discard_pending(LONG).await.unwrap();
+    round_trip_seven(&mut t, &mut server).await;
+}
+
+#[tokio::test]
+async fn discard_pending_times_out() {
+    let (mut t, mut server) = fake().await;
+    time_out(&mut t, &mut server).await;
+    assert!(matches!(
+        t.discard_pending(SHORT).await,
+        Err(SpeculosError::NoReply(d)) if d == SHORT
+    ));
+    assert_pending(&mut t).await;
+}
+
+#[tokio::test]
+async fn discard_pending_when_ready_is_noop() {
+    let (mut t, _server) = fake().await;
+    t.discard_pending(SHORT).await.unwrap();
+}
+
+#[tokio::test]
+async fn eof_mid_reply_breaks() {
+    let (mut t, mut server) = fake().await;
+    let srv = async move {
+        read_frame(&mut server).await;
+        server.write_all(&3u32.to_be_bytes()).await.unwrap();
+    };
+    let (res, ()) = tokio::join!(t.exchange(cmd(), Some(LONG)), srv);
+    assert!(matches!(
+        speculos_err(res.unwrap_err()),
+        SpeculosError::Io(_)
+    ));
+    let err = t.exchange(cmd(), None).await.unwrap_err();
+    assert!(matches!(speculos_err(err), SpeculosError::Broken));
+    assert!(matches!(
+        t.discard_pending(LONG).await,
+        Err(SpeculosError::Broken)
+    ));
+}
+
+#[tokio::test]
+async fn max_length_header_is_too_long() {
+    let (mut t, mut server) = fake().await;
+    let srv = async {
+        read_frame(&mut server).await;
+        server.write_all(&u32::MAX.to_be_bytes()).await.unwrap();
+    };
+    let (res, ()) = tokio::join!(t.exchange(cmd(), None), srv);
+    assert!(matches!(
+        speculos_err(res.unwrap_err()),
+        SpeculosError::ResponseTooLong(_)
+    ));
+}

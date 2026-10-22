@@ -19,7 +19,6 @@ enum State {
     /// The next exchange may proceed.
     Ready,
     /// A command was sent and its reply has not been consumed.
-    #[allow(dead_code)] // Set once exchanges can time out.
     PendingReply,
     /// The stream is in an unknown state.
     Broken,
@@ -30,6 +29,17 @@ enum State {
 /// Speculos frames each APDU as a 4-byte big-endian length and the bytes.
 /// Replies carry the length of their data, excluding the status word, then the
 /// data, then the status word.
+///
+/// # Timeouts
+///
+/// When an exchange times out, or its future is dropped, after the command was
+/// sent, the reply is still coming: Speculos delivers it once the prompt on
+/// screen is resolved. The transport refuses further exchanges with
+/// [`SpeculosError::PendingReply`] until that reply is consumed. Speculos sends
+/// the reply to whichever client is connected, so reconnecting while a prompt
+/// is pending is unsafe: the new connection would read the stale reply as the
+/// answer to its own command. To recover, resolve the prompt on screen, then
+/// call [`discard_pending`](Self::discard_pending).
 #[derive(Debug)]
 pub struct SpeculosTransport {
     stream: TcpStream,
@@ -50,12 +60,36 @@ impl SpeculosTransport {
         })
     }
 
+    /// Consume and drop the reply to a command that timed out.
+    ///
+    /// The reply to a timed-out command is still coming, and Speculos sends it
+    /// to whichever client is connected, so reconnecting while a prompt is
+    /// pending is unsafe. Resolve the prompt on screen, then call this to
+    /// discard the stale reply and make the transport usable again.
+    ///
+    /// Returns immediately if no reply is pending. Fails with
+    /// [`SpeculosError::NoReply`] if the reply does not arrive within
+    /// `timeout`, leaving it pending, and with [`SpeculosError::Broken`] if the
+    /// connection is broken. If the reply cannot be read, returns that error
+    /// and the connection is broken.
+    pub async fn discard_pending(&mut self, timeout: Duration) -> Result<(), SpeculosError> {
+        match self.state {
+            State::Ready => Ok(()),
+            State::Broken => Err(SpeculosError::Broken),
+            State::PendingReply => tokio::time::timeout(timeout, self.read_frame())
+                .await
+                .map_err(|_| SpeculosError::NoReply(timeout))?
+                .map(drop),
+        }
+    }
+
     /// Read one reply frame, keeping partial frames in `inbox`. Cancel-safe:
-    /// dropping the future loses no bytes.
+    /// dropping the future loses no bytes. Sets the state to `Ready` once a
+    /// frame is read, and to `Broken` on failure.
     async fn read_frame(&mut self) -> Result<ApduBuffer, SpeculosError> {
         loop {
             if let Some(header) = self.inbox.first_chunk::<4>() {
-                let total = u32::from_be_bytes(*header) as usize + 2;
+                let total = (u32::from_be_bytes(*header) as usize).saturating_add(2);
                 if total > ApduBuffer::CAPACITY {
                     self.state = State::Broken;
                     return Err(SpeculosError::ResponseTooLong(total));
@@ -65,6 +99,7 @@ impl SpeculosTransport {
                     buf.extend_from_slice(&self.inbox[4..4 + total])
                         .expect("length was checked against the capacity");
                     self.inbox.drain(..4 + total);
+                    self.state = State::Ready;
                     return Ok(buf);
                 }
             }
@@ -91,7 +126,7 @@ impl LedgerTransport for SpeculosTransport {
     async fn exchange(
         &mut self,
         command: ApduCommand,
-        _timeout: Option<Duration>,
+        timeout: Option<Duration>,
     ) -> Result<ApduAnswer, LedgerError> {
         if let Some(identity) = self.identity() {
             Span::current().record("device", display(identity));
@@ -106,13 +141,22 @@ impl LedgerTransport for SpeculosTransport {
         let mut frame = Vec::with_capacity(4 + apdu.len());
         frame.extend_from_slice(&(apdu.len() as u32).to_be_bytes());
         frame.extend_from_slice(apdu);
-        // A partial write cannot be recovered from.
-        if let Err(e) = self.stream.write_all(&frame).await {
-            self.state = State::Broken;
-            return Err(SpeculosError::from(e).into());
-        }
+        // A partial write cannot be recovered from, so the stream is broken
+        // until the write completes, even if this future is dropped.
+        self.state = State::Broken;
+        self.stream
+            .write_all(&frame)
+            .await
+            .map_err(SpeculosError::from)?;
 
-        let reply = self.read_frame().await?;
+        // The reply is owed from here on, even if this future is dropped.
+        self.state = State::PendingReply;
+        let reply = match timeout {
+            Some(t) => tokio::time::timeout(t, self.read_frame())
+                .await
+                .map_err(|_| LedgerError::Timeout(t))??,
+            None => self.read_frame().await?,
+        };
         ApduAnswer::from_answer(reply)?.into_result()
     }
 }
