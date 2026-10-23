@@ -30,6 +30,34 @@ build for `wasm32` targets. The JS/WASM transport shipped in versions before
     - If you don't have the application, [install Ledger Live](https://support.ledger.com/hc/en-us/articles/360006395553) and follow [these instructions](https://support.ledger.com/hc/en-us/articles/360006523674-Install-or-uninstall-apps)
   - `$ cargo test -p coins-ledger -- --ignored`
 
+## Testing against Speculos
+
+The `speculos` feature adds a transport for the
+[Speculos](https://github.com/LedgerHQ/speculos) emulator. Its integration
+tests run Ledger's [app-boilerplate](https://github.com/LedgerHQ/app-boilerplate)
+2.3.2 in Speculos, and skip unless `SPECULOS_APDU_ADDR` is set.
+
+- Download the app for the model you want to emulate (`nanos2` is the Nano
+  S Plus)
+  - `$ gh release download 2.3.2 -R LedgerHQ/app-boilerplate -p 'app-2.3.2-nanos2.elf'`
+- Start Speculos from the directory holding the app
+
+  ```sh
+  docker run -d --rm --name speculos -v "$PWD":/apps \
+    -p 9999:9999 -p 5000:5000 \
+    ghcr.io/ledgerhq/speculos:v0.27.1@sha256:028d1e368244631578537e7ca50b6f13ca2932b5f3fd220627289b559c07a886 \
+    --model nanosp --display headless --apdu-port 9999 --api-port 5000 \
+    /apps/app-2.3.2-nanos2.elf
+  ```
+
+  - For a Flex, use `--model flex` and `app-2.3.2-flex.elf`. `nanox` and
+    `stax` work the same way.
+  - On macOS, AirPlay Receiver holds port 5000. Map the API elsewhere, e.g.
+    `-p 5001:5000`, and point `SPECULOS_API_URL` at it.
+- Run the tests, with `SPECULOS_MODEL` matching `--model`
+  - `$ SPECULOS_APDU_ADDR=127.0.0.1:9999 SPECULOS_API_URL=http://127.0.0.1:5000 SPECULOS_MODEL=nanosp cargo test -p coins-ledger --features speculos`
+- `$ docker stop speculos`
+
 # License Notes
 
 This repo was forked from [Zondax's repo](https://github.com/Zondax/ledger-rs)

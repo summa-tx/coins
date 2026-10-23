@@ -147,3 +147,82 @@ async fn transport_errors_pass_through_and_downcast() {
     };
     assert!(inner.downcast_ref::<ScriptExhausted>().is_some());
 }
+
+#[cfg(feature = "speculos")]
+#[tokio::test]
+async fn connect_speculos_reports_model() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let ledger = Ledger::connect_speculos(addr, crate::Model::Flex)
+        .await
+        .unwrap();
+    assert_eq!(
+        ledger.identity(),
+        Some(DeviceIdentity::new(crate::Model::Flex, None))
+    );
+}
+
+/// After a timed-out exchange, the caller recovers through
+/// `Ledger::discard_pending`.
+#[cfg(feature = "speculos")]
+#[tokio::test]
+async fn speculos_recovers_after_timeout() {
+    use tokio::{
+        io::{AsyncReadExt, AsyncWriteExt},
+        net::{TcpListener, TcpStream},
+    };
+
+    async fn read_frame(server: &mut TcpStream) {
+        let mut len = [0u8; 4];
+        server.read_exact(&mut len).await.unwrap();
+        let mut body = vec![0u8; u32::from_be_bytes(len) as usize];
+        server.read_exact(&mut body).await.unwrap();
+    }
+
+    async fn write_reply(server: &mut TcpStream, data: &[u8]) {
+        let mut out = (data.len() as u32).to_be_bytes().to_vec();
+        out.extend_from_slice(data);
+        out.extend_from_slice(&0x9000u16.to_be_bytes());
+        server.write_all(&out).await.unwrap();
+    }
+
+    let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let addr = listener.local_addr().unwrap();
+    let (ledger, accepted) = tokio::join!(
+        Ledger::connect_speculos(addr, crate::Model::NanoSPlus),
+        listener.accept()
+    );
+    let mut ledger = ledger.unwrap();
+    let mut server = accepted.unwrap().0;
+    ledger.set_timeout(Some(Duration::from_millis(100)));
+
+    // The first exchange times out: the server reads the command and stalls.
+    let (res, ()) = tokio::join!(ledger.exchange(get_version()), read_frame(&mut server));
+    assert!(matches!(res.unwrap_err(), LedgerError::Timeout(_)));
+
+    // Further exchanges are refused while the reply is pending.
+    let err = ledger.exchange(get_version()).await.unwrap_err();
+    let LedgerError::Transport(inner) = err else {
+        panic!("expected Transport, got {err:?}");
+    };
+    assert!(matches!(
+        inner.downcast_ref::<SpeculosError>(),
+        Some(SpeculosError::PendingReply)
+    ));
+
+    // The late reply arrives, and is discarded.
+    write_reply(&mut server, &[9]).await;
+    ledger
+        .discard_pending(Duration::from_secs(1))
+        .await
+        .unwrap();
+
+    // The connection works again.
+    ledger.set_timeout(Some(Duration::from_secs(5)));
+    let srv = async {
+        read_frame(&mut server).await;
+        write_reply(&mut server, &[1, 2]).await;
+    };
+    let (answer, ()) = tokio::join!(ledger.exchange(get_version()), srv);
+    assert_eq!(answer.unwrap().data(), &[1, 2]);
+}
