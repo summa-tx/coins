@@ -216,6 +216,41 @@ async fn wait_for_text_times_out() {
     }
 }
 
+#[test]
+fn poll_interval_defaults_and_sets() {
+    let mut client = SpeculosClient::new("http://127.0.0.1:5000").unwrap();
+    assert_eq!(
+        client.poll_interval(),
+        SpeculosClient::DEFAULT_POLL_INTERVAL
+    );
+    client.set_poll_interval(Duration::from_secs(1));
+    assert_eq!(client.poll_interval(), Duration::from_secs(1));
+    let client = client.with_poll_interval(Duration::from_millis(5));
+    assert_eq!(client.poll_interval(), Duration::from_millis(5));
+}
+
+/// The second poll would find the text, but the interval puts it past the
+/// deadline.
+#[tokio::test]
+async fn wait_for_text_waits_poll_interval() {
+    let (url, _seen) = serve(vec![
+        (200, "application/json", events_body(&["Boilerplate"])),
+        (200, "application/json", events_body(&["Approve"])),
+    ])
+    .await;
+    let client = SpeculosClient::new(url)
+        .unwrap()
+        .with_poll_interval(Duration::from_secs(5));
+    let err = timeout(
+        WAIT,
+        client.wait_for_text("Approve", Duration::from_millis(300)),
+    )
+    .await
+    .unwrap()
+    .unwrap_err();
+    assert!(matches!(err, SpeculosError::TextNotFound { .. }), "{err:?}");
+}
+
 #[tokio::test]
 async fn screenshot_returns_body() {
     let png = vec![0x89, b'P', b'N', b'G'];

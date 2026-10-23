@@ -7,9 +7,6 @@ use tokio::time::{Instant, sleep, timeout_at};
 
 use crate::transports::speculos::SpeculosError;
 
-/// How often [`SpeculosClient::wait_for_text`] polls the event log.
-const POLL_INTERVAL: Duration = Duration::from_millis(100);
-
 /// A physical button on a Nano device.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Button {
@@ -126,9 +123,14 @@ struct Events {
 pub struct SpeculosClient {
     http: reqwest::Client,
     base: Url,
+    poll_interval: Duration,
 }
 
 impl SpeculosClient {
+    /// How often [`wait_for_text`](Self::wait_for_text) polls the event log,
+    /// unless set otherwise.
+    pub const DEFAULT_POLL_INTERVAL: Duration = Duration::from_millis(100);
+
     /// A client for the API at `base_url`, e.g. `http://127.0.0.1:5000`.
     pub fn new(base_url: impl IntoUrl) -> Result<Self, SpeculosError> {
         Ok(Self {
@@ -136,7 +138,26 @@ impl SpeculosClient {
             // capture the requests.
             http: reqwest::Client::builder().no_proxy().build()?,
             base: base_url.into_url()?,
+            poll_interval: Self::DEFAULT_POLL_INTERVAL,
         })
+    }
+
+    /// Set how often [`wait_for_text`](Self::wait_for_text) polls the event
+    /// log.
+    pub const fn set_poll_interval(&mut self, interval: Duration) {
+        self.poll_interval = interval
+    }
+
+    /// Set how often [`wait_for_text`](Self::wait_for_text) polls the event
+    /// log.
+    pub const fn with_poll_interval(mut self, interval: Duration) -> Self {
+        self.poll_interval = interval;
+        self
+    }
+
+    /// How often [`wait_for_text`](Self::wait_for_text) polls the event log.
+    pub const fn poll_interval(&self) -> Duration {
+        self.poll_interval
     }
 
     fn url(&self, path: &str) -> Url {
@@ -210,7 +231,7 @@ impl SpeculosClient {
                 if let Some(found) = events.into_iter().find(|e| e.text.contains(needle)) {
                     return Ok(found);
                 }
-                sleep(POLL_INTERVAL).await;
+                sleep(self.poll_interval).await;
             }
         };
         // The deadline also bounds a request that hangs.
