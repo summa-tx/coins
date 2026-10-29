@@ -14,6 +14,7 @@ use tokio::sync::{mpsc, oneshot};
 mod error;
 pub use error::NativeTransportError;
 
+mod device;
 pub mod hid;
 pub use hid::{HidDeviceId, HidLedgerDevice};
 use tracing::{Span, debug, field::display};
@@ -37,7 +38,10 @@ struct ApduExchange {
 /// This transport implements [`LedgerTransport`] timeouts on a per-packet
 /// basis. I.e. it will wait up to `timeout` for each roundtrip with the device.
 /// The timeout is thus the MAXIMUM duration that a user has to push buttons on
-/// the device.
+/// the device. After a timeout, the next exchange first drops the rest of the
+/// late reply. After a report breaks framing, the transport closes the device
+/// and later exchanges fail with [`NativeTransportError::IoThreadUnavailable`];
+/// reopen it. See [`HidLedgerDevice#timeouts`].
 ///
 /// Generally instantiated via [`HidTransport::open_first`], but
 /// [`HidTransport::list`] allows scanning for [`HidDeviceId`]s that can be
@@ -72,8 +76,8 @@ impl HidTransport {
     /// # Panics
     ///
     /// If the I/O thread cannot be spawned.
-    pub fn from_transport(device: HidLedgerDevice) -> Self {
-        let (device, identity) = device.into_parts();
+    pub fn from_transport(mut device: HidLedgerDevice) -> Self {
+        let identity = device.id().clone();
         let (tx, mut rx) = mpsc::channel(1);
 
         // Spawn a thread that drives the blocking transport.
@@ -88,11 +92,14 @@ impl HidTransport {
                 }) = rx.blocking_recv()
                 {
                     let _entered = span.entered();
-                    if answer
-                        .send(hid::exchange(&device, &command, timeout))
-                        .is_err()
-                    {
+                    if answer.send(device.exchange(&command, timeout)).is_err() {
                         debug!("exchange was dropped before its answer arrived");
+                    }
+                    // What the device owes is unknown, so a later reply
+                    // could be misread. Close it.
+                    if device.is_broken() {
+                        debug!("closing the device after a framing error");
+                        break;
                     }
                 }
             })

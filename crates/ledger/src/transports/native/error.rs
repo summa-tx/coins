@@ -64,8 +64,7 @@ pub enum NativeTransportError {
         expected: usize,
     },
 
-    /// The thread that runs hidapi context calls could not be started or has
-    /// stopped.
+    /// The thread that runs hidapi context calls has stopped.
     #[error("The HID context thread is unavailable")]
     HidThreadUnavailable,
 
