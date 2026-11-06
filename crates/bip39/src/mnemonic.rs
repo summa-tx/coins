@@ -36,7 +36,7 @@ pub enum MnemonicError {
     #[error("the word at position `{0}` is not in the wordlist")]
     InvalidWord(usize),
     /// Describes the error when the word count provided for mnemonic generation is invalid.
-    #[error("invalid word count (expected 12, 15, 18, 21, 24, found `{0}`")]
+    #[error("invalid word count (expected 12, 15, 18, 21, 24, found `{0}`)")]
     InvalidWordCount(usize),
     /// Describes an error propagated from the BIP-32 crate.
     #[error(transparent)]
@@ -330,17 +330,18 @@ where
         }
     }
 
-    /// Returns a new mnemonic for a given phrase. The 12-24 space-separated words are used to
-    /// calculate the entropy that must have produced it.
+    /// Returns a new mnemonic for a given phrase. The 12-24 whitespace-separated words are used
+    /// to calculate the entropy that must have produced it.
     ///
     /// The phrase is NFKD-normalized first, so composed characters and ideographic spaces (as
-    /// used in Japanese phrases) are accepted.
+    /// used in Japanese phrases) are accepted. Leading, trailing and repeated whitespace,
+    /// including tabs and newlines, is ignored.
     pub fn new_from_phrase(phrase: &str) -> Result<Self, MnemonicError> {
         let phrase = nfkd("", phrase);
-        let count = WordCount::try_from(phrase.split(' ').count())?;
+        let count = WordCount::try_from(phrase.split_whitespace().count())?;
 
         let mut encoded = EncodedEntropy::new();
-        for (position, word) in phrase.split(' ').enumerate() {
+        for (position, word) in phrase.split_whitespace().enumerate() {
             let index = W::get_index(word).map_err(|_| MnemonicError::InvalidWord(position))?;
             encoded.write_index(position, index);
         }
@@ -928,3 +929,7 @@ mod japanese_tests {
         }
     }
 }
+
+#[cfg(all(test, feature = "english"))]
+#[path = "../ai-tests/mnemonic.rs"]
+mod ai_tests;
