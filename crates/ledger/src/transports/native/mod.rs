@@ -83,6 +83,24 @@ impl HidTransport {
     }
 }
 
+impl LedgerTransport for HidTransport {
+    fn identity(&self) -> Option<DeviceIdentity<'_>> {
+        Some(DeviceIdentity {
+            model: self.identity.model(),
+            serial_number: self.identity.serial_number(),
+        })
+    }
+
+    async fn exchange(
+        &mut self,
+        command: ApduCommand,
+        timeout: Option<Duration>,
+    ) -> Result<ApduAnswer, LedgerError> {
+        Span::current().record("device", display(&self.identity));
+        self.io.submit(command, timeout).await
+    }
+}
+
 /// A handle to the thread that drives one device's blocking I/O, one
 /// exchange at a time. The thread ends, dropping the device, when the handle
 /// is dropped or after a framing error. Made by [`IoActor::spawn`].
@@ -164,23 +182,5 @@ impl IoActor {
         {
             debug!("exchange was dropped before its answer arrived");
         }
-    }
-}
-
-impl LedgerTransport for HidTransport {
-    fn identity(&self) -> Option<DeviceIdentity<'_>> {
-        Some(DeviceIdentity {
-            model: self.identity.model(),
-            serial_number: self.identity.serial_number(),
-        })
-    }
-
-    async fn exchange(
-        &mut self,
-        command: ApduCommand,
-        timeout: Option<Duration>,
-    ) -> Result<ApduAnswer, LedgerError> {
-        Span::current().record("device", display(&self.identity));
-        self.io.submit(command, timeout).await
     }
 }

@@ -121,6 +121,11 @@ impl ApduCommand {
     /// CLA, INS, P1, P2.
     const HEADER_LEN: usize = 4;
 
+    /// The encoded command.
+    pub(crate) const fn as_buffer(&self) -> &ApduBuffer {
+        &self.0
+    }
+
     /// An empty [`CommandBuilder`].
     pub const fn builder<'a>() -> CommandBuilder<'a> {
         CommandBuilder::new()
