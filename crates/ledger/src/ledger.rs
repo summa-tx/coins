@@ -81,7 +81,7 @@ where
     }
 
     /// Exchange a packet with the device, waiting up to the configured
-    /// timeout for each report of the reply.
+    /// timeout. How the timeout applies depends on the transport.
     #[instrument(
         level = "debug",
         skip_all,

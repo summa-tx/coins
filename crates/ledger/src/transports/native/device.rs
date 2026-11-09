@@ -20,7 +20,10 @@ use crate::{
     transports::native::error::NativeTransportError,
 };
 
-/// Where the device stands between exchanges.
+/// Where the device stands between exchanges. When an exchange times out,
+/// the device still sends the rest of its reply once the prompt is resolved,
+/// and hidapi queues it. It would pass every framing check as the answer to
+/// the next command, so that exchange drops it first.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum State {
     /// No reply is owed.
@@ -33,22 +36,9 @@ enum State {
 
 /// An [`HidDevice`] that we know to be a Ledger.
 ///
-/// # Timeouts
-///
-/// When an exchange times out, the rest of its reply is still coming: the
-/// device sends it once the prompt on screen is resolved, and hidapi queues
-/// it. Read as the answer to the next command, it would pass every framing
-/// check. So the next exchange first reads and drops whatever is owed, waiting
-/// up to its own timeout for each report, and only then sends its command. If
-/// the owed reports do not arrive in time, it fails with
-/// [`LedgerError::Timeout`] without sending anything.
-///
-/// A report that breaks framing leaves what is owed unknown, so a later reply
-/// may be misread as the answer to a later command. [`HidTransport`] closes
-/// the device when that happens. This type is deliberately low-level and does
-/// not: after a framing error, reopen the device.
-///
-/// [`HidTransport`]: super::HidTransport
+/// After an exchange times out, the next one may also time out without
+/// sending its command, while the device finishes the earlier reply. After
+/// any other [`NativeTransportError`], reopen the device.
 #[derive(Debug)]
 pub struct HidLedgerDevice {
     device: HidDevice,
@@ -79,7 +69,7 @@ impl HidLedgerDevice {
     ///
     /// # Panics
     ///
-    /// If the HID context thread cannot be spawned, on first use.
+    /// On first use, if a background thread cannot be spawned.
     #[instrument(level = "debug")]
     pub fn list() -> Result<Vec<HidDeviceId>, NativeTransportError> {
         HidThread::get().submit(|reply| HidJob::List { reply })
@@ -91,7 +81,7 @@ impl HidLedgerDevice {
     ///
     /// # Panics
     ///
-    /// If the HID context thread cannot be spawned, on first use.
+    /// On first use, if a background thread cannot be spawned.
     #[instrument(level = "debug", skip_all, fields(id = %id))]
     pub fn open(id: &HidDeviceId) -> Result<Self, NativeTransportError> {
         HidThread::get().submit(|reply| HidJob::Open {
@@ -109,7 +99,7 @@ impl HidLedgerDevice {
     ///
     /// # Panics
     ///
-    /// If the HID context thread cannot be spawned, on first use.
+    /// On first use, if a background thread cannot be spawned.
     #[instrument(level = "debug", fields(id))]
     pub fn open_first() -> Result<Self, NativeTransportError> {
         HidThread::get()
@@ -126,8 +116,7 @@ impl HidLedgerDevice {
 
     /// Send `command` and read the reply, waiting up to `timeout` for each
     /// report. `None` waits indefinitely. A non-success status word is an
-    /// error. The rest of an earlier, timed-out reply is dropped first; see
-    /// [Timeouts](Self#timeouts).
+    /// error.
     pub fn exchange(
         &mut self,
         command: &ApduCommand,

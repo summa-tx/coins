@@ -1,8 +1,8 @@
 //! APDU Transport for native HID.
 //!
 //! This module contains [`HidTransport`], the main USB access point for ledger
-//! devices. [`HidTransport`] implements [`LedgerTransport`] over hid by
-//! spawning a background thread managing a [`HidLedgerDevice`].
+//! devices. [`HidTransport`] implements [`LedgerTransport`] over a
+//! [`HidLedgerDevice`].
 
 use crate::{
     ApduAnswer, ApduCommand, LedgerError,
@@ -36,13 +36,13 @@ struct ApduExchange {
 /// Dropping the handle closes the device once in-flight communications are
 /// completed.
 ///
-/// This transport implements [`LedgerTransport`] timeouts on a per-packet
-/// basis. I.e. it will wait up to `timeout` for each roundtrip with the device.
-/// The timeout is thus the MAXIMUM duration that a user has to push buttons on
-/// the device. After a timeout, the next exchange first drops the rest of the
-/// late reply. After a report breaks framing, the transport closes the device
-/// and later exchanges fail with [`NativeTransportError::IoThreadUnavailable`];
-/// reopen it. See [`HidLedgerDevice#timeouts`].
+/// This transport implements [`LedgerTransport`] timeouts per packet: it
+/// waits up to `timeout` for each roundtrip with the device, so the timeout
+/// is the most time a user has to press buttons. After a timeout, the next
+/// exchange may also time out while the device finishes the earlier reply.
+/// If the device sends a reply that cannot be read, the transport closes and
+/// later exchanges fail with [`NativeTransportError::IoThreadUnavailable`];
+/// reopen it.
 ///
 /// Generally instantiated via [`HidTransport::open_first`], but
 /// [`HidTransport::list`] allows scanning for [`HidDeviceId`]s that can be
@@ -60,23 +60,22 @@ impl HidTransport {
         HidLedgerDevice::list()
     }
 
-    /// Open `id` and spawn its I/O thread. See [`HidLedgerDevice::open`].
+    /// Open `id`. See [`HidLedgerDevice::open`].
     pub fn open(id: &HidDeviceId) -> Result<Self, NativeTransportError> {
         HidLedgerDevice::open(id).map(Self::from_transport)
     }
 
-    /// Open the first Ledger found, or the device Termux hands over, and
-    /// spawn its I/O thread. See [`HidLedgerDevice::open_first`].
+    /// Open the first Ledger found, or the device Termux hands over. See
+    /// [`HidLedgerDevice::open_first`].
     pub fn open_first() -> Result<Self, NativeTransportError> {
         HidLedgerDevice::open_first().map(Self::from_transport)
     }
 
-    /// Make a [`HidTransport`] from an open device. This spawns a background
-    /// thread that manages device communication.
+    /// Make a [`HidTransport`] from an open device.
     ///
     /// # Panics
     ///
-    /// If the I/O thread cannot be spawned.
+    /// If a background thread cannot be spawned.
     pub fn from_transport(device: HidLedgerDevice) -> Self {
         let identity = device.id().clone();
         let io = IoActor::spawn(device);

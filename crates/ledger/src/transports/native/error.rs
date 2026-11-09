@@ -64,11 +64,13 @@ pub enum NativeTransportError {
         expected: usize,
     },
 
-    /// The thread that runs hidapi context calls has stopped.
+    /// HID discovery is unavailable for the rest of the process, because
+    /// hidapi failed to initialize.
     #[error("The HID context thread is unavailable")]
     HidThreadUnavailable,
 
-    /// The thread that drives the device has stopped.
+    /// The transport is closed, after an error it cannot recover from or a
+    /// lost device. Reopen it.
     #[error("The device I/O thread is unavailable")]
     IoThreadUnavailable,
 

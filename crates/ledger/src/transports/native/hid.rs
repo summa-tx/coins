@@ -1,8 +1,4 @@
-//! Ledger discovery over native HID, and the thread that runs every hidapi
-//! context call.
-//!
-//! Every hidapi context call runs on one thread that lives as long as the
-//! process.
+//! Ledger discovery over native HID.
 
 use std::{
     ffi::{CStr, CString},
