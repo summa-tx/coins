@@ -84,8 +84,8 @@ impl Progress {
         remaining: 0,
     };
 
-    /// Read reports until the reply is complete, passing each payload chunk
-    /// to `sink`. The first report carries the 2-byte response length ahead
+    /// Read reports until the reply is complete, appending each payload chunk
+    /// to `buf`. The first report carries the 2-byte response length ahead
     /// of the payload.
     ///
     /// A report that cannot be read fails as [`ReadFailure::Read`], carrying
@@ -94,7 +94,7 @@ impl Progress {
         mut self,
         channel: u16,
         mut read: impl FnMut() -> Result<ReadReport, LedgerError>,
-        mut sink: impl FnMut(&[u8]),
+        buf: &mut ApduBuffer,
     ) -> Result<(), ReadFailure> {
         loop {
             tracing::trace!(sequence_idx = self.next_seq, "Reading report from device");
@@ -118,7 +118,8 @@ impl Progress {
             };
 
             let take = payload.len().min(self.remaining);
-            sink(&payload[..take]);
+            buf.extend_from_slice(&payload[..take])
+                .expect("remaining is capped at CAPACITY");
             self.remaining -= take;
             self.next_seq += 1;
             if self.remaining == 0 {
@@ -133,7 +134,7 @@ impl Progress {
         channel: u16,
         read: impl FnMut() -> Result<ReadReport, LedgerError>,
     ) -> Result<(), ReadFailure> {
-        self.advance(channel, read, |_| {})
+        self.advance(channel, read, &mut ApduBuffer::new())
     }
 }
 
@@ -183,11 +184,7 @@ impl ApduBuffer {
         read: impl FnMut() -> Result<ReadReport, LedgerError>,
     ) -> Result<Self, ReadFailure> {
         let mut answer = Self::new();
-        Progress::START.advance(channel, read, |chunk| {
-            answer
-                .extend_from_slice(chunk)
-                .expect("a reply fits in an ApduBuffer");
-        })?;
+        Progress::START.advance(channel, read, &mut answer)?;
         Ok(answer)
     }
 }
