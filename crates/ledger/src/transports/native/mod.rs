@@ -19,7 +19,7 @@ pub mod hid;
 pub use hid::{HidDeviceId, HidLedgerDevice};
 use tracing::{Span, debug, field::display};
 
-/// A packet exchange request.
+/// A request to an [`IoThread`].
 struct ApduExchange {
     command: ApduCommand,
     /// The per-report read timeout. `None` waits indefinitely.
@@ -48,7 +48,7 @@ struct ApduExchange {
 /// passed to [`HidTransport::open`].
 #[derive(Debug)]
 pub struct HidTransport {
-    tx: mpsc::Sender<ApduExchange>,
+    io: IoThread,
     identity: HidDeviceId,
 }
 
@@ -78,44 +78,73 @@ impl HidTransport {
     /// If the I/O thread cannot be spawned.
     pub fn from_transport(device: HidLedgerDevice) -> Self {
         let identity = device.id().clone();
-        let tx = spawn_io_thread(device);
-        Self { tx, identity }
+        let io = IoThread::spawn(device);
+        Self { io, identity }
     }
 }
 
-/// Spawn the thread that drives `device`'s blocking I/O, one exchange at a
-/// time. The thread ends, dropping the device, when every sender is gone or
-/// after a framing error.
-///
-/// # Panics
-///
-/// If the thread cannot be spawned.
-fn spawn_io_thread(mut device: HidLedgerDevice) -> mpsc::Sender<ApduExchange> {
-    let (tx, mut rx) = mpsc::channel(1);
-    std::thread::Builder::new()
-        .name("coins-ledger-io".into())
-        .spawn(move || {
-            while let Some(ApduExchange {
+/// A handle to the thread that drives one device's blocking I/O, one
+/// exchange at a time. The thread ends, dropping the device, when the handle
+/// is dropped or after a framing error.
+#[derive(Debug)]
+struct IoThread {
+    tx: mpsc::Sender<ApduExchange>,
+}
+
+impl IoThread {
+    /// Spawn the I/O thread for `device`.
+    ///
+    /// # Panics
+    ///
+    /// If the thread cannot be spawned.
+    fn spawn(mut device: HidLedgerDevice) -> Self {
+        let (tx, mut rx) = mpsc::channel(1);
+        std::thread::Builder::new()
+            .name("coins-ledger-io".into())
+            .spawn(move || {
+                while let Some(ApduExchange {
+                    command,
+                    timeout,
+                    answer,
+                    span,
+                }) = rx.blocking_recv()
+                {
+                    let _entered = span.entered();
+                    if answer.send(device.exchange(&command, timeout)).is_err() {
+                        debug!("exchange was dropped before its answer arrived");
+                    }
+                    // What the device owes is unknown, so a later reply could
+                    // be misread. Close it.
+                    if device.is_broken() {
+                        debug!("closing the device after a framing error");
+                        break;
+                    }
+                }
+            })
+            .expect("failed to spawn the Ledger I/O thread");
+        Self { tx }
+    }
+
+    /// Run `command` on this thread inside the caller's current span, and
+    /// wait for its answer.
+    async fn submit(
+        &self,
+        command: ApduCommand,
+        timeout: Option<Duration>,
+    ) -> Result<ApduAnswer, LedgerError> {
+        let (answer, rx) = oneshot::channel();
+        self.tx
+            .send(ApduExchange {
                 command,
                 timeout,
                 answer,
-                span,
-            }) = rx.blocking_recv()
-            {
-                let _entered = span.entered();
-                if answer.send(device.exchange(&command, timeout)).is_err() {
-                    debug!("exchange was dropped before its answer arrived");
-                }
-                // What the device owes is unknown, so a later reply could be
-                // misread. Close it.
-                if device.is_broken() {
-                    debug!("closing the device after a framing error");
-                    break;
-                }
-            }
-        })
-        .expect("failed to spawn the Ledger I/O thread");
-    tx
+                span: Span::current(),
+            })
+            .await
+            .map_err(|_| NativeTransportError::IoThreadUnavailable)?;
+        rx.await
+            .map_err(|_| NativeTransportError::IoThreadUnavailable)?
+    }
 }
 
 impl LedgerTransport for HidTransport {
@@ -132,17 +161,6 @@ impl LedgerTransport for HidTransport {
         timeout: Option<Duration>,
     ) -> Result<ApduAnswer, LedgerError> {
         Span::current().record("device", display(&self.identity));
-        let (answer, rx) = oneshot::channel();
-        self.tx
-            .send(ApduExchange {
-                command,
-                timeout,
-                answer,
-                span: Span::current(),
-            })
-            .await
-            .map_err(|_| NativeTransportError::IoThreadUnavailable)?;
-        rx.await
-            .map_err(|_| NativeTransportError::IoThreadUnavailable)?
+        self.io.submit(command, timeout).await
     }
 }
