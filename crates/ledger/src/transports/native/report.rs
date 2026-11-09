@@ -3,9 +3,10 @@
 //! Packets or "reports" are individual device communications. An APDU is sent/
 //! received as a series of reports.
 
+use std::ops::{Deref, Range};
+
 use crate::{
-    common::{ApduAnswer, ApduBuffer, ApduCommand},
-    errors::LedgerError,
+    common::{ApduBuffer, ApduCommand},
     transports::native::error::NativeTransportError,
 };
 
@@ -68,6 +69,22 @@ impl ReadReport {
     }
 }
 
+/// The payload bytes of one report, after its header and, on the first
+/// report, the response length.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(super) struct Payload {
+    report: ReadReport,
+    range: Range<usize>,
+}
+
+impl Deref for Payload {
+    type Target = [u8];
+
+    fn deref(&self) -> &[u8] {
+        &self.report.bytes[self.range.clone()]
+    }
+}
+
 /// How far reading a reply has got.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(super) struct Progress {
@@ -79,79 +96,52 @@ pub(super) struct Progress {
 
 impl Progress {
     /// No report read yet.
-    const START: Self = Self {
+    pub(super) const START: Self = Self {
         next_seq: 0,
         remaining: 0,
     };
 
-    /// Read reports until the reply is complete, appending each payload chunk
-    /// to `buf`. The first report carries the 2-byte response length ahead
-    /// of the payload.
-    ///
-    /// A report that cannot be read fails as [`ReadFailure::Read`], carrying
-    /// the progress made so the rest of the reply can be drained.
-    fn advance(
-        mut self,
+    /// True once the whole reply has been read.
+    pub(super) const fn is_done(&self) -> bool {
+        self.next_seq > 0 && self.remaining == 0
+    }
+
+    /// Check that `report` is the next report of the reply on `channel`, and
+    /// return its payload. The first report carries the 2-byte response
+    /// length ahead of the payload.
+    pub(super) fn accept(
+        &mut self,
         channel: u16,
-        mut read: impl FnMut() -> Result<ReadReport, LedgerError>,
-        buf: &mut ApduBuffer,
-    ) -> Result<(), ReadFailure> {
-        loop {
-            tracing::trace!(sequence_idx = self.next_seq, "Reading report from device");
-            let report = read().map_err(|err| ReadFailure::Read { err, owed: self })?;
-            let body = report.body(channel, self.next_seq)?;
-            let payload = if self.next_seq == 0 {
-                let [hi, lo, payload @ ..] = body else {
-                    return Err(NativeTransportError::TruncatedReport(report.len).into());
-                };
-                let expected = u16::from_be_bytes([*hi, *lo]) as usize;
-                tracing::trace!(expected, "Received response length from device");
-                if expected > ApduBuffer::CAPACITY {
-                    return Err(NativeTransportError::ResponseTooLong(expected).into());
-                }
-                self.remaining = expected;
-                payload
-            } else if body.is_empty() {
-                return Err(NativeTransportError::EmptyReport.into());
-            } else {
-                body
+        report: ReadReport,
+    ) -> Result<Payload, NativeTransportError> {
+        let body = report.body(channel, self.next_seq)?;
+        let payload = if self.next_seq == 0 {
+            let [hi, lo, payload @ ..] = body else {
+                return Err(NativeTransportError::TruncatedReport(report.len));
             };
-
-            let take = payload.len().min(self.remaining);
-            buf.extend_from_slice(&payload[..take])
-                .expect("remaining is capped at CAPACITY");
-            self.remaining -= take;
-            self.next_seq += 1;
-            if self.remaining == 0 {
-                return Ok(());
+            let expected = u16::from_be_bytes([*hi, *lo]) as usize;
+            tracing::trace!(expected, "Received response length from device");
+            if expected > ApduBuffer::CAPACITY {
+                return Err(NativeTransportError::ResponseTooLong(expected));
             }
-        }
-    }
+            self.remaining = expected;
+            payload
+        } else if body.is_empty() {
+            return Err(NativeTransportError::EmptyReport);
+        } else {
+            body
+        };
 
-    /// Read and drop the rest of a reply cut short.
-    pub(super) fn drain(
-        self,
-        channel: u16,
-        read: impl FnMut() -> Result<ReadReport, LedgerError>,
-    ) -> Result<(), ReadFailure> {
-        self.advance(channel, read, &mut ApduBuffer::new())
-    }
-}
-
-/// Why reading a reply failed.
-#[derive(Debug)]
-pub(super) enum ReadFailure {
-    /// A report could not be read. `owed` is how far the reply had got.
-    Read { err: LedgerError, owed: Progress },
-    /// A report broke framing.
-    Framing(NativeTransportError),
-    /// The reply was read in full, but is not a valid answer.
-    Answer(LedgerError),
-}
-
-impl From<NativeTransportError> for ReadFailure {
-    fn from(err: NativeTransportError) -> Self {
-        Self::Framing(err)
+        // The payload is the tail of the bytes read. Past `remaining` is
+        // padding.
+        let start = report.len - payload.len();
+        let take = payload.len().min(self.remaining);
+        self.remaining -= take;
+        self.next_seq += 1;
+        Ok(Payload {
+            report,
+            range: start..start + take,
+        })
     }
 }
 
@@ -176,17 +166,6 @@ impl ApduBuffer {
             WriteReport(report)
         })
     }
-
-    /// Reassemble bytes from the reports `read` returns, starting at the
-    /// first report of a reply.
-    fn depacketize(
-        channel: u16,
-        read: impl FnMut() -> Result<ReadReport, LedgerError>,
-    ) -> Result<Self, ReadFailure> {
-        let mut answer = Self::new();
-        Progress::START.advance(channel, read, &mut answer)?;
-        Ok(answer)
-    }
 }
 
 impl ApduCommand {
@@ -194,18 +173,6 @@ impl ApduCommand {
     /// [`ApduBuffer::packetize`].
     pub(super) fn packetize(&self, channel: u16) -> impl Iterator<Item = WriteReport> + use<> {
         self.as_buffer().packetize(channel)
-    }
-}
-
-impl ApduAnswer {
-    /// Reassemble a reply from the reports `read` returns, starting at its
-    /// first report. See [`ApduBuffer::depacketize`].
-    pub(super) fn depacketize(
-        channel: u16,
-        read: impl FnMut() -> Result<ReadReport, LedgerError>,
-    ) -> Result<Self, ReadFailure> {
-        let answer = ApduBuffer::depacketize(channel, read)?;
-        Self::from_answer(answer).map_err(ReadFailure::Answer)
     }
 }
 

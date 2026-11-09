@@ -1,8 +1,6 @@
 //! AI-written tests for the HID report framing. A submodule of
 //! `src/transports/native/report.rs`.
 
-use std::{iter, time::Duration};
-
 use super::*;
 
 /// A report as the device sends it, before framing checks.
@@ -218,38 +216,31 @@ fn full(raw: Raw) -> ReadReport {
     }
 }
 
-/// A reader returning `reads` in order. Panics if read past the last, since
-/// a real device never runs out.
-fn reader(
-    reads: impl IntoIterator<Item = Result<ReadReport, LedgerError>>,
-) -> impl FnMut() -> Result<ReadReport, LedgerError> {
-    let mut reads = reads.into_iter();
-    move || reads.next().expect("read past the last report")
-}
-
-/// A reader returning each of `reports` as a full read.
-fn full_reads(reports: Vec<Raw>) -> impl FnMut() -> Result<ReadReport, LedgerError> {
-    reader(reports.into_iter().map(|raw| Ok(full(raw))))
-}
-
-/// A reader returning each of `reports` as a full read, then a timeout.
-fn then_time_out(reports: Vec<Raw>) -> impl FnMut() -> Result<ReadReport, LedgerError> {
-    reader(
-        reports
-            .into_iter()
-            .map(|raw| Ok(full(raw)))
-            .chain(iter::once(Err(LedgerError::Timeout(Duration::from_secs(
-                1,
-            ))))),
-    )
-}
-
-/// The framing error in `failure`.
-fn framing(failure: ReadFailure) -> NativeTransportError {
-    match failure {
-        ReadFailure::Framing(err) => err,
-        other => panic!("expected a framing error, got {other:?}"),
+/// Feed `reports` in order, starting from `progress`, collecting the payload, until the
+/// reply is done or a report breaks framing. Panics if the reports run out
+/// first, or if any are left over.
+fn read_from(
+    mut progress: Progress,
+    reports: impl IntoIterator<Item = ReadReport>,
+) -> Result<Vec<u8>, NativeTransportError> {
+    let mut reports = reports.into_iter();
+    let mut reply = Vec::new();
+    while !progress.is_done() {
+        let report = reports
+            .next()
+            .expect("ran out of reports before the reply was done");
+        reply.extend_from_slice(&progress.accept(LEDGER_CHANNEL, report)?);
     }
+    assert!(
+        reports.next().is_none(),
+        "reports left over after the reply"
+    );
+    Ok(reply)
+}
+
+/// Read a whole reply from `reports`, each a full read.
+fn read_reply(reports: Vec<Raw>) -> Result<Vec<u8>, NativeTransportError> {
+    read_from(Progress::START, reports.into_iter().map(full))
 }
 
 #[test]
@@ -258,9 +249,8 @@ fn one_report_response_hand_built() {
     report[..11].copy_from_slice(&[
         0x01, 0x01, 0x05, 0x00, 0x00, 0x00, 0x04, 0xde, 0xad, 0x90, 0x00,
     ]);
-    let answer = ApduAnswer::depacketize(LEDGER_CHANNEL, full_reads(vec![report])).unwrap();
-    assert_eq!(answer.data(), &[0xde, 0xad]);
-    assert!(answer.is_success());
+    let reply = read_reply(vec![report]).unwrap();
+    assert_eq!(reply, [0xde, 0xad, 0x90, 0x00]);
 }
 
 #[test]
@@ -274,8 +264,7 @@ fn two_report_response_hand_built() {
     second[..5].copy_from_slice(&[0x01, 0x01, 0x05, 0x00, 0x01]);
     second[5..8].copy_from_slice(&response[57..]);
 
-    let answer = ApduBuffer::depacketize(LEDGER_CHANNEL, full_reads(vec![first, second])).unwrap();
-    assert_eq!(&*answer, &response[..]);
+    assert_eq!(read_reply(vec![first, second]).unwrap(), response);
 }
 
 #[test]
@@ -283,8 +272,7 @@ fn every_response_length_round_trips() {
     for len in 0..=ApduBuffer::CAPACITY {
         let response: Vec<u8> = (0..len).map(|i| i as u8).collect();
         let reports = device_reports(LEDGER_CHANNEL, &response);
-        let answer = ApduBuffer::depacketize(LEDGER_CHANNEL, full_reads(reports)).unwrap();
-        assert_eq!(&*answer, &response[..], "length {len}");
+        assert_eq!(read_reply(reports).unwrap(), response, "length {len}");
     }
 }
 
@@ -299,51 +287,43 @@ fn only_the_bytes_read_are_payload() {
     second[..5].copy_from_slice(&[0x01, 0x01, 0x05, 0x00, 0x01]);
     second[5..22].fill(7);
 
-    let reads = reader([
-        Ok(ReadReport {
+    let reports = [
+        ReadReport {
             bytes: first,
             len: 10,
-        }),
-        Ok(ReadReport {
+        },
+        ReadReport {
             bytes: second,
             len: 22,
-        }),
-    ]);
-    let answer = ApduBuffer::depacketize(LEDGER_CHANNEL, reads).unwrap();
-    assert_eq!(&*answer, &[7; 20]);
+        },
+    ];
+    assert_eq!(read_from(Progress::START, reports).unwrap(), [7; 20]);
 }
 
 #[test]
-fn an_answer_without_a_status_word_is_read_in_full_then_rejected() {
-    for response in [&[][..], &[0x90]] {
-        let reports = device_reports(LEDGER_CHANNEL, response);
-        let err = ApduAnswer::depacketize(LEDGER_CHANNEL, full_reads(reports)).unwrap_err();
-        assert!(
-            matches!(err, ReadFailure::Answer(LedgerError::ResponseTooShort(len)) if len == response.len()),
-            "{err:?}"
-        );
-    }
+fn padding_past_the_response_length_is_dropped() {
+    // A 2-byte response in a full 64-byte report: the rest is padding.
+    let mut report = device_reports(LEDGER_CHANNEL, &[0x90, 0x00]).remove(0);
+    report[9..].fill(0xaa);
+    assert_eq!(read_reply(vec![report]).unwrap(), [0x90, 0x00]);
 }
 
 #[test]
-fn response_longer_than_a_short_apdu_is_rejected_before_reading_on() {
-    // Length 262. A second read would panic.
+fn response_longer_than_a_short_apdu_is_rejected_on_the_first_report() {
+    // Length 262.
     let mut report = [0u8; LEDGER_PACKET_READ_SIZE];
     report[..7].copy_from_slice(&[0x01, 0x01, 0x05, 0x00, 0x00, 0x01, 0x06]);
-    let err = ApduBuffer::depacketize(LEDGER_CHANNEL, full_reads(vec![report])).unwrap_err();
-    assert!(matches!(
-        framing(err),
-        NativeTransportError::ResponseTooLong(262)
-    ));
+    let err = read_reply(vec![report]).unwrap_err();
+    assert!(matches!(err, NativeTransportError::ResponseTooLong(262)));
 }
 
 #[test]
 fn sequence_mismatch_is_detected() {
     let mut reports = device_reports(LEDGER_CHANNEL, &[1; 100]);
     reports[1][3..5].copy_from_slice(&[0, 2]);
-    let err = ApduBuffer::depacketize(LEDGER_CHANNEL, full_reads(reports)).unwrap_err();
+    let err = read_reply(reports).unwrap_err();
     assert!(matches!(
-        framing(err),
+        err,
         NativeTransportError::SequenceMismatch {
             got: 2,
             expected: 1
@@ -354,9 +334,9 @@ fn sequence_mismatch_is_detected() {
 #[test]
 fn a_report_from_another_channel_is_rejected() {
     let reports = device_reports(0x0102, &[0x90, 0x00]);
-    let err = ApduBuffer::depacketize(LEDGER_CHANNEL, full_reads(reports)).unwrap_err();
+    let err = read_reply(reports).unwrap_err();
     assert!(matches!(
-        framing(err),
+        err,
         NativeTransportError::UnexpectedChannel {
             got: 0x0102,
             expected: LEDGER_CHANNEL
@@ -368,104 +348,96 @@ fn a_report_from_another_channel_is_rejected() {
 fn a_report_with_the_wrong_tag_is_rejected() {
     let mut reports = device_reports(LEDGER_CHANNEL, &[0x90, 0x00]);
     reports[0][2] = 0x06;
-    let err = ApduBuffer::depacketize(LEDGER_CHANNEL, full_reads(reports)).unwrap_err();
-    assert!(matches!(
-        framing(err),
-        NativeTransportError::UnexpectedTag(0x06)
-    ));
+    let err = read_reply(reports).unwrap_err();
+    assert!(matches!(err, NativeTransportError::UnexpectedTag(0x06)));
 }
 
 #[test]
 fn truncated_reports_are_errors() {
     let report = device_reports(LEDGER_CHANNEL, &[0x90, 0x00]).remove(0);
     for len in [0, 4, 6] {
-        let reads = reader([Ok(ReadReport { bytes: report, len })]);
-        let err = ApduBuffer::depacketize(LEDGER_CHANNEL, reads).unwrap_err();
-        assert!(matches!(framing(err), NativeTransportError::TruncatedReport(got) if got == len));
+        let err = read_from(Progress::START, [ReadReport { bytes: report, len }]).unwrap_err();
+        assert!(matches!(err, NativeTransportError::TruncatedReport(got) if got == len));
     }
 
-    // A continuation report with no payload must not spin forever. A third
-    // read would panic.
+    // A continuation report with no payload must not spin forever.
     let raw = device_reports(LEDGER_CHANNEL, &[1; 100]);
-    let reads = reader([
-        Ok(full(raw[0])),
-        Ok(ReadReport {
+    let reports = [
+        full(raw[0]),
+        ReadReport {
             bytes: raw[1],
             len: 5,
-        }),
-    ]);
-    let err = ApduBuffer::depacketize(LEDGER_CHANNEL, reads).unwrap_err();
-    assert!(matches!(framing(err), NativeTransportError::EmptyReport));
+        },
+    ];
+    let err = read_from(Progress::START, reports).unwrap_err();
+    assert!(matches!(err, NativeTransportError::EmptyReport));
 }
 
 // ---------------------------------------------------------------------------
-// Read failures and draining
+// Progress, which is what a device owes after a read fails
 
 #[test]
-fn a_read_failure_before_any_report_owes_the_whole_reply() {
-    let err = ApduBuffer::depacketize(LEDGER_CHANNEL, then_time_out(vec![])).unwrap_err();
-    assert!(matches!(
-        err,
-        ReadFailure::Read {
-            err: LedgerError::Timeout(_),
-            owed: Progress::START
-        }
-    ));
+fn nothing_is_done_before_the_first_report() {
+    assert!(!Progress::START.is_done());
 }
 
 #[test]
-fn a_read_failure_mid_reply_owes_the_rest_which_drains() {
+fn an_empty_response_is_done_after_one_report() {
+    let mut progress = Progress::START;
+    let report = device_reports(LEDGER_CHANNEL, &[]).remove(0);
+    let payload = progress.accept(LEDGER_CHANNEL, full(report)).unwrap();
+    assert!(payload.is_empty());
+    assert!(progress.is_done());
+}
+
+#[test]
+fn progress_mid_reply_owes_the_rest_which_drains() {
     // 102 bytes: 57 in the first report, 45 in the second.
     let response: Vec<u8> = (0..102).collect();
-    let mut reports = device_reports(LEDGER_CHANNEL, &response);
-    let second = reports.pop().unwrap();
+    let reports = device_reports(LEDGER_CHANNEL, &response);
 
-    let err = ApduBuffer::depacketize(LEDGER_CHANNEL, then_time_out(reports)).unwrap_err();
-    let ReadFailure::Read { owed, .. } = err else {
-        panic!("expected a read failure, got {err:?}");
-    };
+    let mut progress = Progress::START;
+    let first = progress.accept(LEDGER_CHANNEL, full(reports[0])).unwrap();
+    assert_eq!(*first, response[..57]);
     assert_eq!(
-        owed,
+        progress,
         Progress {
             next_seq: 1,
             remaining: 45
         }
     );
+    assert!(!progress.is_done());
 
-    // Draining takes only the rest of the reply. A second read would panic.
-    owed.drain(LEDGER_CHANNEL, full_reads(vec![second]))
-        .unwrap();
+    // Draining takes exactly the rest of the reply.
+    let rest = read_from(progress, [full(reports[1])]).unwrap();
+    assert_eq!(rest, response[57..]);
 }
 
 #[test]
-fn a_read_failure_while_draining_owes_what_is_left() {
+fn progress_resumes_from_an_owed_state() {
     let response: Vec<u8> = (0..200).collect();
     let reports = device_reports(LEDGER_CHANNEL, &response);
-    let owed = Progress {
+    let mut owed = Progress {
         next_seq: 1,
         remaining: 200 - 57,
     };
-    let err = owed
-        .drain(LEDGER_CHANNEL, then_time_out(vec![reports[1]]))
-        .unwrap_err();
-    assert!(matches!(
-        err,
-        ReadFailure::Read {
-            owed: Progress {
-                next_seq: 2,
-                remaining: 84
-            },
-            ..
+    owed.accept(LEDGER_CHANNEL, full(reports[1])).unwrap();
+    assert_eq!(
+        owed,
+        Progress {
+            next_seq: 2,
+            remaining: 84
         }
-    ));
+    );
 }
 
 #[test]
-fn framing_errors_are_told_apart_from_read_failures() {
-    let reports = device_reports(0xbeef, &[0x90, 0x00]);
-    let err = ApduBuffer::depacketize(LEDGER_CHANNEL, then_time_out(reports)).unwrap_err();
-    assert!(matches!(
-        framing(err),
-        NativeTransportError::UnexpectedChannel { .. }
-    ));
+fn a_framing_error_leaves_progress_unchanged() {
+    let mut reports = device_reports(LEDGER_CHANNEL, &[1; 100]);
+    reports[1][0] = 0xbe;
+    let mut progress = Progress::START;
+    progress.accept(LEDGER_CHANNEL, full(reports[0])).unwrap();
+    let before = progress;
+    assert!(progress.accept(LEDGER_CHANNEL, full(reports[1])).is_err());
+    assert_eq!(progress, before);
 }

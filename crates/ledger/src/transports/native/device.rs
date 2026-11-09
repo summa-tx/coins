@@ -10,12 +10,10 @@ use tracing::{Span, field::display, instrument};
 
 use super::{
     hid::{HidDeviceId, HidJob, HidThread},
-    report::{
-        LEDGER_CHANNEL, LEDGER_PACKET_READ_SIZE, Progress, ReadFailure, ReadReport, WriteReport,
-    },
+    report::{LEDGER_CHANNEL, LEDGER_PACKET_READ_SIZE, Payload, Progress, ReadReport, WriteReport},
 };
 use crate::{
-    common::{ApduAnswer, ApduCommand},
+    common::{ApduAnswer, ApduBuffer, ApduCommand},
     errors::LedgerError,
     transports::native::error::NativeTransportError,
 };
@@ -129,20 +127,17 @@ impl HidLedgerDevice {
     ) -> Result<ApduAnswer, LedgerError> {
         // A broken device is not refused: what is owed is unknown, so nothing
         // is dropped.
-        match self.state {
-            State::Ready | State::Broken => {}
-            State::Owed(owed) => {
-                let drained = owed.drain(LEDGER_CHANNEL, self.reader(timeout));
-                self.settle(drained)?;
-                tracing::debug!("Dropped the rest of a reply to an earlier exchange");
-            }
+        if let State::Owed(owed) = self.state {
+            self.read_reply(owed, timeout, &mut ApduBuffer::new())?;
+            tracing::debug!("Dropped the rest of a reply to an earlier exchange");
         }
 
         // A failed write leaves no reply owed: the device did not get a whole
         // command.
         self.write_command(command)?;
-        let answer = ApduAnswer::depacketize(LEDGER_CHANNEL, self.reader(timeout));
-        self.settle(answer)?.into_result()
+        let mut answer = ApduBuffer::new();
+        self.read_reply(Progress::START, timeout, &mut answer)?;
+        ApduAnswer::from_answer(answer)?.into_result()
     }
 
     /// Write `command` to the device as a series of reports.
@@ -163,58 +158,40 @@ impl HidLedgerDevice {
         Ok(())
     }
 
-    /// Reads one report from the device per call, waiting up to `timeout`.
-    fn reader(
-        &self,
+    /// Read the rest of a reply into `buf`, starting from `progress`, and
+    /// record what the device still owes. The state becomes [`State::Ready`]
+    /// once the reply is read, [`State::Owed`] with the progress made if a
+    /// report cannot be read, and [`State::Broken`] if a report breaks
+    /// framing.
+    fn read_reply(
+        &mut self,
+        progress: Progress,
         timeout: Option<Duration>,
-    ) -> impl FnMut() -> Result<ReadReport, LedgerError> + '_ {
-        // hidapi takes milliseconds, or -1 to block. Sub-millisecond timeouts
-        // round up; longer than `i32::MAX` ms clamps.
-        let timeout_ms = match timeout {
-            None => -1,
-            Some(timeout) => timeout
-                .as_micros()
-                .div_ceil(1000)
-                .try_into()
-                .unwrap_or(i32::MAX),
+        buf: &mut ApduBuffer,
+    ) -> Result<(), LedgerError> {
+        let mut reply = Reply {
+            device: &self.device,
+            timeout,
+            progress,
+            failed: false,
         };
-        move || {
-            let mut bytes = [0; LEDGER_PACKET_READ_SIZE];
-            let len = self
-                .device
-                .read_timeout(&mut bytes, timeout_ms)
-                .map_err(NativeTransportError::Hid)?;
-            // hidapi returns 0 only on timeout, which a blocking read rules out.
-            match (len, timeout) {
-                (0, Some(timeout)) => Err(LedgerError::Timeout(timeout)),
-                _ => Ok(ReadReport { bytes, len }),
+        while let Some(payload) = reply.next() {
+            match payload {
+                Ok(payload) => buf
+                    .extend_from_slice(&payload)
+                    .expect("a reply is capped at CAPACITY"),
+                Err(ReadFailure::Read(err)) => {
+                    self.state = State::Owed(reply.progress);
+                    return Err(err);
+                }
+                Err(ReadFailure::Framing(err)) => {
+                    self.state = State::Broken;
+                    return Err(err.into());
+                }
             }
         }
-    }
-
-    /// Record what reading a reply left owed. The state becomes
-    /// [`State::Ready`] once the reply is read, even if it is not a valid
-    /// answer, [`State::Owed`] with the progress made if a report cannot be
-    /// read, and [`State::Broken`] if a report breaks framing.
-    fn settle<T>(&mut self, result: Result<T, ReadFailure>) -> Result<T, LedgerError> {
-        match result {
-            Ok(read) => {
-                self.state = State::Ready;
-                Ok(read)
-            }
-            Err(ReadFailure::Read { err, owed }) => {
-                self.state = State::Owed(owed);
-                Err(err)
-            }
-            Err(ReadFailure::Framing(err)) => {
-                self.state = State::Broken;
-                Err(err.into())
-            }
-            Err(ReadFailure::Answer(err)) => {
-                self.state = State::Ready;
-                Err(err)
-            }
-        }
+        self.state = State::Ready;
+        Ok(())
     }
 
     /// True if a report broke framing since the last whole reply, so what
@@ -250,6 +227,75 @@ impl HidLedgerDevice {
         let device = api.wrap_sys_device(usb_fd as isize, -1)?;
         let id = HidDeviceId::from_info(&device.get_device_info()?);
         Ok(Some(Self::new(device, id)))
+    }
+}
+
+/// Why reading a report of a reply failed.
+#[derive(Debug)]
+enum ReadFailure {
+    /// The report could not be read. It may yet arrive.
+    Read(LedgerError),
+    /// The report broke framing.
+    Framing(NativeTransportError),
+}
+
+/// The payload of one reply, a report at a time. Ends when the reply is
+/// complete, or after the first error.
+#[derive(Debug)]
+struct Reply<'a> {
+    device: &'a HidDevice,
+    /// How long to wait for each report. `None` waits indefinitely.
+    timeout: Option<Duration>,
+    progress: Progress,
+    failed: bool,
+}
+
+impl Reply<'_> {
+    /// Read one report from the device, waiting up to `timeout`.
+    fn read_report(&self) -> Result<ReadReport, LedgerError> {
+        // hidapi takes milliseconds, or -1 to block. Sub-millisecond timeouts
+        // round up; longer than `i32::MAX` ms clamps.
+        let timeout_ms = match self.timeout {
+            None => -1,
+            Some(timeout) => timeout
+                .as_micros()
+                .div_ceil(1000)
+                .try_into()
+                .unwrap_or(i32::MAX),
+        };
+
+        let mut bytes = [0; LEDGER_PACKET_READ_SIZE];
+        let len = self
+            .device
+            .read_timeout(&mut bytes, timeout_ms)
+            .map_err(NativeTransportError::Hid)?;
+
+        // hidapi returns 0 only on timeout, which a blocking read rules out.
+        match (len, self.timeout) {
+            (0, Some(timeout)) => Err(LedgerError::Timeout(timeout)),
+            _ => Ok(ReadReport { bytes, len }),
+        }
+    }
+}
+
+impl Iterator for Reply<'_> {
+    type Item = Result<Payload, ReadFailure>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.failed || self.progress.is_done() {
+            return None;
+        }
+
+        tracing::trace!(progress = ?self.progress, "Reading report from device");
+        let payload = match self.read_report() {
+            Ok(report) => self
+                .progress
+                .accept(LEDGER_CHANNEL, report)
+                .map_err(ReadFailure::Framing),
+            Err(err) => Err(ReadFailure::Read(err)),
+        };
+        self.failed = payload.is_err();
+        Some(payload)
     }
 }
 
