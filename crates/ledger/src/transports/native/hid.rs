@@ -24,6 +24,12 @@ use crate::{Model, transports::native::error::NativeTransportError};
 const LEDGER_VID: u16 = 0x2c97;
 const LEDGER_USAGE_PAGE: u16 = 0xFFA0;
 
+/// The HID context thread. See [`HidThread`].
+static HID_THREAD: LazyLock<HidThread> = LazyLock::new(HidThread::spawn);
+
+/// A reply to a [`HidJob`]: its output, or the panic it raised.
+type Reply<T> = SyncSender<thread::Result<Result<T, NativeTransportError>>>;
+
 /// A connected Ledger's APDU interface, as [`HidLedgerDevice::list`]
 /// found it. Opens the device via [`HidLedgerDevice::open`]. Valid until
 /// the device is unplugged; the path is reassigned on the next plug-in.
@@ -102,9 +108,6 @@ impl fmt::Display for HidDeviceId {
     }
 }
 
-/// A reply to a [`HidJob`]: its output, or the panic it raised.
-type Reply<T> = SyncSender<thread::Result<Result<T, NativeTransportError>>>;
-
 /// A hidapi context call, carrying the channel its output goes back on.
 #[derive(Debug)]
 pub(super) enum HidJob {
@@ -119,7 +122,7 @@ pub(super) enum HidJob {
     OpenFirst { reply: Reply<HidLedgerDevice> },
 }
 
-/// A request to [`HID_THREAD`].
+/// A request to the [`HidThread`].
 #[derive(Debug)]
 struct HidRequest {
     job: HidJob,
@@ -128,26 +131,9 @@ struct HidRequest {
     span: Span,
 }
 
-/// Build a job around a fresh reply channel, run it on [`HID_THREAD`] inside
-/// the caller's current span, and wait for its output. A panic in the job is
-/// propagated to the caller.
-pub(super) fn submit<T>(job: impl FnOnce(Reply<T>) -> HidJob) -> Result<T, NativeTransportError> {
-    let (reply, output) = sync_channel(1);
-    HID_THREAD
-        .send(HidRequest {
-            job: job(reply),
-            span: Span::current(),
-        })
-        .map_err(|_| NativeTransportError::HidThreadUnavailable)?;
-    match output.recv() {
-        Ok(Ok(output)) => output,
-        Ok(Err(panic)) => resume_unwind(panic),
-        Err(_) => Err(NativeTransportError::HidThreadUnavailable),
-    }
-}
-
-/// The thread that runs every hidapi context call, started on first use and
-/// kept for the life of the process.
+/// A handle to the thread that runs every hidapi context call. There is one,
+/// started on first use and kept for the life of the process; get it with
+/// [`HidThread::get`].
 ///
 /// hidapi's macOS backend schedules its global device manager on the run
 /// loop of the thread that first initializes it, and holds that run loop
@@ -156,34 +142,69 @@ pub(super) fn submit<T>(job: impl FnOnce(Reply<T>) -> HidJob) -> Result<T, Nativ
 /// thread alive for the life of the process, and doing every context call
 /// there, avoids that. Device I/O does not touch the manager and stays on
 /// the caller's thread.
-static HID_THREAD: LazyLock<SyncSender<HidRequest>> = LazyLock::new(spawn_hid_thread);
+#[derive(Debug)]
+pub(super) struct HidThread {
+    tx: SyncSender<HidRequest>,
+}
 
-/// Spawn the HID context thread. Requests travel by value over a rendezvous
-/// channel, and each carries its own reply channel.
-///
-/// Unlike a device's I/O thread, this thread must outlive any one call, so a
-/// panic in a job is caught and sent back to the caller rather than ending
-/// the thread.
-///
-/// # Panics
-///
-/// If the thread cannot be spawned.
-fn spawn_hid_thread() -> SyncSender<HidRequest> {
-    let (tx, rx) = sync_channel::<HidRequest>(0);
-    thread::Builder::new()
-        .name("coins-ledger-hid".into())
-        .spawn(move || {
-            for HidRequest { job, span } in rx {
-                let _entered = span.entered();
-                match job {
-                    HidJob::List { reply } => respond(reply, list_ledgers),
-                    HidJob::Open { id, reply } => respond(reply, || open_path(id)),
-                    HidJob::OpenFirst { reply } => respond(reply, open_first),
+impl HidThread {
+    /// The HID context thread, spawned on first use.
+    ///
+    /// # Panics
+    ///
+    /// If the thread cannot be spawned.
+    pub(super) fn get() -> &'static Self {
+        &HID_THREAD
+    }
+
+    /// Spawn the HID context thread. Requests travel by value over a
+    /// rendezvous channel, and each carries its own reply channel.
+    ///
+    /// Unlike a device's I/O thread, this thread must outlive any one call,
+    /// so a panic in a job is caught and sent back to the caller rather than
+    /// ending the thread.
+    ///
+    /// # Panics
+    ///
+    /// If the thread cannot be spawned.
+    fn spawn() -> Self {
+        let (tx, rx) = sync_channel::<HidRequest>(0);
+        thread::Builder::new()
+            .name("coins-ledger-hid".into())
+            .spawn(move || {
+                for HidRequest { job, span } in rx {
+                    let _entered = span.entered();
+                    match job {
+                        HidJob::List { reply } => respond(reply, list_ledgers),
+                        HidJob::Open { id, reply } => respond(reply, || open_path(id)),
+                        HidJob::OpenFirst { reply } => respond(reply, open_first),
+                    }
                 }
-            }
-        })
-        .expect("failed to spawn the HID context thread");
-    tx
+            })
+            .expect("failed to spawn the HID context thread");
+        Self { tx }
+    }
+
+    /// Build a job around a fresh reply channel, run it on this thread
+    /// inside the caller's current span, and wait for its output. A panic in
+    /// the job is propagated to the caller.
+    pub(super) fn submit<T>(
+        &self,
+        job: impl FnOnce(Reply<T>) -> HidJob,
+    ) -> Result<T, NativeTransportError> {
+        let (reply, output) = sync_channel(1);
+        self.tx
+            .send(HidRequest {
+                job: job(reply),
+                span: Span::current(),
+            })
+            .map_err(|_| NativeTransportError::HidThreadUnavailable)?;
+        match output.recv() {
+            Ok(Ok(output)) => output,
+            Ok(Err(panic)) => resume_unwind(panic),
+            Err(_) => Err(NativeTransportError::HidThreadUnavailable),
+        }
+    }
 }
 
 /// Run `f` and send its output, or its panic, back on `reply`.
@@ -193,7 +214,7 @@ fn respond<T>(reply: Reply<T>, f: impl FnOnce() -> Result<T, NativeTransportErro
     }
 }
 
-/// The Ledger APDU interfaces currently attached. Runs on [`HID_THREAD`].
+/// The Ledger APDU interfaces currently attached. Runs on [`HidThread`].
 fn list_ledgers() -> Result<Vec<HidDeviceId>, NativeTransportError> {
     let api = HidApi::new()?;
     Ok(HidDeviceId::ledgers(&api)
@@ -201,7 +222,7 @@ fn list_ledgers() -> Result<Vec<HidDeviceId>, NativeTransportError> {
         .collect())
 }
 
-/// Open the device at `id`. Runs on [`HID_THREAD`].
+/// Open the device at `id`. Runs on [`HidThread`].
 fn open_path(id: HidDeviceId) -> Result<HidLedgerDevice, NativeTransportError> {
     let device = HidApi::new()?
         .open_path(&id.path)
@@ -210,7 +231,7 @@ fn open_path(id: HidDeviceId) -> Result<HidLedgerDevice, NativeTransportError> {
 }
 
 /// Open the first Ledger found, or the device Termux hands over. Runs on
-/// [`HID_THREAD`].
+/// [`HidThread`].
 fn open_first() -> Result<HidLedgerDevice, NativeTransportError> {
     #[cfg(target_os = "android")]
     if let Some(device) = HidLedgerDevice::open_termux()? {

@@ -10,7 +10,7 @@ use hidapi::HidApi;
 use hidapi::HidDevice;
 use tracing::{Span, field::display, instrument};
 
-use super::hid::{self, HidDeviceId, HidJob};
+use super::hid::{HidDeviceId, HidJob, HidThread};
 use crate::{
     common::{ApduAnswer, ApduBuffer, ApduCommand},
     errors::LedgerError,
@@ -256,7 +256,7 @@ impl HidLedgerDevice {
     /// If the HID context thread cannot be spawned, on first use.
     #[instrument(level = "debug")]
     pub fn list() -> Result<Vec<HidDeviceId>, NativeTransportError> {
-        hid::submit(|reply| HidJob::List { reply })
+        HidThread::get().submit(|reply| HidJob::List { reply })
     }
 
     /// Open `id`. Fails as [`NativeTransportError::CantOpen`] if the device
@@ -268,7 +268,7 @@ impl HidLedgerDevice {
     /// If the HID context thread cannot be spawned, on first use.
     #[instrument(level = "debug", skip_all, fields(id = %id))]
     pub fn open(id: &HidDeviceId) -> Result<Self, NativeTransportError> {
-        hid::submit(|reply| HidJob::Open {
+        HidThread::get().submit(|reply| HidJob::Open {
             id: id.clone(),
             reply,
         })
@@ -286,9 +286,11 @@ impl HidLedgerDevice {
     /// If the HID context thread cannot be spawned, on first use.
     #[instrument(level = "debug", fields(id))]
     pub fn open_first() -> Result<Self, NativeTransportError> {
-        hid::submit(|reply| HidJob::OpenFirst { reply }).inspect(|device| {
-            Span::current().record("id", display(&device.id));
-        })
+        HidThread::get()
+            .submit(|reply| HidJob::OpenFirst { reply })
+            .inspect(|device| {
+                Span::current().record("id", display(&device.id));
+            })
     }
 
     /// Get manufacturer string. Returns None on error, or on no string.
