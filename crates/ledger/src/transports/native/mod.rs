@@ -66,25 +66,20 @@ struct ApduExchange {
 ///
 /// # Exclusive access
 ///
-/// Another client of the same Ledger, such as Ledger Live or a browser
-/// using WebHID, can consume replies meant for this handle. Whether an open
-/// keeps other clients out depends on the platform:
+/// This library requires exclusive access to the device. When multiple
+/// processes connect to the same device, communication may be accidentally
+/// interleaved. Accidentally interleaved communication will almost certainly
+/// result in an error. However, malicious interleaving cannot be ruled out.
 ///
-/// - **macOS** and **Android (Termux)**: exclusive. The open fails while
-///   another client holds the device, and keeps others out until this
-///   handle is dropped.
-/// - **Linux**: shared. To check for other clients, run `fuser -v` on the
+/// - On **macOS** and **Android (Termux)**, opening a device is exclusive. The
+///   open fails while another client holds the device, and keeps others out
+///   until this handle is dropped.
+/// - On **Linux**, you can check for other clients by running `fuser -v` on the
 ///   `/dev/hidraw*` node from [`HidTransport::id`] and
-///   [`HidDeviceId::path`]. Nothing enforces exclusivity: a udev rule can
-///   restrict the node to one user, but that user's other processes can
-///   still open it. Quit other Ledger clients first.
-/// - **Windows**: shared. To check for other clients, search for the
+///   [`HidDeviceId::path`]. Nothing enforces exclusivity.
+/// - On **Windows**, you can check for other clients by searching for the
 ///   device's [path](HidDeviceId::path) in Sysinternals Handle or Process
-///   Explorer.
-///   Nothing enforces exclusivity. Quit other Ledger clients first.
-///
-/// Where opens are shared, two handles to one device in the same process
-/// are allowed too, and their exchanges interleave.
+///   Explorer. Nothing enforces exclusivity.
 #[derive(Debug)]
 pub struct HidTransport {
     io: IoThread,
@@ -92,12 +87,10 @@ pub struct HidTransport {
 }
 
 impl HidTransport {
-    /// Every Ledger APDU interface attached right now. Enumerates afresh on
-    /// each call.
+    /// Enumerate available ledgers.
     ///
     /// On Android under Termux, which cannot enumerate USB devices, this is
-    /// empty. Use [`HidTransport::open_first`], which takes the device Termux
-    /// hands over.
+    /// empty. Use [`HidTransport::open_first`].
     ///
     /// # Panics
     ///
@@ -117,9 +110,8 @@ impl HidTransport {
         HidLedgerDevice::open(id).map(Self::from_device)
     }
 
-    /// Open the first Ledger found. Devices are enumerated afresh on every
-    /// call. On Android under Termux, which cannot enumerate, this opens the
-    /// device `termux-usb` hands over instead.
+    /// Open the first Ledger found. On Android under Termux, which cannot
+    /// enumerate, this opens whatever device `termux-usb` hands over instead.
     ///
     /// Where opens are [exclusive](HidTransport#exclusive-access), this fails
     /// while another client, or another handle in this process, holds it.
@@ -143,7 +135,7 @@ impl HidTransport {
     /// If a background thread cannot be spawned.
     fn from_device(device: HidLedgerDevice) -> Self {
         let id = device.id().clone();
-        let io = IoActor::spawn(device);
+        let io = IoThread::spawn(device);
         Self { io, id }
     }
 }
@@ -166,15 +158,39 @@ impl LedgerTransport for HidTransport {
     }
 }
 
-/// A handle to the thread that drives one device's blocking I/O, one
-/// exchange at a time. The thread ends, dropping the device, when the handle
-/// is dropped or after a framing error. Made by [`IoActor::spawn`].
+/// A handle to the thread that drives a device's blocking I/O.
+/// When this handle is dropped, the background thread will terminate.
 #[derive(Debug)]
 struct IoThread {
     tx: mpsc::Sender<ApduExchange>,
 }
 
 impl IoThread {
+    /// Spawn the I/O thread for `device` and return its handle.
+    ///
+    /// # Panics
+    ///
+    /// If the thread cannot be spawned.
+    fn spawn(device: HidLedgerDevice) -> IoThread {
+        let (tx, rx) = mpsc::channel(1);
+        std::thread::Builder::new()
+            .name("coins-ledger-io".into())
+            .spawn(move || {
+                let mut actor = IoActor { rx, device };
+                while let Some(exchange) = actor.rx.blocking_recv() {
+                    actor.handle(exchange);
+                    // What the device owes is unknown, so a later reply could
+                    // be misread. Close it.
+                    if actor.device.is_broken() {
+                        debug!("closing the device after a framing error");
+                        break;
+                    }
+                }
+            })
+            .expect("failed to spawn the Ledger I/O thread");
+        Self { tx }
+    }
+
     /// Run `command` on this thread inside the caller's current span, and
     /// wait for its answer.
     async fn submit(
@@ -198,38 +214,13 @@ impl IoThread {
 }
 
 /// The state of one device's I/O thread: the device it drives. Started by
-/// [`IoActor::spawn`]; reached through an [`IoThread`].
+/// [`IoThread::spawn`]; reached through an [`IoThread`].
 struct IoActor {
     rx: mpsc::Receiver<ApduExchange>,
     device: HidLedgerDevice,
 }
 
 impl IoActor {
-    /// Spawn the I/O thread for `device` and return its handle.
-    ///
-    /// # Panics
-    ///
-    /// If the thread cannot be spawned.
-    fn spawn(device: HidLedgerDevice) -> IoThread {
-        let (tx, rx) = mpsc::channel(1);
-        std::thread::Builder::new()
-            .name("coins-ledger-io".into())
-            .spawn(move || {
-                let mut actor = Self { rx, device };
-                while let Some(exchange) = actor.rx.blocking_recv() {
-                    actor.handle(exchange);
-                    // What the device owes is unknown, so a later reply could
-                    // be misread. Close it.
-                    if actor.device.is_broken() {
-                        debug!("closing the device after a framing error");
-                        break;
-                    }
-                }
-            })
-            .expect("failed to spawn the Ledger I/O thread");
-        IoThread { tx }
-    }
-
     /// Run one exchange inside its span and send back the answer.
     fn handle(
         &mut self,

@@ -21,7 +21,7 @@ const LEDGER_VID: u16 = 0x2c97;
 const LEDGER_USAGE_PAGE: u16 = 0xFFA0;
 
 /// The HID context thread. See [`HidThread`].
-static HID_THREAD: LazyLock<HidThread> = LazyLock::new(HidActor::spawn);
+static HID_THREAD: LazyLock<HidThread> = LazyLock::new(HidThread::spawn);
 
 /// A reply to a [`HidJob`]: its output, or the panic it raised.
 type Reply<T> = SyncSender<thread::Result<Result<T, NativeTransportError>>>;
@@ -157,6 +157,37 @@ impl HidThread {
         &HID_THREAD
     }
 
+    /// Spawn the HID context thread and return its handle. Requests travel
+    /// by value over a rendezvous channel, and each carries its own reply
+    /// channel. The thread handles requests until every handle is dropped.
+    ///
+    /// If hidapi fails to initialize, the error is logged and the thread
+    /// exits, so every request fails as
+    /// [`NativeTransportError::HidThreadUnavailable`].
+    ///
+    /// # Panics
+    ///
+    /// If the thread cannot be spawned.
+    fn spawn() -> HidThread {
+        let (tx, rx) = sync_channel(0);
+        thread::Builder::new()
+            .name("coins-ledger-hid".into())
+            .spawn(move || {
+                let mut actor = match HidActor::boot(rx) {
+                    Ok(actor) => actor,
+                    Err(err) => {
+                        error!(%err, "failed to initialize hidapi");
+                        return;
+                    }
+                };
+                while let Ok(request) = actor.rx.recv() {
+                    actor.handle(request);
+                }
+            })
+            .expect("failed to spawn the HID context thread");
+        Self { tx }
+    }
+
     /// Build a job around a fresh reply channel, run it on this thread
     /// inside the caller's current span, and wait for its output. A panic in
     /// the job is propagated to the caller.
@@ -179,7 +210,7 @@ impl HidThread {
     }
 }
 
-/// The state of the HID context thread. Started by [`HidActor::spawn`];
+/// The state of the HID context thread. Started by [`HidThread::spawn`];
 /// reached through a [`HidThread`].
 ///
 /// Unlike a device's I/O thread, this thread must outlive any one call, so a
@@ -191,37 +222,6 @@ struct HidActor {
 }
 
 impl HidActor {
-    /// Spawn the HID context thread and return its handle. Requests travel
-    /// by value over a rendezvous channel, and each carries its own reply
-    /// channel. The thread handles requests until every handle is dropped.
-    ///
-    /// If hidapi fails to initialize, the error is logged and the thread
-    /// exits, so every request fails as
-    /// [`NativeTransportError::HidThreadUnavailable`].
-    ///
-    /// # Panics
-    ///
-    /// If the thread cannot be spawned.
-    fn spawn() -> HidThread {
-        let (tx, rx) = sync_channel(0);
-        thread::Builder::new()
-            .name("coins-ledger-hid".into())
-            .spawn(move || {
-                let mut actor = match Self::boot(rx) {
-                    Ok(actor) => actor,
-                    Err(err) => {
-                        error!(%err, "failed to initialize hidapi");
-                        return;
-                    }
-                };
-                while let Ok(request) = actor.rx.recv() {
-                    actor.handle(request);
-                }
-            })
-            .expect("failed to spawn the HID context thread");
-        HidThread { tx }
-    }
-
     /// Initialize the hidapi context. Runs on the HID context thread.
     fn boot(rx: Receiver<HidRequest>) -> Result<Self, NativeTransportError> {
         // Termux cannot enumerate, and discovery can only be disabled before
