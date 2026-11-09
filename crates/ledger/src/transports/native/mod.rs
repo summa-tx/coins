@@ -16,6 +16,7 @@ pub use error::NativeTransportError;
 
 mod device;
 pub mod hid;
+mod report;
 pub use hid::{HidDeviceId, HidLedgerDevice};
 use tracing::{Span, debug, field::display};
 

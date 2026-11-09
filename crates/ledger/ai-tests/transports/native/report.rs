@@ -1,7 +1,7 @@
 //! AI-written tests for the HID report framing. A submodule of
-//! `src/transports/native/device.rs`.
+//! `src/transports/native/report.rs`.
 
-use std::iter;
+use std::{iter, time::Duration};
 
 use super::*;
 
