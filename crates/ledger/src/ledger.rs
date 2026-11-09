@@ -64,6 +64,12 @@ impl<T> Ledger<T> {
         self.timeout
     }
 
+    /// The underlying transport, for transport-specific queries such as
+    /// [`HidTransport::id`].
+    pub const fn transport(&self) -> &T {
+        &self.transport
+    }
+
     /// The underlying transport, for transport-specific operations such as
     /// recovering from a failed exchange.
     pub const fn transport_mut(&mut self) -> &mut T {
@@ -81,7 +87,7 @@ where
     }
 
     /// Exchange a packet with the device, waiting up to the configured
-    /// timeout for each report of the reply.
+    /// timeout. How the timeout applies depends on the transport.
     #[instrument(
         level = "debug",
         skip_all,

@@ -22,6 +22,11 @@ mod ai_tests;
 - `#[path]` resolves relative to the directory of the declaring file, so
   a file at `src/transports/native/hid.rs` declares
   `#[path = "../../../ai-tests/transports/native/hid.rs"]`.
+- Tests adapt to the code, never the reverse. Do not shape `src/` for
+  tests: no type or trait parameters, `pub`/`pub(crate)` widening,
+  `Option`/`Result` wrappers, error conversions, or other API surface
+  that only tests exercise. If something is hard to test through its real
+  signature, test it through a real caller or ask before changing it.
 - Human-written tests stay where they are: inline `mod test` blocks and
   the crate's `tests/` directory. Do not add Claude-written tests to
   either.

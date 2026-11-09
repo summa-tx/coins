@@ -13,17 +13,21 @@ pub enum NativeTransportError {
     ResponseTooLong(usize),
 
     /// Device not found error
-    #[error("Ledger device not found")]
+    #[error(
+        "No Ledger device found. Hint: connect and unlock the device, and close other apps using it, such as Ledger Live. On Linux, check the udev rules."
+    )]
     DeviceNotFound,
 
     /// Device open error.
     #[error(
-        "Error opening device. {0}. Hint: This usually means that the device is already in use by another transport instance."
+        "Could not open the Ledger device: {0}. Hint: This usually means that the device is already in use by another transport instance."
     )]
     CantOpen(hidapi::HidError),
 
     /// SequenceMismatch
-    #[error("Sequence mismatch. Got {got} from device. Expected {expected}")]
+    #[error(
+        "Report sequence mismatch: got {got}, expected {expected}. Hint: Is another process reading from the device?"
+    )]
     SequenceMismatch {
         /// The sequence returned by the device
         got: u16,
@@ -44,19 +48,21 @@ pub enum NativeTransportError {
     },
 
     /// A report carried an unexpected tag byte.
-    #[error("Unexpected report tag {0:#04x}")]
+    #[error("Unexpected report tag {0:#04x}. Hint: This may indicate an incompatible device.")]
     UnexpectedTag(u8),
 
     /// A report was shorter than its header. Carries the bytes read.
-    #[error("Truncated report: {0} bytes")]
+    #[error("Truncated report: {0} bytes. Hint: This may indicate an incompatible device.")]
     TruncatedReport(usize),
 
     /// A continuation report carried no payload.
-    #[error("Empty continuation report")]
+    #[error("Empty continuation report. Hint: This may indicate an incompatible device.")]
     EmptyReport,
 
     /// A write sent fewer bytes than a report.
-    #[error("Short write: {written} of {expected} bytes")]
+    #[error(
+        "Short write to the Ledger device: {written} of {expected} bytes. Hint: Is the device still connected?"
+    )]
     ShortWrite {
         /// Bytes the device accepted
         written: usize,
@@ -64,23 +70,27 @@ pub enum NativeTransportError {
         expected: usize,
     },
 
-    /// The thread that runs hidapi context calls could not be started or has
-    /// stopped.
-    #[error("The HID context thread is unavailable")]
+    /// HID discovery is unavailable for the rest of the process, because
+    /// hidapi failed to initialize.
+    #[error(
+        "HID discovery unavailable: hidapi failed to initialize. Hint: check that hidapi's system library is installed and the process can access USB devices."
+    )]
     HidThreadUnavailable,
 
-    /// The thread that drives the device has stopped.
-    #[error("The device I/O thread is unavailable")]
+    /// The transport is closed, after an error it cannot recover from or a
+    /// lost device. Reopen it.
+    #[error(
+        "Ledger transport closed. Hint: reopen it with `HidTransport::open` or `HidTransport::open_first`."
+    )]
     IoThreadUnavailable,
 
     /// HID error
-    #[error(transparent)]
+    #[error("HID I/O with the Ledger device failed: {0}. Hint: Is the device still connected?")]
     Hid(#[from] hidapi::HidError),
 
-    /// Termux USB FD env var does not exist or fails to parse. This error is
-    /// only returned by android-specific code paths, and may be safely ignored
-    /// by non-android users
-    #[error("Invalid TERMUX_USB_FD variable. Are you using termux-usb?")]
+    /// `TERMUX_USB_FD` is missing or does not parse. Returned only on Android,
+    /// when opening the first device under Termux.
+    #[error("TERMUX_USB_FD is missing or invalid. Hint: run the program through `termux-usb -e`.")]
     InvalidTermuxUsbFd,
 }
 
