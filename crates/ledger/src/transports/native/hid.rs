@@ -14,7 +14,7 @@ use std::{
 use hidapi::{DeviceInfo, HidApi};
 use tracing::{Span, debug, error};
 
-pub use super::device::HidLedgerDevice;
+use super::device::HidLedgerDevice;
 use crate::{Model, transports::native::error::NativeTransportError};
 
 const LEDGER_VID: u16 = 0x2c97;
@@ -26,9 +26,12 @@ static HID_THREAD: LazyLock<HidThread> = LazyLock::new(HidActor::spawn);
 /// A reply to a [`HidJob`]: its output, or the panic it raised.
 type Reply<T> = SyncSender<thread::Result<Result<T, NativeTransportError>>>;
 
-/// A connected Ledger's APDU interface, as [`HidLedgerDevice::list`]
-/// found it. Opens the device via [`HidLedgerDevice::open`]. Valid until
+/// A connected Ledger's APDU interface, as [`HidTransport::list`]
+/// found it. Opens the device via [`HidTransport::open`]. Valid until
 /// the device is unplugged; the path is reassigned on the next plug-in.
+///
+/// [`HidTransport::list`]: super::HidTransport::list
+/// [`HidTransport::open`]: super::HidTransport::open
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct HidDeviceId {
     /// What hidapi opens. Platform-specific and opaque.
@@ -87,7 +90,8 @@ impl HidDeviceId {
         self.product_string.as_deref()
     }
 
-    /// The platform HID path. Opaque; differs per OS and per plug-in.
+    /// The platform HID path, which may change on each plug-in. On Linux
+    /// this is the `/dev/hidraw*` node; elsewhere it is opaque.
     pub fn path(&self) -> &CStr {
         &self.path
     }

@@ -19,6 +19,13 @@ build for `wasm32` targets. The JS/WASM transport shipped in versions before
     can hand over the USB file descriptor. This path is untested.
 - `cargo build`
 
+# Features
+
+- `sync-hid`: exposes `HidLedgerDevice`, a blocking HID transport whose
+  exchanges run on the caller's thread.
+- `speculos`: adds a transport for the Speculos emulator. See
+  [Testing against Speculos](#testing-against-speculos).
+
 # Testing
 
 - run the unit tests
@@ -28,7 +35,7 @@ build for `wasm32` targets. The JS/WASM transport shipped in versions before
   - Unlock the device
   - Open the Ethereum application on the device
     - If you don't have the application, [install Ledger Live](https://support.ledger.com/hc/en-us/articles/360006395553) and follow [these instructions](https://support.ledger.com/hc/en-us/articles/360006523674-Install-or-uninstall-apps)
-  - `$ cargo test -p coins-ledger -- --ignored`
+  - `$ cargo test -p coins-ledger --features sync-hid -- --ignored`
 
 ## Testing against Speculos
 

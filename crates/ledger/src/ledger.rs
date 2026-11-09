@@ -64,6 +64,12 @@ impl<T> Ledger<T> {
         self.timeout
     }
 
+    /// The underlying transport, for transport-specific queries such as
+    /// [`HidTransport::id`].
+    pub const fn transport(&self) -> &T {
+        &self.transport
+    }
+
     /// The underlying transport, for transport-specific operations such as
     /// recovering from a failed exchange.
     pub const fn transport_mut(&mut self) -> &mut T {

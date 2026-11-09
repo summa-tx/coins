@@ -88,9 +88,8 @@ pub enum NativeTransportError {
     #[error("HID I/O with the Ledger device failed: {0}. Hint: Is the device still connected?")]
     Hid(#[from] hidapi::HidError),
 
-    /// Termux USB FD env var does not exist or fails to parse. This error is
-    /// only returned by android-specific code paths, and may be safely ignored
-    /// by non-android users
+    /// `TERMUX_USB_FD` is missing or does not parse. Returned only on Android,
+    /// when opening the first device under Termux.
     #[error("TERMUX_USB_FD is missing or invalid. Hint: run the program through `termux-usb -e`.")]
     InvalidTermuxUsbFd,
 }

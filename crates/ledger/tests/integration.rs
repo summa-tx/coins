@@ -1,15 +1,15 @@
 use serial_test::serial;
 
-use coins_ledger::{Ledger, common::*, transports::native::hid};
+use coins_ledger::{Ledger, common::*};
 
+#[cfg(feature = "sync-hid")]
 #[ignore]
 #[test]
 #[serial]
 fn ledger_device_path() {
-    let transport = hid::HidLedgerDevice::open_first().unwrap();
+    let transport = coins_ledger::transports::native::HidLedgerDevice::open_first().unwrap();
 
-    let manufacturer = transport.get_manufacturer_string();
-    println!("{manufacturer:?}");
+    println!("{}", transport.id());
 }
 
 #[ignore]

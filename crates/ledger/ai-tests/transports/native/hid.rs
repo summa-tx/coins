@@ -71,11 +71,7 @@ fn device_id_accessors() {
 #[ignore = "needs a Ledger device"]
 fn opening_while_the_previous_opener_thread_is_exiting() {
     let open = || {
-        let transport = HidLedgerDevice::open_first().expect("a Ledger is attached");
-        assert_eq!(
-            transport.get_manufacturer_string().as_deref(),
-            Some("Ledger")
-        );
+        HidLedgerDevice::open_first().expect("a Ledger is attached");
     };
     let (done, start) = std::sync::mpsc::channel();
     let first = std::thread::spawn(move || {
@@ -97,6 +93,6 @@ fn every_listed_device_opens() {
     assert!(!ids.is_empty(), "a Ledger is attached");
     for id in &ids {
         let device = HidLedgerDevice::open(id).expect("device opens");
-        assert_eq!(device.get_manufacturer_string().as_deref(), Some("Ledger"));
+        assert_eq!(device.id(), id);
     }
 }

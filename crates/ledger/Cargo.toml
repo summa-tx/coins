@@ -26,6 +26,9 @@ serde_json = { workspace = true, optional = true }
 futures-util = { version = "0.3", default-features = false, optional = true }
 
 [features]
+# Exposes `HidLedgerDevice`, a blocking HID transport that runs on the
+# caller's thread.
+sync-hid = []
 # The Speculos emulator transport.
 speculos = [
     "dep:reqwest",
@@ -38,7 +41,7 @@ speculos = [
 ]
 
 [package.metadata.docs.rs]
-features = ["speculos"]
+features = ["speculos", "sync-hid"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 # On Linux the default backend is hidraw, as in Ledger's own tooling.
@@ -50,6 +53,10 @@ hidapi = "2.6"
 # unify.
 [target.'cfg(target_os = "android")'.dependencies]
 hidapi = { version = "2.6", default-features = false, features = ["linux-static-libusb"] }
+
+[[example]]
+name = "sync_hid"
+required-features = ["sync-hid"]
 
 [dev-dependencies]
 tokio = { version = "1.34", features = ["rt", "macros"] }

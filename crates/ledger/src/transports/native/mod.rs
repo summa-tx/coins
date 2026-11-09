@@ -1,8 +1,7 @@
 //! APDU Transport for native HID.
 //!
 //! This module contains [`HidTransport`], the main USB access point for ledger
-//! devices. [`HidTransport`] implements [`LedgerTransport`] over a
-//! [`HidLedgerDevice`].
+//! devices. [`HidTransport`] implements [`LedgerTransport`].
 
 use crate::{
     ApduAnswer, ApduCommand, LedgerError,
@@ -15,9 +14,17 @@ mod error;
 pub use error::NativeTransportError;
 
 mod device;
-pub mod hid;
+#[cfg(feature = "sync-hid")]
+#[cfg_attr(docsrs, doc(cfg(feature = "sync-hid")))]
+pub use device::HidLedgerDevice;
+#[cfg(not(feature = "sync-hid"))]
+use device::HidLedgerDevice;
+
+mod hid;
+pub use hid::HidDeviceId;
+
 mod report;
-pub use hid::{HidDeviceId, HidLedgerDevice};
+
 use tracing::{Span, debug, field::display};
 
 /// A request to an [`IoActor`].
@@ -32,9 +39,10 @@ struct ApduExchange {
     span: Span,
 }
 
-/// A handle to the Ledger device. This represents exclusive device access.
-/// Dropping the handle closes the device once in-flight communications are
-/// completed.
+/// A handle to the Ledger device. Dropping the handle closes the device once
+/// in-flight communications are completed. See
+/// [Exclusive access](#exclusive-access) for whether other clients can use
+/// the device meanwhile.
 ///
 /// This transport implements [`LedgerTransport`] timeouts per packet: it
 /// waits up to `timeout` for each roundtrip with the device, so the timeout
@@ -47,28 +55,85 @@ struct ApduExchange {
 /// Generally instantiated via [`HidTransport::open_first`], but
 /// [`HidTransport::list`] allows scanning for [`HidDeviceId`]s that can be
 /// passed to [`HidTransport::open`].
+#[cfg_attr(
+    feature = "sync-hid",
+    doc = "\nFor blocking exchanges on the caller's thread, use [`HidLedgerDevice`]."
+)]
+#[cfg_attr(
+    not(feature = "sync-hid"),
+    doc = "\nFor blocking exchanges on the caller's thread, use `HidLedgerDevice`\n(with the `sync-hid` feature)."
+)]
+///
+/// # Exclusive access
+///
+/// Another client of the same Ledger, such as Ledger Live or a browser
+/// using WebHID, can consume replies meant for this handle. Whether an open
+/// keeps other clients out depends on the platform:
+///
+/// - **macOS** and **Android (Termux)**: exclusive. The open fails while
+///   another client holds the device, and keeps others out until this
+///   handle is dropped.
+/// - **Linux**: shared. To check for other clients, run `fuser -v` on the
+///   `/dev/hidraw*` node from [`HidTransport::id`] and
+///   [`HidDeviceId::path`]. Nothing enforces exclusivity: a udev rule can
+///   restrict the node to one user, but that user's other processes can
+///   still open it. Quit other Ledger clients first.
+/// - **Windows**: shared. To check for other clients, search for the
+///   device's [path](HidDeviceId::path) in Sysinternals Handle or Process
+///   Explorer.
+///   Nothing enforces exclusivity. Quit other Ledger clients first.
+///
+/// Where opens are shared, two handles to one device in the same process
+/// are allowed too, and their exchanges interleave.
 #[derive(Debug)]
 pub struct HidTransport {
     io: IoThread,
-    identity: HidDeviceId,
+    id: HidDeviceId,
 }
 
 impl HidTransport {
-    /// List available Ledger devices. Empty under Termux; see
-    /// [`HidLedgerDevice::list`].
+    /// Every Ledger APDU interface attached right now. Enumerates afresh on
+    /// each call.
+    ///
+    /// On Android under Termux, which cannot enumerate USB devices, this is
+    /// empty. Use [`HidTransport::open_first`], which takes the device Termux
+    /// hands over.
+    ///
+    /// # Panics
+    ///
+    /// On first use, if a background thread cannot be spawned.
     pub fn list() -> Result<Vec<HidDeviceId>, NativeTransportError> {
         HidLedgerDevice::list()
     }
 
-    /// Open `id`. See [`HidLedgerDevice::open`].
+    /// Open `id`. Fails as [`NativeTransportError::CantOpen`] if the device
+    /// was unplugged, or another client holds it where opens are
+    /// [exclusive](HidTransport#exclusive-access).
+    ///
+    /// # Panics
+    ///
+    /// If a background thread cannot be spawned.
     pub fn open(id: &HidDeviceId) -> Result<Self, NativeTransportError> {
-        HidLedgerDevice::open(id).map(Self::from_transport)
+        HidLedgerDevice::open(id).map(Self::from_device)
     }
 
-    /// Open the first Ledger found, or the device Termux hands over. See
-    /// [`HidLedgerDevice::open_first`].
+    /// Open the first Ledger found. Devices are enumerated afresh on every
+    /// call. On Android under Termux, which cannot enumerate, this opens the
+    /// device `termux-usb` hands over instead.
+    ///
+    /// Where opens are [exclusive](HidTransport#exclusive-access), this fails
+    /// while another client, or another handle in this process, holds it.
+    ///
+    /// # Panics
+    ///
+    /// If a background thread cannot be spawned.
     pub fn open_first() -> Result<Self, NativeTransportError> {
-        HidLedgerDevice::open_first().map(Self::from_transport)
+        HidLedgerDevice::open_first().map(Self::from_device)
+    }
+
+    /// The device this transport opened.
+    pub const fn id(&self) -> &HidDeviceId {
+        &self.id
     }
 
     /// Make a [`HidTransport`] from an open device.
@@ -76,18 +141,18 @@ impl HidTransport {
     /// # Panics
     ///
     /// If a background thread cannot be spawned.
-    pub fn from_transport(device: HidLedgerDevice) -> Self {
-        let identity = device.id().clone();
+    fn from_device(device: HidLedgerDevice) -> Self {
+        let id = device.id().clone();
         let io = IoActor::spawn(device);
-        Self { io, identity }
+        Self { io, id }
     }
 }
 
 impl LedgerTransport for HidTransport {
     fn identity(&self) -> Option<DeviceIdentity<'_>> {
         Some(DeviceIdentity {
-            model: self.identity.model(),
-            serial_number: self.identity.serial_number(),
+            model: self.id.model(),
+            serial_number: self.id.serial_number(),
         })
     }
 
@@ -96,7 +161,7 @@ impl LedgerTransport for HidTransport {
         command: ApduCommand,
         timeout: Option<Duration>,
     ) -> Result<ApduAnswer, LedgerError> {
-        Span::current().record("device", display(&self.identity));
+        Span::current().record("device", display(&self.id));
         self.io.submit(command, timeout).await
     }
 }

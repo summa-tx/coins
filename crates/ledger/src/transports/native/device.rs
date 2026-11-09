@@ -34,11 +34,20 @@ enum State {
     Broken,
 }
 
-/// An [`HidDevice`] that we know to be a Ledger.
+/// A blocking HID connection to a Ledger. Exchanges run on the caller's
+/// thread. For async use, open a [`HidTransport`] instead.
 ///
 /// After an exchange times out, the next one may also time out without
 /// sending its command, while the device finishes the earlier reply. After
 /// any other [`NativeTransportError`], reopen the device.
+///
+/// Whether other clients can use the device meanwhile depends on the
+/// platform. See [Exclusive access](crate::transports::HidTransport#exclusive-access).
+///
+/// [`HidTransport`]: crate::transports::HidTransport
+// Public only with `sync-hid`; otherwise the crate uses it internally.
+#[cfg_attr(not(feature = "sync-hid"), allow(unreachable_pub))]
+#[cfg_attr(docsrs, doc(cfg(feature = "sync-hid")))]
 #[derive(Debug)]
 pub struct HidLedgerDevice {
     device: HidDevice,
@@ -46,6 +55,7 @@ pub struct HidLedgerDevice {
     state: State,
 }
 
+#[cfg_attr(not(feature = "sync-hid"), allow(unreachable_pub))]
 impl HidLedgerDevice {
     pub(super) const fn new(device: HidDevice, id: HidDeviceId) -> Self {
         Self {
@@ -63,9 +73,9 @@ impl HidLedgerDevice {
     /// Every Ledger APDU interface attached right now. Enumerates afresh on
     /// each call.
     ///
-    /// Termux cannot enumerate USB devices, so this is empty there. Use
-    /// [`HidLedgerDevice::open_first`], which takes the device Termux
-    /// hands over.
+    /// On Android under Termux, which cannot enumerate USB devices, this is
+    /// empty. Use [`HidLedgerDevice::open_first`], which takes the device
+    /// Termux hands over.
     ///
     /// # Panics
     ///
@@ -76,8 +86,8 @@ impl HidLedgerDevice {
     }
 
     /// Open `id`. Fails as [`NativeTransportError::CantOpen`] if the device
-    /// was unplugged or another client holds it. Opens are exclusive on
-    /// macOS.
+    /// was unplugged, or another client holds it where opens are
+    /// [exclusive](crate::transports::HidTransport#exclusive-access).
     ///
     /// # Panics
     ///
@@ -91,11 +101,11 @@ impl HidLedgerDevice {
     }
 
     /// Open the first Ledger found. Devices are enumerated afresh on every
-    /// call. Under Termux, which cannot enumerate, this opens the device
-    /// `termux-usb` hands over instead.
+    /// call. On Android under Termux, which cannot enumerate, this opens the
+    /// device `termux-usb` hands over instead.
     ///
-    /// On macOS the device is opened exclusively, so this fails while another
-    /// process, or another transport in this one, holds it.
+    /// Where opens are [exclusive](crate::transports::HidTransport#exclusive-access), this fails
+    /// while another client, or another handle in this process, holds it.
     ///
     /// # Panics
     ///
@@ -107,11 +117,6 @@ impl HidLedgerDevice {
             .inspect(|device| {
                 Span::current().record("id", display(&device.id));
             })
-    }
-
-    /// Get manufacturer string. Returns None on error, or on no string.
-    pub fn get_manufacturer_string(&self) -> Option<String> {
-        self.device.get_manufacturer_string().unwrap_or_default()
     }
 
     /// Send `command` and read the reply, waiting up to `timeout` for each
