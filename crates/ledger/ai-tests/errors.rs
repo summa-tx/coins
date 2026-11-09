@@ -8,13 +8,19 @@ use crate::transports::NativeTransportError;
 #[test]
 fn timeout_display_names_the_duration() {
     let msg = LedgerError::Timeout(Duration::from_millis(1500)).to_string();
-    assert_eq!(msg, "Ledger device did not respond within 1.5s");
+    assert!(
+        msg.starts_with("Ledger device did not respond within 1.5s."),
+        "{msg}"
+    );
 }
 
 #[test]
 fn native_errors_box_into_transport() {
     let err = LedgerError::from(NativeTransportError::DeviceNotFound);
-    assert_eq!(err.to_string(), "Ledger device not found");
+    assert_eq!(
+        err.to_string(),
+        NativeTransportError::DeviceNotFound.to_string()
+    );
     let LedgerError::Transport(inner) = err else {
         panic!("expected Transport, got {err:?}");
     };

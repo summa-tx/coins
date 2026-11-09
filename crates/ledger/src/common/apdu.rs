@@ -2,7 +2,7 @@ use std::fmt;
 
 /// A write would exceed [`ApduBuffer::CAPACITY`].
 #[derive(Debug, Copy, Clone, PartialEq, Eq, thiserror::Error)]
-#[error("ApduBuffer capacity exceeded")]
+#[error("ApduBuffer capacity of {} bytes exceeded", ApduBuffer::CAPACITY)]
 pub struct BufferFull;
 
 #[derive(Copy, Clone, Eq)]
