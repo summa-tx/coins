@@ -3,7 +3,7 @@
 //! Packets or "reports" are individual device communications. An APDU is sent/
 //! received as a series of reports.
 
-use std::time::Duration;
+use std::{iter, time::Duration};
 
 #[cfg(target_os = "android")]
 use hidapi::HidApi;
@@ -26,45 +26,39 @@ const LEDGER_TAG: u8 = 0x05;
 const LEDGER_PACKET_WRITE_SIZE: usize = 65;
 /// A report as read: 64 bytes.
 const LEDGER_PACKET_READ_SIZE: usize = 64;
+/// The payload a written report carries, after the report ID, channel, tag
+/// and sequence index.
+const LEDGER_WRITE_PAYLOAD_SIZE: usize = LEDGER_PACKET_WRITE_SIZE - 6;
 
 /// A report as written: a report ID byte, then the channel, tag, sequence
 /// index, and payload.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct WriteReport([u8; LEDGER_PACKET_WRITE_SIZE]);
 
-impl WriteReport {
-    /// Split an APDU into reports and pass each to `sink`. The reports carry
-    /// the 2-byte APDU length, then the APDU. `apdu` is at most
-    /// [`ApduBuffer::CAPACITY`] bytes.
-    fn packetize(
-        channel: u16,
-        apdu: &[u8],
-        mut sink: impl FnMut(&Self) -> Result<(), NativeTransportError>,
-    ) -> Result<(), NativeTransportError> {
+impl ApduCommand {
+    /// Split this command into reports on `channel`. The reports carry the
+    /// 2-byte command length, then the command.
+    fn packetize(&self, channel: u16) -> impl Iterator<Item = WriteReport> + use<> {
+        let apdu = self.as_bytes();
         let mut stream = [0u8; 2 + ApduBuffer::CAPACITY];
         let len = 2 + apdu.len();
         stream[..2].copy_from_slice(&(apdu.len() as u16).to_be_bytes());
         stream[2..len].copy_from_slice(apdu);
 
-        let mut report = Self([0; LEDGER_PACKET_WRITE_SIZE]);
-        report.0[1..3].copy_from_slice(&channel.to_be_bytes());
-        report.0[3] = LEDGER_TAG;
-        for (i, chunk) in stream[..len]
-            .chunks(LEDGER_PACKET_WRITE_SIZE - 6)
-            .enumerate()
-        {
-            report.0[4..6].copy_from_slice(&(i as u16).to_be_bytes());
-            // Zero the tail, which still holds the previous chunk.
-            let (payload, tail) = report.0[6..].split_at_mut(chunk.len());
-            payload.copy_from_slice(chunk);
-            tail.fill(0);
-            sink(&report)?;
-        }
-        Ok(())
+        (0..len.div_ceil(LEDGER_WRITE_PAYLOAD_SIZE)).map(move |i| {
+            let start = i * LEDGER_WRITE_PAYLOAD_SIZE;
+            let chunk = &stream[start..len.min(start + LEDGER_WRITE_PAYLOAD_SIZE)];
+            let mut report = [0; LEDGER_PACKET_WRITE_SIZE];
+            report[1..3].copy_from_slice(&channel.to_be_bytes());
+            report[3] = LEDGER_TAG;
+            report[4..6].copy_from_slice(&(i as u16).to_be_bytes());
+            report[6..6 + chunk.len()].copy_from_slice(chunk);
+            WriteReport(report)
+        })
     }
 }
 
-/// A report as read, with its framing checked.
+/// A report as read, before its framing is checked.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 struct ReadReport {
     bytes: [u8; LEDGER_PACKET_READ_SIZE],
@@ -73,52 +67,35 @@ struct ReadReport {
 }
 
 impl ReadReport {
-    /// Read one report from `source` and check its framing: channel, tag,
-    /// and sequence index. `source` fills the array and returns the bytes
-    /// read.
-    ///
-    /// Generic over the error so that a source can report its own failures
-    /// apart from framing errors, which are [`NativeTransportError`]s.
-    fn read<E: From<NativeTransportError>>(
-        source: &mut impl FnMut(&mut [u8; LEDGER_PACKET_READ_SIZE]) -> Result<usize, E>,
-        channel: u16,
-        sequence_idx: u16,
-    ) -> Result<Self, E> {
-        tracing::trace!(sequence_idx, "Reading report from device");
-        let mut bytes = [0; LEDGER_PACKET_READ_SIZE];
-        let len = source(&mut bytes)?;
-        if len < 5 {
-            return Err(NativeTransportError::TruncatedReport(len).into());
-        }
+    /// The bytes the device sent after the 5-byte header, once the channel,
+    /// tag and sequence index check out.
+    fn body(&self, channel: u16, sequence_idx: u16) -> Result<&[u8], NativeTransportError> {
+        let bytes = &self.bytes[..self.len];
+        let [c0, c1, tag, s0, s1, body @ ..] = bytes else {
+            return Err(NativeTransportError::TruncatedReport(self.len));
+        };
 
         // Another channel means another client is talking to the device.
-        let got = u16::from_be_bytes([bytes[0], bytes[1]]);
+        let got = u16::from_be_bytes([*c0, *c1]);
         if got != channel {
             return Err(NativeTransportError::UnexpectedChannel {
                 got,
                 expected: channel,
-            }
-            .into());
+            });
         }
-        if bytes[2] != LEDGER_TAG {
-            return Err(NativeTransportError::UnexpectedTag(bytes[2]).into());
+        if *tag != LEDGER_TAG {
+            return Err(NativeTransportError::UnexpectedTag(*tag));
         }
 
         // A mismatch means someone else read a report.
-        let got = u16::from_be_bytes([bytes[3], bytes[4]]);
+        let got = u16::from_be_bytes([*s0, *s1]);
         if got != sequence_idx {
             return Err(NativeTransportError::SequenceMismatch {
                 got,
                 expected: sequence_idx,
-            }
-            .into());
+            });
         }
-        Ok(Self { bytes, len })
-    }
-
-    /// The bytes the device sent after the 5-byte header.
-    fn body(&self) -> &[u8] {
-        &self.bytes[5..self.len]
+        Ok(body)
     }
 }
 
@@ -138,20 +115,31 @@ impl Progress {
         remaining: 0,
     };
 
-    /// Reassemble the rest of the reply from the reports `source` yields, and
-    /// return the payload read. The first report carries the 2-byte response
-    /// length ahead of the payload. Advances with each report taken, so a
-    /// failed read can resume.
+    /// Reassemble the rest of the reply from `reports`, and return the
+    /// payload read. The first report carries the 2-byte response length
+    /// ahead of the payload. Advances with each report taken, so a reply cut
+    /// short by an error can resume.
+    ///
+    /// `reports` yields each report as read, or the error reading it, and is
+    /// generic over that error so a source can report its own failures apart
+    /// from framing errors, which are [`NativeTransportError`]s. Returns
+    /// `None` if `reports` runs out before the reply is complete.
     fn depacketize<E: From<NativeTransportError>>(
         &mut self,
         channel: u16,
-        mut source: impl FnMut(&mut [u8; LEDGER_PACKET_READ_SIZE]) -> Result<usize, E>,
-    ) -> Result<ApduBuffer, E> {
+        reports: impl IntoIterator<Item = Result<ReadReport, E>>,
+    ) -> Result<Option<ApduBuffer>, E> {
         let mut answer = ApduBuffer::new();
+        let mut reports = reports.into_iter();
         loop {
-            let report = ReadReport::read(&mut source, channel, self.next_seq)?;
+            tracing::trace!(sequence_idx = self.next_seq, "Reading report from device");
+            let Some(report) = reports.next() else {
+                return Ok(None);
+            };
+            let report = report?;
+            let body = report.body(channel, self.next_seq)?;
             let payload = if self.next_seq == 0 {
-                let [hi, lo, payload @ ..] = report.body() else {
+                let [hi, lo, payload @ ..] = body else {
                     return Err(NativeTransportError::TruncatedReport(report.len).into());
                 };
                 let expected = u16::from_be_bytes([*hi, *lo]) as usize;
@@ -161,10 +149,10 @@ impl Progress {
                 }
                 self.remaining = expected;
                 payload
-            } else if report.body().is_empty() {
+            } else if body.is_empty() {
                 return Err(NativeTransportError::EmptyReport.into());
             } else {
-                report.body()
+                body
             };
 
             let take = payload.len().min(self.remaining);
@@ -174,7 +162,7 @@ impl Progress {
             self.remaining -= take;
             self.next_seq += 1;
             if self.remaining == 0 {
-                return Ok(answer);
+                return Ok(Some(answer));
             }
         }
     }
@@ -319,27 +307,27 @@ impl HidLedgerDevice {
 
         // A failed write leaves no reply owed: the device did not get a whole
         // command.
-        self.write_apdu(command.as_bytes())?;
+        self.write_command(command)?;
         let answer = self.read_reply(Progress::START, timeout)?;
         ApduAnswer::from_answer(answer)?.into_result()
     }
 
-    /// Write an APDU to the device as a series of reports.
-    fn write_apdu(&self, apdu: &[u8]) -> Result<(), NativeTransportError> {
-        tracing::debug!(bytes = apdu.len(), "Writing APDU to device");
+    /// Write `command` to the device as a series of reports.
+    fn write_command(&self, command: &ApduCommand) -> Result<(), NativeTransportError> {
+        tracing::debug!(bytes = command.as_bytes().len(), "Writing APDU to device");
 
-        WriteReport::packetize(LEDGER_CHANNEL, apdu, |WriteReport(report)| {
+        for WriteReport(report) in command.packetize(LEDGER_CHANNEL) {
             tracing::trace!(packet = %hex::encode(report), "Writing packet to device");
 
-            let written = self.device.write(report)?;
+            let written = self.device.write(&report)?;
             if written < report.len() {
                 return Err(NativeTransportError::ShortWrite {
                     written,
                     expected: report.len(),
                 });
             }
-            Ok(())
-        })
+        }
+        Ok(())
     }
 
     /// Read the rest of the reply `progress` describes, waiting up to
@@ -363,21 +351,24 @@ impl HidLedgerDevice {
                 .unwrap_or(i32::MAX),
         };
         let device = &self.device;
-        let result = progress.depacketize(LEDGER_CHANNEL, |report| {
-            let n = device
-                .read_timeout(report, timeout_ms)
+        let reports = iter::repeat_with(|| {
+            let mut bytes = [0; LEDGER_PACKET_READ_SIZE];
+            let len = device
+                .read_timeout(&mut bytes, timeout_ms)
                 .map_err(|err| ReadFailure::Read(NativeTransportError::Hid(err).into()))?;
             // hidapi returns 0 only on timeout, which a blocking read rules out.
-            match (n, timeout) {
+            match (len, timeout) {
                 (0, Some(timeout)) => Err(ReadFailure::Read(LedgerError::Timeout(timeout))),
-                _ => Ok(n),
+                _ => Ok(ReadReport { bytes, len }),
             }
         });
+        let result = progress.depacketize(LEDGER_CHANNEL, reports);
         match result {
-            Ok(answer) => {
+            Ok(Some(answer)) => {
                 self.state = State::Ready;
                 Ok(answer)
             }
+            Ok(None) => unreachable!("device reads never run out"),
             Err(ReadFailure::Read(err)) => {
                 self.state = State::Owed(progress);
                 Err(err)
