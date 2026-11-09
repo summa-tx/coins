@@ -27,8 +27,8 @@ struct ApduExchange {
     /// The channel to send the answer back on.
     answer: oneshot::Sender<Result<ApduAnswer, LedgerError>>,
     /// A tracing span associated with the exchange. Used to propagate trace
-    /// info to the background thread.
-    span: tracing::Span,
+    /// info to the I/O thread.
+    span: Span,
 }
 
 /// A handle to the Ledger device. This represents exclusive device access.
@@ -76,36 +76,46 @@ impl HidTransport {
     /// # Panics
     ///
     /// If the I/O thread cannot be spawned.
-    pub fn from_transport(mut device: HidLedgerDevice) -> Self {
+    pub fn from_transport(device: HidLedgerDevice) -> Self {
         let identity = device.id().clone();
-        let (tx, mut rx) = mpsc::channel(1);
-
-        // Spawn a thread that drives the blocking transport.
-        std::thread::Builder::new()
-            .name("coins-ledger-io".into())
-            .spawn(move || {
-                while let Some(ApduExchange {
-                    command,
-                    timeout,
-                    answer,
-                    span,
-                }) = rx.blocking_recv()
-                {
-                    let _entered = span.entered();
-                    if answer.send(device.exchange(&command, timeout)).is_err() {
-                        debug!("exchange was dropped before its answer arrived");
-                    }
-                    // What the device owes is unknown, so a later reply
-                    // could be misread. Close it.
-                    if device.is_broken() {
-                        debug!("closing the device after a framing error");
-                        break;
-                    }
-                }
-            })
-            .expect("failed to spawn the Ledger I/O thread");
+        let tx = spawn_io_thread(device);
         Self { tx, identity }
     }
+}
+
+/// Spawn the thread that drives `device`'s blocking I/O, one exchange at a
+/// time. The thread ends, dropping the device, when every sender is gone or
+/// after a framing error.
+///
+/// # Panics
+///
+/// If the thread cannot be spawned.
+fn spawn_io_thread(mut device: HidLedgerDevice) -> mpsc::Sender<ApduExchange> {
+    let (tx, mut rx) = mpsc::channel(1);
+    std::thread::Builder::new()
+        .name("coins-ledger-io".into())
+        .spawn(move || {
+            while let Some(ApduExchange {
+                command,
+                timeout,
+                answer,
+                span,
+            }) = rx.blocking_recv()
+            {
+                let _entered = span.entered();
+                if answer.send(device.exchange(&command, timeout)).is_err() {
+                    debug!("exchange was dropped before its answer arrived");
+                }
+                // What the device owes is unknown, so a later reply could be
+                // misread. Close it.
+                if device.is_broken() {
+                    debug!("closing the device after a framing error");
+                    break;
+                }
+            }
+        })
+        .expect("failed to spawn the Ledger I/O thread");
+    tx
 }
 
 impl LedgerTransport for HidTransport {

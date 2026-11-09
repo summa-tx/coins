@@ -10,7 +10,7 @@ use hidapi::HidApi;
 use hidapi::HidDevice;
 use tracing::{Span, field::display, instrument};
 
-use super::hid::{HidDeviceId, HidJob, HidOutput};
+use super::hid::{self, HidDeviceId, HidJob};
 use crate::{
     common::{ApduAnswer, ApduBuffer, ApduCommand},
     errors::LedgerError,
@@ -256,7 +256,7 @@ impl HidLedgerDevice {
     /// If the HID context thread cannot be spawned, on first use.
     #[instrument(level = "debug")]
     pub fn list() -> Result<Vec<HidDeviceId>, NativeTransportError> {
-        HidJob::List.submit().map(HidOutput::into_ids)
+        hid::submit(|reply| HidJob::List { reply })
     }
 
     /// Open `id`. Fails as [`NativeTransportError::CantOpen`] if the device
@@ -268,9 +268,10 @@ impl HidLedgerDevice {
     /// If the HID context thread cannot be spawned, on first use.
     #[instrument(level = "debug", skip_all, fields(id = %id))]
     pub fn open(id: &HidDeviceId) -> Result<Self, NativeTransportError> {
-        HidJob::Open(id.clone())
-            .submit()
-            .map(HidOutput::into_device)
+        hid::submit(|reply| HidJob::Open {
+            id: id.clone(),
+            reply,
+        })
     }
 
     /// Open the first Ledger found. Devices are enumerated afresh on every
@@ -285,12 +286,9 @@ impl HidLedgerDevice {
     /// If the HID context thread cannot be spawned, on first use.
     #[instrument(level = "debug", fields(id))]
     pub fn open_first() -> Result<Self, NativeTransportError> {
-        HidJob::OpenFirst
-            .submit()
-            .map(HidOutput::into_device)
-            .inspect(|device| {
-                Span::current().record("id", display(&device.id));
-            })
+        hid::submit(|reply| HidJob::OpenFirst { reply }).inspect(|device| {
+            Span::current().record("id", display(&device.id));
+        })
     }
 
     /// Get manufacturer string. Returns None on error, or on no string.
