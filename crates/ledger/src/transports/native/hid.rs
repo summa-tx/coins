@@ -10,13 +10,13 @@ use std::{
     panic::{AssertUnwindSafe, catch_unwind, resume_unwind},
     sync::{
         LazyLock,
-        mpsc::{SyncSender, sync_channel},
+        mpsc::{Receiver, SyncSender, sync_channel},
     },
     thread,
 };
 
 use hidapi::{DeviceInfo, HidApi};
-use tracing::{Span, debug};
+use tracing::{Span, debug, error};
 
 pub use super::device::HidLedgerDevice;
 use crate::{Model, transports::native::error::NativeTransportError};
@@ -25,7 +25,7 @@ const LEDGER_VID: u16 = 0x2c97;
 const LEDGER_USAGE_PAGE: u16 = 0xFFA0;
 
 /// The HID context thread. See [`HidThread`].
-static HID_THREAD: LazyLock<HidThread> = LazyLock::new(HidThread::spawn);
+static HID_THREAD: LazyLock<HidThread> = LazyLock::new(HidActor::spawn);
 
 /// A reply to a [`HidJob`]: its output, or the panic it raised.
 type Reply<T> = SyncSender<thread::Result<Result<T, NativeTransportError>>>;
@@ -122,7 +122,7 @@ pub(super) enum HidJob {
     OpenFirst { reply: Reply<HidLedgerDevice> },
 }
 
-/// A request to the [`HidThread`].
+/// A request to the [`HidActor`].
 #[derive(Debug)]
 struct HidRequest {
     job: HidJob,
@@ -157,34 +157,6 @@ impl HidThread {
         &HID_THREAD
     }
 
-    /// Spawn the HID context thread. Requests travel by value over a
-    /// rendezvous channel, and each carries its own reply channel.
-    ///
-    /// Unlike a device's I/O thread, this thread must outlive any one call,
-    /// so a panic in a job is caught and sent back to the caller rather than
-    /// ending the thread.
-    ///
-    /// # Panics
-    ///
-    /// If the thread cannot be spawned.
-    fn spawn() -> Self {
-        let (tx, rx) = sync_channel::<HidRequest>(0);
-        thread::Builder::new()
-            .name("coins-ledger-hid".into())
-            .spawn(move || {
-                for HidRequest { job, span } in rx {
-                    let _entered = span.entered();
-                    match job {
-                        HidJob::List { reply } => respond(reply, list_ledgers),
-                        HidJob::Open { id, reply } => respond(reply, || open_path(id)),
-                        HidJob::OpenFirst { reply } => respond(reply, open_first),
-                    }
-                }
-            })
-            .expect("failed to spawn the HID context thread");
-        Self { tx }
-    }
-
     /// Build a job around a fresh reply channel, run it on this thread
     /// inside the caller's current span, and wait for its output. A panic in
     /// the job is propagated to the caller.
@@ -207,45 +179,120 @@ impl HidThread {
     }
 }
 
+/// The state of the HID context thread. Started by [`HidActor::spawn`];
+/// reached through a [`HidThread`].
+///
+/// Unlike a device's I/O thread, this thread must outlive any one call, so a
+/// panic in a job is caught and sent back to the caller rather than ending
+/// the thread.
+struct HidActor {
+    rx: Receiver<HidRequest>,
+    api: HidApi,
+}
+
+impl HidActor {
+    /// Spawn the HID context thread and return its handle. Requests travel
+    /// by value over a rendezvous channel, and each carries its own reply
+    /// channel. The thread handles requests until every handle is dropped.
+    ///
+    /// If hidapi fails to initialize, the error is logged and the thread
+    /// exits, so every request fails as
+    /// [`NativeTransportError::HidThreadUnavailable`].
+    ///
+    /// # Panics
+    ///
+    /// If the thread cannot be spawned.
+    fn spawn() -> HidThread {
+        let (tx, rx) = sync_channel(0);
+        thread::Builder::new()
+            .name("coins-ledger-hid".into())
+            .spawn(move || {
+                let mut actor = match Self::boot(rx) {
+                    Ok(actor) => actor,
+                    Err(err) => {
+                        error!(%err, "failed to initialize hidapi");
+                        return;
+                    }
+                };
+                while let Ok(request) = actor.rx.recv() {
+                    actor.handle(request);
+                }
+            })
+            .expect("failed to spawn the HID context thread");
+        HidThread { tx }
+    }
+
+    /// Initialize the hidapi context. Runs on the HID context thread.
+    fn boot(rx: Receiver<HidRequest>) -> Result<Self, NativeTransportError> {
+        // Termux cannot enumerate, and discovery can only be disabled before
+        // the context is created.
+        #[cfg(target_os = "android")]
+        if HidLedgerDevice::is_termux() {
+            HidApi::disable_device_discovery();
+        }
+        Ok(Self {
+            rx,
+            api: HidApi::new()?,
+        })
+    }
+
+    /// Run one request's job inside its span and send back the output.
+    fn handle(&mut self, HidRequest { job, span }: HidRequest) {
+        let _entered = span.entered();
+        match job {
+            HidJob::List { reply } => respond(reply, || self.list()),
+            HidJob::Open { id, reply } => respond(reply, || self.open(id)),
+            HidJob::OpenFirst { reply } => respond(reply, || self.open_first()),
+        }
+    }
+
+    /// The context, with its device list refreshed to the attached Ledger
+    /// devices.
+    fn enumerate(&mut self) -> Result<&HidApi, NativeTransportError> {
+        self.api.reset_devices()?;
+        self.api.add_devices(LEDGER_VID, 0)?;
+        Ok(&self.api)
+    }
+
+    /// The Ledger APDU interfaces currently attached.
+    fn list(&mut self) -> Result<Vec<HidDeviceId>, NativeTransportError> {
+        Ok(HidDeviceId::ledgers(self.enumerate()?)
+            .map(HidDeviceId::from_info)
+            .collect())
+    }
+
+    /// Open the device at `id`. Opening by path needs no enumeration.
+    fn open(&mut self, id: HidDeviceId) -> Result<HidLedgerDevice, NativeTransportError> {
+        let device = self
+            .api
+            .open_path(&id.path)
+            .map_err(NativeTransportError::CantOpen)?;
+        Ok(HidLedgerDevice::new(device, id))
+    }
+
+    /// Open the first Ledger found, or the device Termux hands over.
+    fn open_first(&mut self) -> Result<HidLedgerDevice, NativeTransportError> {
+        #[cfg(target_os = "android")]
+        if let Some(device) = HidLedgerDevice::open_termux(&self.api)? {
+            return Ok(device);
+        }
+
+        let api = self.enumerate()?;
+        let info = HidDeviceId::ledgers(api)
+            .next()
+            .ok_or(NativeTransportError::DeviceNotFound)?;
+        let device = info
+            .open_device(api)
+            .map_err(NativeTransportError::CantOpen)?;
+        Ok(HidLedgerDevice::new(device, HidDeviceId::from_info(info)))
+    }
+}
+
 /// Run `f` and send its output, or its panic, back on `reply`.
 fn respond<T>(reply: Reply<T>, f: impl FnOnce() -> Result<T, NativeTransportError>) {
     if reply.send(catch_unwind(AssertUnwindSafe(f))).is_err() {
         debug!("HID request was dropped before its reply arrived");
     }
-}
-
-/// The Ledger APDU interfaces currently attached. Runs on [`HidThread`].
-fn list_ledgers() -> Result<Vec<HidDeviceId>, NativeTransportError> {
-    let api = HidApi::new()?;
-    Ok(HidDeviceId::ledgers(&api)
-        .map(HidDeviceId::from_info)
-        .collect())
-}
-
-/// Open the device at `id`. Runs on [`HidThread`].
-fn open_path(id: HidDeviceId) -> Result<HidLedgerDevice, NativeTransportError> {
-    let device = HidApi::new()?
-        .open_path(&id.path)
-        .map_err(NativeTransportError::CantOpen)?;
-    Ok(HidLedgerDevice::new(device, id))
-}
-
-/// Open the first Ledger found, or the device Termux hands over. Runs on
-/// [`HidThread`].
-fn open_first() -> Result<HidLedgerDevice, NativeTransportError> {
-    #[cfg(target_os = "android")]
-    if let Some(device) = HidLedgerDevice::open_termux()? {
-        return Ok(device);
-    }
-
-    let api = HidApi::new()?;
-    let info = HidDeviceId::ledgers(&api)
-        .next()
-        .ok_or(NativeTransportError::DeviceNotFound)?;
-    let device = info
-        .open_device(&api)
-        .map_err(NativeTransportError::CantOpen)?;
-    Ok(HidLedgerDevice::new(device, HidDeviceId::from_info(info)))
 }
 
 #[cfg(test)]

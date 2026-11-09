@@ -386,6 +386,13 @@ impl HidLedgerDevice {
         self.state == State::Broken
     }
 
+    /// True if running under Termux, which cannot enumerate USB devices.
+    /// Detected at runtime, since Termux cannot be targeted statically.
+    #[cfg(target_os = "android")]
+    pub(super) fn is_termux() -> bool {
+        std::env::var("PREFIX").is_ok_and(|prefix| prefix.contains("/com.termux/"))
+    }
+
     /// Open the device `termux-usb` hands over. Termux cannot enumerate USB
     /// devices; instead `termux-usb` opens the device and passes its file
     /// descriptor in `TERMUX_USB_FD`. Returns `None` when not running under
@@ -393,11 +400,8 @@ impl HidLedgerDevice {
     ///
     /// Untested: no Android device is exercised in CI.
     #[cfg(target_os = "android")]
-    fn open_termux() -> Result<Option<Self>, NativeTransportError> {
-        // Using runtime detection since it's impossible to statically target
-        // Termux.
-        let is_termux = std::env::var("PREFIX").is_ok_and(|prefix| prefix.contains("/com.termux/"));
-        if !is_termux {
+    pub(super) fn open_termux(api: &HidApi) -> Result<Option<Self>, NativeTransportError> {
+        if !Self::is_termux() {
             return Ok(None);
         }
 
@@ -406,11 +410,6 @@ impl HidLedgerDevice {
             .and_then(|fd| fd.parse().ok())
             .ok_or(NativeTransportError::InvalidTermuxUsbFd)?;
 
-        // Enumeration needs USB authority Termux does not have. This panics if
-        // hidapi was already initialized with discovery on by other code in the
-        // process.
-        HidApi::disable_device_discovery();
-        let api = HidApi::new()?;
         let device = api.wrap_sys_device(usb_fd as isize, -1)?;
         let id = HidDeviceId::from_info(&device.get_device_info()?);
         Ok(Some(Self::new(device, id)))

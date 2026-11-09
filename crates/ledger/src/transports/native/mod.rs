@@ -19,7 +19,7 @@ pub mod hid;
 pub use hid::{HidDeviceId, HidLedgerDevice};
 use tracing::{Span, debug, field::display};
 
-/// A request to an [`IoThread`].
+/// A request to an [`IoActor`].
 struct ApduExchange {
     command: ApduCommand,
     /// The per-report read timeout. `None` waits indefinitely.
@@ -78,53 +78,20 @@ impl HidTransport {
     /// If the I/O thread cannot be spawned.
     pub fn from_transport(device: HidLedgerDevice) -> Self {
         let identity = device.id().clone();
-        let io = IoThread::spawn(device);
+        let io = IoActor::spawn(device);
         Self { io, identity }
     }
 }
 
 /// A handle to the thread that drives one device's blocking I/O, one
 /// exchange at a time. The thread ends, dropping the device, when the handle
-/// is dropped or after a framing error.
+/// is dropped or after a framing error. Made by [`IoActor::spawn`].
 #[derive(Debug)]
 struct IoThread {
     tx: mpsc::Sender<ApduExchange>,
 }
 
 impl IoThread {
-    /// Spawn the I/O thread for `device`.
-    ///
-    /// # Panics
-    ///
-    /// If the thread cannot be spawned.
-    fn spawn(mut device: HidLedgerDevice) -> Self {
-        let (tx, mut rx) = mpsc::channel(1);
-        std::thread::Builder::new()
-            .name("coins-ledger-io".into())
-            .spawn(move || {
-                while let Some(ApduExchange {
-                    command,
-                    timeout,
-                    answer,
-                    span,
-                }) = rx.blocking_recv()
-                {
-                    let _entered = span.entered();
-                    if answer.send(device.exchange(&command, timeout)).is_err() {
-                        debug!("exchange was dropped before its answer arrived");
-                    }
-                    // What the device owes is unknown, so a later reply could
-                    // be misread. Close it.
-                    if device.is_broken() {
-                        debug!("closing the device after a framing error");
-                        break;
-                    }
-                }
-            })
-            .expect("failed to spawn the Ledger I/O thread");
-        Self { tx }
-    }
-
     /// Run `command` on this thread inside the caller's current span, and
     /// wait for its answer.
     async fn submit(
@@ -144,6 +111,59 @@ impl IoThread {
             .map_err(|_| NativeTransportError::IoThreadUnavailable)?;
         rx.await
             .map_err(|_| NativeTransportError::IoThreadUnavailable)?
+    }
+}
+
+/// The state of one device's I/O thread: the device it drives. Started by
+/// [`IoActor::spawn`]; reached through an [`IoThread`].
+struct IoActor {
+    rx: mpsc::Receiver<ApduExchange>,
+    device: HidLedgerDevice,
+}
+
+impl IoActor {
+    /// Spawn the I/O thread for `device` and return its handle.
+    ///
+    /// # Panics
+    ///
+    /// If the thread cannot be spawned.
+    fn spawn(device: HidLedgerDevice) -> IoThread {
+        let (tx, rx) = mpsc::channel(1);
+        std::thread::Builder::new()
+            .name("coins-ledger-io".into())
+            .spawn(move || {
+                let mut actor = Self { rx, device };
+                while let Some(exchange) = actor.rx.blocking_recv() {
+                    actor.handle(exchange);
+                    // What the device owes is unknown, so a later reply could
+                    // be misread. Close it.
+                    if actor.device.is_broken() {
+                        debug!("closing the device after a framing error");
+                        break;
+                    }
+                }
+            })
+            .expect("failed to spawn the Ledger I/O thread");
+        IoThread { tx }
+    }
+
+    /// Run one exchange inside its span and send back the answer.
+    fn handle(
+        &mut self,
+        ApduExchange {
+            command,
+            timeout,
+            answer,
+            span,
+        }: ApduExchange,
+    ) {
+        let _entered = span.entered();
+        if answer
+            .send(self.device.exchange(&command, timeout))
+            .is_err()
+        {
+            debug!("exchange was dropped before its answer arrived");
+        }
     }
 }
 
